@@ -4,9 +4,9 @@ import {
     type ExceptionFilter,
     HttpException,
     HttpStatus,
-    Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { PinoLogger } from 'nestjs-pino';
 import { RequestContext } from '../context/request-context';
 import {
     ArgumentInvalidError,
@@ -50,9 +50,12 @@ function resolveHttpExceptionMessage(exception: HttpException): string {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-    private readonly logger = new Logger(HttpExceptionFilter.name);
-
-    constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+    constructor(
+        private readonly httpAdapterHost: HttpAdapterHost,
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(HttpExceptionFilter.name);
+    }
 
     catch(exception: unknown, host: ArgumentsHost): void {
         const body = this.buildBody(exception);
@@ -94,7 +97,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             });
         }
 
-        this.logger.error({ correlationId, exception }, 'Unhandled exception');
+        this.logger.error({ err: exception }, 'Unhandled exception');
         return new ApiErrorResponse({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
             message: INTERNAL_ERROR_MESSAGE,
@@ -106,9 +109,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     private logException(statusCode: number, exception: Error): void {
         if (statusCode >= 500) {
-            this.logger.error(exception.message, exception.stack);
+            this.logger.error({ statusCode, err: exception }, 'Request failed');
             return;
         }
-        this.logger.debug(exception.message);
+        this.logger.debug({ statusCode, err: exception }, 'Request rejected');
     }
 }

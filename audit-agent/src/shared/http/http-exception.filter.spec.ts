@@ -1,6 +1,7 @@
 import { Controller, Get, type INestApplication, Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { LoggerModule } from 'nestjs-pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RequestContextMiddleware } from '../context/request-context.middleware';
 import { NotFoundError } from '../errors';
@@ -15,6 +16,7 @@ class ProbeController {
 }
 
 @Module({
+    imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
     controllers: [ProbeController],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

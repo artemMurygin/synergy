@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { AUDIT_STATUS } from '../../domain/audit/audit-run';
 import {
     AuditAgent,
@@ -9,12 +10,13 @@ import { AuditRunRepository } from '../../domain/audit/audit-run.repository';
 
 @Injectable()
 export class ProcessAuditUseCase {
-    private readonly logger = new Logger(ProcessAuditUseCase.name);
-
     constructor(
         private readonly runs: AuditRunRepository,
         private readonly agent: AuditAgent,
-    ) {}
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(ProcessAuditUseCase.name);
+    }
 
     async execute(runId: string): Promise<AuditAgentResult> {
         const run = await this.runs.setStatus(runId, AUDIT_STATUS.RUNNING);
@@ -23,7 +25,7 @@ export class ProcessAuditUseCase {
             await this.runs.setStatus(runId, AUDIT_STATUS.DONE, result);
             return result;
         } catch (err) {
-            this.logger.error(`Audit ${runId} failed: ${(err as Error).message}`);
+            this.logger.error({ runId, err }, 'Audit failed');
             await this.runs.setStatus(runId, AUDIT_STATUS.FAILED);
             throw err;
         }

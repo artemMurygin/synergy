@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import type { Env } from '../config/env.schema';
+import { RequestContext } from '../context/request-context';
+import { resolveRequestIds } from '../context/request-id';
 
 @Module({
     imports: [
@@ -33,6 +35,18 @@ import type { Env } from '../config/env.schema';
                 return {
                     pinoHttp: {
                         level: config.get('LOG_LEVEL', { infer: true }),
+                        genReqId: (req, res) => resolveRequestIds(req, res).requestId,
+                        mixin: () => RequestContext.getIds() ?? {},
+                        redact: {
+                            paths: [
+                                'req.headers.authorization',
+                                'req.headers.cookie',
+                                'res.headers["set-cookie"]',
+                                '*.password',
+                                '*.apiKey',
+                            ],
+                            censor: '[Redacted]',
+                        },
                         autoLogging: {
                             ignore: (req) => req.url === '/metrics' || req.url === '/health',
                         },

@@ -9,6 +9,10 @@ export const RequestContext = {
         return storage.run(ids, callback);
     },
 
+    getIds(): RequestIds | undefined {
+        return storage.getStore();
+    },
+
     getRequestId(): string {
         return storage.getStore()?.requestId ?? UNKNOWN_ID;
     },
