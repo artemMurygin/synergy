@@ -5,6 +5,7 @@ import type { Env } from '../../../../shared/config/env.schema';
 import { AUDIT_QUEUE } from './queue.constants';
 import { AuditQueue } from '../../application/audit/audit-queue';
 import { BullmqAuditQueue } from './bullmq-audit-queue';
+import { auditQueueJobsGaugeProvider } from './audit-queue-metrics';
 
 @Module({
     imports: [
@@ -27,7 +28,7 @@ import { BullmqAuditQueue } from './bullmq-audit-queue';
         }),
         BullModule.registerQueue({ name: AUDIT_QUEUE }),
     ],
-    providers: [{ provide: AuditQueue, useClass: BullmqAuditQueue }],
+    providers: [{ provide: AuditQueue, useClass: BullmqAuditQueue }, auditQueueJobsGaugeProvider],
     exports: [AuditQueue],
 })
 export class QueueModule {}
