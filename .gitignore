@@ -1,0 +1,23 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+.next/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local tooling
+.claude/settings.local.json
+.playwright-mcp/

@@ -1,0 +1,40 @@
+schema: backend-feature
+
+context: |
+  ## Приоритет инструкций
+  Паттерны и правила код-стиля/архитектуры (см. rules.architecture ниже) важнее того, что фактически
+  встречается в существующем коде проекта. Часть кодовой базы ещё не приведена к целевой архитектуре —
+  не копируй паттерн только потому, что он уже где-то использован в коде; ориентируйся на эти правила,
+  даже если это расходится с наблюдаемым кодом.
+  
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

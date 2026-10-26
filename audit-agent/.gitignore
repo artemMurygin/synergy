@@ -1,0 +1,41 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+.toDo.md
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+.ua
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+
+# Logs
+*.log
+npm-debug.log*
+
+#AI
+.cludeignore
+
+# Prisma generated
+backend/prisma/generated/
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
+
+# Nx
+.nx/cache
+.nx/workspace-data
+.nx/polygraph
+debug-uploads/

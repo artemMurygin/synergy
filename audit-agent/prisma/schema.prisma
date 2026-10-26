@@ -1,0 +1,13 @@
+// Prisma используется только для внешней БД MSSQL.
+// Основная БД (PostgreSQL) работает через Slonik — см. src/database.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+// Модели добавляются после интроспекции: npx prisma db pull
