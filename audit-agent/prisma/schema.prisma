@@ -1,9 +1,9 @@
 // Prisma используется только для внешней БД MSSQL.
-// Основная БД (PostgreSQL) работает через Slonik — см. src/database.
+// Основная БД (PostgreSQL) работает через Slonik — см. src/database/postgres.
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../src/database/mssql/generated/prisma"
 }
 
 datasource db {

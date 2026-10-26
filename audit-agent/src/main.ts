@@ -5,9 +5,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import type { Env } from './config/env.schema';
+import type { Env } from './shared/config/env.schema';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, { bufferLogs: true });
     app.useLogger(app.get(Logger));
     app.enableShutdownHooks();
@@ -15,7 +15,12 @@ async function bootstrap() {
         app,
         new DocumentBuilder().setTitle('Audit Agent API').setVersion('0.1.0').build(),
     );
-    app.getHttpAdapter().get('/openapi.json', (_req, res) => res.json(document));
+    app.getHttpAdapter().get(
+        '/openapi.json',
+        (_req: unknown, res: { json: (body: unknown) => void }) => {
+            res.json(document);
+        },
+    );
     app.use('/docs', apiReference({ content: document }));
     const port = app.get(ConfigService<Env, true>).get('PORT', { infer: true });
     await app.listen(port);
