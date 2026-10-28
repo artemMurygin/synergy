@@ -2219,7 +2219,8 @@
                           "content": "Получите востребованную специальность с гарантией трудоустройства.",
                           "lineHeight": 1.55,
                           "fontFamily": "Raleway",
-                          "fontSize": 18
+                          "fontSize": 18,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -2280,7 +2281,8 @@
                           "content": "Базовый размер текста в интерфейсе: описания, абзацы, значения полей.",
                           "lineHeight": 1.5,
                           "fontFamily": "Raleway",
-                          "fontSize": 16
+                          "fontSize": 16,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -2341,7 +2343,8 @@
                           "content": "Вторичный текст: подсказки под полями, метаданные карточек, сноски.",
                           "lineHeight": 1.45,
                           "fontFamily": "Raleway",
-                          "fontSize": 14
+                          "fontSize": 14,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -6796,7 +6799,8 @@
                                           "fill": "$ink-60",
                                           "content": "Главная",
                                           "fontFamily": "$font-ui",
-                                          "fontSize": 14
+                                          "fontSize": 14,
+                                          "fontWeight": "normal"
                                         },
                                         {
                                           "type": "icon",
@@ -6815,7 +6819,8 @@
                                           "fill": "$ink-60",
                                           "content": "Колледж",
                                           "fontFamily": "$font-ui",
-                                          "fontSize": 14
+                                          "fontSize": 14,
+                                          "fontWeight": "normal"
                                         },
                                         {
                                           "type": "icon",
@@ -34909,7 +34914,8 @@
                               "content": "Узнайте минимальный проходной балл в 2026 году и условия поступления.",
                               "lineHeight": 1.55,
                               "fontFamily": "Onest",
-                              "fontSize": 16
+                              "fontSize": 16,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -34971,7 +34977,8 @@
                               "content": "Подберём работу по специальности и поможем с трудоустройством.",
                               "lineHeight": 1.55,
                               "fontFamily": "Onest",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -35033,7 +35040,8 @@
                               "content": "Отличается в зависимости от выбранной программы и формы обучения.",
                               "lineHeight": 1.5,
                               "fontFamily": "Onest",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -55377,7 +55385,8 @@
                       "content": "Факультет менеджмента — 111 специальностей",
                       "lineHeight": 1.6,
                       "fontFamily": "$font-ui",
-                      "fontSize": 17
+                      "fontSize": 17,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -55451,7 +55460,8 @@
                       "content": "Факультет менеджмента — 111 специальностей",
                       "lineHeight": 1.6,
                       "fontFamily": "$font-ui",
-                      "fontSize": 15
+                      "fontSize": 15,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -55525,7 +55535,8 @@
                       "content": "Факультет менеджмента — 111 специальностей",
                       "lineHeight": 1.55,
                       "fontFamily": "$font-ui",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -63408,7 +63419,8 @@
                               "fill": "$ink-60",
                               "content": "Главная",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "icon",
@@ -63427,7 +63439,8 @@
                               "fill": "$ink-60",
                               "content": "Абитуриентам",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "icon",
@@ -66175,7 +66188,8 @@
                               "width": "fill_container",
                               "content": "Очная форма",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -66214,7 +66228,8 @@
                               "width": "fill_container",
                               "content": "Очно-заочная",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -66253,7 +66268,8 @@
                               "width": "fill_container",
                               "content": "Заочная",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -69106,7 +69122,8 @@
                                       "width": "fill_container",
                                       "content": "Специалитет",
                                       "fontFamily": "$font-ui",
-                                      "fontSize": 13
+                                      "fontSize": 13,
+                                      "fontWeight": "normal"
                                     },
                                     {
                                       "type": "text",
@@ -69149,7 +69166,8 @@
                                       "width": "fill_container",
                                       "content": "Магистратура",
                                       "fontFamily": "$font-ui",
-                                      "fontSize": 13
+                                      "fontSize": 13,
+                                      "fontWeight": "normal"
                                     },
                                     {
                                       "type": "text",
@@ -69361,7 +69379,8 @@
                                       "width": "fill_container",
                                       "content": "Заочная",
                                       "fontFamily": "$font-ui",
-                                      "fontSize": 13
+                                      "fontSize": 13,
+                                      "fontWeight": "normal"
                                     },
                                     {
                                       "type": "text",
@@ -79564,7 +79583,8 @@
                               "width": "fill_container",
                               "content": "Университет СИНЕРГИЯ 0123",
                               "fontFamily": "$font-display",
-                              "fontSize": 17
+                              "fontSize": 17,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -79764,7 +79784,8 @@
                               "width": "fill_container",
                               "content": "Университет СИНЕРГИЯ 0123",
                               "fontFamily": "$font-ui",
-                              "fontSize": 17
+                              "fontSize": 17,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -80457,7 +80478,8 @@
                           "content": "Диплом государственного образца",
                           "lineHeight": 1.5,
                           "fontFamily": "$font-ui",
-                          "fontSize": 16
+                          "fontSize": 16,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -80517,7 +80539,8 @@
                           "content": "Диплом государственного образца",
                           "lineHeight": 1.5,
                           "fontFamily": "$font-ui",
-                          "fontSize": 14
+                          "fontSize": 14,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -85569,7 +85592,8 @@
                           "fill": "#000000",
                           "content": "Главная",
                           "fontFamily": "$font-ui",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "icon",
@@ -85588,7 +85612,8 @@
                           "fill": "#000000",
                           "content": "Программы",
                           "fontFamily": "$font-ui",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "icon",
@@ -86824,7 +86849,8 @@
                               "width": "fill_container",
                               "content": "Мой профиль",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -86901,7 +86927,8 @@
                               "width": "fill_container",
                               "content": "Оплата и договор",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -86939,7 +86966,8 @@
                               "width": "fill_container",
                               "content": "Уведомления",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "frame",
@@ -87008,7 +87036,8 @@
                               "width": "fill_container",
                               "content": "Настройки",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -87046,7 +87075,8 @@
                               "width": "fill_container",
                               "content": "Выйти",
                               "fontFamily": "$font-ui",
-                              "fontSize": 14
+                              "fontSize": 14,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -88578,7 +88608,8 @@
                               "width": "fill_container",
                               "content": "Колледж",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -88622,7 +88653,8 @@
                               "width": "fill_container",
                               "content": "Аспирантура",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -88666,7 +88698,8 @@
                               "width": "fill_container",
                               "content": "MBA и EMBA",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -93031,7 +93064,8 @@
                               "fill": "#000000",
                               "content": "Приёмная комиссия",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "icon",
@@ -93050,7 +93084,8 @@
                               "fill": "#000000",
                               "content": "Набор 2026",
                               "fontFamily": "$font-ui",
-                              "fontSize": 13
+                              "fontSize": 13,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "icon",
