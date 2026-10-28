@@ -21,7 +21,7 @@ services:
         - { action: rebuild, path: ./package.json }
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: audit
       POSTGRES_PASSWORD: audit

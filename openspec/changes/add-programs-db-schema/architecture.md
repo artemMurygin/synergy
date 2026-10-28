@@ -13,22 +13,22 @@ Change добавляет только слой хранения в Postgres (м
 ### Entities
 | Name | Status | Aggregate root? | Ключевые поля | Назначение |
 |---|---|---|---|---|
-| Organization (`organization`) | new | Да | `id`, `kind`, `name`, `parent_id` | Университет, колледж, филиал, академия, партнёр, школа |
+| Organization (`organization`) | new | Да | `id`, `kind`, `name`, `parent_id`, `has_own_requisites` | Университет, колледж, филиал, академия, партнёр, школа |
 | Location (`location`) | new | Нет | `organization_id`, `city`, `metro`, `address` | Площадка обучения |
 | Faculty (`faculty`) | new | Нет | `organization_id`, `name` | Факультет организации |
 | Program (`program`) | new | Да | `id`, `organization_id`, `faculty_id`, `level`, `title`, `direction_code`, `profile`, `qualification`, `is_state_funded`, `is_accredited`, `status`, `crm_name`, `source_row_id` | Образовательная программа с естественным ключом |
 | Offer (`offer`) | new | Нет | `program_id`, `location_id`, `study_form`, `base_education`, `tariff`, `schedule`, `duration_months`, `hours`, `start_date`, `enroll_until`, `valid_to` | Сочетание формы, базы, площадки и тарифа |
 | Price (`price`) | new | Нет | `offer_id`, `kind`, `amount`, `currency`, `condition` | Цена предложения по виду |
 | EntranceRequirement (`entrance_requirement`) | new | Нет | `program_id`, `base_education`, `subject`, `min_score`, `is_required` | Вступительное испытание |
-| Person (`person`) | new | Да | `id`, `full_name`, `bio`, `role` | Преподаватель, мастер, держатель программы |
+| Person (`person`) | new | Да | `id`, `full_name`, `bio`, `role`, `contact` | Преподаватель, мастер, держатель программы |
 | ProgramPerson (`program_person`) | new | Нет | `program_id`, `person_id`, `role` | Привязка человека к программе |
 | ProgramMaterial (`program_material`) | new | Нет | `program_id`, `type`, `url`, `is_internal_only` | УП, презентация, бриф, промо-урок |
 | ProgramBonus (`program_bonus`) | new | Нет | `program_id`, `bonus_program_id` | Курс в подарок |
-| DiscountPolicy (`discount_policy`) | new | Да | `category`, `percent`, `period`, `documents`, `applied_by`, `is_internal_only` | Регламент скидок |
+| DiscountPolicy (`discount_policy`) | new | Да | `organization_id?`, `category`, `percent`, `period`, `documents`, `applied_by`, `is_internal_only` | Регламент скидок |
 | RegionalRate (`regional_rate`) | new | Да | `region`, `federal_district`, `level`, `mode`, `price` | Региональная ставка |
 | PaymentMethod (`payment_method`) | new | Да | `partner`, `terms`, `rate`, `how_to` | Способ оплаты или кредитования |
 | ProductGroup (`product_group`) | new | Да | `name`, `applies_to`, `description` | Группа продуктов CRM |
-| ContentChunk (`content_chunk`) | new | Нет | `program_id`, `organization_id`, `level`, `section_type`, `text`, `content_hash`, `embedding`, `source_row_id` | Фрагмент текста для поиска |
+| ContentChunk (`content_chunk`) | new | Нет | `program_id`, `organization_id`, `level`, `section_type`, `chunk_no`, `text`, `content_hash`, `embedding`, `source_row_id` | Фрагмент текста для поиска |
 | SourceSheet (`source_sheet`) | new | Да | `spreadsheet_id`, `sheet_id`, `title`, `content_hash`, `synced_at`, `is_enabled` | Лист-источник |
 | RawRow (`raw_row`) | new | Нет | `source_sheet_id`, `row_no`, `data`, `row_hash` | Сырая строка листа |
 

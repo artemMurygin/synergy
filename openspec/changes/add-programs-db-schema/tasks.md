@@ -1,34 +1,34 @@
 ## 1. Инфраструктура
 
-- [ ] 1.1 Заменить образ Postgres в `backend/docker-compose.yml` на образ с pgvector (`pgvector/pgvector:pg17`), пересоздать контейнер и убедиться, что `SELECT * FROM pg_available_extensions WHERE name = 'vector'` возвращает строку
-- [ ] 1.2 Убедиться, что существующие миграции `001`–`003` применяются на новом образе без ошибок
+- [x] 1.1 Заменить образ Postgres в `backend/docker-compose.yml` на образ с pgvector (`pgvector/pgvector:pg17`), пересоздать контейнер и убедиться, что `SELECT * FROM pg_available_extensions WHERE name = 'vector'` возвращает строку
+- [x] 1.2 Убедиться, что существующие миграции `001`–`003` применяются на новом образе без ошибок
 
 ## 2. Миграция 004: источники (SourceSheet, RawRow)
 
-- [ ] 2.1 Создать `backend/db/migrations/004_programs_source_tracking.sql` (`source_sheet`, `raw_row`) по `design.md` D8 и `specs/programs-source-tracking`; применить и проверить уникальность `(spreadsheet_id, sheet_id)` и `(source_sheet_id, row_no)` и каскад удаления сырых строк запросами в psql
+- [x] 2.1 Создать `backend/db/migrations/004_programs_source_tracking.sql` (`source_sheet`, `raw_row`) по `design.md` D8 и `specs/programs-source-tracking`; применить и проверить уникальность `(spreadsheet_id, sheet_id)` и `(source_sheet_id, row_no)` и каскад удаления сырых строк запросами в psql
 
 ## 3. Миграция 005: каталог
 
-- [ ] 3.1 Создать `backend/db/migrations/005_programs_catalog.sql` с таблицами `organization`, `location`, `faculty` и ограничениями (уникальность `(kind, name)`, допустимые виды, `RESTRICT` при удалении организации с программами); применить и проверить запросами
-- [ ] 3.2 Добавить в `005` таблицу `program`, два частичных уникальных индекса (`design.md` D2), `UNIQUE (id, organization_id, level)`, `source_row_id ... ON DELETE SET NULL`; проверить upsert с кодом и без кода через `ON CONFLICT` с условием индекса
-- [ ] 3.3 Добавить в `005` таблицы `offer` и `price` с ограничениями значений, неотрицательной суммой, валютой, правилом для `discounted` и уникальными индексами `NULLS NOT DISTINCT` (`design.md` D1, D3); проверить нарушающие ограничения вставки
-- [ ] 3.4 Добавить в `005` таблицу `entrance_requirement`; проверить, что все внешние ключи к `program` каскадные и удаление программы удаляет предложения, цены и требования
-- [ ] 3.5 Проверить по `information_schema`, что в таблицах каталога нет колонок под логины, пароли, токены и платёжные ссылки
+- [x] 3.1 Создать `backend/db/migrations/005_programs_catalog.sql` с таблицами `organization`, `location`, `faculty` и ограничениями (уникальность `(kind, name)`, допустимые виды, `RESTRICT` при удалении организации с программами); применить и проверить запросами
+- [x] 3.2 Добавить в `005` таблицу `program`, два частичных уникальных индекса (`design.md` D2), `UNIQUE (id, organization_id, level)`, `source_row_id ... ON DELETE SET NULL`; проверить upsert с кодом и без кода через `ON CONFLICT` с условием индекса
+- [x] 3.3 Добавить в `005` таблицы `offer` и `price` с ограничениями значений, неотрицательной суммой, валютой, правилом для `discounted` и уникальными индексами `NULLS NOT DISTINCT` (`design.md` D1, D3); проверить нарушающие ограничения вставки
+- [x] 3.4 Добавить в `005` таблицу `entrance_requirement`; проверить, что все внешние ключи к `program` каскадные и удаление программы удаляет предложения, цены и требования
+- [x] 3.5 Проверить по `information_schema`, что в таблицах каталога нет колонок под логины, пароли, токены и платёжные ссылки
 
 ## 4. Миграция 006: справочники
 
-- [ ] 4.1 Создать `backend/db/migrations/006_programs_reference_data.sql`: `discount_policy`, `regional_rate`, `payment_method`, `product_group`, `person`, `program_person`, `program_material`, `program_bonus` по `specs/programs-reference-data`; применить и проверить диапазон скидки, уникальность `(region, level, mode)`, запрет «подарок самому себе» и каскады при удалении программы
+- [x] 4.1 Создать `backend/db/migrations/006_programs_reference_data.sql`: `discount_policy`, `regional_rate`, `payment_method`, `product_group`, `person`, `program_person`, `program_material`, `program_bonus` по `specs/programs-reference-data`; применить и проверить диапазон скидки, уникальность `(region, level, mode)`, запрет «подарок самому себе» и каскады при удалении программы
 
 ## 5. Миграция 007: индекс содержимого
 
-- [ ] 5.1 Создать `backend/db/migrations/007_programs_content_index.sql`: `CREATE EXTENSION IF NOT EXISTS vector`, таблица `content_chunk` с `vector(1536)`, составной внешний ключ `(program_id, organization_id, level)`, допустимые `section_type`, индекс HNSW по `vector_cosine_ops` и индексы под фильтры (`design.md` D4, D5); проверить отказ при неверной размерности вектора и несогласованных метаданных
-- [ ] 5.2 Добавить `content_hash` как вычисляемую колонку и триггер, обнуляющий `embedding` при изменении `text` (`design.md` D6); проверить, что повторная запись того же текста сохраняет вектор, а изменение сбрасывает
-- [ ] 5.3 Добавить сохраняемые колонки `tsvector` (словарь `russian` для текста, `simple` для кода направления), GIN-индексы и B-tree по `direction_code` (`design.md` D7); проверить поиск по коду `44.02.02`, по префиксу и по словоформе «фельдшеры»
+- [x] 5.1 Создать `backend/db/migrations/007_programs_content_index.sql`: `CREATE EXTENSION IF NOT EXISTS vector`, таблица `content_chunk` с `vector(1536)`, составной внешний ключ `(program_id, organization_id, level)`, допустимые `section_type`, индекс HNSW по `vector_cosine_ops` и индексы под фильтры (`design.md` D4, D5); проверить отказ при неверной размерности вектора и несогласованных метаданных
+- [x] 5.2 Добавить `content_hash` как вычисляемую колонку и триггер, обнуляющий `embedding` при изменении `text` (`design.md` D6); проверить, что повторная запись того же текста сохраняет вектор, а изменение сбрасывает
+- [x] 5.3 Добавить сохраняемые колонки `tsvector` (словарь `russian` для текста, `simple` для кода направления), GIN-индексы и B-tree по `direction_code` (`design.md` D7); проверить поиск по коду `44.02.02`, по префиксу и по словоформе «фельдшеры»
 
 ## 6. Проверка целиком
 
-- [ ] 6.1 Применить все миграции `001`–`007` на чистую БД, затем запустить мигратор повторно и убедиться, что повторный запуск ничего не меняет, а таблицы аудит-агента на месте
-- [ ] 6.2 Сверить раздел «API Contract» (контракт доступа к данным) в `architecture.md` с реальной схемой и при необходимости поправить документ
+- [x] 6.1 Применить все миграции `001`–`007` на чистую БД, затем запустить мигратор повторно и убедиться, что повторный запуск ничего не меняет, а таблицы аудит-агента на месте
+- [x] 6.2 Сверить раздел «API Contract» (контракт доступа к данным) в `architecture.md` с реальной схемой и при необходимости поправить документ
 
 ## 7. Code review
 
