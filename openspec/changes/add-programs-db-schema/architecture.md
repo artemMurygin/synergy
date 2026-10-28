@@ -91,19 +91,7 @@ HTTP-эндпоинтов, DTO и ошибок API в этом change нет. Ф
 
 ## Diagrams
 
-Доска Miro для этого change не создавалась: пользователь согласовал текстовое описание связей ниже. Диаграммы можно нарисовать позже по запросу.
-
-### 1. Domain Entity Interaction
-Содержание: связи Organization → Location/Faculty/Program; Program → Offer → Price; Program → EntranceRequirement/ProgramPerson/ProgramMaterial/ProgramBonus/ContentChunk; Person ↔ ProgramPerson; SourceSheet → RawRow ← source_row_id у Program/Offer/ContentChunk; справочники отдельным блоком без связей.
-Miro link: `не создавалась`
-
-### 2. External Modules Interaction
-Содержание: в этом change нет рантайм-взаимодействия. Для контекста: Google Sheets → ETL (`add-programs-etl-pipeline`) → записывает в Postgres; Агент (`add-programs-selection-agent`) → читает из Postgres; мигратор → применяет схему при старте.
-Miro link: `не создавалась`
-
-### 3. Layer Interaction — от Controller до Response
-Не применимо: контроллеров и HTTP-запросов нет. Путь «запрос → слои → ответ» появится в `add-programs-selection-agent`.
-Miro link: `не применимо`
+Не требуются: change содержит только миграции БД, рантайм-взаимодействия и слоёв запроса нет.
 
 ---
 
@@ -111,5 +99,5 @@ Miro link: `не применимо`
 - [x] Названия entity/aggregate/VO согласованы
 - [x] Названия и сигнатуры ключевых методов сервисов согласованы
 - [x] API Contract (эндпоинты, DTO, ошибки) согласован
-- [x] Диаграммы взаимодействия отражают ожидаемую реализацию
+- [x] Диаграммы не требуются (согласовано с пользователем)
 - [x] Пользователь подтвердил переход к tasks.md
