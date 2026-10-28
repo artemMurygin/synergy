@@ -16,6 +16,13 @@ paths:
 - Булевы переменные начинаются с `is`/`has`/`can`/`should`.
 - Методы сервисов называем глаголами: `findById`, `create`, `markAsPaid`.
 
+## Порты и адаптеры
+- Порт (контракт во `domain`/`application`) называется по роли с суффиксом `Port`: `EmployeeRepositoryPort`, `AuditQueuePort`, `NotifierPort`, `CrmGatewayPort`.
+- Реализация (адаптер в `infrastructure`) называется по роли без суффикса и без названия технологии: `EmployeeRepository`, `AuditQueue`, `Notifier`. Запрещены имена вида `PostgresEmployeeRepository`, `BullmqAuditQueue`, `RedisSyncCursorStore`, `TelegramNotifier`, `LangchainDealAuditor`, а также суффикс `Impl`.
+- Технология видна по пути и модулю (`infrastructure/persistence/`, `infrastructure/queue/`), а не по имени класса.
+- Допустим префикс варианта поведения, не технологии: `MockCrmGateway`.
+- Порт и реализация не должны называться одинаково, чтобы не требовались alias при импорте.
+
 ## Именование переменных
 - Имя отражает смысл, а не тип: `activeOrders`, а не `arr` или `data`. Запрещены безликие имена: `data`, `res`, `tmp`, `obj`, `item`, `val`, `foo`, `x` (кроме общепринятых `i`/`j` в коротких циклах и `e` в коротких колбэках).
 - Только английский язык, без транслита (`orders`, а не `zakazy`). Доменные термины используются единообразно по всему проекту (например, всегда `counterparty`, не вперемешку с `contractor`/`partner`).
