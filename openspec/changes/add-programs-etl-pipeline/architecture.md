@@ -65,7 +65,7 @@
 | SyncAlertPort / SyncMetricsAlert | application / infrastructure | Метрики и структурные ошибки без содержимого ячеек |
 | ProgramsSyncScheduler / ProgramsEtlProcessor | interface | Повторяющийся BullMQ job, выполнение `plan`, `sync-sheet`, `embed-pending`, повторы и дедупликация |
 
-Порты объявлены в `application`, адаптеры — в `infrastructure`; `domain` не зависит от Nest, `pg`, Google или OpenAI. Процессор очереди — входной адаптер. Взаимодействие с Postgres идёт через существующий `postgres.module.ts` и `pg`, без ORM.
+Порты объявлены в `application`, адаптеры — в `infrastructure`; `domain` не зависит от Nest, Slonik, Google или OpenAI. Процессор очереди — входной адаптер. Прикладные репозитории используют `PG_POOL`, экспортируемый существующим `PostgresModule` как `DatabasePool` Slonik; `pg` остаётся только у мигратора. ORM нет.
 
 ### Method Signatures (ключевые, по каждому сервису)
 
