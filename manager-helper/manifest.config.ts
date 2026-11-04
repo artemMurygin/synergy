@@ -30,4 +30,5 @@ export default defineManifest({
     },
   ],
   permissions: ['storage', 'sidePanel'],
+  host_permissions: ['http://localhost/*', 'http://127.0.0.1/*'],
 })
