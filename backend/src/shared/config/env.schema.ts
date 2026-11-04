@@ -15,6 +15,7 @@ export const envSchema = z
         REDIS_DB: z.coerce.number().int().default(0),
 
         OPENAI_API_KEY: z.string().optional(),
+        OPENROUTER_API_KEY: z.string().optional(),
         OPENAI_BASE_URL: z.url().optional(),
         OPENAI_MODEL: z.string().default('gpt-4o-mini'),
         OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
