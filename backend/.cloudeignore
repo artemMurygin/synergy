@@ -1,1 +1,3 @@
 .env
+google-sheets-secret.json
+node_modules

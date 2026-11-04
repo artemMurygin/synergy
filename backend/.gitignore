@@ -39,3 +39,5 @@ backend/prisma/generated/
 .nx/workspace-data
 .nx/polygraph
 debug-uploads/
+
+google-sheets-secret.json

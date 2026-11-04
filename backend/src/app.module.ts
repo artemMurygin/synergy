@@ -8,6 +8,7 @@ import { MetricsModule } from './shared/metrics/metrics.module';
 import { MssqlModule } from './database/mssql/mssql.module';
 import { HealthModule } from './shared/health/health.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
+import { ProgramsEtlModule } from './modules/programs-etl/programs-etl.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
         MetricsModule,
         HealthModule,
         AuditAgentModule,
+        ProgramsEtlModule,
     ],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

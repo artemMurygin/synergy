@@ -1,0 +1,995 @@
+{
+  "snapshot_date": "2026-11-03",
+  "source": "Google Sheets metadata and bounded top-row inspection of visible sheets",
+  "schema_reference": "../../../../../openspec/changes/add-programs-etl-pipeline/architecture.md",
+  "books": {
+    "main": {
+      "title": "Основная книга: ЦП и МБ",
+      "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+      "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit"
+    },
+    "short": {
+      "title": "Реестр краткосрочных курсов",
+      "spreadsheet_id": "1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y",
+      "url": "https://docs.google.com/spreadsheets/d/1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y/edit"
+    },
+    "basta": {
+      "title": "Методичка школы современной музыки",
+      "spreadsheet_id": "1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0",
+      "url": "https://docs.google.com/spreadsheets/d/1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0/edit"
+    },
+    "academy": {
+      "title": "База знаний Академии Синергия",
+      "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+      "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit"
+    },
+    "dpo": {
+      "title": "Реестр ДПО для ДРБ",
+      "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+      "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit"
+    },
+    "mti": {
+      "title": "Реестр ДПО МТИ",
+      "spreadsheet_id": "1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM",
+      "url": "https://docs.google.com/spreadsheets/d/1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM/edit"
+    },
+    "theater": {
+      "title": "Методичка театрального факультета",
+      "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+      "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit"
+    }
+  },
+  "groups": [
+    {
+      "id": "synergy_spo",
+      "name": "СПО Синергии",
+      "status": "ready",
+      "note": "Связать специальность и квалификацию; цены из СПО, разделы из МБ.",
+      "organizations": [
+        {
+          "kind": "university",
+          "name": "Университет Синергия",
+          "hint": "Только родитель колледжа; программы этой группы ему не принадлежат."
+        },
+        {
+          "kind": "college",
+          "name": "Колледж Университета Синергия",
+          "parent_name": "Университет Синергия",
+          "hint": "Все программы группы (лист «СПО», заголовок «КОЛЛЕДЖ УНИВЕРСИТЕТА СИНЕРГИЯ») принадлежат колледжу. Факультеты с адресами — подразделения, не организации."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1144258587,
+          "title": "СПО",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1144258587#gid=1144258587"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 2052097446,
+          "title": "МБ СПО",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=2052097446#gid=2052097446"
+        }
+      ]
+    },
+    {
+      "id": "synergy_bachelor_specialist",
+      "name": "Бакалавриат и специалитет Синергии",
+      "status": "ready",
+      "note": "Связать направление, профиль и факультет.",
+      "organizations": [
+        {
+          "kind": "university",
+          "name": "Университет Синергия",
+          "hint": "Все программы группы (заголовок «БАКАЛАВРИАТ И СПЕЦИАЛИТЕТ УНИВЕРСИТЕТА СИНЕРГИЯ»). Факультеты с адресами — подразделения, не организации."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1365732627,
+          "title": "БАК/СПЦ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1365732627#gid=1365732627"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 734066113,
+          "title": "МБ БАК",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=734066113#gid=734066113"
+        }
+      ]
+    },
+    {
+      "id": "synergy_master",
+      "name": "Магистратура Синергии",
+      "status": "ready",
+      "note": "Связать направление, профиль и факультет.",
+      "organizations": [
+        {
+          "kind": "university",
+          "name": "Университет Синергия",
+          "hint": "Все программы группы (заголовок «МАГИСТРАТУРА УНИВЕРСИТЕТА СИНЕРГИЯ»). Факультеты с адресами — подразделения, не организации."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1703579777,
+          "title": "МАГ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1703579777#gid=1703579777"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 303831621,
+          "title": "МБ МАГ",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=303831621#gid=303831621"
+        }
+      ]
+    },
+    {
+      "id": "synergy_postgrad",
+      "name": "Аспирантура и ординатура",
+      "status": "needs_matching",
+      "note": "АСП/ОРД содержит две программы ординатуры (Кардиология, Неврология), а МБ АСП описывает аспирантуру. В схеме нет отдельного уровня residency; ординатуру не смешивать с аспирантурой.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1152599053,
+          "title": "АСП/ОРД",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1152599053#gid=1152599053"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 464066143,
+          "title": "МБ АСП",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=464066143#gid=464066143"
+        }
+      ]
+    },
+    {
+      "id": "mti_core",
+      "name": "МТИ: СПО и ВО",
+      "status": "ready",
+      "note": "Ссылка на отдельный реестр ДПО МТИ в МБ — контекст, не основание объединять цены.",
+      "organizations": [
+        {
+          "kind": "university",
+          "name": "Московский технологический институт (МТИ)",
+          "hint": "Блоки «БАКАЛАВРИАТ…» и «МАГИСТРАТУРА…» листа «МТИ»."
+        },
+        {
+          "kind": "college",
+          "name": "Колледж Московского технологического института (МТИ)",
+          "parent_name": "Московский технологический институт (МТИ)",
+          "hint": "Блок «КОЛЛЕДЖ МОСКОВСКОГО ТЕХНОЛОГИЧЕСКОГО ИНСТИТУТА (МТИ)» (начало листа «МТИ», до заголовка бакалавриата)."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 660092557,
+          "title": "МТИ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=660092557#gid=660092557"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1540882412,
+          "title": "МБ МТИ",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1540882412#gid=1540882412"
+        }
+      ]
+    },
+    {
+      "id": "map_core",
+      "name": "МАП",
+      "status": "ready",
+      "note": "Скидки Синергия и МАП — общие правила, извлекаются отдельно.",
+      "organizations": [
+        {
+          "kind": "academy",
+          "name": "Московская академия предпринимательства (МАП)",
+          "hint": "Блоки «БАКАЛАВРИАТ…», «МАГИСТРАТУРА…» и «АСПИРАНТУРА…» листа «МАП»."
+        },
+        {
+          "kind": "college",
+          "name": "Колледж Московской академии предпринимательства (МАП)",
+          "parent_name": "Московская академия предпринимательства (МАП)",
+          "hint": "Блок «КОЛЛЕДЖ МОСКОВСКОЙ АКАДЕМИИ ПРЕДПРИНИМАТЕЛЬСТВА (МАП)» (начало листа «МАП», до заголовка бакалавриата)."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1519231465,
+          "title": "МАП",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1519231465#gid=1519231465"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1586080183,
+          "title": "МБ МАП",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1586080183#gid=1586080183"
+        }
+      ]
+    },
+    {
+      "id": "partner_universities",
+      "name": "ЮФУ, БГИ и СПИГ",
+      "status": "ready",
+      "note": "Связывать с учётом учебного заведения, а не только названия программы.",
+      "organizations": [
+        {
+          "kind": "partner",
+          "name": "Балтийский гуманитарный институт",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке B листа «ЮФУ/БГИ/СПИГ» (в начале листа): блоки «Колледж» и «Бакалавриат»."
+        },
+        {
+          "kind": "partner",
+          "name": "Санкт-Петербургский институт гостеприимства",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке B листа «ЮФУ/БГИ/СПИГ» после блока БГИ: блок «Бакалавриат»."
+        },
+        {
+          "kind": "partner",
+          "name": "Южный федеральный университет",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке B листа «ЮФУ/БГИ/СПИГ» после блока СПИГ: блоки «Бакалавриат» и «Магистратура»."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 67693860,
+          "title": "ЮФУ/БГИ/СПИГ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=67693860#gid=67693860"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 535835436,
+          "title": "МБ ЮФУ/БГИ/СПИГ",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=535835436#gid=535835436"
+        }
+      ]
+    },
+    {
+      "id": "synergy_branches",
+      "name": "Филиалы Синергии",
+      "status": "ready",
+      "note": "Внутри листа разделять организации и площадки.",
+      "organizations": [
+        {
+          "kind": "university",
+          "name": "Университет Синергия",
+          "hint": "Только родитель филиалов университета; программы ему не принадлежат."
+        },
+        {
+          "kind": "academy",
+          "name": "Академия Синергия",
+          "hint": "Только родитель филиалов академии; программы ей не принадлежат."
+        },
+        {
+          "kind": "branch",
+          "name": "Омский филиал Университета «Синергия»",
+          "parent_name": "Университет Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A листа «Филиалы» (г. Омск): блоки колледжа и бакалавриата."
+        },
+        {
+          "kind": "branch",
+          "name": "Карачаево-Черкесский филиал Университета «Синергия»",
+          "parent_name": "Университет Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A (г. Черкесск): высшее образование и аспирантура."
+        },
+        {
+          "kind": "college",
+          "name": "АНО СПО «Цифровой Колледж «Синергия» (Якутск)",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Отдельное юрлицо, не филиал университета. Заголовок в колонке A (г. Якутск)."
+        },
+        {
+          "kind": "college",
+          "name": "АНО СПО «Мурманский Колледж Цифровых Профессий «Синергия»",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Отдельное юрлицо, не филиал университета. Заголовок в колонке A (г. Мурманск)."
+        },
+        {
+          "kind": "branch",
+          "name": "Филиал ДПО СПО «Академия Синергия» г. Барнаул",
+          "parent_name": "Академия Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A (г. Барнаул)."
+        },
+        {
+          "kind": "branch",
+          "name": "Филиал ДПО СПО «Академия Синергия» г. Воронеж",
+          "parent_name": "Академия Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A (г. Воронеж)."
+        },
+        {
+          "kind": "branch",
+          "name": "Филиал ДПО СПО «Академия Синергия» г. Самара",
+          "parent_name": "Академия Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A (г. Самара)."
+        },
+        {
+          "kind": "branch",
+          "name": "Филиал ДПО СПО «Академия Синергия» г. Челябинск",
+          "parent_name": "Академия Синергия",
+          "hint": "Организация задаётся строкой-заголовком блока; заголовок относится ко всем строкам ниже до следующего заголовка организации. Заголовок в колонке A (г. Челябинск)."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1585445084,
+          "title": "Филиалы",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1585445084#gid=1585445084"
+        }
+      ]
+    },
+    {
+      "id": "dubai",
+      "name": "Дубайский филиал",
+      "status": "ready",
+      "note": "Отдельная организация и правила стоимости.",
+      "organizations": [
+        {
+          "kind": "branch",
+          "name": "Дубайский филиал",
+          "hint": "Единственная организация листа «Дубай» (B1). Родитель в листах не назван, не указывать."
+        }
+      ],
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 7957186,
+          "title": "Дубай",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=7957186#gid=7957186"
+        }
+      ]
+    },
+    {
+      "id": "international",
+      "name": "Международные программы",
+      "status": "needs_matching",
+      "note": "Прайс содержит малайзийский и тайский филиалы. МБ описывает тайский филиал; Предпринимательство и Разработка, сопровождение и обеспечение безопасности информационных систем совпадают с тайским разделом прайса. Не применять МБ к малайзийскому филиалу.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1173666078,
+          "title": "Международка",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1173666078#gid=1173666078"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1569402733,
+          "title": "МБ международка",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1569402733#gid=1569402733"
+        }
+      ]
+    },
+    {
+      "id": "mba",
+      "name": "MBA",
+      "status": "ready",
+      "note": "MBA Foundation и Executive MBA присутствуют в обоих листах. Остальные строки МБ не имеют очевидного точного соответствия в просмотренном прайсе; не создавать по ним цену без подтверждения.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 218027660,
+          "title": "МВА",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=218027660#gid=218027660"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1652621360,
+          "title": "МБ МВА",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1652621360#gid=1652621360"
+        }
+      ]
+    },
+    {
+      "id": "academy_synergy",
+      "name": "ДПО Академии Синергия",
+      "status": "needs_matching",
+      "note": "Тематические листы массово повторяют Все продукты: Программирование 34/35, Нейросети 16/16, Дизайн 34/34, Маркетинг 57/58, Менеджмент 30/30 по названиям строк после шапки. Общий реестр ДПО имеет 50 точных совпадений названий с Все продукты. Не создавать дубли; цены из отдельных прайсов сверять по условиям.",
+      "sheets": [
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 2123098143,
+          "title": "Все продукты",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=2123098143#gid=2123098143"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 679084098,
+          "title": "Программирование",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=679084098#gid=679084098"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 2069024734,
+          "title": "Нейросети",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=2069024734#gid=2069024734"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 2138601374,
+          "title": "Дизайн",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=2138601374#gid=2138601374"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 199728602,
+          "title": "Маркетинг",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=199728602#gid=199728602"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 2111498061,
+          "title": "Менеджмент",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=2111498061#gid=2111498061"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 164097052,
+          "title": "Уникальные курсы",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=164097052#gid=164097052"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 1608619308,
+          "title": "Квалификация",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=1608619308#gid=1608619308"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 1088230668,
+          "title": "Прайс Распродажа",
+          "role": "price_context",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=1088230668#gid=1088230668"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 362201219,
+          "title": "Прайс СРАВНИ",
+          "role": "price_context",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=362201219#gid=362201219"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 430022558,
+          "title": "Реестр ОБЩИЙ с классификацией (новый) ",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=430022558#gid=430022558"
+        }
+      ]
+    },
+    {
+      "id": "mti_dpo",
+      "name": "ДПО МТИ",
+      "status": "needs_matching",
+      "note": "В просмотренных строках реестра ДПО МТИ найдены 12 точных совпадений названий со Строительство (МТИ) и 9 с Экономика и управление (МТИ). Пакетную связь с ВО/СПО возвращать отдельно от цены программы ДПО.",
+      "sheets": [
+        {
+          "book": "mti",
+          "spreadsheet_id": "1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM",
+          "sheet_id": 1945469086,
+          "title": "Общий реестр",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM/edit?gid=1945469086#gid=1945469086"
+        },
+        {
+          "book": "mti",
+          "spreadsheet_id": "1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM",
+          "sheet_id": 635571150,
+          "title": "СТАРТ UP (ДПО, ПО+ВО)",
+          "role": "bundle",
+          "url": "https://docs.google.com/spreadsheets/d/1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM/edit?gid=635571150#gid=635571150"
+        },
+        {
+          "book": "mti",
+          "spreadsheet_id": "1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM",
+          "sheet_id": 1353926220,
+          "title": "ПРОГРАММА ПЛЮС",
+          "role": "bundle",
+          "url": "https://docs.google.com/spreadsheets/d/1SgADLNoFsIVfX8yqf2gT-jNO7G_EOIWck5AUOme_-zM/edit?gid=1353926220#gid=1353926220"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 914073506,
+          "title": "Строительство (МТИ)",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=914073506#gid=914073506"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 686422308,
+          "title": "Экономика и управление (МТИ)",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=686422308#gid=686422308"
+        }
+      ]
+    },
+    {
+      "id": "drb_dpo",
+      "name": "ДПО ДРБ и партнёров",
+      "status": "needs_matching",
+      "note": "Лист Академии Курсы ДРБ повторяет названия в Все продукты (19/19 просмотренных строк после шапки), но лишь 5 названий точно совпали с Реестр ДРБ. Разделять записи по держателю и не считать похожее название доказательством одинаковой цены.",
+      "sheets": [
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 1333582196,
+          "title": "Реестр ДРБ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=1333582196#gid=1333582196"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 2104216709,
+          "title": "АРСЕНАЛ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=2104216709#gid=2104216709"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 306064532,
+          "title": "Экспресс-курсы",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=306064532#gid=306064532"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 1459136321,
+          "title": "Synergy Lingva House_NEW",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=1459136321#gid=1459136321"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 777152521,
+          "title": "факультет бизнеса",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=777152521#gid=777152521"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 537700430,
+          "title": "Тренинги ЮЛ",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=537700430#gid=537700430"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 886414361,
+          "title": "Курсы ДРБ",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=886414361#gid=886414361"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 388633479,
+          "title": "Рабочие профессии",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=388633479#gid=388633479"
+        }
+      ]
+    },
+    {
+      "id": "short_courses",
+      "name": "Короткие и факультетские курсы",
+      "status": "needs_matching",
+      "note": "Общий реестр задаёт самостоятельные короткие курсы. Разбивка по направлениям связывает специальность СПО с альтернативными курсами: все 96 уникальных названий альтернатив в первых 246 строках найдены в общем реестре. Это отдельная связь с группой synergy_spo, а не дубликат каталога.",
+      "sheets": [
+        {
+          "book": "short",
+          "spreadsheet_id": "1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y",
+          "sheet_id": 0,
+          "title": "Краткосрочные курсы (общий реестр)",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y/edit?gid=0#gid=0"
+        },
+        {
+          "book": "short",
+          "spreadsheet_id": "1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y",
+          "sheet_id": 414486096,
+          "title": "Краткосрочные курсы (разбивка по направлениям)",
+          "role": "thematic",
+          "url": "https://docs.google.com/spreadsheets/d/1V5jdQpfoMlTSSSlNNGkzBQuCL0fGpXestvz0aZVwK8Y/edit?gid=414486096#gid=414486096"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1152205548,
+          "title": "Курсы факультетов",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1152205548#gid=1152205548"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1140375518,
+          "title": "МБ ПО",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1140375518#gid=1140375518"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1238375741,
+          "title": "МБ ПО ",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1238375741#gid=1238375741"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1816278612,
+          "title": "МБ квалификация",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1816278612#gid=1816278612"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 381063512,
+          "title": "Курсы",
+          "role": "navigation",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=381063512#gid=381063512"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 955399308,
+          "title": "Кросс-продажи по галочке",
+          "role": "bundle",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=955399308#gid=955399308"
+        }
+      ]
+    },
+    {
+      "id": "basta_music",
+      "name": "Школа современной музыки",
+      "status": "needs_matching",
+      "note": "Названия в Матрице и листе Академии часто совпадают после удаления префикса уровня и ID; найдено не менее 10 вероятных соответствий. Название само по себе недостаточно для объединения цен: у Музыкального продакшна в Матрице есть разные ID и форматы. Главная ссылается на FAQ и скрипты, но их содержимое не обнаружено.",
+      "sheets": [
+        {
+          "book": "basta",
+          "spreadsheet_id": "1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0",
+          "sheet_id": 1306497904,
+          "title": "Матрица",
+          "role": "catalog",
+          "url": "https://docs.google.com/spreadsheets/d/1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0/edit?gid=1306497904#gid=1306497904"
+        },
+        {
+          "book": "basta",
+          "spreadsheet_id": "1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0",
+          "sheet_id": 0,
+          "title": "Главная",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0/edit?gid=0#gid=0"
+        },
+        {
+          "book": "basta",
+          "spreadsheet_id": "1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0",
+          "sheet_id": 666090514,
+          "title": "Вебинары для догрева",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1w-eXJOBP_hWUhPDIbjpV533Ks0HUJO1l-XE4yb_Go_0/edit?gid=666090514#gid=666090514"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 288854633,
+          "title": "Школа современной музыки",
+          "role": "cross_reference",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=288854633#gid=288854633"
+        }
+      ]
+    },
+    {
+      "id": "theater",
+      "name": "Театральный факультет",
+      "status": "ready",
+      "note": "Программные листы содержат блоки вопросов; FAQ привязывать только к установленной программе.",
+      "sheets": [
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 1821604249,
+          "title": "Колледж",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=1821604249#gid=1821604249"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 839735888,
+          "title": "Специалитет",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=839735888#gid=839735888"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 1455989261,
+          "title": "Магистратура",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=1455989261#gid=1455989261"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 2000333073,
+          "title": "Взрослые ДПО",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=2000333073#gid=2000333073"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 1089250301,
+          "title": "Детские продукты",
+          "role": "catalog_and_content",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=1089250301#gid=1089250301"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 0,
+          "title": "Главная",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=0#gid=0"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 1003570572,
+          "title": "Площадка",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=1003570572#gid=1003570572"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 2145326408,
+          "title": "Партнёры",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=2145326408#gid=2145326408"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 1529281112,
+          "title": "Отзывы",
+          "role": "context",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=1529281112#gid=1529281112"
+        }
+      ]
+    },
+    {
+      "id": "sales_reference",
+      "name": "Общие правила продаж",
+      "status": "ready",
+      "note": "Извлекать один раз; программы других групп могут ссылаться на эти условия и дополнительные продукты.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1235077066,
+          "title": "Рег ставки",
+          "role": "regional_rate",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1235077066#gid=1235077066"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1037575211,
+          "title": "Скидки Синергия и МАП",
+          "role": "discount_policy",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1037575211#gid=1037575211"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1234348653,
+          "title": "Способы оплаты",
+          "role": "payment_method",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1234348653#gid=1234348653"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1483848000,
+          "title": "Памятка по группам продуктов",
+          "role": "product_group",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1483848000#gid=1483848000"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1237400504,
+          "title": "ЦИ и Соло ",
+          "role": "product_context",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1237400504#gid=1237400504"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 168816699,
+          "title": "Центр интеллекта ",
+          "role": "product_context",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=168816699#gid=168816699"
+        }
+      ]
+    },
+    {
+      "id": "school_and_exam",
+      "name": "Школа и подготовка к экзаменам",
+      "status": "out_of_scope_schema",
+      "note": "В схеме нет уровня school; прочие детские продукты можно оценивать по уровню kids после полного чтения.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1914376504,
+          "title": "Онлайн школа",
+          "role": "navigation",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1914376504#gid=1914376504"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 2004370532,
+          "title": "ЕГЭ/ОГЭ",
+          "role": "navigation",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=2004370532#gid=2004370532"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 962556295,
+          "title": "Репетиторы",
+          "role": "navigation",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=962556295#gid=962556295"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 622175000,
+          "title": "МБ Школа",
+          "role": "content",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=622175000#gid=622175000"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 238186474,
+          "title": "Подготовка ОГЭ/ЕГЭ",
+          "role": "catalog_candidate",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=238186474#gid=238186474"
+        },
+        {
+          "book": "dpo",
+          "spreadsheet_id": "1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA",
+          "sheet_id": 666052800,
+          "title": "Для детей",
+          "role": "catalog_candidate",
+          "url": "https://docs.google.com/spreadsheets/d/1GN4Z5MeeMpqYs-fZFn5wmvlzkEogCMeU4O2JKrf1LbA/edit?gid=666052800#gid=666052800"
+        },
+        {
+          "book": "academy",
+          "spreadsheet_id": "1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc",
+          "sheet_id": 1861289379,
+          "title": "Курсы для детей",
+          "role": "catalog_candidate",
+          "url": "https://docs.google.com/spreadsheets/d/1NjDiyd5CvKvYBoj6xyzYgH46oRJrdpA7B0dluQLo7Vc/edit?gid=1861289379#gid=1861289379"
+        }
+      ]
+    },
+    {
+      "id": "other_context",
+      "name": "Прочие контекстные материалы",
+      "status": "deferred",
+      "note": "Текущая схема каталога не даёт им однозначного места; не загружать как программы.",
+      "sheets": [
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 72356822,
+          "title": "Контакты визуалов",
+          "role": "operations",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=72356822#gid=72356822"
+        },
+        {
+          "book": "main",
+          "spreadsheet_id": "1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8",
+          "sheet_id": 1151605441,
+          "title": "Поступление без визы",
+          "role": "admissions",
+          "url": "https://docs.google.com/spreadsheets/d/1Yrc16QY0J7a3bLxOts0SW7D2W3i0XIroaw847oQlgp8/edit?gid=1151605441#gid=1151605441"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 579334642,
+          "title": "Мероприятия",
+          "role": "events",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=579334642#gid=579334642"
+        },
+        {
+          "book": "theater",
+          "spreadsheet_id": "1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20",
+          "sheet_id": 937702246,
+          "title": "Конкуренты",
+          "role": "competitors",
+          "url": "https://docs.google.com/spreadsheets/d/1edRugh1BYIfa-XEhu44dtI9yGBp0fwhs5jxGjMNaQ20/edit?gid=937702246#gid=937702246"
+        }
+      ]
+    }
+  ]
+}
