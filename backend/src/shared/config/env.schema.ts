@@ -19,14 +19,6 @@ export const envSchema = z
         OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
         OPENAI_MAX_RETRIES: z.coerce.number().int().nonnegative().default(1),
 
-        GOOGLE_SERVICE_ACCOUNT_JSON: z.string().optional(),
-        GOOGLE_SERVICE_ACCOUNT_KEY_FILE: z.string().optional(),
-        PROGRAMS_SYNC_INTERVAL_MS: z.coerce.number().int().positive().optional(),
-        PROGRAMS_SYNC_MIN_ROW_RATIO: z.coerce.number().min(0).max(1).default(0.5),
-        PROGRAMS_EMBEDDING_BATCH_SIZE: z.coerce.number().int().positive().default(100),
-        PROGRAMS_EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
-        PROGRAMS_MAPPING_MODEL: z.string().min(1).default('gpt-4o'),
-
         DEAL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
         DEAL_SYNC_DEFAULT_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
         CRM_DRIVER: z.enum(['mock']).default('mock'),
