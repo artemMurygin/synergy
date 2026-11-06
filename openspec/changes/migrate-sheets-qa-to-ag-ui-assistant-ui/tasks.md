@@ -90,10 +90,10 @@
 
 ## 12. Клиент: ChatRuntimeProvider (TDD)
 
-- [ ] 12.1 Написать тесты `ChatRuntimeProvider` (по specs `chat-thread-ui`, `chat-session-switcher`): `onSwitchToThread` загружает историю и возвращает сообщения AG-UI; `onSwitchToNewThread` создаёт тред и делает его активным; отправка использует `threadId` активного чата; `onCancel` вызывает `cancelRun(threadId)`; смена чата во время ответа не пишет ответ в другой чат
-- [ ] 12.2 Прогнать тесты из 12.1 и зафиксировать, что они падают (red)
-- [ ] 12.3 Реализовать `sidepanel/ChatRuntimeProvider.tsx`: `useAgUiRuntime` + `HttpAgent` + `adapters.threadList`; сохранить `activeSessionId` в `chrome.storage` через `active-session`
-- [ ] 12.4 Прогнать тесты из 12.1 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 12.1 Написать тесты `ChatRuntimeProvider` (по specs `chat-thread-ui`, `chat-session-switcher`): `onSwitchToThread` загружает историю и возвращает сообщения AG-UI; `onSwitchToNewThread` создаёт тред и делает его активным; отправка использует `threadId` активного чата; `onCancel` вызывает `cancelRun(threadId)`; смена чата во время ответа не пишет ответ в другой чат
+- [x] 12.2 Прогнать тесты из 12.1 и зафиксировать, что они падают (red)
+- [x] 12.3 Реализовать `sidepanel/ChatRuntimeProvider.tsx`: `useAgUiRuntime` + `HttpAgent` + `adapters.threadList`; сохранить `activeSessionId` в `chrome.storage` через `active-session`
+- [x] 12.4 Прогнать тесты из 12.1 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 13. Клиент: компоненты чата по макету (ui-design.md)
 
