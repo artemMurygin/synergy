@@ -43,10 +43,10 @@
 
 ## 6. StartAgentRunUseCase (TDD)
 
-- [ ] 6.1 Написать тесты `StartAgentRunUseCase.execute` на фейковых портах (по specs `agent-streaming-protocol` и `chat-sessions`): пустой и слишком длинный вопрос → `InvalidQuestionError`, ничего не пишется; неизвестный чат → `ChatSessionNotFoundError`, агент не вызывается; занятый чат → `RunConflictError`; вопрос пишется до старта агента; события пересылаются наблюдателю по порядку; по `run-finished` вызывается `appendAgentAnswer` с автоназванием; при `run-failed` и `run-cancelled` ответ не пишется, вопрос остаётся; запись реестра освобождается в каждом исходе; отключение наблюдателя (`detach`) не прерывает запуск и ответ всё равно сохраняется; исключение в наблюдателе не прерывает запуск; чат удалён во время запуска → контекст агента удаляется (`ChatThreadPort.deleteThread`)
-- [ ] 6.2 Прогнать тесты из 6.1 и зафиксировать, что они падают (red): use-case ещё нет
-- [ ] 6.3 Реализовать `StartAgentRunUseCase` (вместо `AskQuestionUseCase`): валидация, `tryStart`, запись вопроса, фоновый `drive`, `observer.next`, сохранение ответа, `release` в `finally`
-- [ ] 6.4 Прогнать тесты из 6.1 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 6.1 Написать тесты `StartAgentRunUseCase.execute` на фейковых портах (по specs `agent-streaming-protocol` и `chat-sessions`): пустой и слишком длинный вопрос → `InvalidQuestionError`, ничего не пишется; неизвестный чат → `ChatSessionNotFoundError`, агент не вызывается; занятый чат → `RunConflictError`; вопрос пишется до старта агента; события пересылаются наблюдателю по порядку; по `run-finished` вызывается `appendAgentAnswer` с автоназванием; при `run-failed` и `run-cancelled` ответ не пишется, вопрос остаётся; запись реестра освобождается в каждом исходе; отключение наблюдателя (`detach`) не прерывает запуск и ответ всё равно сохраняется; исключение в наблюдателе не прерывает запуск; чат удалён во время запуска → контекст агента удаляется (`ChatThreadPort.deleteThread`)
+- [x] 6.2 Прогнать тесты из 6.1 и зафиксировать, что они падают (red): use-case ещё нет
+- [x] 6.3 Реализовать `StartAgentRunUseCase` (вместо `AskQuestionUseCase`): валидация, `tryStart`, запись вопроса, фоновый `drive`, `observer.next`, сохранение ответа, `release` в `finally`
+- [x] 6.4 Прогнать тесты из 6.1 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 7. CancelAgentRunUseCase и признак running (TDD)
 
