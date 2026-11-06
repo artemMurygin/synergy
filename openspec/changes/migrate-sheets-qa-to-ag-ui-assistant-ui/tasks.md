@@ -9,9 +9,9 @@
 ## 1. Подготовка и проверка стыков
 
 - [x] 1.1 Добавить в backend `@ag-ui/core` и `@ag-ui/encoder` (точные версии) и убедиться, что `npm install`, `npm run typecheck` проходят
-- [ ] 1.2 Добавить в `manager-helper` `@ag-ui/client`, `@assistant-ui/react`, `@assistant-ui/react-ag-ui` (точные версии, без `^`) и убедиться, что `npm run build` проходит и размер бандла side panel зафиксирован в заметке к задаче
+- [x] 1.2 Добавить в `manager-helper` `@ag-ui/client`, `@assistant-ui/react`, `@assistant-ui/react-ag-ui` (точные версии, без `^`) и убедиться, что `npm run build` проходит и размер бандла side panel зафиксирован в заметке к задаче
 - [x] 1.3 Прототип событий LangGraph: скриптом на фейковой модели вызвать `createDeepAgent(...).streamEvents(..., {version: 'v2'})` с одним инструментом и одним субагентом, сохранить записанный поток как фикстуру `backend/src/modules/sheets-qa/infrastructure/testing/stream-events.fixture.json`; в заметке перечислить, какие типы событий несут текстовые фрагменты, начало и конец вызова инструмента и события субагентов
-- [ ] 1.4 Прототип клиента: поднять заглушку `POST /agent` (SSE с `RUN_STARTED`, `TEXT_MESSAGE_*`, `RUN_FINISHED`), подключить `HttpAgent` из side panel расширения и убедиться, что поток доходит (CORS, `Accept: text/event-stream`); результат и нужные CORS-настройки записать в заметку, при необходимости обновить `design.md` (раздел Risks)
+- [x] 1.4 Прототип клиента: поднять заглушку `POST /agent` (SSE с `RUN_STARTED`, `TEXT_MESSAGE_*`, `RUN_FINISHED`), подключить `HttpAgent` из side panel расширения и убедиться, что поток доходит (CORS, `Accept: text/event-stream`); результат и нужные CORS-настройки записать в заметку, при необходимости обновить `design.md` (раздел Risks)
 
 ## 2. Домен: AgentRun, RunInput, AgentEvent (TDD)
 
