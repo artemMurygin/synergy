@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { clearAccessToken, setAccessToken } from './auth/access-token-store'
+import { getAuthState, resetAuthState, setAuthState } from './auth/auth-state'
 import { AskError } from './api'
 import {
   createThread,
@@ -27,13 +29,21 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-let fetchMock: ReturnType<typeof vi.fn>
+type Sender = (url: string, init?: RequestInit) => Promise<Response>
+let fetchMock: ReturnType<typeof vi.fn<Sender>>
+
+function firstInit(): RequestInit {
+  return fetchMock.mock.calls[0]?.[1] ?? {}
+}
 
 beforeEach(() => {
-  fetchMock = vi.fn()
+  fetchMock = vi.fn<Sender>()
   vi.stubGlobal('fetch', fetchMock)
+  setAccessToken('tok')
 })
 afterEach(() => {
+  clearAccessToken()
+  resetAuthState()
   vi.unstubAllGlobals()
 })
 
@@ -173,5 +183,23 @@ describe('deleteThread', () => {
   it('throws ThreadNotFoundError on 404', async () => {
     fetchMock.mockResolvedValue(json({ message: 'нет' }, 404))
     await expect(deleteThread('t1')).rejects.toBeInstanceOf(ThreadNotFoundError)
+  })
+})
+
+describe('authorization', () => {
+  it('sends requests with the bearer token', async () => {
+    setAccessToken('tok')
+    fetchMock.mockResolvedValue(json([thread]))
+    await listThreads()
+    const headers = new Headers(firstInit().headers)
+    expect(headers.get('authorization')).toBe('Bearer tok')
+  })
+
+  it('PASSWORD_CHANGE_REQUIRED moves the session to must-change-password', async () => {
+    setAccessToken('tok')
+    setAuthState({ status: 'authenticated' })
+    fetchMock.mockResolvedValue(json({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'change' }, 403))
+    await expect(listThreads()).rejects.toThrow(AskError)
+    expect(getAuthState().status).toBe('must-change-password')
   })
 })

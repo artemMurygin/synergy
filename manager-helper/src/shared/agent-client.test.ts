@@ -1,17 +1,27 @@
 import { HttpAgent } from '@ag-ui/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AskError } from './api'
+import { clearAccessToken, setAccessToken } from './auth/access-token-store'
+import { getAuthState, resetAuthState, setAuthState } from './auth/auth-state'
 import { RunConflictError, cancelRun, createAgent, isRunConflict } from './agent-client'
 
 vi.mock('./settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
 
-let fetchMock: ReturnType<typeof vi.fn>
+type Sender = (url: string, init?: RequestInit) => Promise<Response>
+let fetchMock: ReturnType<typeof vi.fn<Sender>>
+
+function firstInit(): RequestInit {
+  return fetchMock.mock.calls[0]?.[1] ?? {}
+}
 
 beforeEach(() => {
-  fetchMock = vi.fn()
+  fetchMock = vi.fn<Sender>()
   vi.stubGlobal('fetch', fetchMock)
+  setAccessToken('tok')
 })
 afterEach(() => {
+  clearAccessToken()
+  resetAuthState()
   vi.unstubAllGlobals()
 })
 
@@ -74,5 +84,38 @@ describe('isRunConflict', () => {
   it('ignores other errors', () => {
     expect(isRunConflict(new Error('HTTP 500: boom'))).toBe(false)
     expect(isRunConflict(new TypeError('Failed to fetch'))).toBe(false)
+  })
+})
+
+describe('authorization', () => {
+  const forbidden = () =>
+    new Response(JSON.stringify({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'change' }), {
+      status: 403,
+      headers: { 'content-type': 'application/json' },
+    })
+
+  it('sends the agent request with the bearer token', async () => {
+    setAccessToken('tok')
+    fetchMock.mockResolvedValue(new Response('', { status: 200 }))
+    const agent = await createAgent('t1')
+    await agent.fetch('http://api.test/agent', { method: 'POST' })
+    const headers = new Headers(firstInit().headers)
+    expect(headers.get('authorization')).toBe('Bearer tok')
+  })
+
+  it('cancelRun sends the bearer token', async () => {
+    setAccessToken('tok')
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+    await cancelRun('t1')
+    const headers = new Headers(firstInit().headers)
+    expect(headers.get('authorization')).toBe('Bearer tok')
+  })
+
+  it('PASSWORD_CHANGE_REQUIRED moves the session to must-change-password', async () => {
+    setAccessToken('tok')
+    setAuthState({ status: 'authenticated' })
+    fetchMock.mockResolvedValue(forbidden())
+    await expect(cancelRun('t1')).rejects.toThrow('change')
+    expect(getAuthState().status).toBe('must-change-password')
   })
 })

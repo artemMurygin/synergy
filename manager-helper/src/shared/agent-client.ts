@@ -1,5 +1,6 @@
 import { HttpAgent } from '@ag-ui/client'
 import { AskError, errorMessage } from './api'
+import { authFetch } from './auth/auth-fetch'
 import { getBackendUrl } from './settings'
 
 /** The thread already has an active run (HTTP 409). */
@@ -21,7 +22,7 @@ export function isRunConflict(error: unknown): boolean {
 /** AG-UI agent bound to a chat: `threadId` is the chat id on every level. */
 export async function createAgent(threadId: string): Promise<HttpAgent> {
   const baseUrl = await getBackendUrl()
-  return new HttpAgent({ url: `${baseUrl}/agent`, threadId })
+  return new HttpAgent({ url: `${baseUrl}/agent`, threadId, fetch: authFetch })
 }
 
 /** Idempotent: 204 and 404 (no such run or thread) are not errors. */
@@ -29,7 +30,7 @@ export async function cancelRun(threadId: string): Promise<void> {
   const baseUrl = await getBackendUrl()
   let response: Response
   try {
-    response = await fetch(`${baseUrl}/threads/${encodeURIComponent(threadId)}/run/cancel`, {
+    response = await authFetch(`${baseUrl}/threads/${encodeURIComponent(threadId)}/run/cancel`, {
       method: 'POST',
     })
   } catch {
