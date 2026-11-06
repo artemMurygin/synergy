@@ -1,5 +1,5 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { cancelRun } from '@/shared/agent-client'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { ChatHeader } from './ChatHeader'
@@ -33,11 +33,12 @@ interface PaneProps {
   onSettled: () => void
   /** A run of the chat ended on the server: its fresh history goes into the runtime in place. */
   finished: FinishedRun | null
+  onFinishedApplied: () => void
 }
 
 /** The thread of the active chat; lives inside the runtime provider. */
 function ChatPane(props: PaneProps) {
-  const { activeId, activeSession, create, rename, onSettled } = props
+  const { activeId, activeSession, create, rename, onSettled, onFinishedApplied } = props
   const aui = useAui()
   const history = useChatHistory()
   const messageCount = useAuiState((s) => s.thread.messages.length)
@@ -48,8 +49,10 @@ function ChatPane(props: PaneProps) {
   const { refresh } = history
   const { finished } = props
   useEffect(() => {
-    if (finished !== null) refresh(finished.threadId, finished.history)
-  }, [finished, refresh])
+    if (finished === null) return
+    refresh(finished.threadId, finished.history)
+    onFinishedApplied()
+  }, [finished, refresh, onFinishedApplied])
 
   const wasRunning = useRef(false)
   useEffect(() => {
@@ -128,6 +131,10 @@ export function App() {
     if (previousId.current !== null && previousId.current !== activeId) void reload()
     previousId.current = activeId
   }, [activeId, reload])
+
+  const clearFinished = useCallback(() => {
+    setFinished(null)
+  }, [])
 
   const stopServerRun = () => {
     if (activeId === null) return
@@ -216,6 +223,7 @@ export function App() {
               onStopServerRun={stopServerRun}
               onSettled={() => void reload()}
               finished={finished}
+              onFinishedApplied={clearFinished}
             />
           </div>
         </div>

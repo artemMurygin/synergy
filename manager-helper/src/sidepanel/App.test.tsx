@@ -296,6 +296,43 @@ describe('App', () => {
       expect(createAgent).toHaveBeenCalledTimes(1)
     })
 
+    it('does not apply a stale finished history after switching away and back', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      await openApp()
+      vi.mocked(getThread).mockImplementation((id) =>
+        Promise.resolve(
+          id === 'b'
+            ? history(false, 'вопрос Б', 'ответ Б')
+            : history(false, 'вопрос', 'Готовый ответ'),
+        ),
+      )
+      vi.mocked(listThreads).mockResolvedValue([thread('a'), thread('b')])
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RUN_POLL_INTERVAL_MS)
+      })
+      vi.useRealTimers()
+      await waitFor(() => {
+        expect(screen.getByText('Готовый ответ')).toBeTruthy()
+      })
+      fireEvent.click(screen.getByText('Чат b'))
+      await waitFor(() => {
+        expect(screen.getByText('ответ Б')).toBeTruthy()
+      })
+      vi.mocked(getThread).mockImplementation((id) =>
+        Promise.resolve(
+          id === 'b'
+            ? history(false, 'вопрос Б', 'ответ Б')
+            : history(true, 'вопрос', 'Готовый ответ', 'новый вопрос'),
+        ),
+      )
+      fireEvent.click(screen.getByText('Чат a'))
+      await waitFor(() => {
+        expect(screen.getByText('новый вопрос')).toBeTruthy()
+      })
+      expect(screen.getByText('Агент ещё отвечает')).toBeTruthy()
+      expect(input().hasAttribute('disabled')).toBe(true)
+    })
+
     it('blocks sending at once after a switch to a running chat, before the list is reloaded', async () => {
       vi.mocked(listThreads).mockResolvedValueOnce([thread('a'), thread('b')])
       vi.mocked(getThread).mockImplementation((id) =>
