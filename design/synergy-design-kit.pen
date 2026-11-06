@@ -4,8 +4,8 @@
     {
       "type": "frame",
       "id": "k9JASi",
-      "x": -534,
-      "y": -280,
+      "x": -5942,
+      "y": -452,
       "name": "4. Synergy UI Kit",
       "clip": true,
       "width": 1600,
@@ -14583,6 +14583,308 @@
                   ]
                 }
               ]
+            },
+            {
+              "type": "frame",
+              "id": "ZlFbQ",
+              "name": "Row E",
+              "width": "fill_container",
+              "gap": 24,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "y6RhdX",
+                  "name": "Panel Чат агента (AG-UI)",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "IgiY5",
+                      "name": "Panel Head",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "w3wJd",
+                          "name": "Panel Title",
+                          "fill": "$ink",
+                          "content": "Чат агента: ход работы и статус запуска",
+                          "fontFamily": "$font-display",
+                          "fontSize": 22,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GWC4X",
+                          "name": "Panel Note",
+                          "fill": "$ink-60",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Строка вызова инструмента, блок «Ход работы» и уведомление о запуске. Кнопка «Остановить» — Button / Master с обводкой.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Vf7yX",
+                      "name": "Masters",
+                      "width": 380,
+                      "layout": "vertical",
+                      "gap": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Q9teX",
+                          "name": "Tool Call Row / Master",
+                          "reusable": true,
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "sisDj",
+                              "name": "Status Icon",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "check",
+                              "library": "lucide",
+                              "fill": "$success"
+                            },
+                            {
+                              "type": "text",
+                              "id": "O1Gcj",
+                              "name": "Tool Name",
+                              "fill": "$ink",
+                              "content": "find_programs",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Y60Ui",
+                              "name": "Tool Args",
+                              "fill": "$ink-60",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "уровень: магистратура",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AHgP8",
+                          "name": "Tool Trace / Master",
+                          "reusable": true,
+                          "width": "fill_container",
+                          "fill": "$surface",
+                          "cornerRadius": "$r-md",
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "Siesy",
+                              "name": "Trace Head",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "padding": [
+                                10,
+                                12
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "JOyc3",
+                                  "name": "Chevron",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "chevron-down",
+                                  "library": "lucide",
+                                  "fill": "$ink-60"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "YpmHE",
+                                  "name": "Trace Title",
+                                  "fill": "$ink",
+                                  "content": "Ход работы",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "F8gjH",
+                                  "name": "Trace Count",
+                                  "fill": "$ink-60",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "3 вызова · 1,2 с",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "gyUcK",
+                              "name": "Trace Body",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 8,
+                              "padding": [
+                                0,
+                                12,
+                                12,
+                                12
+                              ],
+                              "children": [
+                                {
+                                  "id": "i3oBGW",
+                                  "type": "ref",
+                                  "ref": "Q9teX",
+                                  "name": "Row 1",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "O1Gcj": {
+                                      "content": "search_books"
+                                    },
+                                    "Y60Ui": {
+                                      "content": "книги: ДПО, Магистратура"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": "BSmZu",
+                                  "type": "ref",
+                                  "ref": "Q9teX",
+                                  "name": "Row 2",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "O1Gcj": {
+                                      "content": "find_programs"
+                                    },
+                                    "Y60Ui": {
+                                      "content": "МВА, маркетинг, очно"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": "NfZq0",
+                                  "type": "ref",
+                                  "ref": "Q9teX",
+                                  "name": "Row 3",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "O1Gcj": {
+                                      "content": "read_rows"
+                                    },
+                                    "Y60Ui": {
+                                      "content": "Общий реестр, строки 12–18"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "HfVTG",
+                          "name": "Run Notice / Master",
+                          "reusable": true,
+                          "width": "fill_container",
+                          "fill": "$brand-red-soft",
+                          "cornerRadius": "$r-md",
+                          "gap": 10,
+                          "padding": [
+                            12,
+                            14
+                          ],
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "IZqu8",
+                              "name": "Icon",
+                              "width": 18,
+                              "height": 18,
+                              "icon": "circle-alert",
+                              "library": "lucide",
+                              "fill": "$brand-red"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Md211",
+                              "name": "Content",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 4,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "i7m1c",
+                                  "name": "Title",
+                                  "fill": "$ink",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Не удалось получить ответ",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "EgiET",
+                                  "name": "Text",
+                                  "fill": "$ink-80",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Сервер недоступен. Проверьте адрес бэкенда в настройках расширения.",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "an4T8",
+                                  "name": "Action",
+                                  "fill": "$brand-red",
+                                  "content": "Повторить",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -24386,8 +24688,8 @@
     {
       "type": "frame",
       "id": "KBBna",
-      "x": -534,
-      "y": 17000,
+      "x": -2635,
+      "y": -452,
       "name": "09 · Manager Helper · Чаты",
       "fill": "$surface-alt",
       "cornerRadius": "$r-lg",
@@ -30864,8 +31166,8 @@
     {
       "type": "rectangle",
       "id": "fxiju",
-      "x": -1864,
-      "y": 17874,
+      "x": -3965,
+      "y": 422,
       "fill": {
         "type": "image",
         "enabled": true,
@@ -30874,6 +31176,2413 @@
       },
       "width": 960,
       "height": 1630
+    },
+    {
+      "type": "frame",
+      "id": "GHRO6",
+      "x": -2635,
+      "y": 2150,
+      "name": "10 · Manager Helper · Чат на AG-UI",
+      "fill": "$surface-alt",
+      "cornerRadius": "$r-lg",
+      "stroke": "$border",
+      "strokeWidth": 1,
+      "layout": "vertical",
+      "gap": 48,
+      "padding": 48,
+      "children": [
+        {
+          "type": "text",
+          "id": "C37NI",
+          "name": "Title",
+          "fill": "$ink",
+          "content": "Manager Helper · Side panel · Чат на AG-UI",
+          "fontFamily": "$font-display",
+          "fontSize": 32,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "qy3Gt",
+          "name": "Row · Состояния запуска",
+          "gap": 48,
+          "children": [
+            {
+              "type": "frame",
+              "id": "Zkn8Q",
+              "name": "Slot · Chat · Stream",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "zVTG5",
+                  "fill": "$ink-60",
+                  "content": "Чат · агент отвечает",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "P5qlA",
+                  "name": "Chat · Pending",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "G9Umbf",
+                      "name": "ChatHeader",
+                      "width": "fill_container",
+                      "height": 56,
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "rvnIW",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Open List",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "messages-square",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "BQfON",
+                          "name": "Title",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Цены на МВА",
+                          "fontFamily": "$font-display",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "M4FQ3R",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "New Chat",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square-pen",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "ItNvP",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Settings",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "settings",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AQaM2",
+                      "name": "Messages",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "LXaM8",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "kHcyZ",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "cddbt",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "Сколько стоит МВА по маркетингу, очно, в Москве?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Hf74M",
+                          "name": "Agent Block",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "gupOI",
+                              "type": "ref",
+                              "ref": "AHgP8",
+                              "name": "Tool Trace",
+                              "width": "fill_container",
+                              "descendants": {
+                                "F8gjH": {
+                                  "content": "идёт · 2 из 3"
+                                },
+                                "NfZq0/sisDj": {
+                                  "icon": "loader",
+                                  "fill": "$brand-red"
+                                }
+                              }
+                            },
+                            {
+                              "type": "frame",
+                              "id": "IbXbm",
+                              "name": "Agent Message",
+                              "fill": "$surface-alt",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "T9K5fg",
+                                  "fill": "$ink",
+                                  "textGrowth": "fixed-width",
+                                  "width": 290,
+                                  "content": "МВА «Маркетинг» (очно, 2 года): 420 000 ₽ в семестр. Есть рассрочка на",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Awcjo",
+                          "name": "Pending",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "X9aj1J",
+                              "name": "Dot",
+                              "fill": "$brand-red",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "sXN2K",
+                              "fill": "$ink-60",
+                              "content": "Агент отвечает…",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tCAEM",
+                      "name": "Quick Search",
+                      "opacity": 0.5,
+                      "width": "fill_container",
+                      "fill": "$surface-alt",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "tFVFH",
+                          "name": "Quick Search Head",
+                          "width": "fill_container",
+                          "padding": [
+                            12,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "QU3OW",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "vdij3",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Быстрый подбор",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "w3FrH",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-right",
+                              "library": "lucide",
+                              "fill": "$ink-60"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "WSSfQ",
+                      "name": "Next Steps",
+                      "opacity": 0.5,
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16,
+                        12,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "z1ZCP4",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "mNnDu",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Подробнее по 1-й",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Подробнее по 1-й",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "azXs2",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Вступительные",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Вступительные",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ideSS",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "WEyyu",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Показать ещё",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Показать ещё",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "TRx24",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Новый подбор",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Новый подбор",
+                                  "fontSize": 12,
+                                  "fill": "$ink",
+                                  "fontWeight": "500"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OnR6Y",
+                      "name": "Composer",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "id": "Q4xDd",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Question Field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "Вопрос агенту"
+                            }
+                          }
+                        },
+                        {
+                          "id": "U9ASJ",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Stop",
+                          "height": 52,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "fill": "$surface",
+                          "stroke": "$border-strong",
+                          "strokeWidth": 1,
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square",
+                              "fill": "$ink",
+                              "width": 14,
+                              "height": 14
+                            },
+                            "U0Rmd": {
+                              "content": "Остановить",
+                              "fill": "$ink"
+                            },
+                            "v4a3RA": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kERUO",
+              "name": "Slot · Chat · Trace",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "R0JRR",
+                  "fill": "$ink-60",
+                  "content": "Чат · активный",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "nXeTM",
+                  "name": "Chat · Active",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dcR2V",
+                      "name": "ChatHeader",
+                      "width": "fill_container",
+                      "height": 56,
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "i8shQ",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Open List",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "messages-square",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "Hsw4A",
+                          "name": "Title",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Цены на МВА",
+                          "fontFamily": "$font-display",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "e5SDgt",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "New Chat",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square-pen",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "h5D5Y",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Settings",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "settings",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ekSAA",
+                      "name": "Messages",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qe5V5",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "thbtT",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "N3nvT",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "Сколько стоит МВА по маркетингу, очно, в Москве?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "S8oZK",
+                          "name": "Agent Block",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "b9cm7",
+                              "type": "ref",
+                              "ref": "AHgP8",
+                              "name": "Tool Trace",
+                              "width": "fill_container"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "MoatT",
+                              "name": "Agent Message",
+                              "fill": "$surface-alt",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "sHrya",
+                                  "fill": "$ink",
+                                  "textGrowth": "fixed-width",
+                                  "width": 290,
+                                  "content": "МВА «Маркетинг» (очно, 2 года): 420 000 ₽ в семестр. Есть рассрочка на 12 месяцев.",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OuSvU",
+                      "name": "Quick Search",
+                      "width": "fill_container",
+                      "fill": "$surface-alt",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "cErNn",
+                          "name": "Quick Search Head",
+                          "width": "fill_container",
+                          "padding": [
+                            12,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "c15yq2",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "S9pVpS",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Быстрый подбор",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "wx2Hi",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-right",
+                              "library": "lucide",
+                              "fill": "$ink-60"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AvE57",
+                      "name": "Next Steps",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16,
+                        12,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "tX818",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "rztBt",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Подробнее по 1-й",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Подробнее по 1-й",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "SG2AA",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Вступительные",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Вступительные",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "cL4Nt",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "DnxXs",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Показать ещё",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Показать ещё",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "RxJCk",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Новый подбор",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Новый подбор",
+                                  "fontSize": 12,
+                                  "fill": "$ink",
+                                  "fontWeight": "500"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dGoyr",
+                      "name": "Composer",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "id": "E9njfM",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Question Field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "Вопрос агенту"
+                            }
+                          }
+                        },
+                        {
+                          "id": "WEE3W",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Send",
+                          "height": 52,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Спросить"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "QvaMk",
+              "name": "Slot · Chat · Stopped",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ExLzq",
+                  "fill": "$ink-60",
+                  "content": "Чат · активный",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "YE7wE",
+                  "name": "Chat · Active",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "B9CgG",
+                      "name": "ChatHeader",
+                      "width": "fill_container",
+                      "height": 56,
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "fHKpy",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Open List",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "messages-square",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "E2046U",
+                          "name": "Title",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Цены на МВА",
+                          "fontFamily": "$font-display",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "E0oVv",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "New Chat",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square-pen",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "w4yZ4",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Settings",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "settings",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "K7bqpY",
+                      "name": "Messages",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ECECb",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "HIVg1",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "oUYpI",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "Сколько стоит МВА по маркетингу, очно, в Москве?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JiUpe",
+                          "name": "Agent Block",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "K75yU1",
+                              "type": "ref",
+                              "ref": "AHgP8",
+                              "name": "Tool Trace",
+                              "width": "fill_container",
+                              "descendants": {
+                                "JOyc3": {
+                                  "icon": "chevron-right"
+                                },
+                                "F8gjH": {
+                                  "content": "2 вызова · прервано"
+                                },
+                                "gyUcK": {
+                                  "enabled": false
+                                }
+                              }
+                            },
+                            {
+                              "type": "frame",
+                              "id": "X4gLsL",
+                              "name": "Agent Message",
+                              "fill": "$surface-alt",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "wm0se",
+                                  "fill": "$ink",
+                                  "textGrowth": "fixed-width",
+                                  "width": 290,
+                                  "content": "МВА «Маркетинг» (очно, 2 года): 420 000 ₽ в семестр. Есть рассрочка на",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "id": "DB6eP",
+                              "type": "ref",
+                              "ref": "HfVTG",
+                              "name": "Run Notice",
+                              "width": "fill_container",
+                              "fill": "$surface-alt",
+                              "descendants": {
+                                "IZqu8": {
+                                  "icon": "square",
+                                  "fill": "$ink-60"
+                                },
+                                "i7m1c": {
+                                  "content": "Ответ остановлен"
+                                },
+                                "EgiET": {
+                                  "content": "Показана полученная часть. В историю чата она не сохранена."
+                                },
+                                "an4T8": {
+                                  "content": "Повторить вопрос",
+                                  "fill": "$brand-red"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ryA1p",
+                      "name": "Quick Search",
+                      "width": "fill_container",
+                      "fill": "$surface-alt",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "rQLrZ",
+                          "name": "Quick Search Head",
+                          "width": "fill_container",
+                          "padding": [
+                            12,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "d4wAzL",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "wUr8K",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Быстрый подбор",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "kqrNQ",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-right",
+                              "library": "lucide",
+                              "fill": "$ink-60"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ISrq5",
+                      "name": "Next Steps",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16,
+                        12,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "wvQox",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "pHCUy",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Подробнее по 1-й",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Подробнее по 1-й",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "J0aJFf",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Вступительные",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Вступительные",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "iVrHC",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "McalR",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Показать ещё",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Показать ещё",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "olAvb",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Новый подбор",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Новый подбор",
+                                  "fontSize": 12,
+                                  "fill": "$ink",
+                                  "fontWeight": "500"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Lz8PK",
+                      "name": "Composer",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "id": "eHIhG",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Question Field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "Вопрос агенту"
+                            }
+                          }
+                        },
+                        {
+                          "id": "wvW1U",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Send",
+                          "height": 52,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Спросить"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "fdooH",
+              "name": "Slot · Chat · Error",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "i1R87",
+                  "fill": "$ink-60",
+                  "content": "Чат · активный",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "Tjesr",
+                  "name": "Chat · Active",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ngdKB",
+                      "name": "ChatHeader",
+                      "width": "fill_container",
+                      "height": 56,
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "Xis9s",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Open List",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "messages-square",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "seemq",
+                          "name": "Title",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Цены на МВА",
+                          "fontFamily": "$font-display",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "SNAA7",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "New Chat",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square-pen",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "D67Ip",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Settings",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "settings",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uar5a",
+                      "name": "Messages",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Onhw9",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "zAAfP",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "h9LotD",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "Сколько стоит МВА по маркетингу, очно, в Москве?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "g0YvE",
+                          "type": "ref",
+                          "ref": "HfVTG",
+                          "name": "Run Notice",
+                          "width": "fill_container",
+                          "fill": "$brand-red-soft",
+                          "descendants": {
+                            "IZqu8": {
+                              "icon": "circle-alert",
+                              "fill": "$brand-red"
+                            },
+                            "i7m1c": {
+                              "content": "Не удалось получить ответ"
+                            },
+                            "EgiET": {
+                              "content": "Сервер не отвечает. Проверьте адрес бэкенда в настройках расширения."
+                            },
+                            "an4T8": {
+                              "content": "Повторить",
+                              "fill": "$brand-red"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SHgEO",
+                      "name": "Quick Search",
+                      "width": "fill_container",
+                      "fill": "$surface-alt",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "t22c7L",
+                          "name": "Quick Search Head",
+                          "width": "fill_container",
+                          "padding": [
+                            12,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "C3gd8t",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "JjfGr",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Быстрый подбор",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "oohlA",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-right",
+                              "library": "lucide",
+                              "fill": "$ink-60"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "YUxbT",
+                      "name": "Next Steps",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16,
+                        12,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "aBxOq",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "JIQFx",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Подробнее по 1-й",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Подробнее по 1-й",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "l1tSi",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Вступительные",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Вступительные",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "X0xaqQ",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "V6SfzY",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Показать ещё",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Показать ещё",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "Jt27Z",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Новый подбор",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Новый подбор",
+                                  "fontSize": 12,
+                                  "fill": "$ink",
+                                  "fontWeight": "500"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "M7leov",
+                      "name": "Composer",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "id": "lLYj8",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Question Field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "Вопрос агенту"
+                            }
+                          }
+                        },
+                        {
+                          "id": "rqeHY",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Send",
+                          "height": 52,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Спросить"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "x1i0U",
+              "name": "Slot · Chat · Back to run",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "X44pcr",
+                  "fill": "$ink-60",
+                  "content": "Чат · агент отвечает",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "MFen0",
+                  "name": "Chat · Pending",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "E0oma",
+                      "name": "ChatHeader",
+                      "width": "fill_container",
+                      "height": 56,
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 4,
+                      "padding": [
+                        0,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "uWy1e",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Open List",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "messages-square",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "BAgGE",
+                          "name": "Title",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Цены на МВА",
+                          "fontFamily": "$font-display",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "zNAmT",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "New Chat",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square-pen",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "g63r8C",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "width": 36,
+                          "height": 36,
+                          "padding": 0,
+                          "cornerRadius": "$r-md",
+                          "fill": "#FFFFFF00",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "name": "Settings",
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "settings",
+                              "fill": "$ink"
+                            },
+                            "U0Rmd": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uSZGy",
+                      "name": "Messages",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 12,
+                      "padding": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "SrE7H",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "fZZez",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hiTF1",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "Сколько стоит МВА по маркетингу, очно, в Москве?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "DgKOl",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "cfmIy",
+                              "name": "Agent Message",
+                              "fill": "$surface-alt",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "XhVCC",
+                                  "fill": "$ink",
+                                  "textGrowth": "fixed-width",
+                                  "width": 290,
+                                  "content": "МВА «Маркетинг» (очно, 2 года): 420 000 ₽ в семестр.",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "z85ds",
+                              "fill": "$ink-60",
+                              "content": "1,2 с · вызовов инструментов: 3",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "bWvac",
+                          "width": "fill_container",
+                          "justifyContent": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "q4oioA",
+                              "name": "User Message",
+                              "fill": "$brand-red",
+                              "cornerRadius": "$r-lg",
+                              "padding": [
+                                10,
+                                14
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r9QqH",
+                                  "fill": "$surface",
+                                  "textGrowth": "fixed-width",
+                                  "width": 240,
+                                  "content": "А для корпоративных клиентов?",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 14,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "id": "sDiAF",
+                          "type": "ref",
+                          "ref": "HfVTG",
+                          "name": "Run Notice",
+                          "width": "fill_container",
+                          "fill": "#E3EBFB",
+                          "descendants": {
+                            "IZqu8": {
+                              "icon": "loader",
+                              "fill": "$info"
+                            },
+                            "i7m1c": {
+                              "content": "Агент ещё отвечает"
+                            },
+                            "EgiET": {
+                              "content": "Ответ появится в чате, когда будет готов. Панель можно закрыть."
+                            },
+                            "an4T8": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Y6XQJ",
+                      "name": "Quick Search",
+                      "opacity": 0.5,
+                      "width": "fill_container",
+                      "fill": "$surface-alt",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YWfx9",
+                          "name": "Quick Search Head",
+                          "width": "fill_container",
+                          "padding": [
+                            12,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "m4j11",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$ink"
+                            },
+                            {
+                              "type": "text",
+                              "id": "OHQi4",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Быстрый подбор",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "WOrXW",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-right",
+                              "library": "lucide",
+                              "fill": "$ink-60"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Qh2xQ",
+                      "name": "Next Steps",
+                      "opacity": 0.5,
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        8,
+                        16,
+                        12,
+                        16
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "AH98I",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "RX90Z",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Подробнее по 1-й",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Подробнее по 1-й",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "CH1Sk",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Вступительные",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Вступительные",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "rhFfQ",
+                          "width": "fill_container",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "id": "iVlYU",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Показать ещё",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "fill": "$brand-red-soft",
+                              "stroke": "$brand-red",
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Показать ещё",
+                                  "fontSize": 12,
+                                  "fill": "$brand-red",
+                                  "fontWeight": "600"
+                                }
+                              }
+                            },
+                            {
+                              "id": "Odfk1",
+                              "type": "ref",
+                              "ref": "xFsWD",
+                              "name": "Chip · Новый подбор",
+                              "height": 30,
+                              "padding": [
+                                0,
+                                12
+                              ],
+                              "descendants": {
+                                "KwxwH": {
+                                  "content": "Новый подбор",
+                                  "fontSize": 12,
+                                  "fill": "$ink",
+                                  "fontWeight": "500"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BLNsZ",
+                      "name": "Composer",
+                      "width": "fill_container",
+                      "stroke": "$border",
+                      "strokeWidth": {
+                        "top": 1
+                      },
+                      "gap": 8,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "id": "p7HPV0",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Question Field",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "Вопрос агенту"
+                            }
+                          }
+                        },
+                        {
+                          "id": "PFd81",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Stop",
+                          "height": 52,
+                          "padding": [
+                            0,
+                            16
+                          ],
+                          "fill": "$surface",
+                          "stroke": "$border-strong",
+                          "strokeWidth": 1,
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "enabled": false,
+                            "color": "#00000000"
+                          },
+                          "descendants": {
+                            "ww9To": {
+                              "enabled": true,
+                              "icon": "square",
+                              "fill": "$ink",
+                              "width": 14,
+                              "height": 14
+                            },
+                            "U0Rmd": {
+                              "content": "Остановить",
+                              "fill": "$ink"
+                            },
+                            "v4a3RA": {
+                              "enabled": false
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
