@@ -1,0 +1,4482 @@
+[
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Сколько стоит дизайн?"
+          }
+        ]
+      }
+    },
+    "name": "LangGraph",
+    "tags": [],
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Сколько стоит дизайн?"
+          }
+        ]
+      }
+    },
+    "name": "__start__",
+    "tags": [
+      "graph:step:0",
+      "langsmith:hidden"
+    ],
+    "run_id": "01a1b051-de1e-779d-9796-befe2b33185c",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 0,
+      "langgraph_node": "__start__",
+      "langgraph_triggers": [
+        "__start__"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "__start__"
+      ],
+      "langgraph_checkpoint_ns": "__start__:5dd715c8-542a-58de-bb5c-911999c1ca1a",
+      "checkpoint_ns": "__start__:5dd715c8-542a-58de-bb5c-911999c1ca1a"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Сколько стоит дизайн?"
+          }
+        ]
+      },
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Сколько стоит дизайн?"
+          }
+        ]
+      }
+    },
+    "run_id": "01a1b051-de1e-779d-9796-befe2b33185c",
+    "name": "__start__",
+    "tags": [
+      "graph:step:0",
+      "langsmith:hidden"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 0,
+      "langgraph_node": "__start__",
+      "langgraph_triggers": [
+        "__start__"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "__start__"
+      ],
+      "langgraph_checkpoint_ns": "__start__:5dd715c8-542a-58de-bb5c-911999c1ca1a",
+      "checkpoint_ns": "__start__:5dd715c8-542a-58de-bb5c-911999c1ca1a"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "FilesystemMiddleware.before_agent",
+    "tags": [
+      "graph:step:1"
+    ],
+    "run_id": "01a1b051-de20-7691-9175-9a1281142a04",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 1,
+      "langgraph_node": "FilesystemMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "FilesystemMiddleware.before_agent:9921a825-6273-5012-852f-d582f23ad600",
+      "checkpoint_ns": "FilesystemMiddleware.before_agent:9921a825-6273-5012-852f-d582f23ad600"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {},
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de20-7691-9175-9a1281142a04",
+    "name": "FilesystemMiddleware.before_agent",
+    "tags": [
+      "graph:step:1"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 1,
+      "langgraph_node": "FilesystemMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "FilesystemMiddleware.before_agent:9921a825-6273-5012-852f-d582f23ad600",
+      "checkpoint_ns": "FilesystemMiddleware.before_agent:9921a825-6273-5012-852f-d582f23ad600"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ]
+      }
+    },
+    "name": "patchToolCallsMiddleware.before_agent",
+    "tags": [
+      "graph:step:2"
+    ],
+    "run_id": "01a1b051-de22-7793-8154-cdaeb53cfbd2",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 2,
+      "langgraph_node": "patchToolCallsMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "patchToolCallsMiddleware.before_agent:e11ac8aa-13a4-53ff-b150-883e779508df",
+      "checkpoint_ns": "patchToolCallsMiddleware.before_agent:e11ac8aa-13a4-53ff-b150-883e779508df"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "FilesystemMiddleware.before_agent": {}
+      }
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {},
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ]
+      }
+    },
+    "run_id": "01a1b051-de22-7793-8154-cdaeb53cfbd2",
+    "name": "patchToolCallsMiddleware.before_agent",
+    "tags": [
+      "graph:step:2"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 2,
+      "langgraph_node": "patchToolCallsMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "patchToolCallsMiddleware.before_agent:e11ac8aa-13a4-53ff-b150-883e779508df",
+      "checkpoint_ns": "patchToolCallsMiddleware.before_agent:e11ac8aa-13a4-53ff-b150-883e779508df"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "model_request",
+    "tags": [
+      "graph:step:3"
+    ],
+    "run_id": "01a1b051-de22-7793-8154-d3da2573b80d",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "patchToolCallsMiddleware.before_agent": {}
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_start",
+    "data": {
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ты помощник менеджера."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Сколько стоит дизайн?",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "run_id": "01a1b051-de28-769b-9f85-8f8d4d81419b",
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "Сейчас проверю. ",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b"
+        }
+      }
+    },
+    "run_id": "01a1b051-de28-769b-9f85-8f8d4d81419b",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "",
+          "tool_call_chunks": [
+            {
+              "id": "call_task_1",
+              "name": "task",
+              "args": "{\"description\":\"Найди дизайн",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_calls": [
+            {
+              "name": "task",
+              "args": {
+                "description": "Найди дизайн"
+              },
+              "id": "call_task_1",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b"
+        }
+      }
+    },
+    "run_id": "01a1b051-de28-769b-9f85-8f8d4d81419b",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "",
+          "tool_call_chunks": [
+            {
+              "args": "\",\"subagent_type\":\"searcher\"}",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_calls": [],
+          "invalid_tool_calls": [
+            {
+              "name": "",
+              "args": "\",\"subagent_type\":\"searcher\"}",
+              "error": "Malformed args.",
+              "type": "invalid_tool_call"
+            }
+          ],
+          "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b"
+        }
+      }
+    },
+    "run_id": "01a1b051-de28-769b-9f85-8f8d4d81419b",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_end",
+    "data": {
+      "output": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "Сейчас проверю. ",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_call_chunks": [
+            {
+              "id": "call_task_1",
+              "name": "task",
+              "args": "{\"description\":\"Найди дизайн\",\"subagent_type\":\"searcher\"}",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "tool_calls": [
+            {
+              "name": "task",
+              "args": {
+                "description": "Найди дизайн",
+                "subagent_type": "searcher"
+              },
+              "id": "call_task_1",
+              "type": "tool_call"
+            }
+          ],
+          "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+          "invalid_tool_calls": []
+        }
+      },
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ты помощник менеджера."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Сколько стоит дизайн?",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "run_id": "01a1b051-de28-769b-9f85-8f8d4d81419b",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "RunnableLambda",
+    "tags": [],
+    "run_id": "01a1b051-de29-75df-9b18-c2a16a8b800c",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Send",
+          "node": "tools",
+          "args": {
+            "lg_tool_call": {
+              "name": "task",
+              "args": {
+                "description": "Найди дизайн",
+                "subagent_type": "searcher"
+              },
+              "id": "call_task_1",
+              "type": "tool_call"
+            }
+          }
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de29-75df-9b18-c2a16a8b800c",
+    "name": "RunnableLambda",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Command",
+          "update": {
+            "messages": [
+              {
+                "lc": 1,
+                "type": "constructor",
+                "id": [
+                  "langchain_core",
+                  "messages",
+                  "AIMessageChunk"
+                ],
+                "kwargs": {
+                  "content": "Сейчас проверю. ",
+                  "additional_kwargs": {},
+                  "response_metadata": {},
+                  "tool_call_chunks": [
+                    {
+                      "id": "call_task_1",
+                      "name": "task",
+                      "args": "{\"description\":\"Найди дизайн\",\"subagent_type\":\"searcher\"}",
+                      "index": 0,
+                      "type": "tool_call_chunk"
+                    }
+                  ],
+                  "tool_calls": [
+                    {
+                      "name": "task",
+                      "args": {
+                        "description": "Найди дизайн",
+                        "subagent_type": "searcher"
+                      },
+                      "id": "call_task_1",
+                      "type": "tool_call"
+                    }
+                  ],
+                  "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+                  "invalid_tool_calls": [],
+                  "name": "model"
+                }
+              }
+            ]
+          },
+          "goto": []
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de22-7793-8154-d3da2573b80d",
+    "name": "model_request",
+    "tags": [
+      "graph:step:3"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325",
+      "checkpoint_ns": "model_request:c49123bd-bb0d-5964-8a06-fadd524c7325"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        }
+      }
+    },
+    "name": "tools",
+    "tags": [
+      "graph:step:4"
+    ],
+    "run_id": "01a1b051-de2a-755c-8dce-693e40b5c590",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "model_request": {
+          "messages": [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessageChunk"
+              ],
+              "kwargs": {
+                "content": "Сейчас проверю. ",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_call_chunks": [
+                  {
+                    "id": "call_task_1",
+                    "name": "task",
+                    "args": "{\"description\":\"Найди дизайн\",\"subagent_type\":\"searcher\"}",
+                    "index": 0,
+                    "type": "tool_call_chunk"
+                  }
+                ],
+                "tool_calls": [
+                  {
+                    "name": "task",
+                    "args": {
+                      "description": "Найди дизайн",
+                      "subagent_type": "searcher"
+                    },
+                    "id": "call_task_1",
+                    "type": "tool_call"
+                  }
+                ],
+                "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+                "invalid_tool_calls": [],
+                "name": "model"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "event": "on_tool_start",
+    "data": {
+      "input": {
+        "description": "Найди дизайн",
+        "subagent_type": "searcher"
+      }
+    },
+    "name": "task",
+    "run_id": "01a1b051-de2b-763a-b0b4-04d4b75da3ac",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "files": {},
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        },
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {}
+            }
+          }
+        ],
+        "_summarizationSessionId": "session_b1401aae"
+      }
+    },
+    "name": "searcher",
+    "tags": [],
+    "run_id": "01a1b051-de2c-711d-a89a-e94e86344b40",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "files": {},
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        },
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {}
+            }
+          }
+        ],
+        "_summarizationSessionId": "session_b1401aae"
+      }
+    },
+    "name": "__start__",
+    "tags": [
+      "graph:step:0",
+      "langsmith:hidden"
+    ],
+    "run_id": "01a1b051-de2c-711d-a89a-ee5c3ba13575",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 0,
+      "langgraph_node": "__start__",
+      "langgraph_triggers": [
+        "__start__"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "__start__"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|__start__:dff7e8a0-60a4-5aec-b31f-6cd9f0f9e629",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|__start__:dff7e8a0-60a4-5aec-b31f-6cd9f0f9e629"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {
+        "files": {},
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        },
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {}
+            }
+          }
+        ],
+        "_summarizationSessionId": "session_b1401aae"
+      },
+      "input": {
+        "files": {},
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        },
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {}
+            }
+          }
+        ],
+        "_summarizationSessionId": "session_b1401aae"
+      }
+    },
+    "run_id": "01a1b051-de2c-711d-a89a-ee5c3ba13575",
+    "name": "__start__",
+    "tags": [
+      "graph:step:0",
+      "langsmith:hidden"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 0,
+      "langgraph_node": "__start__",
+      "langgraph_triggers": [
+        "__start__"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "__start__"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|__start__:dff7e8a0-60a4-5aec-b31f-6cd9f0f9e629",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|__start__:dff7e8a0-60a4-5aec-b31f-6cd9f0f9e629"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "FilesystemMiddleware.before_agent",
+    "tags": [
+      "graph:step:1"
+    ],
+    "run_id": "01a1b051-de2d-727b-b82f-9cbb9c3d6b05",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 1,
+      "langgraph_node": "FilesystemMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|FilesystemMiddleware.before_agent:5fe15188-03ba-54c4-bbe1-130017d0cac7",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|FilesystemMiddleware.before_agent:5fe15188-03ba-54c4-bbe1-130017d0cac7"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {},
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de2d-727b-b82f-9cbb9c3d6b05",
+    "name": "FilesystemMiddleware.before_agent",
+    "tags": [
+      "graph:step:1"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 1,
+      "langgraph_node": "FilesystemMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "FilesystemMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|FilesystemMiddleware.before_agent:5fe15188-03ba-54c4-bbe1-130017d0cac7",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|FilesystemMiddleware.before_agent:5fe15188-03ba-54c4-bbe1-130017d0cac7"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ]
+      }
+    },
+    "name": "patchToolCallsMiddleware.before_agent",
+    "tags": [
+      "graph:step:2"
+    ],
+    "run_id": "01a1b051-de2d-727b-b82f-a27a376b9ea8",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 2,
+      "langgraph_node": "patchToolCallsMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|patchToolCallsMiddleware.before_agent:9fb508b0-e60d-5e5f-bf02-456b1bb9f4b5",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|patchToolCallsMiddleware.before_agent:9fb508b0-e60d-5e5f-bf02-456b1bb9f4b5"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {},
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ]
+      }
+    },
+    "run_id": "01a1b051-de2d-727b-b82f-a27a376b9ea8",
+    "name": "patchToolCallsMiddleware.before_agent",
+    "tags": [
+      "graph:step:2"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 2,
+      "langgraph_node": "patchToolCallsMiddleware.before_agent",
+      "langgraph_triggers": [
+        "branch:to:patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "patchToolCallsMiddleware.before_agent"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|patchToolCallsMiddleware.before_agent:9fb508b0-e60d-5e5f-bf02-456b1bb9f4b5",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|patchToolCallsMiddleware.before_agent:9fb508b0-e60d-5e5f-bf02-456b1bb9f4b5"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "model_request",
+    "tags": [
+      "graph:step:3"
+    ],
+    "run_id": "01a1b051-de2e-77db-a201-cf82f0cda343",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35"
+    }
+  },
+  {
+    "event": "on_chat_model_start",
+    "data": {
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ищи через lookup."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Найди дизайн",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "run_id": "01a1b051-de2e-77db-a201-d28f4f2ad997",
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "",
+          "tool_call_chunks": [
+            {
+              "id": "call_lookup_1",
+              "name": "lookup",
+              "args": "{\"query\":",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_calls": [
+            {
+              "name": "lookup",
+              "args": {},
+              "id": "call_lookup_1",
+              "type": "tool_call"
+            }
+          ],
+          "invalid_tool_calls": [],
+          "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997"
+        }
+      }
+    },
+    "run_id": "01a1b051-de2e-77db-a201-d28f4f2ad997",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "",
+          "tool_call_chunks": [
+            {
+              "args": "\"дизайн\"}",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_calls": [],
+          "invalid_tool_calls": [
+            {
+              "name": "",
+              "args": "\"дизайн\"}",
+              "error": "Malformed args.",
+              "type": "invalid_tool_call"
+            }
+          ],
+          "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997"
+        }
+      }
+    },
+    "run_id": "01a1b051-de2e-77db-a201-d28f4f2ad997",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_end",
+    "data": {
+      "output": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_call_chunks": [
+            {
+              "id": "call_lookup_1",
+              "name": "lookup",
+              "args": "{\"query\":\"дизайн\"}",
+              "index": 0,
+              "type": "tool_call_chunk"
+            }
+          ],
+          "tool_calls": [
+            {
+              "name": "lookup",
+              "args": {
+                "query": "дизайн"
+              },
+              "id": "call_lookup_1",
+              "type": "tool_call"
+            }
+          ],
+          "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+          "invalid_tool_calls": []
+        }
+      },
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ищи через lookup."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Найди дизайн",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "run_id": "01a1b051-de2e-77db-a201-d28f4f2ad997",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "RunnableLambda",
+    "tags": [],
+    "run_id": "01a1b051-de2f-7489-8afb-dceecd15d3e1",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Send",
+          "node": "tools",
+          "args": {
+            "lg_tool_call": {
+              "name": "lookup",
+              "args": {
+                "query": "дизайн"
+              },
+              "id": "call_lookup_1",
+              "type": "tool_call"
+            }
+          }
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de2f-7489-8afb-dceecd15d3e1",
+    "name": "RunnableLambda",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Command",
+          "update": {
+            "messages": [
+              {
+                "lc": 1,
+                "type": "constructor",
+                "id": [
+                  "langchain_core",
+                  "messages",
+                  "AIMessageChunk"
+                ],
+                "kwargs": {
+                  "content": "",
+                  "additional_kwargs": {},
+                  "response_metadata": {},
+                  "tool_call_chunks": [
+                    {
+                      "id": "call_lookup_1",
+                      "name": "lookup",
+                      "args": "{\"query\":\"дизайн\"}",
+                      "index": 0,
+                      "type": "tool_call_chunk"
+                    }
+                  ],
+                  "tool_calls": [
+                    {
+                      "name": "lookup",
+                      "args": {
+                        "query": "дизайн"
+                      },
+                      "id": "call_lookup_1",
+                      "type": "tool_call"
+                    }
+                  ],
+                  "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+                  "invalid_tool_calls": [],
+                  "name": "searcher"
+                }
+              }
+            ]
+          },
+          "goto": []
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de2e-77db-a201-cf82f0cda343",
+    "name": "model_request",
+    "tags": [
+      "graph:step:3"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 3,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:f6466ca3-6737-5a08-b3dd-08cf0dbbac35"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "lg_tool_call": {
+          "name": "lookup",
+          "args": {
+            "query": "дизайн"
+          },
+          "id": "call_lookup_1",
+          "type": "tool_call"
+        }
+      }
+    },
+    "name": "tools",
+    "tags": [
+      "graph:step:4"
+    ],
+    "run_id": "01a1b051-de2f-7489-8afb-e016ab72fe81",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692"
+    }
+  },
+  {
+    "event": "on_tool_start",
+    "data": {
+      "input": {
+        "query": "дизайн"
+      }
+    },
+    "name": "lookup",
+    "run_id": "01a1b051-de30-73df-941e-fbdd82cbd703",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_tool_end",
+    "data": {
+      "output": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "ToolMessage"
+        ],
+        "kwargs": {
+          "status": "success",
+          "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+          "tool_call_id": "call_lookup_1",
+          "name": "lookup",
+          "metadata": {
+            "versions": {
+              "@langchain/core": "1.3.4"
+            }
+          },
+          "additional_kwargs": {},
+          "response_metadata": {}
+        }
+      },
+      "input": {
+        "query": "дизайн"
+      }
+    },
+    "run_id": "01a1b051-de30-73df-941e-fbdd82cbd703",
+    "name": "lookup",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {}
+            }
+          }
+        ]
+      },
+      "input": {
+        "lg_tool_call": {
+          "name": "lookup",
+          "args": {
+            "query": "дизайн"
+          },
+          "id": "call_lookup_1",
+          "type": "tool_call"
+        }
+      }
+    },
+    "run_id": "01a1b051-de2f-7489-8afb-e016ab72fe81",
+    "name": "tools",
+    "tags": [
+      "graph:step:4"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|tools:d0ca091f-f8fb-52e5-a783-0eb7c5369692"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "model_request",
+    "tags": [
+      "graph:step:5"
+    ],
+    "run_id": "01a1b051-de30-73df-941e-fdb1b4653ab1",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f"
+    }
+  },
+  {
+    "event": "on_chat_model_start",
+    "data": {
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ищи через lookup."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Найди дизайн",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessage"
+              ],
+              "kwargs": {
+                "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+                "name": "searcher",
+                "content": "",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_calls": [
+                  {
+                    "name": "lookup",
+                    "args": {
+                      "query": "дизайн"
+                    },
+                    "id": "call_lookup_1",
+                    "type": "tool_call"
+                  }
+                ],
+                "invalid_tool_calls": []
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "status": "success",
+                "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+                "tool_call_id": "call_lookup_1",
+                "name": "lookup",
+                "metadata": {
+                  "versions": {
+                    "@langchain/core": "1.3.4"
+                  }
+                },
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "run_id": "01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "1. **Дизайн** — ",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2"
+        }
+      }
+    },
+    "run_id": "01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "120000 руб.",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2"
+        }
+      }
+    },
+    "run_id": "01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_end",
+    "data": {
+      "output": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "1. **Дизайн** — 120000 руб.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_call_chunks": [],
+          "tool_calls": [],
+          "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+          "invalid_tool_calls": []
+        }
+      },
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ищи через lookup."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Найди дизайн",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessage"
+              ],
+              "kwargs": {
+                "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+                "name": "searcher",
+                "content": "",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_calls": [
+                  {
+                    "name": "lookup",
+                    "args": {
+                      "query": "дизайн"
+                    },
+                    "id": "call_lookup_1",
+                    "type": "tool_call"
+                  }
+                ],
+                "invalid_tool_calls": []
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "status": "success",
+                "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+                "tool_call_id": "call_lookup_1",
+                "name": "lookup",
+                "metadata": {
+                  "versions": {
+                    "@langchain/core": "1.3.4"
+                  }
+                },
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "run_id": "01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+              "name": "searcher",
+              "content": "1. **Дизайн** — 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "RunnableLambda",
+    "tags": [],
+    "run_id": "01a1b051-de31-71c1-b613-530b925deb09",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": "__end__",
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+              "name": "searcher",
+              "content": "1. **Дизайн** — 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de31-71c1-b613-530b925deb09",
+    "name": "RunnableLambda",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Command",
+          "update": {
+            "messages": [
+              {
+                "lc": 1,
+                "type": "constructor",
+                "id": [
+                  "langchain_core",
+                  "messages",
+                  "AIMessageChunk"
+                ],
+                "kwargs": {
+                  "content": "1. **Дизайн** — 120000 руб.",
+                  "additional_kwargs": {},
+                  "response_metadata": {},
+                  "tool_call_chunks": [],
+                  "tool_calls": [],
+                  "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+                  "invalid_tool_calls": [],
+                  "name": "searcher"
+                }
+              }
+            ]
+          },
+          "goto": []
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de30-73df-941e-fdb1b4653ab1",
+    "name": "model_request",
+    "tags": [
+      "graph:step:5"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de|model_request:08fc11d5-daaa-505b-be40-1aa60a308c4f"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de2e-77db-a201-d28f4f2ad997",
+              "name": "searcher",
+              "content": "",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "lookup",
+                  "args": {
+                    "query": "дизайн"
+                  },
+                  "id": "call_lookup_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "status": "success",
+              "content": "Результат поиска по «дизайн»: Дизайн, 120000 руб.",
+              "tool_call_id": "call_lookup_1",
+              "name": "lookup",
+              "metadata": {
+                "versions": {
+                  "@langchain/core": "1.3.4"
+                }
+              },
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "c3292788-ecd1-41cc-9a2f-b1b86ef22879"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de31-71c1-b613-4c6cd34ed1c2",
+              "name": "searcher",
+              "content": "1. **Дизайн** — 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      },
+      "input": {
+        "files": {},
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        },
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Найди дизайн",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "3db24bc0-7d35-4db2-828a-78a54143551b"
+            }
+          }
+        ],
+        "_summarizationSessionId": "session_b1401aae"
+      }
+    },
+    "run_id": "01a1b051-de2c-711d-a89a-e94e86344b40",
+    "name": "searcher",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "lc_agent_name": "searcher",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de"
+    }
+  },
+  {
+    "event": "on_tool_end",
+    "data": {
+      "output": {
+        "lg_name": "Command",
+        "update": {
+          "files": {},
+          "messages": [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "content": "1. **Дизайн** — 120000 руб.",
+                "tool_call_id": "call_task_1",
+                "name": "task",
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            }
+          ]
+        },
+        "goto": []
+      },
+      "input": {
+        "description": "Найди дизайн",
+        "subagent_type": "searcher"
+      }
+    },
+    "run_id": "01a1b051-de2b-763a-b0b4-04d4b75da3ac",
+    "name": "task",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Command",
+          "update": {
+            "files": {},
+            "messages": [
+              {
+                "lc": 1,
+                "type": "constructor",
+                "id": [
+                  "langchain_core",
+                  "messages",
+                  "ToolMessage"
+                ],
+                "kwargs": {
+                  "content": "1. **Дизайн** — 120000 руб.",
+                  "tool_call_id": "call_task_1",
+                  "name": "task",
+                  "additional_kwargs": {},
+                  "response_metadata": {}
+                }
+              }
+            ]
+          },
+          "goto": []
+        }
+      ],
+      "input": {
+        "lg_tool_call": {
+          "name": "task",
+          "args": {
+            "description": "Найди дизайн",
+            "subagent_type": "searcher"
+          },
+          "id": "call_task_1",
+          "type": "tool_call"
+        }
+      }
+    },
+    "run_id": "01a1b051-de2a-755c-8dce-693e40b5c590",
+    "name": "tools",
+    "tags": [
+      "graph:step:4"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 4,
+      "langgraph_node": "tools",
+      "langgraph_triggers": [
+        "__pregel_push"
+      ],
+      "langgraph_path": [
+        "__pregel_push",
+        0,
+        false
+      ],
+      "langgraph_checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de",
+      "checkpoint_ns": "tools:3e9eb8b8-35e9-5f72-b5b9-abd6fe7293de"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "model_request",
+    "tags": [
+      "graph:step:5"
+    ],
+    "run_id": "01a1b051-de34-70c3-a2c2-0554c3e83985",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "tools": {
+          "files": {},
+          "messages": [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "content": "1. **Дизайн** — 120000 руб.",
+                "tool_call_id": "call_task_1",
+                "name": "task",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_start",
+    "data": {
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ты помощник менеджера."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Сколько стоит дизайн?",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessage"
+              ],
+              "kwargs": {
+                "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+                "name": "model",
+                "content": "Сейчас проверю. ",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_calls": [
+                  {
+                    "name": "task",
+                    "args": {
+                      "description": "Найди дизайн",
+                      "subagent_type": "searcher"
+                    },
+                    "id": "call_task_1",
+                    "type": "tool_call"
+                  }
+                ],
+                "invalid_tool_calls": []
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "content": "1. **Дизайн** — 120000 руб.",
+                "tool_call_id": "call_task_1",
+                "name": "task",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "run_id": "01a1b051-de34-70c3-a2c2-09eafa85770f",
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "Нашёл программу: ",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f"
+        }
+      }
+    },
+    "run_id": "01a1b051-de34-70c3-a2c2-09eafa85770f",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "Дизайн, ",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f"
+        }
+      }
+    },
+    "run_id": "01a1b051-de34-70c3-a2c2-09eafa85770f",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_stream",
+    "data": {
+      "chunk": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "120000 руб.",
+          "tool_calls": [],
+          "invalid_tool_calls": [],
+          "tool_call_chunks": [],
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f"
+        }
+      }
+    },
+    "run_id": "01a1b051-de34-70c3-a2c2-09eafa85770f",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chat_model_end",
+    "data": {
+      "output": {
+        "lc": 1,
+        "type": "constructor",
+        "id": [
+          "langchain_core",
+          "messages",
+          "AIMessageChunk"
+        ],
+        "kwargs": {
+          "content": "Нашёл программу: Дизайн, 120000 руб.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "tool_call_chunks": [],
+          "tool_calls": [],
+          "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+          "invalid_tool_calls": []
+        }
+      },
+      "input": {
+        "messages": [
+          [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "SystemMessage"
+              ],
+              "kwargs": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Ты помощник менеджера."
+                  }
+                ],
+                "additional_kwargs": {},
+                "response_metadata": {}
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "HumanMessage"
+              ],
+              "kwargs": {
+                "content": "Сколько стоит дизайн?",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessage"
+              ],
+              "kwargs": {
+                "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+                "name": "model",
+                "content": "Сейчас проверю. ",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_calls": [
+                  {
+                    "name": "task",
+                    "args": {
+                      "description": "Найди дизайн",
+                      "subagent_type": "searcher"
+                    },
+                    "id": "call_task_1",
+                    "type": "tool_call"
+                  }
+                ],
+                "invalid_tool_calls": []
+              }
+            },
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "ToolMessage"
+              ],
+              "kwargs": {
+                "content": "1. **Дизайн** — 120000 руб.",
+                "tool_call_id": "call_task_1",
+                "name": "task",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+              }
+            }
+          ]
+        ]
+      }
+    },
+    "run_id": "01a1b051-de34-70c3-a2c2-09eafa85770f",
+    "name": "ScriptedChatModel",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_chat_model",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "ls_model_type": "chat",
+      "ls_provider": "ScriptedChatModel",
+      "versions": {
+        "@langchain/core": "1.3.4"
+      }
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+              "name": "model",
+              "content": "Нашёл программу: Дизайн, 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "name": "RunnableLambda",
+    "tags": [],
+    "run_id": "01a1b051-de35-77f9-aa4a-2467700fab36",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": "parentNotifierMiddleware.after_agent",
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+              "name": "model",
+              "content": "Нашёл программу: Дизайн, 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de35-77f9-aa4a-2467700fab36",
+    "name": "RunnableLambda",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d"
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": [
+        {
+          "lg_name": "Command",
+          "update": {
+            "messages": [
+              {
+                "lc": 1,
+                "type": "constructor",
+                "id": [
+                  "langchain_core",
+                  "messages",
+                  "AIMessageChunk"
+                ],
+                "kwargs": {
+                  "content": "Нашёл программу: Дизайн, 120000 руб.",
+                  "additional_kwargs": {},
+                  "response_metadata": {},
+                  "tool_call_chunks": [],
+                  "tool_calls": [],
+                  "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+                  "invalid_tool_calls": [],
+                  "name": "model"
+                }
+              }
+            ]
+          },
+          "goto": []
+        }
+      ],
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de34-70c3-a2c2-0554c3e83985",
+    "name": "model_request",
+    "tags": [
+      "graph:step:5"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 5,
+      "langgraph_node": "model_request",
+      "langgraph_triggers": [
+        "branch:to:model_request"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "model_request"
+      ],
+      "langgraph_checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d",
+      "checkpoint_ns": "model_request:1a55eb5c-3264-5738-b7bd-7ce1a6c8cd2d"
+    }
+  },
+  {
+    "event": "on_chain_start",
+    "data": {
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+              "name": "model",
+              "content": "Нашёл программу: Дизайн, 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ]
+      }
+    },
+    "name": "parentNotifierMiddleware.after_agent",
+    "tags": [
+      "graph:step:6"
+    ],
+    "run_id": "01a1b051-de35-77f9-aa4a-2a977cebebc7",
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 6,
+      "langgraph_node": "parentNotifierMiddleware.after_agent",
+      "langgraph_triggers": [
+        "branch:to:parentNotifierMiddleware.after_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "parentNotifierMiddleware.after_agent"
+      ],
+      "langgraph_checkpoint_ns": "parentNotifierMiddleware.after_agent:e7fc5e1c-beb6-5eaa-9a63-611d90fa7216",
+      "checkpoint_ns": "parentNotifierMiddleware.after_agent:e7fc5e1c-beb6-5eaa-9a63-611d90fa7216"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "model_request": {
+          "messages": [
+            {
+              "lc": 1,
+              "type": "constructor",
+              "id": [
+                "langchain_core",
+                "messages",
+                "AIMessageChunk"
+              ],
+              "kwargs": {
+                "content": "Нашёл программу: Дизайн, 120000 руб.",
+                "additional_kwargs": {},
+                "response_metadata": {},
+                "tool_call_chunks": [],
+                "tool_calls": [],
+                "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+                "invalid_tool_calls": [],
+                "name": "model"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {},
+      "input": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+              "name": "model",
+              "content": "Нашёл программу: Дизайн, 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ]
+      }
+    },
+    "run_id": "01a1b051-de35-77f9-aa4a-2a977cebebc7",
+    "name": "parentNotifierMiddleware.after_agent",
+    "tags": [
+      "graph:step:6"
+    ],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread",
+      "langgraph_step": 6,
+      "langgraph_node": "parentNotifierMiddleware.after_agent",
+      "langgraph_triggers": [
+        "branch:to:parentNotifierMiddleware.after_agent"
+      ],
+      "langgraph_path": [
+        "__pregel_pull",
+        "parentNotifierMiddleware.after_agent"
+      ],
+      "langgraph_checkpoint_ns": "parentNotifierMiddleware.after_agent:e7fc5e1c-beb6-5eaa-9a63-611d90fa7216",
+      "checkpoint_ns": "parentNotifierMiddleware.after_agent:e7fc5e1c-beb6-5eaa-9a63-611d90fa7216"
+    }
+  },
+  {
+    "event": "on_chain_stream",
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    },
+    "data": {
+      "chunk": {
+        "parentNotifierMiddleware.after_agent": {}
+      }
+    }
+  },
+  {
+    "event": "on_chain_end",
+    "data": {
+      "output": {
+        "messages": [
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "HumanMessage"
+            ],
+            "kwargs": {
+              "content": "Сколько стоит дизайн?",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "a7fcab1d-5d4f-4425-93a4-22e498b3cab4"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de28-769b-9f85-8f8d4d81419b",
+              "name": "model",
+              "content": "Сейчас проверю. ",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [
+                {
+                  "name": "task",
+                  "args": {
+                    "description": "Найди дизайн",
+                    "subagent_type": "searcher"
+                  },
+                  "id": "call_task_1",
+                  "type": "tool_call"
+                }
+              ],
+              "invalid_tool_calls": []
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "ToolMessage"
+            ],
+            "kwargs": {
+              "content": "1. **Дизайн** — 120000 руб.",
+              "tool_call_id": "call_task_1",
+              "name": "task",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "id": "fc5dc3c5-20c4-4190-b07b-6745c46c5dee"
+            }
+          },
+          {
+            "lc": 1,
+            "type": "constructor",
+            "id": [
+              "langchain_core",
+              "messages",
+              "AIMessage"
+            ],
+            "kwargs": {
+              "id": "run-01a1b051-de34-70c3-a2c2-09eafa85770f",
+              "name": "model",
+              "content": "Нашёл программу: Дизайн, 120000 руб.",
+              "additional_kwargs": {},
+              "response_metadata": {},
+              "tool_calls": [],
+              "invalid_tool_calls": []
+            }
+          }
+        ],
+        "files": {}
+      }
+    },
+    "run_id": "01a1b051-de18-7503-b21a-6969526c14b3",
+    "name": "LangGraph",
+    "tags": [],
+    "metadata": {
+      "ls_integration": "langchain_create_agent",
+      "thread_id": "spike-thread"
+    }
+  }
+]
