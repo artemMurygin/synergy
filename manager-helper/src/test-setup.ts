@@ -6,3 +6,16 @@ afterEach(() => {
 })
 
 Element.prototype.scrollIntoView = () => undefined
+
+// assistant-ui measures the viewport and the composer; jsdom has no ResizeObserver.
+globalThis.ResizeObserver = class {
+  observe() {
+    return undefined
+  }
+  unobserve() {
+    return undefined
+  }
+  disconnect() {
+    return undefined
+  }
+}
