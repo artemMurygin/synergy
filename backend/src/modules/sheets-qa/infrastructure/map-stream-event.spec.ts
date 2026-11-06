@@ -104,3 +104,26 @@ describe('StreamEventMapper', () => {
         );
     });
 });
+
+describe('mapStreamEvent with in-process message instances (fields without kwargs)', () => {
+    it('maps text, tool call start and tool call finish', () => {
+        expect(
+            mapStreamEvent({ event: 'on_chat_model_stream', data: { chunk: { content: 'при' } } }),
+        ).toEqual([AgentEvent.textDelta('при')]);
+        expect(
+            mapStreamEvent({
+                event: 'on_chat_model_end',
+                data: { output: { tool_calls: [{ id: 'c1', name: 'lookup', args: { q: 1 } }] } },
+            }),
+        ).toEqual([AgentEvent.toolCallStarted('c1', 'lookup', { q: 1 })]);
+        expect(
+            mapStreamEvent({ event: 'on_tool_end', data: { output: { tool_call_id: 'c1' } } }),
+        ).toEqual([AgentEvent.toolCallFinished('c1')]);
+        expect(
+            mapStreamEvent({
+                event: 'on_tool_end',
+                data: { output: { update: { messages: [{ tool_call_id: 'c2' }] } } },
+            }),
+        ).toEqual([AgentEvent.toolCallFinished('c2')]);
+    });
+});

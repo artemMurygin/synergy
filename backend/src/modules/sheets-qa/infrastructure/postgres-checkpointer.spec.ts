@@ -9,6 +9,7 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { BookLibraryPort } from '../domain/ports/book-library.port';
 import { DeepAgentsSheetsAssistant } from './deepagents-sheets-assistant';
+import { RunInput } from '../domain/run-input';
 import { PostgresChatThread } from './postgres-chat-thread';
 
 // Интеграционный тест: нужна PostgreSQL. Админский URL задаётся через PROGRAMS_ETL_TEST_ADMIN_URL.
@@ -51,6 +52,19 @@ describe.skipIf(adminUrl === undefined)('PostgresSaver checkpointer', () => {
         });
     }
 
+    /** Runs one question to the end of its stream. */
+    async function ask(
+        assistant: DeepAgentsSheetsAssistant,
+        question: string,
+        threadId: string,
+    ): Promise<void> {
+        const input = RunInput.of({ threadId, runId: randomUUID(), question });
+        const events: unknown[] = [];
+        for await (const event of assistant.stream(input, new AbortController().signal)) {
+            events.push(event);
+        }
+    }
+
     const createModel = (): FakeListChatModel => new FakeListChatModel({ responses: ['ответ'] });
 
     /** Texts of the conversation persisted for the thread; empty when the thread is unknown. */
@@ -80,9 +94,9 @@ describe.skipIf(adminUrl === undefined)('PostgresSaver checkpointer', () => {
 
     it('a second assistant instance continues the conversation of the first', async () => {
         const sessionId = randomUUID();
-        await createAssistant(createModel(), await createSaver()).ask('первый-вопрос', sessionId);
+        await ask(createAssistant(createModel(), await createSaver()), 'первый-вопрос', sessionId);
         const second = await createSaver();
-        await createAssistant(createModel(), second).ask('второй-вопрос', sessionId);
+        await ask(createAssistant(createModel(), second), 'второй-вопрос', sessionId);
         const texts = await storedTexts(second, sessionId);
         expect(texts).toContain('первый-вопрос');
         expect(texts).toContain('второй-вопрос');
@@ -91,8 +105,8 @@ describe.skipIf(adminUrl === undefined)('PostgresSaver checkpointer', () => {
     it('keeps the contexts of different sessions apart', async () => {
         const saver = await createSaver();
         const [a, b] = [randomUUID(), randomUUID()];
-        await createAssistant(createModel(), saver).ask('секрет-сессии-А', a);
-        await createAssistant(createModel(), saver).ask('вопрос-сессии-Б', b);
+        await ask(createAssistant(createModel(), saver), 'секрет-сессии-А', a);
+        await ask(createAssistant(createModel(), saver), 'вопрос-сессии-Б', b);
         expect(await storedTexts(saver, a)).not.toContain('вопрос-сессии-Б');
         const textsB = await storedTexts(saver, b);
         expect(textsB).toContain('вопрос-сессии-Б');
@@ -102,7 +116,7 @@ describe.skipIf(adminUrl === undefined)('PostgresSaver checkpointer', () => {
     it('deleteThread removes the agent context', async () => {
         const saver = await createSaver();
         const sessionId = randomUUID();
-        await createAssistant(createModel(), saver).ask('забытый-вопрос', sessionId);
+        await ask(createAssistant(createModel(), saver), 'забытый-вопрос', sessionId);
         expect(await storedTexts(saver, sessionId)).toContain('забытый-вопрос');
         await new PostgresChatThread(saver).deleteThread(sessionId);
         expect(await storedTexts(saver, sessionId)).toEqual([]);

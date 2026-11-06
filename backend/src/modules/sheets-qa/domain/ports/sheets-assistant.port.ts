@@ -1,3 +1,6 @@
+import type { AgentEvent } from '../agent-event';
+import type { RunInput } from '../run-input';
+
 export interface ToolCallTrace {
     readonly name: string;
     readonly args: unknown;
@@ -10,8 +13,12 @@ export interface AssistantAnswer {
     readonly durationMs: number;
 }
 
-/** Answers a student's question from the exported tables. */
+/** Answers a student's question from the exported tables, as a stream of agent events. */
 export abstract class SheetsAssistantPort {
-    /** Questions with the same sessionId continue one conversation. */
-    abstract ask(question: string, sessionId: string): Promise<AssistantAnswer>;
+    /**
+     * Runs the agent in the thread of `input` (the same threadId continues one conversation).
+     * Yields events in order and ends with exactly one terminal event
+     * (`run-finished`, `run-failed` or `run-cancelled`); errors never escape as exceptions.
+     */
+    abstract stream(input: RunInput, signal: AbortSignal): AsyncIterable<AgentEvent>;
 }

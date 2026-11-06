@@ -36,10 +36,10 @@
 
 ## 5. DeepAgentsSheetsAssistant.stream (TDD)
 
-- [ ] 5.1 Написать тесты `DeepAgentsSheetsAssistant.stream` на фейковой модели (по specs «Завершение и ошибки запуска», «Запуск не зависит от соединения»): успешный поток заканчивается `run-finished`; ошибка модели → `run-failed` с текстом; abort-сигнал → `run-cancelled` и остановка; таймаут → `run-failed` с указанием на превышение времени; превышение `recursionLimit` → `run-failed`; `thread_id` равен `threadId`
-- [ ] 5.2 Прогнать тесты из 5.1 и зафиксировать, что они падают (red): метода `stream` ещё нет
-- [ ] 5.3 Заменить `SheetsAssistantPort.ask` на `stream(input, signal): AsyncIterable<AgentEvent>`; реализовать в `DeepAgentsSheetsAssistant` через `agent.streamEvents(..., {version: 'v2', recursionLimit, signal, configurable: {thread_id}})` и `mapStreamEvent`; перенести лимиты шагов и таймаут; prompt caching и скрытие данных не менять
-- [ ] 5.4 Прогнать тесты из 5.1 и зафиксировать, что они зелёные (green), регрессий в `sheets-qa-subagents.spec.ts` и остальных тестах модуля нет
+- [x] 5.1 Написать тесты `DeepAgentsSheetsAssistant.stream` на фейковой модели (по specs «Завершение и ошибки запуска», «Запуск не зависит от соединения»): успешный поток заканчивается `run-finished`; ошибка модели → `run-failed` с текстом; abort-сигнал → `run-cancelled` и остановка; таймаут → `run-failed` с указанием на превышение времени; превышение `recursionLimit` → `run-failed`; `thread_id` равен `threadId`
+- [x] 5.2 Прогнать тесты из 5.1 и зафиксировать, что они падают (red): метода `stream` ещё нет
+- [x] 5.3 Заменить `SheetsAssistantPort.ask` на `stream(input, signal): AsyncIterable<AgentEvent>`; реализовать в `DeepAgentsSheetsAssistant` через `agent.streamEvents(..., {version: 'v2', recursionLimit, signal, configurable: {thread_id}})` и `mapStreamEvent`; перенести лимиты шагов и таймаут; prompt caching и скрытие данных не менять
+- [x] 5.4 Прогнать тесты из 5.1 и зафиксировать, что они зелёные (green), регрессий в `sheets-qa-subagents.spec.ts` и остальных тестах модуля нет
 
 ## 6. StartAgentRunUseCase (TDD)
 
