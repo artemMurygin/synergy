@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AgentEvent } from '../domain/agent-event';
+import { PinoLogger } from 'nestjs-pino';
+import { AgentEvent, RUN_FAILED_PUBLIC_MESSAGE } from '../domain/agent-event';
 import type { AgentRun } from '../domain/agent-run';
 import type { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
@@ -14,14 +15,8 @@ export { MAX_QUESTION_LENGTH } from '../domain/run-input';
 
 export class InvalidQuestionError extends Error {}
 
-/**
- * Receiver of the events of one run (the SSE response in the interface layer).
- * It owns its connection: after the connection is gone it simply drops events.
- * Exceptions thrown by it never interrupt the run.
- */
 export interface RunObserver {
     next(event: AgentEvent): void;
-    /** Called once when the run is over, after the terminal event. */
     close(): void;
 }
 
@@ -32,13 +27,11 @@ export class StartAgentRunUseCase {
         private readonly sessions: ChatSessionRepositoryPort,
         private readonly threads: ChatThreadPort,
         private readonly registry: ActiveRunRegistryPort,
-    ) {}
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(StartAgentRunUseCase.name);
+    }
 
-    /**
-     * Validate the input, check the chat, register the run, store the question and start
-     * the agent in the background. Resolves with the running run as soon as it is started.
-     * Throws InvalidQuestionError, ChatSessionNotFoundError or RunConflictError (nothing started).
-     */
     async execute(props: RunInputProps, observer: RunObserver): Promise<AgentRun> {
         const input = this.normalize(props);
 
@@ -52,6 +45,9 @@ export class StartAgentRunUseCase {
             await this.sessions.appendUserMessage(input.threadId, input.question);
         } catch (error) {
             this.registry.release(input.threadId, input.runId);
+            if ((await this.sessions.findById(input.threadId)) === null) {
+                throw new ChatSessionNotFoundError(input.threadId);
+            }
             throw error;
         }
 
@@ -70,19 +66,19 @@ export class StartAgentRunUseCase {
         }
     }
 
-    /** Never rejects: every outcome ends with a terminal event, release and close. */
     private async drive(
         run: AgentRun,
         session: ChatSession,
         input: RunInput,
         observer: RunObserver,
     ): Promise<void> {
-        let finalized = false;
+        const { threadId, runId } = input;
+        let isFinalized = false;
         const finalize = async (terminal: AgentEvent): Promise<void> => {
-            if (finalized) return;
-            finalized = true;
+            if (isFinalized) return;
+            isFinalized = true;
             const settled = await this.settle(run, session, input, terminal);
-            this.registry.release(input.threadId, input.runId);
+            this.registry.release(threadId, runId);
             this.forward(observer, settled);
         };
 
@@ -95,24 +91,30 @@ export class StartAgentRunUseCase {
                 this.forward(observer, event);
             }
             await finalize(AgentEvent.runFailed('Agent stream ended without a result'));
-        } catch (error) {
-            await finalize(
-                run.signal.aborted
-                    ? AgentEvent.runCancelled()
-                    : AgentEvent.runFailed(error instanceof Error ? error.message : String(error)),
-            ).catch(() => undefined);
+        } catch (err) {
+            if (!run.signal.aborted) {
+                this.logger.error({ err, runId, threadId }, 'Agent run failed');
+            }
+            try {
+                await finalize(
+                    run.signal.aborted
+                        ? AgentEvent.runCancelled()
+                        : AgentEvent.runFailed(RUN_FAILED_PUBLIC_MESSAGE),
+                );
+            } catch (finalizeErr) {
+                this.logger.warn({ err: finalizeErr, runId, threadId }, 'Run finalization failed');
+            }
         } finally {
-            this.registry.release(input.threadId, input.runId);
-            await this.dropThreadIfSessionGone(input.threadId);
+            this.registry.release(threadId, runId);
+            await this.dropThreadIfSessionGone(threadId);
             try {
                 observer.close();
-            } catch {
-                // the observer's problem, the run is already over
+            } catch (err) {
+                this.logger.warn({ err, runId, threadId }, 'Run observer close failed');
             }
         }
     }
 
-    /** Stores the answer of a finished run and moves the run to its terminal status. */
     private async settle(
         run: AgentRun,
         session: ChatSession,
@@ -120,7 +122,9 @@ export class StartAgentRunUseCase {
         terminal: AgentEvent,
     ): Promise<AgentEvent> {
         let result = terminal;
-        if (terminal.type === 'run-finished') {
+        if (terminal.type === 'run-finished' && run.signal.aborted) {
+            result = AgentEvent.runCancelled();
+        } else if (terminal.type === 'run-finished') {
             try {
                 await this.sessions.appendAgentAnswer(
                     input.threadId,
@@ -131,10 +135,12 @@ export class StartAgentRunUseCase {
                     },
                     session.proposeAutoTitle(input.question),
                 );
-            } catch (error) {
-                result = AgentEvent.runFailed(
-                    error instanceof Error ? error.message : 'Failed to store the answer',
+            } catch (err) {
+                this.logger.error(
+                    { err, runId: input.runId, threadId: input.threadId },
+                    'Failed to store the agent answer',
                 );
+                result = AgentEvent.runFailed(RUN_FAILED_PUBLIC_MESSAGE);
             }
         }
         if (run.status === 'running') {
@@ -148,19 +154,21 @@ export class StartAgentRunUseCase {
     private forward(observer: RunObserver, event: AgentEvent): void {
         try {
             observer.next(event);
-        } catch {
-            // a broken observer must not stop the run
+        } catch (err) {
+            this.logger.warn({ err, eventType: event.type }, 'Run observer rejected an event');
         }
     }
 
-    /** The chat may be deleted while the agent works; its checkpoints must not outlive it. */
     private async dropThreadIfSessionGone(threadId: string): Promise<void> {
         try {
             if ((await this.sessions.findById(threadId)) === null) {
                 await this.threads.deleteThread(threadId);
             }
-        } catch {
-            // best effort
+        } catch (err) {
+            this.logger.warn(
+                { err, threadId },
+                'Dropping the agent thread of a deleted chat failed',
+            );
         }
     }
 }

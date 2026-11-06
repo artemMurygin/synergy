@@ -5,8 +5,9 @@ import { AIMessage } from '@langchain/core/messages';
 import { MemorySaver } from '@langchain/langgraph';
 import { fakeModel } from '@langchain/core/testing';
 import { FakeListChatModel } from '@langchain/core/utils/testing';
-import { beforeAll, describe, expect, it } from 'vitest';
-import { AgentEvent } from '../domain/agent-event';
+import type { PinoLogger } from 'nestjs-pino';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { AgentEvent, RUN_FAILED_PUBLIC_MESSAGE } from '../domain/agent-event';
 import type { BookLibraryPort } from '../domain/ports/book-library.port';
 import { RunInput } from '../domain/run-input';
 import { DeepAgentsSheetsAssistant } from './deepagents-sheets-assistant';
@@ -37,6 +38,8 @@ describe('DeepAgentsSheetsAssistant.stream', () => {
         await writeFile(join(dataDir, 'catalog.md'), '# catalog');
     });
 
+    const logger = { setContext: vi.fn(), error: vi.fn() };
+
     function create(
         model: ReturnType<typeof fakeModel> | FakeListChatModel,
         overrides: { maxSteps?: number; timeoutMs?: number; checkpointer?: MemorySaver } = {},
@@ -51,6 +54,7 @@ describe('DeepAgentsSheetsAssistant.stream', () => {
             timeoutMs: overrides.timeoutMs ?? 20_000,
             maxAnswerChars: 1000,
             checkpointer: overrides.checkpointer ?? new MemorySaver(),
+            logger: logger as unknown as PinoLogger,
         });
     }
 
@@ -64,13 +68,15 @@ describe('DeepAgentsSheetsAssistant.stream', () => {
         expect(events.filter(AgentEvent.isTerminal)).toHaveLength(1);
     });
 
-    it('turns a model error into run-failed with the error text', async () => {
+    it('turns a model error into run-failed without the internal error text', async () => {
         const model = fakeModel().alwaysThrow(new Error('модель недоступна'));
         const events = await collect(create(model).stream(input(), new AbortController().signal));
         const last = events.at(-1);
         expect(last?.type).toBe('run-failed');
         if (last?.type !== 'run-failed') return;
-        expect(last.message).toContain('модель недоступна');
+        expect(last.message).toBe(RUN_FAILED_PUBLIC_MESSAGE);
+        expect(last.message).not.toContain('модель недоступна');
+        expect(logger.error).toHaveBeenCalled();
         expect(events.some((e) => e.type === 'run-finished')).toBe(false);
     });
 

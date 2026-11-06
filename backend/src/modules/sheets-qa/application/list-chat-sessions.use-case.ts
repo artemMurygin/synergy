@@ -5,7 +5,6 @@ import { ChatSessionRepositoryPort } from '../domain/ports/chat-session-reposito
 
 export interface ChatSessionListItem {
     readonly session: ChatSession;
-    /** An agent run is active in the chat right now. */
     readonly running: boolean;
 }
 

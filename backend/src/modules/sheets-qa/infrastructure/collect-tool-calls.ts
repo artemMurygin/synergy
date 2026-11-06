@@ -1,4 +1,4 @@
-import type { ToolCallTrace } from '../domain/ports/sheets-assistant.port';
+import type { ToolCallTrace } from '../domain/tool-call-trace';
 
 /** Tool calls of the model messages in a run, in order. */
 export function collectToolCalls(messages: readonly unknown[]): ToolCallTrace[] {

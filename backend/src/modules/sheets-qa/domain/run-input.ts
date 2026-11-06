@@ -8,7 +8,6 @@ export interface RunInputProps {
     readonly question: string;
 }
 
-/** Normalized input of an agent run: trimmed, non-empty question within the length limit. */
 export class RunInput {
     private constructor(
         readonly threadId: string,

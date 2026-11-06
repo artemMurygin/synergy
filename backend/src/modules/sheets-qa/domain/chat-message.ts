@@ -1,5 +1,5 @@
 import type { ChatRole } from './chat-role';
-import type { ToolCallTrace } from './ports/sheets-assistant.port';
+import type { ToolCallTrace } from './tool-call-trace';
 
 export interface ChatMessageProps {
     readonly id: number;

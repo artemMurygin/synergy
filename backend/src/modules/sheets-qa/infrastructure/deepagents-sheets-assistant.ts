@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { GraphRecursionError, type BaseCheckpointSaver } from '@langchain/langgraph';
 import { createDeepAgent } from 'deepagents';
+import type { PinoLogger } from 'nestjs-pino';
 import type { Searcher } from '../sheets-qa.config';
 import { createSheetTools } from '../application/sheet-tools.factory';
-import { AgentEvent } from '../domain/agent-event';
+import { AgentEvent, RUN_FAILED_PUBLIC_MESSAGE } from '../domain/agent-event';
 import { SheetsAssistantPort } from '../domain/ports/sheets-assistant.port';
 import type { RunInput } from '../domain/run-input';
 import type { BookLibraryPort } from '../domain/ports/book-library.port';
@@ -15,23 +16,21 @@ import { buildSheetsQaSystemPrompt } from './sheets-qa-system-prompt';
 
 export interface DeepAgentsSheetsAssistantOptions {
     readonly model: BaseChatModel;
-    /** Model of the level searchers. */
     readonly subagentModel: BaseChatModel;
     readonly library: BookLibraryPort;
-    /** Folder with `catalog.md`; read on every question, so edits apply without a restart. */
     readonly dataDir: string;
-    /** Education levels and course books; each one is searched by its own subagent, in parallel. */
     readonly levels: readonly Searcher[];
     readonly maxSteps: number;
     readonly timeoutMs: number;
     readonly maxAnswerChars: number;
-    /** Stores the conversation context per thread (thread_id = threadId). */
     readonly checkpointer: BaseCheckpointSaver;
+    readonly logger: PinoLogger;
 }
 
 export class DeepAgentsSheetsAssistant extends SheetsAssistantPort {
     constructor(private readonly options: DeepAgentsSheetsAssistantOptions) {
         super();
+        this.options.logger.setContext(DeepAgentsSheetsAssistant.name);
     }
 
     async *stream(input: RunInput, signal: AbortSignal): AsyncGenerator<AgentEvent> {
@@ -69,7 +68,7 @@ export class DeepAgentsSheetsAssistant extends SheetsAssistantPort {
                 yield* mapper.map(raw);
             }
         } catch (error) {
-            yield this.failureOf(error, signal, timeoutSignal);
+            yield this.failureOf(error, signal, timeoutSignal, input);
             return;
         }
         // A model that ignores the signal may end the stream normally after an abort.
@@ -82,16 +81,24 @@ export class DeepAgentsSheetsAssistant extends SheetsAssistantPort {
         }
     }
 
-    private failureOf(error: unknown, signal: AbortSignal, timeoutSignal: AbortSignal): AgentEvent {
+    private failureOf(
+        err: unknown,
+        signal: AbortSignal,
+        timeoutSignal: AbortSignal,
+        input: RunInput,
+    ): AgentEvent {
         if (signal.aborted) return AgentEvent.runCancelled();
         if (timeoutSignal.aborted) return this.timeoutFailure();
-        if (error instanceof GraphRecursionError) {
+        if (err instanceof GraphRecursionError) {
             return AgentEvent.runFailed(
                 `Агент превысил лимит шагов (${String(this.options.maxSteps)}). Попробуйте сузить вопрос.`,
             );
         }
-        const message = error instanceof Error ? error.message : String(error);
-        return AgentEvent.runFailed(message === '' ? 'Агент завершился ошибкой' : message);
+        this.options.logger.error(
+            { err, runId: input.runId, threadId: input.threadId },
+            'Agent stream failed',
+        );
+        return AgentEvent.runFailed(RUN_FAILED_PUBLIC_MESSAGE);
     }
 
     private timeoutFailure(): AgentEvent {

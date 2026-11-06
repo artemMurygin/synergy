@@ -8,7 +8,6 @@ export interface AgentRunStart {
     readonly startedAt?: Date;
 }
 
-/** An in-memory agent run in a chat. Enters a terminal status exactly once. */
 export class AgentRun {
     private current: AgentRunStatus = 'running';
     private readonly controller = new AbortController();
@@ -39,7 +38,6 @@ export class AgentRun {
         this.transition('failed');
     }
 
-    /** Marks the run cancelled and aborts its signal. */
     cancel(): void {
         this.transition('cancelled');
         this.controller.abort();

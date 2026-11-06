@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { PinoLogger } from 'nestjs-pino';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StartAgentRunUseCase } from '../../application/start-agent-run.use-case';
 import { AgentEvent } from '../../domain/agent-event';
 import { ChatSession } from '../../domain/chat-session';
@@ -45,6 +46,8 @@ class ScriptedAssistant extends SheetsAssistantPort {
         }
     }
 }
+
+const fakeLogger = { setContext: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 class FakeThread extends ChatThreadPort {
     deleteThread(): Promise<void> {
@@ -110,6 +113,7 @@ describe('AgentController', () => {
             controllers: [AgentController],
             providers: [
                 StartAgentRunUseCase,
+                { provide: PinoLogger, useValue: fakeLogger },
                 { provide: ChatSessionRepositoryPort, useValue: repository },
                 { provide: ChatThreadPort, useValue: new FakeThread() },
                 { provide: ActiveRunRegistryPort, useValue: registry },

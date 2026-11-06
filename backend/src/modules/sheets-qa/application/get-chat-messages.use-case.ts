@@ -5,7 +5,6 @@ import { ChatSessionRepositoryPort } from '../domain/ports/chat-session-reposito
 
 export interface ChatHistory {
     readonly messages: ChatMessage[];
-    /** An agent run is active in the chat right now. */
     readonly running: boolean;
 }
 
@@ -16,13 +15,11 @@ export class GetChatMessagesUseCase {
         private readonly registry: ActiveRunRegistryPort,
     ) {}
 
-    /**
-     * Throws ChatSessionNotFoundError for an unknown session. The flag is read after the
-     * history: a run releases its registry entry only after the answer is stored, so a
-     * history without the answer never comes with `running: false` of the same run.
-     */
     async execute(sessionId: string): Promise<ChatHistory> {
+        // Read the flag first: a run releases its entry only after the answer is stored,
+        // so a history read afterwards never lacks the answer of a run reported as finished.
+        const running = this.registry.isRunning(sessionId);
         const messages = await this.sessions.listMessages(sessionId);
-        return { messages, running: this.registry.isRunning(sessionId) };
+        return { messages, running };
     }
 }

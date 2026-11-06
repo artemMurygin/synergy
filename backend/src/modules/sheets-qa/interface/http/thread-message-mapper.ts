@@ -1,7 +1,6 @@
 import type { Message } from '@ag-ui/core';
 import type { ChatMessage } from '../../domain/chat-message';
 
-/** Converts the stored chat history to AG-UI messages, which the client feeds to its runtime as is. */
 export const ThreadMessageMapper = {
     toAgUi(messages: readonly ChatMessage[]): Message[] {
         return messages.flatMap((message) => ThreadMessageMapper.one(message));

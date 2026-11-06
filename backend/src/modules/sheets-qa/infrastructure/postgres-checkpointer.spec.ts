@@ -6,6 +6,7 @@ import type { BaseMessage } from '@langchain/core/messages';
 import { FakeListChatModel } from '@langchain/core/utils/testing';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Client } from 'pg';
+import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { BookLibraryPort } from '../domain/ports/book-library.port';
 import { DeepAgentsSheetsAssistant } from './deepagents-sheets-assistant';
@@ -49,6 +50,7 @@ describe.skipIf(adminUrl === undefined)('PostgresSaver checkpointer', () => {
             timeoutMs: 20_000,
             maxAnswerChars: 1000,
             checkpointer,
+            logger: { setContext: () => undefined } as unknown as PinoLogger,
         });
     }
 

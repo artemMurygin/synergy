@@ -1,7 +1,6 @@
 import { AgentRun } from '../domain/agent-run';
 import { ActiveRunRegistryPort } from '../domain/ports/active-run-registry.port';
 
-/** Process-local registry of active runs keyed by chat id. */
 export class InMemoryActiveRunRegistry extends ActiveRunRegistryPort {
     private readonly runs = new Map<string, AgentRun>();
 

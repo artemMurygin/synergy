@@ -11,14 +11,9 @@ export class DeleteChatSessionUseCase {
         private readonly registry: ActiveRunRegistryPort,
     ) {}
 
-    /**
-     * An active run is cancelled first, so its answer is never stored for a deleted chat.
-     * Throws ChatSessionNotFoundError. The agent thread is cleared first (idempotent): if that
-     * fails the session stays and the delete can be retried; a repeated delete of an already
-     * removed session still cleans leftover thread data.
-     */
     async execute(sessionId: string): Promise<void> {
         this.registry.cancel(sessionId);
+        // Thread first: if clearing fails the session stays and the delete can be retried.
         await this.threads.deleteThread(sessionId);
         await this.sessions.delete(sessionId);
     }

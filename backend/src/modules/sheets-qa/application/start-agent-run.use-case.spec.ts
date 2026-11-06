@@ -1,3 +1,4 @@
+import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentEvent } from '../domain/agent-event';
 import { AgentRun } from '../domain/agent-run';
@@ -54,6 +55,7 @@ interface Setup {
     observer: RunObserver;
     closed: Promise<void>;
     calls: string[];
+    logger: { setContext: Mock; warn: Mock; error: Mock };
 }
 
 function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}): Setup {
@@ -117,8 +119,17 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         },
     };
 
+    const logger = { setContext: vi.fn(), warn: vi.fn(), error: vi.fn() };
+
     return {
-        useCase: new StartAgentRunUseCase(assistant, sessions, threads, registry),
+        useCase: new StartAgentRunUseCase(
+            assistant,
+            sessions,
+            threads,
+            registry,
+            logger as unknown as PinoLogger,
+        ),
+        logger,
         tryStart,
         release,
         runs,
@@ -334,6 +345,62 @@ describe('StartAgentRunUseCase', () => {
         await expect(useCase.execute(input(), observer)).rejects.toThrow('db down');
         expect(runs.size).toBe(0);
         expect(stream).not.toHaveBeenCalled();
+    });
+
+    it('fails with not found when the question cannot be stored because the chat was deleted', async () => {
+        const { useCase, observer, appendUserMessage, findById, runs, stream } = setup();
+        findById.mockResolvedValueOnce(ChatSession.create()).mockResolvedValue(null);
+        appendUserMessage.mockRejectedValueOnce(new Error('foreign key violation'));
+        await expect(useCase.execute(input(), observer)).rejects.toBeInstanceOf(
+            ChatSessionNotFoundError,
+        );
+        expect(runs.size).toBe(0);
+        expect(stream).not.toHaveBeenCalled();
+    });
+
+    it('does not store the answer and reports cancellation when the run was aborted before run-finished', async () => {
+        const gate = deferred();
+        const { useCase, observer, closed, appendAgentAnswer, events } = setup({
+            stream: () =>
+                (async function* () {
+                    await gate.promise;
+                    yield FINISHED;
+                })(),
+        });
+        const run = await useCase.execute(input(), observer);
+        run.cancel();
+        gate.resolve();
+        await closed;
+        expect(appendAgentAnswer).not.toHaveBeenCalled();
+        expect(events.at(-1)).toEqual(AgentEvent.runCancelled());
+        expect(run.status).toBe('cancelled');
+    });
+
+    it('does not leak the internal error text of a broken stream to the observer', async () => {
+        const { useCase, observer, closed, events, logger } = setup({
+            stream: () =>
+                (async function* () {
+                    await Promise.resolve();
+                    yield AgentEvent.runStarted();
+                    throw new Error('secret internal detail');
+                })(),
+        });
+        await useCase.execute(input(), observer);
+        await closed;
+        const last = events.at(-1);
+        expect(last).toMatchObject({ type: 'run-failed' });
+        expect(JSON.stringify(last)).not.toContain('secret internal detail');
+        expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('does not leak the error text of a failed answer storage to the observer', async () => {
+        const { useCase, observer, closed, events, appendAgentAnswer } = setup();
+        appendAgentAnswer.mockRejectedValueOnce(new Error('db password wrong'));
+        await useCase.execute(input(), observer);
+        await closed;
+        const last = events.at(-1);
+        expect(last).toMatchObject({ type: 'run-failed' });
+        expect(JSON.stringify(last)).not.toContain('db password wrong');
     });
 
     it('keeps running and stores the answer after the observer detached', async () => {

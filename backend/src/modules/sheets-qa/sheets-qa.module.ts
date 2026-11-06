@@ -1,5 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { Module } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../shared/config/env.schema';
 import {
@@ -96,11 +97,12 @@ import { ActiveRunsLifecycle } from './infrastructure/active-runs-lifecycle';
         },
         {
             provide: SheetsAssistantPort,
-            inject: [ConfigService, BookLibraryPort, AGENT_CHECKPOINTER],
+            inject: [ConfigService, BookLibraryPort, AGENT_CHECKPOINTER, PinoLogger],
             useFactory: (
                 config: ConfigService<Env, true>,
                 library: BookLibraryPort,
                 checkpointer: PostgresSaver,
+                logger: PinoLogger,
             ): SheetsAssistantPort => {
                 const baseURL = config.get('OPENAI_BASE_URL', { infer: true });
                 const openRouterKey = config.get('OPENROUTER_API_KEY', { infer: true });
@@ -142,6 +144,7 @@ import { ActiveRunsLifecycle } from './infrastructure/active-runs-lifecycle';
                     maxSteps: SHEETS_QA_CONFIG.maxSteps,
                     timeoutMs: SHEETS_QA_CONFIG.timeoutMs,
                     checkpointer,
+                    logger,
                 });
             },
         },

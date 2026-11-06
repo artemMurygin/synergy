@@ -1,81 +1,64 @@
 import { AgentEvent } from '../domain/agent-event';
-import type { ToolCallTrace } from '../domain/ports/sheets-assistant.port';
+import type { ToolCallTrace } from '../domain/tool-call-trace';
 
-type Obj = Record<string, unknown>;
-
-function asObj(value: unknown): Obj | undefined {
-    return typeof value === 'object' && value !== null ? (value as Obj) : undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
 }
 
-function textOf(content: unknown): string {
+function joinTextParts(content: unknown): string {
     if (typeof content === 'string') return content;
     if (Array.isArray(content)) {
         return content
-            .map((part: unknown) => {
-                const p = asObj(part);
-                return p !== undefined && typeof p.text === 'string' ? p.text : '';
-            })
+            .map((part: unknown) =>
+                isRecord(part) && typeof part.text === 'string' ? part.text : '',
+            )
             .join('');
     }
     return '';
 }
 
-/**
- * Message fields: in-process `streamEvents` yield message instances (fields on the object),
- * a serialized stream (JSON) wraps them in `kwargs`. Both shapes are accepted.
- */
-function fieldsOf(message: unknown): Obj | undefined {
-    const obj = asObj(message);
-    return asObj(obj?.kwargs) ?? obj;
+function messageFieldsOf(message: unknown): Record<string, unknown> | undefined {
+    if (!isRecord(message)) return undefined;
+    return isRecord(message.kwargs) ? message.kwargs : message;
 }
 
-/** Events of subagents carry `lc_agent_name`; the top-level agent has none. */
-function isSubagent(event: Obj): boolean {
-    const name = asObj(event.metadata)?.lc_agent_name;
-    return typeof name === 'string' && name !== '';
+function isSubagentEvent(event: Record<string, unknown>): boolean {
+    const agentName = isRecord(event.metadata) ? event.metadata.lc_agent_name : undefined;
+    return typeof agentName === 'string' && agentName !== '';
 }
 
 function toolCallIdOfEnd(output: unknown): string | undefined {
-    const out = asObj(output);
-    if (out === undefined) return undefined;
-    // Plain tool: ToolMessage.
-    const direct = fieldsOf(out)?.tool_call_id;
-    if (typeof direct === 'string') return direct;
-    // `task` returns a Command with the ToolMessage inside `update.messages`.
-    const messages = asObj(out.update)?.messages;
+    if (!isRecord(output)) return undefined;
+    const directId = messageFieldsOf(output)?.tool_call_id;
+    if (typeof directId === 'string') return directId;
+    const messages = isRecord(output.update) ? output.update.messages : undefined;
     if (Array.isArray(messages)) {
-        const id = fieldsOf(messages[0])?.tool_call_id;
-        if (typeof id === 'string') return id;
+        const commandId = messageFieldsOf(messages[0])?.tool_call_id;
+        if (typeof commandId === 'string') return commandId;
     }
     return undefined;
 }
 
-/**
- * Pure translation of one LangGraph `streamEvents` (v2) event into AgentEvents.
- * Text comes only from the top-level agent; tool results are never forwarded.
- */
+function toolCallStartedOf(call: unknown): AgentEvent[] {
+    if (!isRecord(call) || typeof call.id !== 'string' || typeof call.name !== 'string') {
+        return [];
+    }
+    return [AgentEvent.toolCallStarted(call.id, call.name, call.args)];
+}
+
 export function mapStreamEvent(raw: unknown): AgentEvent[] {
-    const event = asObj(raw);
-    if (event === undefined) return [];
-    const data = asObj(event.data);
-    switch (event.event) {
+    if (!isRecord(raw)) return [];
+    const data = isRecord(raw.data) ? raw.data : undefined;
+    switch (raw.event) {
         case 'on_chat_model_stream': {
-            if (isSubagent(event)) return [];
-            const text = textOf(fieldsOf(data?.chunk)?.content);
+            if (isSubagentEvent(raw)) return [];
+            const text = joinTextParts(messageFieldsOf(data?.chunk)?.content);
             return text === '' ? [] : [AgentEvent.textDelta(text)];
         }
         case 'on_chat_model_end': {
-            const calls = fieldsOf(data?.output)?.tool_calls;
-            if (!Array.isArray(calls)) return [];
-            const events: AgentEvent[] = [];
-            for (const call of calls as unknown[]) {
-                const c = asObj(call);
-                if (c === undefined || typeof c.id !== 'string' || typeof c.name !== 'string') {
-                    continue;
-                }
-                events.push(AgentEvent.toolCallStarted(c.id, c.name, c.args));
-            }
-            return events;
+            const toolCalls = messageFieldsOf(data?.output)?.tool_calls;
+            if (!Array.isArray(toolCalls)) return [];
+            return toolCalls.flatMap((call: unknown) => toolCallStartedOf(call));
         }
         case 'on_tool_end': {
             const callId = toolCallIdOfEnd(data?.output);
@@ -86,7 +69,6 @@ export function mapStreamEvent(raw: unknown): AgentEvent[] {
     }
 }
 
-/** Maps a run's stream and builds the final `run-finished` (answer, tool calls, duration). */
 export class StreamEventMapper {
     private readonly startedAt: number;
     private answer = '';

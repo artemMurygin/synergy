@@ -1,4 +1,6 @@
-import type { ToolCallTrace } from './ports/sheets-assistant.port';
+import type { ToolCallTrace } from './tool-call-trace';
+
+export const RUN_FAILED_PUBLIC_MESSAGE = 'Не удалось получить ответ. Попробуйте ещё раз';
 
 export interface RunFinishedPayload {
     readonly answer: string;
@@ -20,7 +22,6 @@ export type AgentEvent =
     | { readonly type: 'run-failed'; readonly message: string }
     | { readonly type: 'run-cancelled' };
 
-/** Domain language of agent events; independent of AG-UI, LangGraph and SSE. */
 export const AgentEvent = {
     runStarted: (): AgentEvent => ({ type: 'run-started' }),
     textDelta: (text: string): AgentEvent => ({ type: 'text-delta', text }),

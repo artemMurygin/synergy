@@ -6,10 +6,6 @@ export interface AgUiRunContext {
     readonly runId: string;
 }
 
-/**
- * Converts the domain events of one run to AG-UI events. Stateful: it opens and closes
- * text messages and tool calls so that the emitted stream is always well-formed.
- */
 export class AgUiEventMapper {
     private messageCount = 0;
     private openMessageId: string | null = null;
@@ -108,7 +104,6 @@ export class AgUiEventMapper {
         return [{ type: EventType.TEXT_MESSAGE_END, messageId }];
     }
 
-    /** Before a terminal event: calls still open end without a result, the open text ends. */
     private closeAll(): BaseEvent[] {
         const events = this.closeText();
         for (const callId of this.openToolCalls) {

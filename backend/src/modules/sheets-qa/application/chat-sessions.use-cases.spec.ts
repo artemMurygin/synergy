@@ -131,6 +131,22 @@ describe('GetChatMessagesUseCase', () => {
         expect(result.running).toBe(true);
     });
 
+    it('never reports a finished run together with a history that lacks its answer', async () => {
+        const { port, registry } = setup();
+        const session = await new CreateChatSessionUseCase(port).execute();
+        registry.tryStart(session.id, 'run-1');
+        const answer = { role: 'assistant' } as unknown as ChatMessage;
+        const messages: ChatMessage[] = [];
+        const staleSnapshot = [...messages];
+        vi.spyOn(port, 'listMessages').mockImplementation(() => {
+            messages.push(answer);
+            registry.release(session.id, 'run-1');
+            return Promise.resolve(staleSnapshot);
+        });
+        const result = await new GetChatMessagesUseCase(port, registry).execute(session.id);
+        expect(result.running || result.messages.includes(answer)).toBe(true);
+    });
+
     it('fails with not found for an unknown session', async () => {
         const { port, registry } = setup();
         await expect(
