@@ -86,7 +86,9 @@ export function useChatSessions() {
 
   const rename = useCallback(async (id: string, title: string) => {
     const updated = await renameThread(id, title)
-    setSessions((current) => current.map((s) => (s.id === id ? updated : s)))
+    setSessions((current) =>
+      current.map((s) => (s.id === id ? { ...updated, running: s.running } : s)),
+    )
     return updated
   }, [])
 

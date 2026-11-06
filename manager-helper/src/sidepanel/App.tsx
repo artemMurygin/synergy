@@ -98,6 +98,7 @@ export function App() {
         <div className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}>
           <ChatHeader
             title={activeSession?.title ?? ''}
+            running={activeSession?.running}
             onOpenList={
               panes.backToList
                 ? () => {

@@ -83,10 +83,10 @@
 
 ## 11. Клиент: список чатов на threads-api (TDD)
 
-- [ ] 11.1 Обновить тесты `use-chat-sessions.test.tsx` под `threads-api` и поле `running` у чата (по specs `chat-session-switcher`: создание, переключение, переименование, удаление, восстановление активного чата)
-- [ ] 11.2 Прогнать обновлённые тесты и зафиксировать, что они падают (red) на старом API
-- [ ] 11.3 Перевести `use-chat-sessions.ts`, `ChatSessionList`, `ChatSessionItem`, `ChatHeader` на `threads-api` и `running`
-- [ ] 11.4 Прогнать тесты и зафиксировать, что они зелёные (green), регрессий в `ChatHeader.test.tsx`, `ChatSessionList.test.tsx`, `panel-layout.test.ts` нет
+- [x] 11.1 Обновить тесты `use-chat-sessions.test.tsx` под `threads-api` и поле `running` у чата (по specs `chat-session-switcher`: создание, переключение, переименование, удаление, восстановление активного чата)
+- [x] 11.2 Прогнать обновлённые тесты и зафиксировать, что они падают (red) на старом API
+- [x] 11.3 Перевести `use-chat-sessions.ts`, `ChatSessionList`, `ChatSessionItem`, `ChatHeader` на `threads-api` и `running`
+- [x] 11.4 Прогнать тесты и зафиксировать, что они зелёные (green), регрессий в `ChatHeader.test.tsx`, `ChatSessionList.test.tsx`, `panel-layout.test.ts` нет
 
 ## 12. Клиент: ChatRuntimeProvider (TDD)
 

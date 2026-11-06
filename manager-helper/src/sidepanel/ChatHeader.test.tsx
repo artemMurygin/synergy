@@ -45,3 +45,14 @@ describe('ChatHeader', () => {
     expect(screen.getByRole('heading', { name: 'Новый чат' })).toBeTruthy()
   })
 })
+
+describe('ChatHeader running indicator', () => {
+  it('shows the indicator only while the agent is answering', () => {
+    const { rerender } = render(
+      <ChatHeader title="Чат" onNewChat={noop} onOpenSettings={noop} running />,
+    )
+    expect(screen.getByLabelText('Агент отвечает')).toBeTruthy()
+    rerender(<ChatHeader title="Чат" onNewChat={noop} onOpenSettings={noop} />)
+    expect(screen.queryByLabelText('Агент отвечает')).toBeNull()
+  })
+})

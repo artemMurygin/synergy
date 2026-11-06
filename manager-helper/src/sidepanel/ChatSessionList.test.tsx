@@ -160,3 +160,10 @@ describe('formatActivity', () => {
     expect(formatActivity('2026-11-03T10:00:00', now)).toBe('3 ноября')
   })
 })
+
+describe('ChatSessionList running indicator', () => {
+  it('marks only chats with an active agent run', () => {
+    setup({ sessions: [{ ...session('a', 'Цены на MBA'), running: true }, session('b', 'Чат Б')] })
+    expect(screen.getAllByLabelText('Агент отвечает')).toHaveLength(1)
+  })
+})

@@ -117,7 +117,16 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
             onSelect(session.id)
           }}
         >
-          <span className="w-full truncate text-sm font-semibold text-ink">{session.title}</span>
+          <span className="flex w-full items-center gap-2">
+            <span className="min-w-0 truncate text-sm font-semibold text-ink">{session.title}</span>
+            {session.running && (
+              <span
+                role="img"
+                aria-label="Агент отвечает"
+                className="size-2 shrink-0 animate-pulse rounded-full bg-brand-red"
+              />
+            )}
+          </span>
           <span className="text-xs text-ink-60">{formatActivity(session.lastActivityAt)}</span>
         </button>
         <button

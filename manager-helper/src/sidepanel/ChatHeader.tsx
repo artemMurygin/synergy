@@ -7,6 +7,8 @@ interface Props {
   onNewChat: () => void
   onOpenSettings: () => void
   newChatDisabled?: boolean
+  /** The agent is answering in this chat. */
+  running?: boolean
 }
 
 const iconButton =
@@ -18,6 +20,7 @@ export function ChatHeader({
   onNewChat,
   onOpenSettings,
   newChatDisabled,
+  running,
 }: Props) {
   return (
     <header className="flex items-center gap-2 border-b border-line px-3 py-2">
@@ -34,6 +37,13 @@ export function ChatHeader({
       <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
         {title.trim().length > 0 ? title : 'Новый чат'}
       </h1>
+      {running && (
+        <span
+          role="img"
+          aria-label="Агент отвечает"
+          className="size-2 shrink-0 animate-pulse rounded-full bg-brand-red"
+        />
+      )}
       <button
         type="button"
         aria-label="Новый чат"

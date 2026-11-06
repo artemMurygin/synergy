@@ -156,6 +156,29 @@ describe('useChatSessions', () => {
     expect(result.current.sessions.find((s) => s.id === 'b')?.title).toBe('Новое')
   })
 
+  it('exposes the running flag from the list and refreshes it on reload', async () => {
+    vi.mocked(listThreads).mockResolvedValue([{ ...A, running: true }, B, C])
+    const { result } = await ready()
+    expect(result.current.sessions.map((s) => s.running)).toEqual([true, false, false])
+    vi.mocked(listThreads).mockResolvedValue([A, B, C])
+    await act(async () => {
+      await result.current.reload()
+    })
+    expect(result.current.sessions.every((s) => !s.running)).toBe(true)
+  })
+
+  it('rename keeps the running flag of a chat whose run is in progress', async () => {
+    vi.mocked(listThreads).mockResolvedValue([{ ...A, running: true }, B, C])
+    vi.mocked(renameThread).mockResolvedValue({ ...A, title: 'Новое', titleIsCustom: true })
+    const { result } = await ready()
+    await act(async () => {
+      await result.current.rename('a', 'Новое')
+    })
+    const renamed = result.current.sessions.find((s) => s.id === 'a')
+    expect(renamed?.title).toBe('Новое')
+    expect(renamed?.running).toBe(true)
+  })
+
   it('remove of a non-active chat keeps the active one', async () => {
     vi.mocked(deleteThread).mockResolvedValue(undefined)
     const { result } = await ready()
