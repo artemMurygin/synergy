@@ -1,15 +1,16 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ChatSession } from '@/shared/chat-sessions-api'
+import type { Thread } from '@/shared/threads-api'
 import { ChatSessionList } from './ChatSessionList'
 import { formatActivity } from './session-time'
 
-const session = (id: string, title: string): ChatSession => ({
+const session = (id: string, title: string): Thread => ({
   id,
   title,
   titleIsCustom: false,
   createdAt: '2026-11-05T09:00:00.000Z',
   lastActivityAt: '2026-11-05T09:00:00.000Z',
+  running: false,
 })
 
 const SESSIONS = [session('a', 'Цены на MBA'), session('b', 'Пересдача вступительных')]

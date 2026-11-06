@@ -72,14 +72,14 @@
 
 ## 10. Клиент: API, агент и опрос запуска (TDD)
 
-- [ ] 10.1 Написать тесты (vitest, `fetch` замокан) для `shared/threads-api.ts` (list, create, rename, delete; `getThread(id)` → `{messages, running}` с сообщениями в формате AG-UI; `ThreadNotFoundError` на 404) и `shared/agent-client.ts` (`createAgent(threadId)` строит `HttpAgent` на `${backendUrl}/agent`; `cancelRun(threadId)` шлёт `POST /threads/:id/run/cancel`, 204 и 404 не ошибка)
-- [ ] 10.2 Прогнать тесты из 10.1 и зафиксировать, что они падают (red): модулей нет
-- [ ] 10.3 Реализовать `shared/threads-api.ts` (вместо `chat-sessions-api.ts`) и `shared/agent-client.ts`; обновить импорты; убрать `askAgent` из `shared/api.ts`, оставив общие хелперы, нужные другим модулям
-- [ ] 10.4 Прогнать тесты из 10.1 и зафиксировать, что они зелёные (green), регрессий в `quick-search.test.ts`, `active-session.test.ts` нет
-- [ ] 10.5 Написать тесты хука `useThreadRunStatus` (fake timers; по specs `chat-thread-ui` «Ответ агента после закрытия панели»): при `running=true` раз в 3 с перечитывает тред; при `running=false` останавливается и вызывает `onFinished` один раз; при смене треда и размонтировании очищает таймер; не опрашивает при `running=false`; ошибка запроса не останавливает опрос
-- [ ] 10.6 Прогнать тесты из 10.5 и зафиксировать, что они падают (red)
-- [ ] 10.7 Реализовать `sidepanel/use-thread-run-status.ts`
-- [ ] 10.8 Прогнать тесты из 10.5 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 10.1 Написать тесты (vitest, `fetch` замокан) для `shared/threads-api.ts` (list, create, rename, delete; `getThread(id)` → `{messages, running}` с сообщениями в формате AG-UI; `ThreadNotFoundError` на 404) и `shared/agent-client.ts` (`createAgent(threadId)` строит `HttpAgent` на `${backendUrl}/agent`; `cancelRun(threadId)` шлёт `POST /threads/:id/run/cancel`, 204 и 404 не ошибка)
+- [x] 10.2 Прогнать тесты из 10.1 и зафиксировать, что они падают (red): модулей нет
+- [x] 10.3 Реализовать `shared/threads-api.ts` (вместо `chat-sessions-api.ts`) и `shared/agent-client.ts`; обновить импорты; убрать `askAgent` из `shared/api.ts`, оставив общие хелперы, нужные другим модулям
+- [x] 10.4 Прогнать тесты из 10.1 и зафиксировать, что они зелёные (green), регрессий в `quick-search.test.ts`, `active-session.test.ts` нет
+- [x] 10.5 Написать тесты хука `useThreadRunStatus` (fake timers; по specs `chat-thread-ui` «Ответ агента после закрытия панели»): при `running=true` раз в 3 с перечитывает тред; при `running=false` останавливается и вызывает `onFinished` один раз; при смене треда и размонтировании очищает таймер; не опрашивает при `running=false`; ошибка запроса не останавливает опрос
+- [x] 10.6 Прогнать тесты из 10.5 и зафиксировать, что они падают (red)
+- [x] 10.7 Реализовать `sidepanel/use-thread-run-status.ts`
+- [x] 10.8 Прогнать тесты из 10.5 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 11. Клиент: список чатов на threads-api (TDD)
 

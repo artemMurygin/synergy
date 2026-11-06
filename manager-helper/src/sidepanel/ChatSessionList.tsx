@@ -1,9 +1,9 @@
-import type { ChatSession } from '@/shared/chat-sessions-api'
+import type { Thread } from '@/shared/threads-api'
 import { ChatSessionItem } from './ChatSessionItem'
 import { ArrowLeftIcon, ChatsIcon, CloudOffIcon, PlusIcon } from './icons'
 
 interface Props {
-  sessions: ChatSession[]
+  sessions: Thread[]
   activeId: string | null
   status: 'loading' | 'ready' | 'error'
   onSelect: (id: string) => void

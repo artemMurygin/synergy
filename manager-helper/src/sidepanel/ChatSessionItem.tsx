@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import type { ChatSession } from '@/shared/chat-sessions-api'
+import type { Thread } from '@/shared/threads-api'
 import { CheckIcon, CloseIcon, PencilIcon, TrashIcon } from './icons'
 import { formatActivity } from './session-time'
 
 interface Props {
-  session: ChatSession
+  session: Thread
   active: boolean
   onSelect: (id: string) => void
   onRename: (id: string, title: string) => Promise<unknown>

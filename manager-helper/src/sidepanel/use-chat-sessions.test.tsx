@@ -1,25 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
-import {
-  createSession,
-  deleteSession,
-  listSessions,
-  renameSession,
-} from '@/shared/chat-sessions-api'
-import type { ChatSession } from '@/shared/chat-sessions-api'
+import { createThread, deleteThread, listThreads, renameThread } from '@/shared/threads-api'
+import type { Thread } from '@/shared/threads-api'
 import { useChatSessions } from './use-chat-sessions'
 
-vi.mock('@/shared/chat-sessions-api')
+vi.mock('@/shared/threads-api')
 vi.mock('@/shared/active-session')
 
-function session(id: string, minute: number): ChatSession {
+function session(id: string, minute: number): Thread {
   return {
     id,
     title: `Чат ${id}`,
     titleIsCustom: false,
     createdAt: '2026-11-05T10:00:00.000Z',
     lastActivityAt: `2026-11-05T10:${String(minute).padStart(2, '0')}:00.000Z`,
+    running: false,
   }
 }
 
@@ -28,7 +24,7 @@ const B = session('b', 20)
 const C = session('c', 10)
 
 beforeEach(() => {
-  vi.mocked(listSessions).mockResolvedValue([A, B, C])
+  vi.mocked(listThreads).mockResolvedValue([A, B, C])
   vi.mocked(getActiveSessionId).mockResolvedValue(null)
   vi.mocked(setActiveSessionId).mockResolvedValue(undefined)
 })
@@ -61,14 +57,14 @@ describe('useChatSessions', () => {
   })
 
   it('has no active chat and does not create one when the list is empty', async () => {
-    vi.mocked(listSessions).mockResolvedValue([])
+    vi.mocked(listThreads).mockResolvedValue([])
     const { result } = await ready()
     expect(result.current.activeId).toBeNull()
-    expect(createSession).not.toHaveBeenCalled()
+    expect(createThread).not.toHaveBeenCalled()
   })
 
   it('reports an error and recovers on reload', async () => {
-    vi.mocked(listSessions).mockRejectedValueOnce(new Error('down'))
+    vi.mocked(listThreads).mockRejectedValueOnce(new Error('down'))
     const hook = renderHook(() => useChatSessions())
     await waitFor(() => {
       expect(hook.result.current.status).toBe('error')
@@ -82,8 +78,8 @@ describe('useChatSessions', () => {
 
   it('keeps the list during a refresh (no collapse to loading)', async () => {
     const { result } = await ready()
-    let resolve: (value: ChatSession[]) => void = () => undefined
-    vi.mocked(listSessions).mockReturnValueOnce(
+    let resolve: (value: Thread[]) => void = () => undefined
+    vi.mocked(listThreads).mockReturnValueOnce(
       new Promise((r) => {
         resolve = r
       }),
@@ -103,9 +99,9 @@ describe('useChatSessions', () => {
 
   it('create makes the new chat active and first, and persists it', async () => {
     const created = session('n', 59)
-    vi.mocked(createSession).mockResolvedValue(created)
+    vi.mocked(createThread).mockResolvedValue(created)
     const { result } = await ready()
-    let returned: ChatSession | undefined
+    let returned: Thread | undefined
     await act(async () => {
       returned = await result.current.create()
     })
@@ -117,11 +113,11 @@ describe('useChatSessions', () => {
 
   it('a reload that was in flight during create does not switch away from the new chat', async () => {
     const created = session('n', 59)
-    vi.mocked(createSession).mockResolvedValue(created)
+    vi.mocked(createThread).mockResolvedValue(created)
     const { result } = await ready()
-    let resolveList: (list: ChatSession[]) => void = () => undefined
-    vi.mocked(listSessions).mockReturnValueOnce(
-      new Promise<ChatSession[]>((resolve) => {
+    let resolveList: (list: Thread[]) => void = () => undefined
+    vi.mocked(listThreads).mockReturnValueOnce(
+      new Promise<Thread[]>((resolve) => {
         resolveList = resolve
       }),
     )
@@ -151,17 +147,17 @@ describe('useChatSessions', () => {
   })
 
   it('rename updates the title in the list', async () => {
-    vi.mocked(renameSession).mockResolvedValue({ ...B, title: 'Новое', titleIsCustom: true })
+    vi.mocked(renameThread).mockResolvedValue({ ...B, title: 'Новое', titleIsCustom: true })
     const { result } = await ready()
     await act(async () => {
       await result.current.rename('b', 'Новое')
     })
-    expect(renameSession).toHaveBeenCalledWith('b', 'Новое')
+    expect(renameThread).toHaveBeenCalledWith('b', 'Новое')
     expect(result.current.sessions.find((s) => s.id === 'b')?.title).toBe('Новое')
   })
 
   it('remove of a non-active chat keeps the active one', async () => {
-    vi.mocked(deleteSession).mockResolvedValue(undefined)
+    vi.mocked(deleteThread).mockResolvedValue(undefined)
     const { result } = await ready()
     await act(async () => {
       await result.current.remove('c')
@@ -171,7 +167,7 @@ describe('useChatSessions', () => {
   })
 
   it('remove of the active chat switches to the freshest remaining', async () => {
-    vi.mocked(deleteSession).mockResolvedValue(undefined)
+    vi.mocked(deleteThread).mockResolvedValue(undefined)
     const { result } = await ready()
     await act(async () => {
       await result.current.remove('a')
@@ -181,8 +177,8 @@ describe('useChatSessions', () => {
   })
 
   it('remove of the last chat leaves the empty state', async () => {
-    vi.mocked(listSessions).mockResolvedValue([A])
-    vi.mocked(deleteSession).mockResolvedValue(undefined)
+    vi.mocked(listThreads).mockResolvedValue([A])
+    vi.mocked(deleteThread).mockResolvedValue(undefined)
     const { result } = await ready()
     await act(async () => {
       await result.current.remove('a')
@@ -193,7 +189,7 @@ describe('useChatSessions', () => {
   })
 
   it('remove keeps the chat when the server refuses', async () => {
-    vi.mocked(deleteSession).mockRejectedValue(new Error('500'))
+    vi.mocked(deleteThread).mockRejectedValue(new Error('500'))
     const { result } = await ready()
     await act(async () => {
       await expect(result.current.remove('a')).rejects.toThrow('500')

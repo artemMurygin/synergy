@@ -1,27 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
-import {
-  createSession,
-  deleteSession,
-  listSessions,
-  renameSession,
-} from '@/shared/chat-sessions-api'
-import type { ChatSession } from '@/shared/chat-sessions-api'
+import { createThread, deleteThread, listThreads, renameThread } from '@/shared/threads-api'
+import type { Thread } from '@/shared/threads-api'
 
 export type SessionsStatus = 'loading' | 'ready' | 'error'
 
-function byFreshness(sessions: ChatSession[]): ChatSession[] {
+function byFreshness(sessions: Thread[]): Thread[] {
   return [...sessions].sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
 }
 
 export function useChatSessions() {
-  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [sessions, setSessions] = useState<Thread[]>([])
   const [status, setStatus] = useState<SessionsStatus>('loading')
   const [activeId, setActiveId] = useState<string | null>(null)
   const activeRef = useRef<string | null>(null)
   const loaded = useRef(false)
   /** Chats created / removed locally; a list fetched before them must not undo them. */
-  const createdLog = useRef<ChatSession[]>([])
+  const createdLog = useRef<Thread[]>([])
   const removedLog = useRef<string[]>([])
 
   const activate = useCallback((id: string | null) => {
@@ -35,7 +30,7 @@ export function useChatSessions() {
     const createdMark = createdLog.current.length
     const removedMark = removedLog.current.length
     try {
-      const [list, stored] = await Promise.all([listSessions(), getActiveSessionId()])
+      const [list, stored] = await Promise.all([listThreads(), getActiveSessionId()])
       const created = createdLog.current.slice(createdMark)
       const removed = removedLog.current.slice(removedMark)
       const merged = [
@@ -80,7 +75,7 @@ export function useChatSessions() {
 
   const create = useCallback(
     async (title?: string) => {
-      const created = await createSession(title)
+      const created = await createThread(title)
       createdLog.current.push(created)
       setSessions((current) => [created, ...current.filter((s) => s.id !== created.id)])
       activate(created.id)
@@ -90,14 +85,14 @@ export function useChatSessions() {
   )
 
   const rename = useCallback(async (id: string, title: string) => {
-    const updated = await renameSession(id, title)
+    const updated = await renameThread(id, title)
     setSessions((current) => current.map((s) => (s.id === id ? updated : s)))
     return updated
   }, [])
 
   const remove = useCallback(
     async (id: string) => {
-      await deleteSession(id)
+      await deleteThread(id)
       removedLog.current.push(id)
       const remaining = sessions.filter((s) => s.id !== id)
       setSessions(remaining)
