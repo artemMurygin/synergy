@@ -57,10 +57,10 @@
 
 ## 8. Преобразователи и контроллеры AG-UI (TDD)
 
-- [ ] 8.1 Написать тесты: `AgUiEventMapper` (`AgentEvent` → `RUN_STARTED`, `TEXT_MESSAGE_START/CONTENT/END`, `TOOL_CALL_START/ARGS/END`, `RUN_FINISHED`, `RUN_ERROR`, с признаком отмены); `ThreadMessageMapper` (`ChatMessage` → сообщения AG-UI: пользователь, ассистент с `toolCalls`); `AgentController` (400 на некорректное тело, 404 для неизвестного чата и 409 при занятом чате без потока, порядок событий SSE, закрытие соединения отписывает наблюдателя и не отменяет запуск); `ThreadsController` (маршруты `/threads`, `GET /threads/:id/messages` → `{messages, running}`, `POST /threads/:id/run/cancel` → 204 и идемпотентность)
-- [ ] 8.2 Прогнать тесты из 8.1 и зафиксировать, что они падают (red): маппера и новых контроллеров нет
-- [ ] 8.3 Реализовать `AgUiEventMapper`, `ThreadMessageMapper`, `AgentController` (`POST /agent`, SSE через `@ag-ui/encoder`, наблюдатель поверх `res`), переименовать `ChatSessionsController` в `ThreadsController` с маршрутами `/threads` и `run/cancel`
-- [ ] 8.4 Прогнать тесты из 8.1 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 8.1 Написать тесты: `AgUiEventMapper` (`AgentEvent` → `RUN_STARTED`, `TEXT_MESSAGE_START/CONTENT/END`, `TOOL_CALL_START/ARGS/END`, `RUN_FINISHED`, `RUN_ERROR`, с признаком отмены); `ThreadMessageMapper` (`ChatMessage` → сообщения AG-UI: пользователь, ассистент с `toolCalls`); `AgentController` (400 на некорректное тело, 404 для неизвестного чата и 409 при занятом чате без потока, порядок событий SSE, закрытие соединения отписывает наблюдателя и не отменяет запуск); `ThreadsController` (маршруты `/threads`, `GET /threads/:id/messages` → `{messages, running}`, `POST /threads/:id/run/cancel` → 204 и идемпотентность)
+- [x] 8.2 Прогнать тесты из 8.1 и зафиксировать, что они падают (red): маппера и новых контроллеров нет
+- [x] 8.3 Реализовать `AgUiEventMapper`, `ThreadMessageMapper`, `AgentController` (`POST /agent`, SSE через `@ag-ui/encoder`, наблюдатель поверх `res`), переименовать `ChatSessionsController` в `ThreadsController` с маршрутами `/threads` и `run/cancel`
+- [x] 8.4 Прогнать тесты из 8.1 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 9. Подключение модуля и удаление старого контракта
 

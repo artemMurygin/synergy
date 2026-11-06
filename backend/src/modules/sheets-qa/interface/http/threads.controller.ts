@@ -10,18 +10,19 @@ import {
     Patch,
     Post,
 } from '@nestjs/common';
+import type { Message } from '@ag-ui/core';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
+import { CancelAgentRunUseCase } from '../../application/cancel-agent-run.use-case';
 import { CreateChatSessionUseCase } from '../../application/create-chat-session.use-case';
 import { DeleteChatSessionUseCase } from '../../application/delete-chat-session.use-case';
 import { GetChatMessagesUseCase } from '../../application/get-chat-messages.use-case';
 import { ListChatSessionsUseCase } from '../../application/list-chat-sessions.use-case';
 import { RenameChatSessionUseCase } from '../../application/rename-chat-session.use-case';
-import type { ChatMessage } from '../../domain/chat-message';
 import type { ChatSession } from '../../domain/chat-session';
 import { ChatSessionNotFoundError } from '../../domain/chat-session-not-found.error';
 import { InvalidChatTitleError } from '../../domain/chat-title';
-import type { ToolCallTrace } from '../../domain/ports/sheets-assistant.port';
+import { ThreadMessageMapper } from './thread-message-mapper';
 
 const createSchema = z.object({ title: z.string().optional() });
 const renameSchema = z.object({ title: z.string() });
@@ -33,35 +34,23 @@ interface ChatSessionResponse {
     titleIsCustom: boolean;
     createdAt: string;
     lastActivityAt: string;
+    /** An agent run is active in the chat right now; absent where the run state is not read. */
+    running?: boolean;
 }
 
-interface ChatMessageResponse {
-    id: number;
-    role: string;
-    text: string;
-    toolCalls: readonly ToolCallTrace[] | null;
-    durationMs: number | null;
-    createdAt: string;
+interface ThreadHistoryResponse {
+    messages: Message[];
+    running: boolean;
 }
 
-function toSessionResponse(session: ChatSession): ChatSessionResponse {
+function toSessionResponse(session: ChatSession, running?: boolean): ChatSessionResponse {
     return {
         id: session.id,
         title: session.title.value,
         titleIsCustom: session.titleIsCustom,
         createdAt: session.createdAt.toISOString(),
         lastActivityAt: session.lastActivityAt.toISOString(),
-    };
-}
-
-function toMessageResponse(message: ChatMessage): ChatMessageResponse {
-    return {
-        id: message.id,
-        role: message.role,
-        text: message.text,
-        toolCalls: message.toolCalls,
-        durationMs: message.durationMs,
-        createdAt: message.createdAt.toISOString(),
+        ...(running === undefined ? {} : { running }),
     };
 }
 
@@ -76,15 +65,16 @@ function mapError(error: unknown): never {
     throw error;
 }
 
-@ApiTags('chat-sessions')
-@Controller('chat-sessions')
-export class ChatSessionsController {
+@ApiTags('threads')
+@Controller('threads')
+export class ThreadsController {
     constructor(
         private readonly createSession: CreateChatSessionUseCase,
         private readonly listSessions: ListChatSessionsUseCase,
         private readonly getMessages: GetChatMessagesUseCase,
         private readonly renameSession: RenameChatSessionUseCase,
         private readonly deleteSession: DeleteChatSessionUseCase,
+        private readonly cancelRun: CancelAgentRunUseCase,
     ) {}
 
     @Post()
@@ -92,7 +82,7 @@ export class ChatSessionsController {
         const parsed = createSchema.safeParse(body ?? {});
         if (!parsed.success) throw new BadRequestException('Body must be {"title"?: string}');
         try {
-            return toSessionResponse(await this.createSession.execute(parsed.data.title));
+            return toSessionResponse(await this.createSession.execute(parsed.data.title), false);
         } catch (error) {
             return mapError(error);
         }
@@ -100,14 +90,20 @@ export class ChatSessionsController {
 
     @Get()
     async list(): Promise<ChatSessionResponse[]> {
-        return (await this.listSessions.execute()).map((item) => toSessionResponse(item.session));
+        return (await this.listSessions.execute()).map((item) =>
+            toSessionResponse(item.session, item.running),
+        );
     }
 
     @Get(':id/messages')
-    async messages(@Param('id') id: string): Promise<ChatMessageResponse[]> {
+    async messages(@Param('id') id: string): Promise<ThreadHistoryResponse> {
         assertKnownIdFormat(id);
         try {
-            return (await this.getMessages.execute(id)).messages.map(toMessageResponse);
+            const history = await this.getMessages.execute(id);
+            return {
+                messages: ThreadMessageMapper.toAgUi(history.messages),
+                running: history.running,
+            };
         } catch (error) {
             return mapError(error);
         }
@@ -134,5 +130,12 @@ export class ChatSessionsController {
         } catch (error) {
             mapError(error);
         }
+    }
+
+    /** Idempotent: a chat without an active run (or an unknown one) is not an error. */
+    @Post(':id/run/cancel')
+    @HttpCode(204)
+    async cancel(@Param('id') id: string): Promise<void> {
+        await this.cancelRun.execute(id);
     }
 }

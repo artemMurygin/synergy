@@ -29,7 +29,7 @@ import {
     createPostgresCheckpointer,
 } from './infrastructure/postgres-checkpointer';
 import { PG_POOL } from '../../database/postgres/database.constants';
-import { ChatSessionsController } from './interface/http/chat-sessions.controller';
+import { ThreadsController } from './interface/http/threads.controller';
 import { CancelAgentRunUseCase } from './application/cancel-agent-run.use-case';
 import { ActiveRunRegistryPort } from './domain/ports/active-run-registry.port';
 import { InMemoryActiveRunRegistry } from './infrastructure/in-memory-active-run-registry';
@@ -42,7 +42,7 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
 
 @Module({
     imports: [PostgresModule],
-    controllers: [SheetsQaController, ChatSessionsController],
+    controllers: [SheetsQaController, ThreadsController],
     providers: [
         AskQuestionUseCase,
         CreateChatSessionUseCase,
