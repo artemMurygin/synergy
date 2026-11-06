@@ -1,15 +1,20 @@
 /* eslint-disable @typescript-eslint/no-deprecated -- the assistant-ui thread list adapter and message converters are the experimental API this provider is specified to use */
 import type { HttpAgent } from '@ag-ui/client'
-import { AssistantRuntimeProvider, fromThreadMessageLike, generateId } from '@assistant-ui/react'
+import {
+  AssistantRuntimeProvider,
+  ExportedMessageRepository,
+  fromThreadMessageLike,
+  generateId,
+} from '@assistant-ui/react'
 import type { ThreadMessage } from '@assistant-ui/core'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import type { UseAgUiThreadListAdapter } from '@assistant-ui/react-ag-ui'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { setActiveSessionId } from '@/shared/active-session'
-import { cancelRun, createAgent } from '@/shared/agent-client'
+import { cancelRun, createAgent, isRunConflict } from '@/shared/agent-client'
 import { getThread } from '@/shared/threads-api'
-import type { Thread } from '@/shared/threads-api'
+import type { Thread, ThreadHistory } from '@/shared/threads-api'
 
 export type HistoryStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -19,12 +24,15 @@ interface ChatHistoryState {
   threadId: string | null
   /** Loads the history of the active chat again after an error. */
   reload: () => void
+  /** Puts a freshly read history of the active chat into the runtime, keeping the composer. */
+  refresh: (threadId: string, history: ThreadHistory) => void
 }
 
 const ChatHistoryContext = createContext<ChatHistoryState>({
   status: 'idle',
   threadId: null,
   reload: () => undefined,
+  refresh: () => undefined,
 })
 
 /** State of loading the active chat history into the runtime. */
@@ -39,6 +47,11 @@ interface Props {
   onSelect: (id: string) => void
   /** Creates a chat and makes it active (the runtime asks for it on "new thread"). */
   onCreate: () => Promise<Pick<Thread, 'id'>>
+  /**
+   * The server run flag of a chat became known: the history was loaded, or a question was
+   * refused because the chat already has a run.
+   */
+  onRunningChange?: (threadId: string, running: boolean) => void
   children: ReactNode
 }
 
@@ -88,6 +101,7 @@ function RuntimeHost({
   activeId,
   onSelect,
   onCreate,
+  onRunningChange,
   children,
 }: Props & { agent: HttpAgent }) {
   /** Chat whose history the runtime currently holds (`FAILED` after a failed load). */
@@ -95,10 +109,11 @@ function RuntimeHost({
   const [status, setStatus] = useState<HistoryStatus>('idle')
   const [retry, setRetry] = useState(0)
 
-  const latest = useRef({ onSelect, onCreate })
+  const latest = useRef({ onSelect, onCreate, onRunningChange })
   useEffect(() => {
-    latest.current = { onSelect, onCreate }
+    latest.current = { onSelect, onCreate, onRunningChange }
   })
+
   const generation = useRef(0)
   /** A switch is in progress: the run of the previous chat is dropped locally, not cancelled. */
   const switching = useRef(false)
@@ -119,6 +134,7 @@ function RuntimeHost({
           if (mine !== generation.current) return { messages: [] }
           setLoadedId(threadId)
           setStatus('ready')
+          latest.current.onRunningChange?.(threadId, history.running)
           void setActiveSessionId(threadId)
           latest.current.onSelect(threadId)
           return { messages: toThreadMessages(history.messages) }
@@ -158,6 +174,9 @@ function RuntimeHost({
   const runtime = useAgUiRuntime({
     agent,
     adapters: { threadList },
+    onError: (error) => {
+      if (isRunConflict(error)) latest.current.onRunningChange?.(agent.threadId, true)
+    },
     onCancel: () => {
       // Dropping the local run on a chat switch must not stop it on the server.
       if (switching.current) return
@@ -194,6 +213,14 @@ function RuntimeHost({
       threadId: loadedId === null || loadedId === FAILED ? null : loadedId,
       reload: () => {
         setRetry((n) => n + 1)
+      },
+      refresh: (threadId, fresh) => {
+        if (threadId !== loadedId) return
+        // Same chat, same composer: only the messages are replaced (a switch would drop the draft).
+        runtimeRef.current.thread.import(
+          ExportedMessageRepository.fromArray(toThreadMessages(fresh.messages)),
+        )
+        latest.current.onRunningChange?.(threadId, fresh.running)
       },
     }),
     [status, loadedId],

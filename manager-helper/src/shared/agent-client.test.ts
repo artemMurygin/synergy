@@ -1,7 +1,7 @@
 import { HttpAgent } from '@ag-ui/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AskError } from './api'
-import { cancelRun, createAgent } from './agent-client'
+import { RunConflictError, cancelRun, createAgent, isRunConflict } from './agent-client'
 
 vi.mock('./settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
 
@@ -61,5 +61,18 @@ describe('cancelRun', () => {
   it('throws AskError on a network failure', async () => {
     fetchMock.mockRejectedValue(new TypeError('failed'))
     await expect(cancelRun('t1')).rejects.toBeInstanceOf(AskError)
+  })
+})
+
+describe('isRunConflict', () => {
+  it('recognises HTTP 409 from the agent and RunConflictError', () => {
+    expect(isRunConflict(new Error('HTTP 409: {"message":"busy"}'))).toBe(true)
+    expect(isRunConflict('HTTP 409: busy')).toBe(true)
+    expect(isRunConflict(new RunConflictError('busy'))).toBe(true)
+  })
+
+  it('ignores other errors', () => {
+    expect(isRunConflict(new Error('HTTP 500: boom'))).toBe(false)
+    expect(isRunConflict(new TypeError('Failed to fetch'))).toBe(false)
   })
 })

@@ -1,4 +1,5 @@
 import { MessagePrimitive, useAui, useAuiState } from '@assistant-ui/react'
+import { RUN_CONFLICT_MESSAGE, isRunConflict } from '@/shared/agent-client'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ErrorMessage } from './ErrorMessage'
@@ -42,8 +43,9 @@ export function AssistantMessage() {
 
   const failed = status?.type === 'incomplete' && status.reason === 'error'
   const stopped = status?.type === 'incomplete' && status.reason === 'cancelled'
-  const errorText =
+  const rawError =
     failed && typeof status.error === 'string' ? status.error : 'Запуск агента завершился ошибкой.'
+  const errorText = isRunConflict(rawError) ? RUN_CONFLICT_MESSAGE : rawError
   const retry = () => {
     aui.message.reload()
   }

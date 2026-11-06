@@ -1,7 +1,7 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
 import { useEffect, useRef, useState } from 'react'
 import { cancelRun } from '@/shared/agent-client'
-import type { Thread } from '@/shared/threads-api'
+import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { ChatHeader } from './ChatHeader'
 import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 import { ChatSessionList } from './ChatSessionList'
@@ -17,6 +17,11 @@ interface QueuedSend {
   text: string
 }
 
+interface FinishedRun {
+  threadId: string
+  history: ThreadHistory
+}
+
 interface PaneProps {
   activeId: string | null
   activeSession: Thread | undefined
@@ -26,6 +31,8 @@ interface PaneProps {
   onStopServerRun: () => void
   /** A run of this panel has ended: the list (title, activity, running flag) is stale. */
   onSettled: () => void
+  /** A run of the chat ended on the server: its fresh history goes into the runtime in place. */
+  finished: FinishedRun | null
 }
 
 /** The thread of the active chat; lives inside the runtime provider. */
@@ -37,6 +44,12 @@ function ChatPane(props: PaneProps) {
   const running = useAuiState((s) => s.thread.isRunning)
   // A question waiting for the freshly created chat to be loaded into the runtime.
   const queued = useRef<QueuedSend | null>(null)
+
+  const { refresh } = history
+  const { finished } = props
+  useEffect(() => {
+    if (finished !== null) refresh(finished.threadId, finished.history)
+  }, [finished, refresh])
 
   const wasRunning = useRef(false)
   useEffect(() => {
@@ -90,17 +103,21 @@ export function App() {
   const { widthPx } = useViewportSize()
   const [mode, setMode] = useState<PanelMode>('chat')
   const [creating, setCreating] = useState(false)
-  // Bumped to load the history of the active chat into the runtime again.
-  const [epoch, setEpoch] = useState(0)
+  // Run flag reported by the loaded history or a refused question: fresher than the chat list.
+  const [reported, setReported] = useState<{ threadId: string; running: boolean } | null>(null)
+  const [finished, setFinished] = useState<FinishedRun | null>(null)
 
   const panes = paneVisibility(widthPx, mode)
   const activeSession = sessions.sessions.find((s) => s.id === activeId)
 
   const run = useThreadRunStatus({
     threadId: activeId,
-    running: activeSession?.running ?? false,
-    onFinished: () => {
-      setEpoch((n) => n + 1)
+    running: reported?.threadId === activeId ? reported.running : (activeSession?.running ?? false),
+    onFinished: (finishedHistory) => {
+      if (activeId !== null) {
+        setReported({ threadId: activeId, running: false })
+        setFinished({ threadId: activeId, history: finishedHistory })
+      }
       void reload()
     },
   })
@@ -117,6 +134,7 @@ export function App() {
     cancelRun(activeId)
       .catch(() => undefined)
       .then(() => {
+        setReported({ threadId: activeId, running: false })
         run.markStopped()
         return reload()
       })
@@ -138,8 +156,10 @@ export function App() {
   return (
     <main className="flex h-screen flex-col bg-white text-ink">
       <ChatRuntimeProvider
-        key={epoch}
         activeId={activeId}
+        onRunningChange={(threadId, running) => {
+          setReported({ threadId, running })
+        }}
         onSelect={sessions.select}
         onCreate={() => create()}
       >
@@ -195,6 +215,7 @@ export function App() {
               serverRunning={run.running}
               onStopServerRun={stopServerRun}
               onSettled={() => void reload()}
+              finished={finished}
             />
           </div>
         </div>
