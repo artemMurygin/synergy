@@ -30,6 +30,9 @@ import {
 } from './infrastructure/postgres-checkpointer';
 import { PG_POOL } from '../../database/postgres/database.constants';
 import { ChatSessionsController } from './interface/http/chat-sessions.controller';
+import { CancelAgentRunUseCase } from './application/cancel-agent-run.use-case';
+import { ActiveRunRegistryPort } from './domain/ports/active-run-registry.port';
+import { InMemoryActiveRunRegistry } from './infrastructure/in-memory-active-run-registry';
 import { CreateChatSessionUseCase } from './application/create-chat-session.use-case';
 import { ListChatSessionsUseCase } from './application/list-chat-sessions.use-case';
 import { GetChatMessagesUseCase } from './application/get-chat-messages.use-case';
@@ -47,6 +50,8 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
         GetChatMessagesUseCase,
         RenameChatSessionUseCase,
         DeleteChatSessionUseCase,
+        CancelAgentRunUseCase,
+        { provide: ActiveRunRegistryPort, useClass: InMemoryActiveRunRegistry },
         { provide: ChatSessionRepositoryPort, useClass: PostgresChatSessionRepository },
         {
             provide: AGENT_CHECKPOINTER,

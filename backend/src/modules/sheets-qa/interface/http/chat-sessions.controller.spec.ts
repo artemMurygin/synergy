@@ -14,6 +14,8 @@ import { ChatSessionNotFoundError } from '../../domain/chat-session-not-found.er
 import type { ChatTitle } from '../../domain/chat-title';
 import { ChatSessionRepositoryPort } from '../../domain/ports/chat-session-repository.port';
 import { ChatThreadPort } from '../../domain/ports/chat-thread.port';
+import { ActiveRunRegistryPort } from '../../domain/ports/active-run-registry.port';
+import { InMemoryActiveRunRegistry } from '../../infrastructure/in-memory-active-run-registry';
 import { SheetsAssistantPort } from '../../domain/ports/sheets-assistant.port';
 import type { AssistantAnswer } from '../../domain/ports/sheets-assistant.port';
 import { ChatSessionsController } from './chat-sessions.controller';
@@ -141,6 +143,7 @@ describe('Chat sessions HTTP API', () => {
                 AskQuestionUseCase,
                 { provide: ChatSessionRepositoryPort, useValue: repository },
                 { provide: ChatThreadPort, useValue: thread },
+                { provide: ActiveRunRegistryPort, useClass: InMemoryActiveRunRegistry },
                 { provide: SheetsAssistantPort, useValue: assistant },
             ],
         }).compile();

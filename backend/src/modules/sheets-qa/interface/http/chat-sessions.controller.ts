@@ -100,14 +100,14 @@ export class ChatSessionsController {
 
     @Get()
     async list(): Promise<ChatSessionResponse[]> {
-        return (await this.listSessions.execute()).map(toSessionResponse);
+        return (await this.listSessions.execute()).map((item) => toSessionResponse(item.session));
     }
 
     @Get(':id/messages')
     async messages(@Param('id') id: string): Promise<ChatMessageResponse[]> {
         assertKnownIdFormat(id);
         try {
-            return (await this.getMessages.execute(id)).map(toMessageResponse);
+            return (await this.getMessages.execute(id)).messages.map(toMessageResponse);
         } catch (error) {
             return mapError(error);
         }

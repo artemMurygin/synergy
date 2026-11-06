@@ -50,10 +50,10 @@
 
 ## 7. CancelAgentRunUseCase и признак running (TDD)
 
-- [ ] 7.1 Написать тесты: `CancelAgentRunUseCase` отменяет активный запуск и не падает без запуска; `ListChatSessionsUseCase` и `GetChatMessagesUseCase` возвращают `running` из реестра; `DeleteChatSessionUseCase` сначала отменяет активный запуск, затем удаляет данные, и ответ после удаления не пишется (по specs `chat-sessions`: «Признак активного запуска», «Удаление чата»)
-- [ ] 7.2 Прогнать тесты из 7.1 и зафиксировать, что они падают (red)
-- [ ] 7.3 Реализовать `CancelAgentRunUseCase` и доработать `List`, `GetMessages`, `Delete` use-cases
-- [ ] 7.4 Прогнать тесты из 7.1 и зафиксировать, что они зелёные (green), регрессий в `chat-sessions.use-cases.spec.ts` нет
+- [x] 7.1 Написать тесты: `CancelAgentRunUseCase` отменяет активный запуск и не падает без запуска; `ListChatSessionsUseCase` и `GetChatMessagesUseCase` возвращают `running` из реестра; `DeleteChatSessionUseCase` сначала отменяет активный запуск, затем удаляет данные, и ответ после удаления не пишется (по specs `chat-sessions`: «Признак активного запуска», «Удаление чата»)
+- [x] 7.2 Прогнать тесты из 7.1 и зафиксировать, что они падают (red)
+- [x] 7.3 Реализовать `CancelAgentRunUseCase` и доработать `List`, `GetMessages`, `Delete` use-cases
+- [x] 7.4 Прогнать тесты из 7.1 и зафиксировать, что они зелёные (green), регрессий в `chat-sessions.use-cases.spec.ts` нет
 
 ## 8. Преобразователи и контроллеры AG-UI (TDD)
 
