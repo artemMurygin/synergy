@@ -15,10 +15,10 @@
 
 ## 2. Домен: AgentRun, RunInput, AgentEvent (TDD)
 
-- [ ] 2.1 Написать тесты в `domain/` (по architecture.md): `RunInput` (обрезает вопрос, отклоняет пустой и длиннее `MAX_QUESTION_LENGTH`, пустой `threadId`); `AgentRun` (старт в `running`, один переход в `finished`/`failed`/`cancelled`, повторный переход отклоняется, `cancel()` вызывает `abort` у `signal`); `AgentEvent` (конструкторы и типы вариантов)
-- [ ] 2.2 Прогнать тесты из 2.1 и зафиксировать, что они падают (red): модулей `run-input`, `agent-run`, `agent-event` ещё нет
-- [ ] 2.3 Реализовать `RunInput`, `AgentRun`, `AgentEvent` и `RunConflictError` в `backend/src/modules/sheets-qa/domain/`
-- [ ] 2.4 Прогнать тесты из 2.1 и зафиксировать, что они зелёные (green), регрессий в соседних тестах модуля нет
+- [x] 2.1 Написать тесты в `domain/` (по architecture.md): `RunInput` (обрезает вопрос, отклоняет пустой и длиннее `MAX_QUESTION_LENGTH`, пустой `threadId`); `AgentRun` (старт в `running`, один переход в `finished`/`failed`/`cancelled`, повторный переход отклоняется, `cancel()` вызывает `abort` у `signal`); `AgentEvent` (конструкторы и типы вариантов)
+- [x] 2.2 Прогнать тесты из 2.1 и зафиксировать, что они падают (red): модулей `run-input`, `agent-run`, `agent-event` ещё нет
+- [x] 2.3 Реализовать `RunInput`, `AgentRun`, `AgentEvent` и `RunConflictError` в `backend/src/modules/sheets-qa/domain/`
+- [x] 2.4 Прогнать тесты из 2.1 и зафиксировать, что они зелёные (green), регрессий в соседних тестах модуля нет
 
 ## 3. Реестр активных запусков (TDD)
 
