@@ -26,6 +26,11 @@ export interface ModelSetting {
     readonly provider: 'omniroute' | 'openrouter';
     /** OpenRouter only: reasoning effort; low keeps the answers fast. */
     readonly reasoningEffort?: 'low' | 'medium' | 'high';
+    /**
+     * OpenRouter only: Anthropic prompt caching (off by default on Anthropic's side).
+     * Adds top-level `cache_control`, so the prefix (tools, system prompt, history) is cached automatically.
+     */
+    readonly promptCache?: boolean;
 }
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -37,12 +42,14 @@ export const SHEETS_QA_CONFIG = {
         name: 'anthropic/claude-haiku-5.5',
         provider: 'openrouter',
         reasoningEffort: 'low',
+        promptCache: true,
     },
     /** Faster model of the subagents that search the price sheets. */
     subagentModel: {
         name: 'anthropic/claude-haiku-5.5',
         provider: 'openrouter',
         reasoningEffort: 'low',
+        promptCache: true,
     },
     /** Folder with `catalog.md` (from the backend root, not dist). */
     dataDir: resolve(process.cwd(), 'src/modules/sheets-qa/data'),

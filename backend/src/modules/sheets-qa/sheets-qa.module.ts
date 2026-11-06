@@ -17,12 +17,50 @@ import { BookLibraryPort } from './domain/ports/book-library.port';
 import { FileSheetGuides } from './infrastructure/file-sheet-guides';
 import { ExcelJsWorkbookReader } from './infrastructure/exceljs-workbook-reader';
 import { DeepAgentsSheetsAssistant } from './infrastructure/deepagents-sheets-assistant';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+import { PostgresModule } from '../../database/postgres/postgres.module';
+import { ChatSessionRepositoryPort } from './domain/ports/chat-session-repository.port';
+import { PostgresChatSessionRepository } from './infrastructure/postgres-chat-session-repository';
+import { ChatThreadPort } from './domain/ports/chat-thread.port';
+import { PostgresChatThread } from './infrastructure/postgres-chat-thread';
+import {
+    AGENT_CHECKPOINTER,
+    CheckpointerLifecycle,
+    createPostgresCheckpointer,
+} from './infrastructure/postgres-checkpointer';
+import { PG_POOL } from '../../database/postgres/database.constants';
+import { ChatSessionsController } from './interface/http/chat-sessions.controller';
+import { CreateChatSessionUseCase } from './application/create-chat-session.use-case';
+import { ListChatSessionsUseCase } from './application/list-chat-sessions.use-case';
+import { GetChatMessagesUseCase } from './application/get-chat-messages.use-case';
+import { RenameChatSessionUseCase } from './application/rename-chat-session.use-case';
+import { DeleteChatSessionUseCase } from './application/delete-chat-session.use-case';
 import { SheetsQaController } from './interface/http/sheets-qa.controller';
 
 @Module({
-    controllers: [SheetsQaController],
+    imports: [PostgresModule],
+    controllers: [SheetsQaController, ChatSessionsController],
     providers: [
         AskQuestionUseCase,
+        CreateChatSessionUseCase,
+        ListChatSessionsUseCase,
+        GetChatMessagesUseCase,
+        RenameChatSessionUseCase,
+        DeleteChatSessionUseCase,
+        { provide: ChatSessionRepositoryPort, useClass: PostgresChatSessionRepository },
+        {
+            provide: AGENT_CHECKPOINTER,
+            // PG_POOL is injected only to run after migrate(); setup() creates the library tables.
+            inject: [ConfigService, PG_POOL],
+            useFactory: (config: ConfigService<Env, true>): Promise<PostgresSaver> =>
+                createPostgresCheckpointer(config.get('POSTGRES_URL', { infer: true })),
+        },
+        CheckpointerLifecycle,
+        {
+            provide: ChatThreadPort,
+            inject: [AGENT_CHECKPOINTER],
+            useFactory: (saver: PostgresSaver): ChatThreadPort => new PostgresChatThread(saver),
+        },
         {
             provide: BookLibraryPort,
             // Readers load their workbook on the first request, so seven books cost nothing at startup.
@@ -50,10 +88,11 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
         },
         {
             provide: SheetsAssistantPort,
-            inject: [ConfigService, BookLibraryPort],
+            inject: [ConfigService, BookLibraryPort, AGENT_CHECKPOINTER],
             useFactory: (
                 config: ConfigService<Env, true>,
                 library: BookLibraryPort,
+                checkpointer: PostgresSaver,
             ): SheetsAssistantPort => {
                 const baseURL = config.get('OPENAI_BASE_URL', { infer: true });
                 const openRouterKey = config.get('OPENROUTER_API_KEY', { infer: true });
@@ -79,6 +118,9 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
                             ...(setting.reasoningEffort === undefined
                                 ? {}
                                 : { reasoning: { effort: setting.reasoningEffort } }),
+                            ...(setting.promptCache === true
+                                ? { cache_control: { type: 'ephemeral' } }
+                                : {}),
                         },
                     });
                 };
@@ -91,6 +133,7 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
                     levels: SEARCHERS,
                     maxSteps: SHEETS_QA_CONFIG.maxSteps,
                     timeoutMs: SHEETS_QA_CONFIG.timeoutMs,
+                    checkpointer,
                 });
             },
         },

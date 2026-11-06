@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { MemorySaver } from '@langchain/langgraph';
+import type { BaseCheckpointSaver } from '@langchain/langgraph';
 import { createDeepAgent } from 'deepagents';
 import type { Searcher } from '../sheets-qa.config';
 import { createSheetTools } from '../application/sheet-tools.factory';
@@ -23,6 +23,8 @@ export interface DeepAgentsSheetsAssistantOptions {
     readonly maxSteps: number;
     readonly timeoutMs: number;
     readonly maxAnswerChars: number;
+    /** Stores the conversation context per thread (thread_id = sessionId). */
+    readonly checkpointer: BaseCheckpointSaver;
 }
 
 function textOf(content: unknown): string {
@@ -40,9 +42,6 @@ function textOf(content: unknown): string {
 }
 
 export class DeepAgentsSheetsAssistant extends SheetsAssistantPort {
-    /** Conversations live in memory and are lost on restart; swap for PostgresSaver to persist. */
-    private readonly checkpointer = new MemorySaver();
-
     constructor(private readonly options: DeepAgentsSheetsAssistantOptions) {
         super();
     }
@@ -56,7 +55,7 @@ export class DeepAgentsSheetsAssistant extends SheetsAssistantPort {
         });
         const agent = createDeepAgent({
             model: options.model,
-            checkpointer: this.checkpointer,
+            checkpointer: options.checkpointer,
             systemPrompt: buildSheetsQaSystemPrompt(
                 catalog,
                 options.levels,
