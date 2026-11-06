@@ -9,7 +9,6 @@ import { MssqlModule } from './database/mssql/mssql.module';
 import { HealthModule } from './shared/health/health.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
-import { ProgramsEtlModule } from './modules/programs-etl/programs-etl.module';
 
 @Module({
     imports: [
@@ -19,7 +18,6 @@ import { ProgramsEtlModule } from './modules/programs-etl/programs-etl.module';
         MetricsModule,
         HealthModule,
         AuditAgentModule,
-        ProgramsEtlModule,
         SheetsQaModule,
     ],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
