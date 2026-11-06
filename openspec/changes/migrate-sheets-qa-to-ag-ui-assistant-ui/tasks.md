@@ -22,10 +22,10 @@
 
 ## 3. Реестр активных запусков (TDD)
 
-- [ ] 3.1 Написать тесты `InMemoryActiveRunRegistry` (по specs «Один активный запуск на чат», «Явная отмена»): `tryStart` возвращает запуск, второй `tryStart` того же `threadId` — `null`, другого — запуск; `isRunning`; `cancel` абортит сигнал и идемпотентен для чата без запуска; `release(threadId, runId)` удаляет только при совпадении `runId`; после `release` новый `tryStart` проходит
-- [ ] 3.2 Прогнать тесты из 3.1 и зафиксировать, что они падают (red): порта и реализации нет
-- [ ] 3.3 Добавить `ActiveRunRegistryPort` в `domain/ports/` и реализацию `InMemoryActiveRunRegistry` в `infrastructure/`
-- [ ] 3.4 Прогнать тесты из 3.1 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 3.1 Написать тесты `InMemoryActiveRunRegistry` (по specs «Один активный запуск на чат», «Явная отмена»): `tryStart` возвращает запуск, второй `tryStart` того же `threadId` — `null`, другого — запуск; `isRunning`; `cancel` абортит сигнал и идемпотентен для чата без запуска; `release(threadId, runId)` удаляет только при совпадении `runId`; после `release` новый `tryStart` проходит
+- [x] 3.2 Прогнать тесты из 3.1 и зафиксировать, что они падают (red): порта и реализации нет
+- [x] 3.3 Добавить `ActiveRunRegistryPort` в `domain/ports/` и реализацию `InMemoryActiveRunRegistry` в `infrastructure/`
+- [x] 3.4 Прогнать тесты из 3.1 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 4. Перевод событий LangGraph в AgentEvent (TDD)
 
