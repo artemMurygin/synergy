@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const ttl = (fallback: string): z.ZodDefault<z.ZodString> =>
+    z
+        .string()
+        .regex(/^\d+[smhd]$/)
+        .default(fallback);
+
 export const envSchema = z
     .object({
         NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -42,6 +48,45 @@ export const envSchema = z
         LANGSMITH_API_KEY: z.string().optional(),
         LANGSMITH_PROJECT: z.string().default('audit-agent'),
         LANGSMITH_ENDPOINT: z.url().optional(),
+
+        JWT_SECRET: z.string().min(32),
+        AUTH_ACCESS_TTL: ttl('15m'),
+        AUTH_REFRESH_TTL: ttl('14d'),
+        AUTH_REFRESH_GRACE_SECONDS: z.coerce.number().int().nonnegative().default(10),
+        AUTH_LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+        AUTH_LOGIN_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+        AUTH_ALLOWED_ORIGINS: z
+            .string()
+            .default('')
+            .transform((v) =>
+                v
+                    .split(',')
+                    .map((o) => o.trim())
+                    .filter((o) => o !== ''),
+            ),
+        TRUST_PROXY: z.string().optional(),
+        AUTH_SEED_USERS: z
+            .string()
+            .optional()
+            .transform((v, ctx) => {
+                if (v === undefined) return undefined;
+                try {
+                    return JSON.parse(v) as unknown;
+                } catch {
+                    ctx.addIssue({ code: 'custom', message: 'AUTH_SEED_USERS must be valid JSON' });
+                    return z.NEVER;
+                }
+            })
+            .pipe(
+                z
+                    .array(
+                        z.object({
+                            login: z.string().min(1),
+                            password: z.string().min(1).optional(),
+                        }),
+                    )
+                    .optional(),
+            ),
 
         LOKI_URL: z.string().optional(),
         LOKI_LABELS_APP: z.string().default('audit-agent'),

@@ -4,6 +4,7 @@ import { validateEnv } from './env.schema';
 const REQUIRED_ENV = {
     POSTGRES_URL: 'postgresql://audit:audit@localhost:5432/audit_agent',
     MSSQL_URL: 'sqlserver://localhost:1433;database=master',
+    JWT_SECRET: 'test-secret-test-secret-test-secret-123',
 };
 
 describe('validateEnv LangSmith settings', () => {
@@ -73,5 +74,86 @@ describe('validateEnv OPENAI_BASE_URL and Google key file', () => {
 
     it('rejects an invalid base URL', () => {
         expect(() => validateEnv({ ...REQUIRED_ENV, OPENAI_BASE_URL: 'not a url' })).toThrow();
+    });
+});
+
+describe('validateEnv auth settings', () => {
+    const SECRET = 'x'.repeat(32);
+    const withAuth = { ...REQUIRED_ENV, JWT_SECRET: SECRET };
+    const { JWT_SECRET: _omit, ...WITHOUT_SECRET } = REQUIRED_ENV;
+
+    it('requires JWT_SECRET', () => {
+        expect(() => validateEnv(WITHOUT_SECRET)).toThrow('JWT_SECRET');
+    });
+
+    it('rejects a JWT_SECRET shorter than 32 characters', () => {
+        expect(() => validateEnv({ ...WITHOUT_SECRET, JWT_SECRET: 'x'.repeat(31) })).toThrow(
+            'JWT_SECRET',
+        );
+    });
+
+    it('applies defaults', () => {
+        const env = validateEnv(withAuth);
+
+        expect(env.AUTH_ACCESS_TTL).toBe('15m');
+        expect(env.AUTH_REFRESH_TTL).toBe('14d');
+        expect(env.AUTH_REFRESH_GRACE_SECONDS).toBe(10);
+        expect(env.AUTH_LOGIN_MAX_ATTEMPTS).toBe(5);
+        expect(env.AUTH_LOGIN_WINDOW_MINUTES).toBe(15);
+        expect(env.AUTH_ALLOWED_ORIGINS).toEqual([]);
+        expect(env.AUTH_SEED_USERS).toBeUndefined();
+    });
+
+    it('parses overrides, origins list and seed users', () => {
+        const env = validateEnv({
+            ...withAuth,
+            AUTH_ACCESS_TTL: '5m',
+            AUTH_REFRESH_TTL: '7d',
+            AUTH_REFRESH_GRACE_SECONDS: '3',
+            AUTH_LOGIN_MAX_ATTEMPTS: '10',
+            AUTH_LOGIN_WINDOW_MINUTES: '30',
+            AUTH_ALLOWED_ORIGINS: 'chrome-extension://abcdef, http://localhost:5173',
+            AUTH_SEED_USERS: '[{"login":"ivan","password":"Temp12345678"}]',
+        });
+
+        expect(env.AUTH_ACCESS_TTL).toBe('5m');
+        expect(env.AUTH_REFRESH_TTL).toBe('7d');
+        expect(env.AUTH_REFRESH_GRACE_SECONDS).toBe(3);
+        expect(env.AUTH_LOGIN_MAX_ATTEMPTS).toBe(10);
+        expect(env.AUTH_LOGIN_WINDOW_MINUTES).toBe(30);
+        expect(env.AUTH_ALLOWED_ORIGINS).toEqual([
+            'chrome-extension://abcdef',
+            'http://localhost:5173',
+        ]);
+        expect(env.AUTH_SEED_USERS).toEqual([{ login: 'ivan', password: 'Temp12345678' }]);
+    });
+
+    it('rejects invalid TTL, numbers and seed JSON', () => {
+        expect(() => validateEnv({ ...withAuth, AUTH_ACCESS_TTL: 'soon' })).toThrow(
+            'AUTH_ACCESS_TTL',
+        );
+        expect(() => validateEnv({ ...withAuth, AUTH_LOGIN_MAX_ATTEMPTS: '0' })).toThrow(
+            'AUTH_LOGIN_MAX_ATTEMPTS',
+        );
+        expect(() => validateEnv({ ...withAuth, AUTH_REFRESH_GRACE_SECONDS: '-1' })).toThrow(
+            'AUTH_REFRESH_GRACE_SECONDS',
+        );
+        expect(() => validateEnv({ ...withAuth, AUTH_SEED_USERS: 'not json' })).toThrow(
+            'AUTH_SEED_USERS',
+        );
+        expect(() => validateEnv({ ...withAuth, AUTH_SEED_USERS: '[{"password":"x"}]' })).toThrow(
+            'AUTH_SEED_USERS',
+        );
+    });
+
+    it('accepts seed users without a password (the seeder generates one)', () => {
+        const env = validateEnv({
+            ...withAuth,
+            AUTH_SEED_USERS: '[{"login":"ivan"},{"login":"petr","password":"Temp12345678"}]',
+        });
+        expect(env.AUTH_SEED_USERS).toEqual([
+            { login: 'ivan' },
+            { login: 'petr', password: 'Temp12345678' },
+        ]);
     });
 });

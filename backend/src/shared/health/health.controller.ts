@@ -4,8 +4,10 @@ import { HealthCheck, HealthCheckResult, HealthCheckService } from '@nestjs/term
 import { DatabasePool } from 'slonik';
 import { PG_POOL } from '../../database/postgres/database.constants';
 import { MssqlService } from '../../database/mssql/mssql.service';
+import { Public } from '../../modules/auth/interface/http/decorators';
 
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
     constructor(

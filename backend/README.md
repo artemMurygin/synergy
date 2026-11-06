@@ -21,6 +21,47 @@ npm run start:dev
 UPDATE employee SET telegram_chat_id = <chat_id> WHERE telegram_username = 'ivan_petrov';
 ```
 
+## Авторизация (JWT)
+
+Маршруты: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. Access-токен передаётся в `Authorization: Bearer <accessToken>`. Refresh-токен по умолчанию лежит только в cookie `mh_refresh` (HttpOnly, SameSite=Strict, Path=/auth); при заголовке `X-Client-Type: desktop` он идёт в теле запроса, cookie не ставится.
+
+### Переменные окружения
+| Переменная | По умолчанию | Назначение |
+| --- | --- | --- |
+| `JWT_SECRET` | нет, обязательна | Ключ подписи access-токена, минимум 32 символа. Без неё приложение не стартует |
+| `AUTH_ACCESS_TTL` | `15m` | Срок жизни access-токена, формат `<число><s\|m\|h\|d>` |
+| `AUTH_REFRESH_TTL` | `14d` | Срок жизни refresh-токена, тот же формат |
+| `AUTH_REFRESH_GRACE_SECONDS` | `10` | Окно допуска повторного использования refresh-токена (`REFRESH_RACE` вместо отзыва сессии) |
+| `AUTH_LOGIN_MAX_ATTEMPTS` | `5` | Число попыток входа в окне |
+| `AUTH_LOGIN_WINDOW_MINUTES` | `15` | Длина окна лимита попыток |
+| `AUTH_ALLOWED_ORIGINS` | пусто | Список допустимых Origin через запятую. Точный origin (`chrome-extension://<id>`) или шаблон схемы `chrome-extension://*`, который принимает любое расширение Chrome: ID настраивать не нужно, но защита cookie от CSRF слабее, так как расширение стороннего автора тоже пройдёт проверку |
+| `TRUST_PROXY` | не задан | Express `trust proxy`: число прокси (`1`), `true` или подсети. Без него за reverse proxy `request.ip` равен адресу прокси, и лимит попыток входа по IP общий для всех |
+| `AUTH_SEED_USERS` | не задана | JSON `[{"login":"ivan","password":"..."}]` для сидера (`password` необязателен) |
+
+Для короткого теста истечения access поставьте, например, `AUTH_ACCESS_TTL=30s`.
+
+### Миграция
+`db/migrations/013_auth.sql` создаёт `auth_users`, `auth_sessions`, `auth_refresh_tokens` и применяется автоматически при старте, как остальные миграции.
+
+### Сидер пользователей
+```bash
+AUTH_SEED_USERS='[{"login":"ivan"},{"login":"petr","password":"Temp-pass-1"}]' npm run seed:users
+```
+`npm run seed:users` собирает проект (`nest build`) и запускает `scripts/seed-users.mjs`. Для записи без `password` пароль генерируется и печатается в stdout один раз (строка `login<TAB>пароль`), в лог приложения он не попадает. Уже существующие логины пропускаются (`skipped: <login>`). Пользователь создаётся с признаком обязательной смены пароля: при первом входе расширение требует задать новый. Сидер нужно запускать после того, как миграция применена (приложение стартовало хотя бы раз). `password` необязателен и в схеме `env.schema.ts`, и в сидере.
+
+### Порядок выката
+1. Задать `JWT_SECRET` и `AUTH_ALLOWED_ORIGINS` (можно `chrome-extension://*`), развернуть бэкенд: миграция применится при старте.
+2. Запустить `npm run seed:users` и передать временные пароли пользователям.
+3. Выпустить расширение `manager-helper` с экраном входа. В настройках расширения адрес бэкенда должен быть доступен (для не-localhost расширение запросит разрешение на хост); для удалённого бэкенда используйте HTTPS.
+4. Включить глобальный guard.
+
+Состояние кода на момент написания: `AuthModule` (`src/modules/auth/auth.module.ts`), infrastructure/interface-слои и подключение в `AppModule` ещё не реализованы (группы 10-12 плана), поэтому `npm run seed:users` заработает только после них; порядок выката ниже описывает целевой процесс.
+
+Примечание по состоянию кода: в `env.schema.ts` нет переменной-флага `AUTH_ENFORCED`, упомянутой в `design.md`. Пункт 4 и откат через конфигурацию описаны в плане change, но в коде на данный момент не реализованы. Перед выкатом проверьте, как включается guard в модуле авторизации.
+
+### Откат
+Отключить guard (способ см. примечание выше) и вернуть предыдущую версию расширения. Таблицы авторизации можно оставить: они не мешают остальной работе. Если нужно удалить их вручную: `DROP TABLE auth_refresh_tokens, auth_sessions, auth_users;`, а также запись о миграции `013_auth.sql` в таблице учёта миграций, иначе миграция не применится повторно.
+
 ## Известные ограничения
 - Повторная постановка уведомления при ретрае аудита дедуплицируется jobId `notify-<dealId>-<updatedAt>-<username>`, пока задача хранится в Redis (последние 1000 завершённых).
 - Задачи аудита не хранятся после завершения (`removeOnComplete`/`removeOnFail`), версии дедуплицируются по `deal_audit(deal_id, deal_updated_at)`.

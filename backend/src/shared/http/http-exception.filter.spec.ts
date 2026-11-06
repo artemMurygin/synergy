@@ -1,4 +1,4 @@
-import { Controller, Get, type INestApplication, Module } from '@nestjs/common';
+import { Controller, Get, HttpException, type INestApplication, Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
@@ -15,9 +15,20 @@ class ProbeController {
     }
 }
 
+@Controller('limited')
+class LimitedController {
+    @Get()
+    limited(): never {
+        throw new HttpException(
+            { code: 'RATE_LIMITED', message: 'Too many attempts', retryAfterSeconds: 42 },
+            429,
+        );
+    }
+}
+
 @Module({
     imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
-    controllers: [ProbeController],
+    controllers: [ProbeController, LimitedController],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
 class ProbeModule {}
@@ -50,5 +61,25 @@ describe('HttpExceptionFilter', () => {
         });
         expect(response.headers.get('x-request-id')).not.toBe('corr-1');
         expect(response.headers.get('x-correlation-id')).toBe('corr-1');
+    });
+
+    it('passes the code and extra fields of an HttpException body through', async () => {
+        const response = await fetch(`${await app.getUrl()}/limited`);
+        expect(response.status).toBe(429);
+        expect(response.headers.get('retry-after')).toBe('42');
+        expect(await response.json()).toMatchObject({
+            statusCode: 429,
+            code: 'RATE_LIMITED',
+            message: 'Too many attempts',
+            retryAfterSeconds: 42,
+        });
+    });
+
+    it('exposes the code of a BaseError next to the legacy error field', async () => {
+        const response = await fetch(`${await app.getUrl()}/probe`);
+        expect(await response.json()).toMatchObject({
+            code: 'GENERIC.NOT_FOUND',
+            error: 'GENERIC.NOT_FOUND',
+        });
     });
 });

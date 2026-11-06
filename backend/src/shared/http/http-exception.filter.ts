@@ -17,10 +17,15 @@ import {
     NotFoundError,
 } from '../errors';
 import { ApiErrorResponse } from './api-error.response';
+import { findErrorStatus } from './error-status.registry';
 
 const INTERNAL_ERROR_MESSAGE = 'Internal server error';
 
 function resolveStatus(error: BaseError): HttpStatus {
+    const registered = findErrorStatus(error.code);
+    if (registered !== undefined) {
+        return registered;
+    }
     if (
         error instanceof ArgumentInvalidError ||
         error instanceof ArgumentNotProvidedError ||
@@ -48,6 +53,28 @@ function resolveHttpExceptionMessage(exception: HttpException): string {
     return exception.message;
 }
 
+type ErrorExtras = Pick<ApiErrorResponse, 'violations' | 'retryAfterSeconds'>;
+
+function readExtras(source: unknown): ErrorExtras {
+    if (typeof source !== 'object' || source === null) {
+        return {};
+    }
+    const { violations, retryAfterSeconds } = source as Record<string, unknown>;
+    return {
+        ...(Array.isArray(violations) && violations.every((v) => typeof v === 'string')
+            ? { violations: violations }
+            : {}),
+        ...(typeof retryAfterSeconds === 'number' ? { retryAfterSeconds } : {}),
+    };
+}
+
+function readHttpExceptionCode(exception: HttpException): string | undefined {
+    const body = exception.getResponse();
+    return typeof body === 'object' && 'code' in body && typeof body.code === 'string'
+        ? body.code
+        : undefined;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
     constructor(
@@ -59,11 +86,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     catch(exception: unknown, host: ArgumentsHost): void {
         const body = this.buildBody(exception);
-        this.httpAdapterHost.httpAdapter.reply(
-            host.switchToHttp().getResponse<unknown>(),
-            body,
-            body.statusCode,
-        );
+        const { httpAdapter } = this.httpAdapterHost;
+        const response = host.switchToHttp().getResponse<unknown>();
+        if (body.retryAfterSeconds !== undefined) {
+            httpAdapter.setHeader(response, 'Retry-After', String(body.retryAfterSeconds));
+        }
+        httpAdapter.reply(response, body, body.statusCode);
     }
 
     private buildBody(exception: unknown): ApiErrorResponse {
@@ -80,6 +108,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
                         ? INTERNAL_ERROR_MESSAGE
                         : exception.message,
                 error: exception.code,
+                code: exception.code,
+                ...readExtras(exception),
                 correlationId,
                 requestId,
             });
@@ -92,6 +122,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
                 statusCode,
                 message: resolveHttpExceptionMessage(exception),
                 error: exception.name,
+                ...(readHttpExceptionCode(exception) !== undefined
+                    ? { code: readHttpExceptionCode(exception) }
+                    : {}),
+                ...readExtras(exception.getResponse()),
                 correlationId,
                 requestId,
             });
