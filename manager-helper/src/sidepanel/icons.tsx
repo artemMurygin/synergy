@@ -77,3 +77,19 @@ export const CloudOffIcon = () => (
     <path d="m2 2 20 20M5.8 5.8A7 7 0 0 0 7 19h10.5a4.5 4.5 0 0 0 1.4-.2M9.2 4.5A7 7 0 0 1 19 11a4.5 4.5 0 0 1 3 4" />
   </Icon>
 )
+export const AlertCircleIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 8v4M12 16h.01" />
+  </Icon>
+)
+export const SquareIcon = () => (
+  <Icon>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+  </Icon>
+)
+export const LoaderIcon = () => (
+  <Icon>
+    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+  </Icon>
+)
