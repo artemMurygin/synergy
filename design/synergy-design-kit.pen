@@ -31166,8 +31166,8 @@
     {
       "type": "rectangle",
       "id": "fxiju",
-      "x": -3965,
-      "y": 422,
+      "x": -7102,
+      "y": -452,
       "fill": {
         "type": "image",
         "enabled": true,
@@ -31218,7 +31218,7 @@
                   "type": "text",
                   "id": "zVTG5",
                   "fill": "$ink-60",
-                  "content": "Чат · агент отвечает",
+                  "content": "Чат · ответ формируется",
                   "fontFamily": "$font-ui",
                   "fontSize": 13,
                   "fontWeight": "600"
@@ -31719,7 +31719,7 @@
                   "type": "text",
                   "id": "R0JRR",
                   "fill": "$ink-60",
-                  "content": "Чат · активный",
+                  "content": "Чат · ход работы раскрыт",
                   "fontFamily": "$font-ui",
                   "fontSize": 13,
                   "fontWeight": "600"
@@ -32163,7 +32163,7 @@
                   "type": "text",
                   "id": "ExLzq",
                   "fill": "$ink-60",
-                  "content": "Чат · активный",
+                  "content": "Чат · ответ остановлен",
                   "fontFamily": "$font-ui",
                   "fontSize": 13,
                   "fontWeight": "600"
@@ -32642,7 +32642,7 @@
                   "type": "text",
                   "id": "i1R87",
                   "fill": "$ink-60",
-                  "content": "Чат · активный",
+                  "content": "Чат · ошибка и повтор",
                   "fontFamily": "$font-ui",
                   "fontSize": 13,
                   "fontWeight": "600"
@@ -33068,7 +33068,7 @@
                   "type": "text",
                   "id": "X44pcr",
                   "fill": "$ink-60",
-                  "content": "Чат · агент отвечает",
+                  "content": "Чат · возврат в идущий ответ",
                   "fontFamily": "$font-ui",
                   "fontSize": 13,
                   "fontWeight": "600"
@@ -33573,6 +33573,2211 @@
                               "enabled": false
                             }
                           }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "l7JLmb",
+      "x": -2635,
+      "y": 3202,
+      "name": "11 · Manager Helper · Авторизация",
+      "clip": true,
+      "width": 2188,
+      "fill": "$surface-alt",
+      "layout": "vertical",
+      "gap": 48,
+      "padding": 48,
+      "children": [
+        {
+          "type": "text",
+          "id": "tpPph",
+          "name": "Title",
+          "fill": "$ink",
+          "content": "11 · Manager Helper · Авторизация",
+          "fontFamily": "$font-display",
+          "fontSize": 32,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "B56ys",
+          "name": "Row · Вход",
+          "gap": 48,
+          "children": [
+            {
+              "type": "frame",
+              "id": "ThX2Q",
+              "name": "Slot · Login · Default",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hoQlH",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Вход · по умолчанию",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "b2NQbR",
+                  "name": "Login · Default",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ZVGhT",
+                      "name": "Header",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "y1fZO",
+                          "name": "Brand",
+                          "fill": "$ink",
+                          "content": "Manager Helper",
+                          "fontFamily": "$font-display",
+                          "fontSize": 26,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "KTXgq",
+                          "name": "Subtitle",
+                          "fill": "$ink-60",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Войдите, чтобы работать с чатами",
+                          "lineHeight": 1.4,
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PupL2",
+                      "name": "Form",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "v92mOM",
+                          "name": "Group · Логин",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gPpB0",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Логин",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "nSVTZ",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Логин",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "Введите логин",
+                                  "fill": "$ink-40"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ig2Ux",
+                          "name": "Group · Пароль",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "V3rPGT",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Пароль",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "qb6Ui",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "Введите пароль",
+                                  "fill": "$ink-40"
+                                },
+                                "Vgou2": {
+                                  "enabled": true,
+                                  "icon": "eye"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "Fwidj",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Button · Войти",
+                          "width": "fill_container",
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Войти"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "p0O3Fv",
+                      "name": "Server",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "IhK1f",
+                          "fill": "$ink-60",
+                          "content": "Сервер: localhost:3000",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "h5jeI",
+                          "fill": "$brand-red",
+                          "content": "Изменить",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "AIGXL",
+              "name": "Slot · Login · Error",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gtOFh",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Вход · неверные данные",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "WjhzF",
+                  "name": "Login · Error",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QJUii",
+                      "name": "Header",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "nDei6",
+                          "name": "Brand",
+                          "fill": "$ink",
+                          "content": "Manager Helper",
+                          "fontFamily": "$font-display",
+                          "fontSize": 26,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "mwQ56",
+                          "name": "Subtitle",
+                          "fill": "$ink-60",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Войдите, чтобы работать с чатами",
+                          "lineHeight": 1.4,
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "sep7F",
+                      "name": "Form",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "GWJYf",
+                          "name": "Group · Логин",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "an43Y",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Логин",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "hREs7",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Логин",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "manager1",
+                                  "fill": "$ink"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "sGUaP",
+                          "name": "Group · Пароль",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Q7DVFz",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Пароль",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "Z0xIM",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "••••••••",
+                                  "fill": "$ink"
+                                },
+                                "Vgou2": {
+                                  "enabled": true,
+                                  "icon": "eye"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "W3YKQ",
+                          "type": "ref",
+                          "ref": "HfVTG",
+                          "name": "Notice",
+                          "descendants": {
+                            "i7m1c": {
+                              "content": "Неверный логин или пароль"
+                            },
+                            "EgiET": {
+                              "content": "Проверьте данные и попробуйте снова."
+                            },
+                            "an4T8": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "vFEln",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Button · Войти",
+                          "width": "fill_container",
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Войти"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ml3gL",
+                      "name": "Server",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "EyD7x",
+                          "fill": "$ink-60",
+                          "content": "Сервер: localhost:3000",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "KQD2M",
+                          "fill": "$brand-red",
+                          "content": "Изменить",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "z7yhwc",
+              "name": "Slot · Login · Rate limited",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "r2jvc",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Вход · лимит попыток (429)",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "E1eKUp",
+                  "name": "Login · Rate limited",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "T9If9m",
+                      "name": "Header",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "LPXHX",
+                          "name": "Brand",
+                          "fill": "$ink",
+                          "content": "Manager Helper",
+                          "fontFamily": "$font-display",
+                          "fontSize": 26,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "IqTqy",
+                          "name": "Subtitle",
+                          "fill": "$ink-60",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Войдите, чтобы работать с чатами",
+                          "lineHeight": 1.4,
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rJ2t1",
+                      "name": "Form",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "mCAB2",
+                          "name": "Group · Логин",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "BpWu0",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Логин",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "mCNV1",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Логин",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "manager1",
+                                  "fill": "$ink"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "IMLtO",
+                          "name": "Group · Пароль",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 6,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "LRoS7",
+                              "name": "Label",
+                              "fill": "$ink",
+                              "content": "Пароль",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "id": "BIwYU",
+                              "type": "ref",
+                              "ref": "b7hxv",
+                              "name": "Field · Пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "HHO6R": {
+                                  "content": "••••••••",
+                                  "fill": "$ink"
+                                },
+                                "Vgou2": {
+                                  "enabled": true,
+                                  "icon": "eye"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "uukZG",
+                          "type": "ref",
+                          "ref": "HfVTG",
+                          "name": "Notice",
+                          "descendants": {
+                            "i7m1c": {
+                              "content": "Слишком много попыток"
+                            },
+                            "EgiET": {
+                              "content": "Повторите через 14:32."
+                            },
+                            "an4T8": {
+                              "enabled": false
+                            }
+                          }
+                        },
+                        {
+                          "id": "R5rPV",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Button · Войти",
+                          "width": "fill_container",
+                          "fill": "$grey-30",
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#00000000"
+                          },
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Войти (14:32)",
+                              "fill": "$ink-40"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uzOYG",
+                      "name": "Server",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "zEQ7e",
+                          "fill": "$ink-60",
+                          "content": "Сервер: localhost:3000",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "vPWBN",
+                          "fill": "$brand-red",
+                          "content": "Изменить",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "LDBWb",
+          "name": "Row · Смена пароля",
+          "gap": 48,
+          "children": [
+            {
+              "type": "frame",
+              "id": "A9tJDc",
+              "name": "Slot · Password · Default",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ZpQ8X",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Смена пароля · первый вход",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "S7Bn7v",
+                  "name": "Password · Default",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface-sunken",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 16,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "SNlyd",
+                      "name": "ChangePasswordDialog",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-xl",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "$shadow-card",
+                        "offset": {
+                          "x": 0,
+                          "y": 8
+                        },
+                        "blur": 24
+                      },
+                      "layout": "vertical",
+                      "gap": 20,
+                      "padding": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Z3lcs",
+                          "name": "Header",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "iUgjx",
+                              "name": "Title",
+                              "fill": "$ink",
+                              "content": "Смените пароль",
+                              "fontFamily": "$font-display",
+                              "fontSize": 22,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "v5WaK",
+                              "name": "Text",
+                              "fill": "$ink-60",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Вы вошли с временным паролем. Задайте новый пароль, чтобы продолжить.",
+                              "lineHeight": 1.4,
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "gOEPf",
+                          "name": "Form",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "p6tIn",
+                              "name": "Group · Временный пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "erfRC",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Временный пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "mNqwL",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Временный пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Yqlzs",
+                              "name": "Group · Новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "J028u",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "lAtci",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "Введите новый пароль",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "u0X9J",
+                                  "name": "Hint",
+                                  "fill": "$ink-60",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Не короче 10 символов, буква и цифра",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "j71DAa",
+                              "name": "Group · Повторите новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "l9bpB6",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Повторите новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "U9E6T",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Повторите новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "Повторите новый пароль",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "id": "UK04D",
+                              "type": "ref",
+                              "ref": "pbEvR",
+                              "name": "Button · Сменить пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "U0Rmd": {
+                                  "content": "Сменить пароль"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "fF1X9",
+                          "name": "Logout",
+                          "width": "fill_container",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "a8KICn",
+                              "fill": "$ink-60",
+                              "content": "Выйти",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Grtyp",
+              "name": "Slot · Password · Same as temp",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "exlRT",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Смена пароля · совпадает с временным",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "W0ztxs",
+                  "name": "Password · Same as temp",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface-sunken",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 16,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Y0HJLy",
+                      "name": "ChangePasswordDialog",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-xl",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "$shadow-card",
+                        "offset": {
+                          "x": 0,
+                          "y": 8
+                        },
+                        "blur": 24
+                      },
+                      "layout": "vertical",
+                      "gap": 20,
+                      "padding": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "urpTr",
+                          "name": "Header",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "rOXYn",
+                              "name": "Title",
+                              "fill": "$ink",
+                              "content": "Смените пароль",
+                              "fontFamily": "$font-display",
+                              "fontSize": 22,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "eHHiw",
+                              "name": "Text",
+                              "fill": "$ink-60",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Вы вошли с временным паролем. Задайте новый пароль, чтобы продолжить.",
+                              "lineHeight": 1.4,
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "LTAio",
+                          "name": "Form",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "OwhBf",
+                              "name": "Group · Временный пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "u8OMQ",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Временный пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "BlaEt",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Временный пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "M4dTh",
+                              "name": "Group · Новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "S3B8n",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "gyYBK",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Новый пароль",
+                                  "width": "fill_container",
+                                  "stroke": "$brand-red",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "CleXC",
+                                  "name": "Hint",
+                                  "fill": "$brand-red",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Новый пароль не должен совпадать с временным",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "aweFP",
+                              "name": "Group · Повторите новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "ME6ka",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Повторите новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "lgIdn",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Повторите новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "id": "pzWQI",
+                              "type": "ref",
+                              "ref": "pbEvR",
+                              "name": "Button · Сменить пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "U0Rmd": {
+                                  "content": "Сменить пароль"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "XjI4s",
+                          "name": "Logout",
+                          "width": "fill_container",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "x6w4TF",
+                              "fill": "$ink-60",
+                              "content": "Выйти",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "QlkyA",
+              "name": "Slot · Password · Mismatch",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "S0VtmI",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Смена пароля · подтверждение не совпадает",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "d7tBz",
+                  "name": "Password · Mismatch",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface-sunken",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 16,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "N6Ekn",
+                      "name": "ChangePasswordDialog",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-xl",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "$shadow-card",
+                        "offset": {
+                          "x": 0,
+                          "y": 8
+                        },
+                        "blur": 24
+                      },
+                      "layout": "vertical",
+                      "gap": 20,
+                      "padding": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "IXtLz",
+                          "name": "Header",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "EhizG",
+                              "name": "Title",
+                              "fill": "$ink",
+                              "content": "Смените пароль",
+                              "fontFamily": "$font-display",
+                              "fontSize": 22,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "G36YK7",
+                              "name": "Text",
+                              "fill": "$ink-60",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Вы вошли с временным паролем. Задайте новый пароль, чтобы продолжить.",
+                              "lineHeight": 1.4,
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "zTTzX",
+                          "name": "Form",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "LYqSO",
+                              "name": "Group · Временный пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "OF8Oc",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Временный пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "aypJc",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Временный пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "lQNRf",
+                              "name": "Group · Новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "PfvwI",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "KRUsV",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "s0J0E",
+                                  "name": "Hint",
+                                  "fill": "$ink-60",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Не короче 10 символов, буква и цифра",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "H15PE",
+                              "name": "Group · Повторите новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "hOgK5",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Повторите новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "Xfb4u",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Повторите новый пароль",
+                                  "width": "fill_container",
+                                  "stroke": "$brand-red",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "•••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "g7KyV",
+                                  "name": "Hint",
+                                  "fill": "$brand-red",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Пароли не совпадают",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "id": "Q4vHp",
+                              "type": "ref",
+                              "ref": "pbEvR",
+                              "name": "Button · Сменить пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "U0Rmd": {
+                                  "content": "Сменить пароль"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NB3v0",
+                          "name": "Logout",
+                          "width": "fill_container",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "qmAZp",
+                              "fill": "$ink-60",
+                              "content": "Выйти",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "nEH0r",
+              "name": "Slot · Password · Server error",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "k3RTfa",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Смена пароля · неверный текущий пароль",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "RlRtb",
+                  "name": "Password · Server error",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface-sunken",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 16,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "g3BG8",
+                      "name": "ChangePasswordDialog",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-xl",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "$shadow-card",
+                        "offset": {
+                          "x": 0,
+                          "y": 8
+                        },
+                        "blur": 24
+                      },
+                      "layout": "vertical",
+                      "gap": 20,
+                      "padding": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "NakSi",
+                          "name": "Header",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vsDp4",
+                              "name": "Title",
+                              "fill": "$ink",
+                              "content": "Смените пароль",
+                              "fontFamily": "$font-display",
+                              "fontSize": 22,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "C8ibs",
+                              "name": "Text",
+                              "fill": "$ink-60",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Вы вошли с временным паролем. Задайте новый пароль, чтобы продолжить.",
+                              "lineHeight": 1.4,
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Cd1eV",
+                          "name": "Form",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 16,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "lEtuK",
+                              "name": "Group · Временный пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "t3bqQ2",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Временный пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "T3KbDY",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Временный пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "cKctr",
+                              "name": "Group · Новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "vTcBg",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "q8ePYs",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "KtmMB",
+                                  "name": "Hint",
+                                  "fill": "$ink-60",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Не короче 10 символов, буква и цифра",
+                                  "lineHeight": 1.4,
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "SQwwQ",
+                              "name": "Group · Повторите новый пароль",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 6,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "IN1iN",
+                                  "name": "Label",
+                                  "fill": "$ink",
+                                  "content": "Повторите новый пароль",
+                                  "fontFamily": "$font-ui",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "id": "z09U5",
+                                  "type": "ref",
+                                  "ref": "b7hxv",
+                                  "name": "Field · Повторите новый пароль",
+                                  "width": "fill_container",
+                                  "descendants": {
+                                    "HHO6R": {
+                                      "content": "••••••••••••",
+                                      "fill": "$ink"
+                                    },
+                                    "Vgou2": {
+                                      "enabled": true,
+                                      "icon": "eye"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "id": "xk7El",
+                              "type": "ref",
+                              "ref": "HfVTG",
+                              "name": "Notice",
+                              "descendants": {
+                                "i7m1c": {
+                                  "content": "Неверный временный пароль"
+                                },
+                                "EgiET": {
+                                  "content": "Проверьте пароль и попробуйте снова."
+                                },
+                                "an4T8": {
+                                  "enabled": false
+                                }
+                              }
+                            },
+                            {
+                              "id": "elFZz",
+                              "type": "ref",
+                              "ref": "pbEvR",
+                              "name": "Button · Сменить пароль",
+                              "width": "fill_container",
+                              "descendants": {
+                                "U0Rmd": {
+                                  "content": "Сменить пароль"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "YpvEv",
+                          "name": "Logout",
+                          "width": "fill_container",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "L52zlW",
+                              "fill": "$ink-60",
+                              "content": "Выйти",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "M2I85C",
+          "name": "Row · Восстановление и настройки",
+          "gap": 48,
+          "children": [
+            {
+              "type": "frame",
+              "id": "Ipew9",
+              "name": "Slot · Session · Restoring",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "G8jmPk",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Восстановление сессии",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "i2Px5",
+                  "name": "Session · Restoring",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "yAPaC",
+                      "name": "Spinner",
+                      "width": 32,
+                      "height": 32,
+                      "icon": "loader",
+                      "library": "lucide",
+                      "fill": "$brand-red"
+                    },
+                    {
+                      "type": "text",
+                      "id": "e73wVA",
+                      "name": "Text",
+                      "fill": "$ink-60",
+                      "content": "Восстанавливаем сессию…",
+                      "fontFamily": "$font-ui",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "iYHSw",
+              "name": "Slot · Session · Offline",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gKJNQ",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Сервер недоступен при восстановлении",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "phCLJ",
+                  "name": "Session · Offline",
+                  "clip": true,
+                  "width": 380,
+                  "height": 720,
+                  "fill": "$surface",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 32,
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "mrBDC",
+                      "name": "Header",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "drI1v",
+                          "name": "Brand",
+                          "fill": "$ink",
+                          "content": "Manager Helper",
+                          "fontFamily": "$font-display",
+                          "fontSize": 26,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "yDPRC",
+                          "name": "Subtitle",
+                          "fill": "$ink-60",
+                          "content": "Не удалось связаться с сервером",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "Sdhzs",
+                      "type": "ref",
+                      "ref": "HfVTG",
+                      "name": "ConnectionError",
+                      "descendants": {
+                        "i7m1c": {
+                          "content": "Нет связи с сервером"
+                        },
+                        "EgiET": {
+                          "content": "Сессия не потеряна. Проверьте подключение и повторите попытку."
+                        },
+                        "an4T8": {
+                          "content": "Повторить"
+                        }
+                      }
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mt7w1",
+                      "name": "Server",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "nNtWy",
+                          "fill": "$ink-60",
+                          "content": "Сервер: localhost:3000",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "vhvJZ",
+                          "fill": "$brand-red",
+                          "content": "Изменить",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YtEFd",
+              "name": "Slot · Options · Signed in",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "OCcCr",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Страница настроек · вход выполнен",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "U2XE2Y",
+                  "name": "Options · Signed in",
+                  "clip": true,
+                  "width": 640,
+                  "height": 720,
+                  "fill": "$surface-alt",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "O0Gl9",
+                      "name": "Title",
+                      "fill": "$ink",
+                      "content": "Настройки Manager Helper",
+                      "fontFamily": "$font-ui",
+                      "fontSize": 24,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "y6yqXS",
+                      "name": "Group · Адрес сервера",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "bmNTB",
+                          "name": "Label",
+                          "fill": "$ink",
+                          "content": "Адрес сервера",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "Jp2R6",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Field · Адрес сервера",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "http://localhost:3000",
+                              "fill": "$ink"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "bUbqH",
+                      "name": "Actions",
+                      "gap": 16,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "jlE9K",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Button · Сохранить",
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Сохранить"
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "ueEwI",
+                          "fill": "$brand-red",
+                          "content": "Проверить соединение",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LKkCA",
+                      "name": "Account",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-lg",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": 20,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ZEcgU",
+                          "name": "Account Title",
+                          "fill": "$ink",
+                          "content": "Аккаунт",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "M0nxD",
+                          "name": "Row",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "W0g6dk",
+                              "fill": "$ink-80",
+                              "content": "Вы вошли как manager1",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "CWdrS",
+                              "fill": "$brand-red",
+                              "content": "Выйти",
+                              "fontFamily": "$font-ui",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "abEJ5",
+              "name": "Slot · Options · Signed out",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ZkWUs",
+                  "name": "Caption",
+                  "fill": "$ink-60",
+                  "content": "Страница настроек · вход не выполнен",
+                  "fontFamily": "$font-ui",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "K23ifk",
+                  "name": "Options · Signed out",
+                  "clip": true,
+                  "width": 640,
+                  "height": 720,
+                  "fill": "$surface-alt",
+                  "cornerRadius": "$r-lg",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dqKmN",
+                      "name": "Title",
+                      "fill": "$ink",
+                      "content": "Настройки Manager Helper",
+                      "fontFamily": "$font-ui",
+                      "fontSize": 24,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "MzeOj",
+                      "name": "Group · Адрес сервера",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "dK2vq",
+                          "name": "Label",
+                          "fill": "$ink",
+                          "content": "Адрес сервера",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "id": "sjSYp",
+                          "type": "ref",
+                          "ref": "b7hxv",
+                          "name": "Field · Адрес сервера",
+                          "width": "fill_container",
+                          "descendants": {
+                            "HHO6R": {
+                              "content": "http://localhost:3000",
+                              "fill": "$ink"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "g6jDoD",
+                      "name": "Actions",
+                      "gap": 16,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "id": "DWePH",
+                          "type": "ref",
+                          "ref": "pbEvR",
+                          "name": "Button · Сохранить",
+                          "descendants": {
+                            "U0Rmd": {
+                              "content": "Сохранить"
+                            }
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "id": "RwoXM",
+                          "fill": "$brand-red",
+                          "content": "Проверить соединение",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pM0CP",
+                      "name": "Account",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": "$r-lg",
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": 20,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "G3XsR3",
+                          "name": "Account Title",
+                          "fill": "$ink",
+                          "content": "Аккаунт",
+                          "fontFamily": "$font-ui",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "TwgaN",
+                          "name": "Text",
+                          "fill": "$ink-60",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Вход не выполнен. Войдите в боковой панели расширения.",
+                          "lineHeight": 1.4,
+                          "fontFamily": "$font-ui",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
