@@ -16,13 +16,23 @@ interface Props {
   onStopServerRun: () => void
   /** Receives the query and a short chat title built from the form parameters. */
   onQuickSearch: (query: string, title: string) => void
+  /**
+   * Set while the panel has no chat: the question goes here instead of the runtime, which has
+   * no chat to run in. Resolves to `false` when it was not taken (the text stays in the field).
+   */
+  onSendWithoutChat?: (text: string) => Promise<boolean>
 }
 
 const BUTTON =
   'h-13 shrink-0 rounded-xl px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2'
 
 /** Feed of the chat, quick search form, next steps and the composer. */
-export function ThreadView({ serverRunning, onStopServerRun, onQuickSearch }: Props) {
+export function ThreadView({
+  serverRunning,
+  onStopServerRun,
+  onQuickSearch,
+  onSendWithoutChat,
+}: Props) {
   const aui = useAui()
   const history = useChatHistory()
   const messages = useAuiState((s) => s.thread.messages)
@@ -60,6 +70,15 @@ export function ThreadView({ serverRunning, onStopServerRun, onQuickSearch }: Pr
     }
     if (localRunning) restored.current = ''
   }, [localRunning, aui])
+
+  const composerText = useAuiState((s) => s.composer.text)
+  const submitWithoutChat = () => {
+    const text = composerText.trim()
+    if (onSendWithoutChat === undefined || text === '') return
+    void onSendWithoutChat(text).then((taken) => {
+      if (taken) aui.composer.setText('')
+    })
+  }
 
   const lastAnswer = lastMessage?.role === 'assistant' ? answerText(lastMessage.content) : ''
 
@@ -128,7 +147,15 @@ export function ThreadView({ serverRunning, onStopServerRun, onQuickSearch }: Pr
         </div>
       )}
 
-      <ComposerPrimitive.Root className="flex items-end gap-2 border-t border-line p-3">
+      <ComposerPrimitive.Root
+        className="flex items-end gap-2 border-t border-line p-3"
+        onSubmit={(event) => {
+          if (onSendWithoutChat === undefined) return
+          // Enter submits the form: without a chat the panel creates one first.
+          event.preventDefault()
+          submitWithoutChat()
+        }}
+      >
         <ComposerPrimitive.Input
           rows={2}
           disabled={blocked || serverRunning}
@@ -146,6 +173,14 @@ export function ThreadView({ serverRunning, onStopServerRun, onQuickSearch }: Pr
           >
             <SquareIcon />
             Остановить
+          </button>
+        ) : onSendWithoutChat !== undefined ? (
+          <button
+            type="submit"
+            disabled={blocked || composerText.trim() === ''}
+            className={`${BUTTON} bg-brand-red text-white hover:bg-brand-red-hover disabled:bg-surface-sunken disabled:text-ink-40`}
+          >
+            Спросить
           </button>
         ) : (
           <ComposerPrimitive.Send

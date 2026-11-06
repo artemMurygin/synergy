@@ -112,11 +112,11 @@
 
 ## 14. Клиент: сборка экрана и сценарии (TDD)
 
-- [ ] 14.1 Написать интеграционные тесты `App`/`ThreadView` с замоканным агентом (по всем сценариям specs `chat-thread-ui` и `chat-session-switcher`): ответ растёт по фрагментам, индикатор пропадает по завершению; «Остановить» вызывает `cancelRun`, текст остаётся с пометкой; ошибка → «Повторить» отправляет последний вопрос заново; недоступный сервер сохраняет набранный вопрос; открытие чата с `running=true` показывает индикатор, блокирует отправку и после опроса подставляет готовый ответ; переключение чата во время ответа не смешивает ответы; форма быстрого подбора отправляет запрос как вопрос в активный чат и называет чат по параметрам; markdown в ответе агента рендерится
-- [ ] 14.2 Прогнать тесты из 14.1 и зафиксировать, что они падают (red)
-- [ ] 14.3 Собрать `sidepanel/App.tsx`: `ChatRuntimeProvider` + `ThreadView` + `ChatSessionList`; подключить `QuickSearchForm` и `NextSteps` через `useThreadRuntime().append`; подключить `useThreadRunStatus`; сохранить раскладку `panel-layout.ts` (узкая/широкая панель) и `form-visibility.ts`
-- [ ] 14.4 Удалить `use-chat.ts`, `use-chat.test.tsx`, `ChatView.tsx`, `ChatView.test.tsx`, `Message.tsx`; убедиться, что `grep -rn "use-chat'\|ChatView\|askAgent" manager-helper/src` не находит живых ссылок
-- [ ] 14.5 Прогнать тесты из 14.1 и зафиксировать, что они зелёные (green); прогнать `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` в `manager-helper` и зафиксировать, что всё зелёное
+- [x] 14.1 Написать интеграционные тесты `App`/`ThreadView` с замоканным агентом (по всем сценариям specs `chat-thread-ui` и `chat-session-switcher`): ответ растёт по фрагментам, индикатор пропадает по завершению; «Остановить» вызывает `cancelRun`, текст остаётся с пометкой; ошибка → «Повторить» отправляет последний вопрос заново; недоступный сервер сохраняет набранный вопрос; открытие чата с `running=true` показывает индикатор, блокирует отправку и после опроса подставляет готовый ответ; переключение чата во время ответа не смешивает ответы; форма быстрого подбора отправляет запрос как вопрос в активный чат и называет чат по параметрам; markdown в ответе агента рендерится
+- [x] 14.2 Прогнать тесты из 14.1 и зафиксировать, что они падают (red)
+- [x] 14.3 Собрать `sidepanel/App.tsx`: `ChatRuntimeProvider` + `ThreadView` + `ChatSessionList`; подключить `QuickSearchForm` и `NextSteps` через `useThreadRuntime().append`; подключить `useThreadRunStatus`; сохранить раскладку `panel-layout.ts` (узкая/широкая панель) и `form-visibility.ts`
+- [x] 14.4 Удалить `use-chat.ts`, `use-chat.test.tsx`, `ChatView.tsx`, `ChatView.test.tsx`, `Message.tsx`; убедиться, что `grep -rn "use-chat'\|ChatView\|askAgent" manager-helper/src` не находит живых ссылок
+- [x] 14.5 Прогнать тесты из 14.1 и зафиксировать, что они зелёные (green); прогнать `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` в `manager-helper` и зафиксировать, что всё зелёное
 
 ## 15. Проверка вместе: сервер и расширение
 

@@ -15,12 +15,15 @@ export type HistoryStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 interface ChatHistoryState {
   status: HistoryStatus
+  /** Chat whose history the runtime holds now; `null` while there is none. */
+  threadId: string | null
   /** Loads the history of the active chat again after an error. */
   reload: () => void
 }
 
 const ChatHistoryContext = createContext<ChatHistoryState>({
   status: 'idle',
+  threadId: null,
   reload: () => undefined,
 })
 
@@ -188,11 +191,12 @@ function RuntimeHost({
   const history = useMemo<ChatHistoryState>(
     () => ({
       status,
+      threadId: loadedId === null || loadedId === FAILED ? null : loadedId,
       reload: () => {
         setRetry((n) => n + 1)
       },
     }),
-    [status],
+    [status, loadedId],
   )
 
   return (
