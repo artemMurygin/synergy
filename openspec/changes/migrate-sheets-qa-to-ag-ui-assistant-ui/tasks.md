@@ -64,10 +64,10 @@
 
 ## 9. Подключение модуля и удаление старого контракта
 
-- [ ] 9.1 Обновить `sheets-qa.module.ts`: новые провайдеры (`StartAgentRunUseCase`, `CancelAgentRunUseCase`, `ActiveRunRegistryPort` → `InMemoryActiveRunRegistry`), контроллеры `AgentController` и `ThreadsController`; добавить `OnApplicationShutdown`, отменяющий активные запуски; проверить, что приложение стартует (`npm run build`, `npm run start`) без ошибок DI
-- [ ] 9.2 Удалить `SheetsQaController`, `AskQuestionUseCase` и их тесты, старые маршруты `chat-sessions`; убедиться, что `grep -rn "sheets-qa/ask\|chat-sessions" backend/src` не находит живых ссылок
-- [ ] 9.3 Обновить `backend/src/modules/sheets-qa/README.md` (новые маршруты, события AG-UI, поведение запуска при закрытии соединения и отмене)
-- [ ] 9.4 Прогнать `npm test`, `npm run typecheck`, `npm run lint` в backend и зафиксировать, что всё зелёное
+- [x] 9.1 Обновить `sheets-qa.module.ts`: новые провайдеры (`StartAgentRunUseCase`, `CancelAgentRunUseCase`, `ActiveRunRegistryPort` → `InMemoryActiveRunRegistry`), контроллеры `AgentController` и `ThreadsController`; добавить `OnApplicationShutdown`, отменяющий активные запуски; проверить, что приложение стартует (`npm run build`, `npm run start`) без ошибок DI
+- [x] 9.2 Удалить `SheetsQaController`, `AskQuestionUseCase` и их тесты, старые маршруты `chat-sessions`; убедиться, что `grep -rn "sheets-qa/ask\|chat-sessions" backend/src` не находит живых ссылок
+- [x] 9.3 Обновить `backend/src/modules/sheets-qa/README.md` (новые маршруты, события AG-UI, поведение запуска при закрытии соединения и отмене)
+- [x] 9.4 Прогнать `npm test`, `npm run typecheck`, `npm run lint` в backend и зафиксировать, что всё зелёное
 - [ ] 9.5 Ручная проверка с реальным `OPENROUTER_API_KEY`: `curl -N -X POST /agent` с вопросом стримит `TEXT_MESSAGE_CONTENT`; обрыв `curl` на середине не останавливает ответ, после завершения `GET /threads/:id/messages` содержит ответ и `running: false`; `POST /threads/:id/run/cancel` останавливает запуск; результаты записать в заметку к задаче
 
 ## 10. Клиент: API, агент и опрос запуска (TDD)

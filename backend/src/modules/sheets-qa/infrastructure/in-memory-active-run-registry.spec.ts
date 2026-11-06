@@ -90,4 +90,18 @@ describe('InMemoryActiveRunRegistry', () => {
 
         expect(registry.tryStart('t1', 'r2')).not.toBeNull();
     });
+
+    it('cancelAll aborts every running run and skips finished ones', () => {
+        const registry = new InMemoryActiveRunRegistry();
+        const a = start(registry, 't1', 'r1');
+        const b = start(registry, 't2', 'r2');
+        const done = start(registry, 't3', 'r3');
+        done.finish();
+
+        registry.cancelAll();
+
+        expect(a.status).toBe('cancelled');
+        expect(b.signal.aborted).toBe(true);
+        expect(done.signal.aborted).toBe(false);
+    });
 });

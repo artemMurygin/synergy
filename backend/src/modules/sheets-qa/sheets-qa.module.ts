@@ -11,7 +11,7 @@ import {
     SHEETS_QA_CONFIG,
 } from './sheets-qa.config';
 import { BookRegistry } from './application/book-registry';
-import { AskQuestionUseCase } from './application/ask-question.use-case';
+import { StartAgentRunUseCase } from './application/start-agent-run.use-case';
 import { SheetsAssistantPort } from './domain/ports/sheets-assistant.port';
 import { BookLibraryPort } from './domain/ports/book-library.port';
 import { FileSheetGuides } from './infrastructure/file-sheet-guides';
@@ -38,13 +38,14 @@ import { ListChatSessionsUseCase } from './application/list-chat-sessions.use-ca
 import { GetChatMessagesUseCase } from './application/get-chat-messages.use-case';
 import { RenameChatSessionUseCase } from './application/rename-chat-session.use-case';
 import { DeleteChatSessionUseCase } from './application/delete-chat-session.use-case';
-import { SheetsQaController } from './interface/http/sheets-qa.controller';
+import { AgentController } from './interface/http/agent.controller';
+import { ActiveRunsLifecycle } from './infrastructure/active-runs-lifecycle';
 
 @Module({
     imports: [PostgresModule],
-    controllers: [SheetsQaController, ThreadsController],
+    controllers: [AgentController, ThreadsController],
     providers: [
-        AskQuestionUseCase,
+        StartAgentRunUseCase,
         CreateChatSessionUseCase,
         ListChatSessionsUseCase,
         GetChatMessagesUseCase,
@@ -60,6 +61,8 @@ import { SheetsQaController } from './interface/http/sheets-qa.controller';
             useFactory: (config: ConfigService<Env, true>): Promise<PostgresSaver> =>
                 createPostgresCheckpointer(config.get('POSTGRES_URL', { infer: true })),
         },
+        // Declared before CheckpointerLifecycle: runs are cancelled before the saver is closed.
+        ActiveRunsLifecycle,
         CheckpointerLifecycle,
         {
             provide: ChatThreadPort,

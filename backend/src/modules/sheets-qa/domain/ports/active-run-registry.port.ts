@@ -12,6 +12,9 @@ export abstract class ActiveRunRegistryPort {
     /** Aborts the chat's active run; a chat without a run is a no-op. */
     abstract cancel(threadId: string): void;
 
+    /** Aborts every active run (graceful shutdown). */
+    abstract cancelAll(): void;
+
     /** Removes the entry only if it belongs to the given run. */
     abstract release(threadId: string, runId: string): void;
 }

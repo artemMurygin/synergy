@@ -29,6 +29,14 @@ export class InMemoryActiveRunRegistry extends ActiveRunRegistryPort {
         }
     }
 
+    cancelAll(): void {
+        for (const run of this.runs.values()) {
+            if (run.status === 'running') {
+                run.cancel();
+            }
+        }
+    }
+
     release(threadId: string, runId: string): void {
         if (this.runs.get(threadId)?.runId === runId) {
             this.runs.delete(threadId);
