@@ -13,11 +13,14 @@ export interface AskResponse {
 
 export class AskError extends Error {}
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** The server does not know the chat session (HTTP 404). */
+export class SessionNotFoundError extends AskError {}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function parseToolCalls(value: unknown): ToolCallTrace[] {
+export function parseToolCalls(value: unknown): ToolCallTrace[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((item: unknown) =>
     isRecord(item) && typeof item.name === 'string' ? [{ name: item.name, args: item.args }] : [],
@@ -35,7 +38,7 @@ function parseResponse(body: unknown): AskResponse {
   }
 }
 
-async function errorMessage(response: Response): Promise<string> {
+export async function errorMessage(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json()
     if (isRecord(body) && typeof body.message === 'string') return body.message
@@ -63,6 +66,7 @@ export async function askAgent(
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new AskError(`Не удалось связаться с сервером ${baseUrl}. Он запущен?`)
   }
+  if (response.status === 404) throw new SessionNotFoundError(await errorMessage(response))
   if (!response.ok) throw new AskError(await errorMessage(response))
   return parseResponse(await response.json())
 }

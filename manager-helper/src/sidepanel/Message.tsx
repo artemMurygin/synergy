@@ -10,7 +10,7 @@ function formatArgs(args: unknown): string {
 export function Message({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
-      <div className="ml-8 self-end rounded-2xl rounded-br-sm bg-blue-600 px-3 py-2 text-sm text-white">
+      <div className="ml-8 self-end rounded-2xl rounded-br-sm bg-brand-red px-3 py-2 text-sm text-white">
         {message.text}
       </div>
     )
@@ -26,10 +26,10 @@ export function Message({ message }: { message: ChatMessage }) {
 
   return (
     <div className="mr-4 flex flex-col gap-1">
-      <div className="markdown rounded-2xl rounded-bl-sm bg-gray-100 px-3 py-2 text-sm text-gray-900">
+      <div className="markdown rounded-2xl rounded-bl-sm bg-surface-alt px-3 py-2 text-sm text-ink">
         <Markdown remarkPlugins={[remarkGfm]}>{message.text}</Markdown>
       </div>
-      <details className="px-1 text-xs text-gray-500">
+      <details className="px-1 text-xs text-ink-60">
         <summary className="cursor-pointer select-none">
           {(message.durationMs / 1000).toFixed(1)} с · вызовов инструментов:{' '}
           {message.toolCalls.length}
@@ -37,7 +37,7 @@ export function Message({ message }: { message: ChatMessage }) {
         <ol className="mt-1 list-decimal space-y-1 pl-5">
           {message.toolCalls.map((call, index) => (
             <li key={`${String(index)}-${call.name}`} className="break-all">
-              <span className="font-medium text-gray-700">{call.name}</span> {formatArgs(call.args)}
+              <span className="font-medium text-ink">{call.name}</span> {formatArgs(call.args)}
             </li>
           ))}
         </ol>

@@ -1,87 +1,128 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
-import { Message } from './Message'
+import { ChatHeader } from './ChatHeader'
+import { ChatSessionList } from './ChatSessionList'
+import { ChatView } from './ChatView'
+import { paneVisibility } from './panel-layout'
+import type { PanelMode } from './panel-layout'
 import { useChat } from './use-chat'
+import { useChatSessions } from './use-chat-sessions'
+import { useViewportSize } from './use-viewport-size'
+
+interface QueuedSend {
+  sessionId: string
+  text: string
+}
 
 export function App() {
-  const { messages, pending, send, clear } = useChat()
+  const sessions = useChatSessions()
+  const { activeId, create, rename, reload } = sessions
+  const chat = useChat(activeId, { onSettled: () => void reload() })
+  const { widthPx } = useViewportSize()
+  const [mode, setMode] = useState<PanelMode>('chat')
   const [draft, setDraft] = useState('')
-  const bottom = useRef<HTMLDivElement>(null)
+  const [creating, setCreating] = useState(false)
+  // A message waiting for a freshly created chat to finish loading.
+  const queued = useRef<QueuedSend | null>(null)
 
+  const panes = paneVisibility(widthPx, mode)
+  const activeSession = sessions.sessions.find((s) => s.id === activeId)
+
+  const { historyStatus, send } = chat
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, pending])
+    const next = queued.current
+    if (next !== null && next.sessionId === activeId && historyStatus === 'ready') {
+      queued.current = null
+      void send(next.text)
+    }
+  }, [activeId, historyStatus, send])
 
-  const submit = () => {
-    const question = draft
-    setDraft('')
-    void send(question)
-  }
-
-  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      submit()
+  const createChat = async (title?: string): Promise<string | null> => {
+    setCreating(true)
+    try {
+      const created = await create(title)
+      setDraft('')
+      setMode('chat')
+      return created.id
+    } catch {
+      return null
+    } finally {
+      setCreating(false)
     }
   }
 
+  const sendMessage = async (text: string, title?: string) => {
+    if (activeId === null) {
+      const id = await createChat(title)
+      if (id !== null) queued.current = { sessionId: id, text }
+      return
+    }
+    const isBlankChat =
+      activeSession !== undefined && !activeSession.titleIsCustom && chat.messages.length === 0
+    if (title !== undefined && isBlankChat) await rename(activeId, title).catch(() => undefined)
+    setDraft('')
+    void send(text)
+  }
+
   return (
-    <main className="flex h-screen flex-col bg-white">
-      <header className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
-        <h1 className="text-sm font-semibold">Manager Helper</h1>
-        <div className="flex gap-3 text-xs text-gray-500">
-          <button type="button" className="hover:text-gray-900" onClick={clear}>
-            Очистить
-          </button>
-          <button
-            type="button"
-            className="hover:text-gray-900"
-            onClick={() => void chrome.runtime.openOptionsPage()}
-          >
-            Настройки
-          </button>
-        </div>
-      </header>
-
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
-        {messages.length === 0 && (
-          <p className="m-auto max-w-xs text-center text-sm text-gray-500">
-            Задайте вопрос по ценам, программам и условиям поступления. Например: «Сколько стоит
-            Лечебное дело на очной форме после 9 классов?»
-          </p>
-        )}
-        {messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-        {pending && <p className="text-sm text-gray-500">Агент ищет ответ в таблицах…</p>}
-        <div ref={bottom} />
-      </div>
-
-      <form
-        className="flex items-end gap-2 border-t border-gray-200 p-3"
-        onSubmit={(event) => {
-          event.preventDefault()
-          submit()
-        }}
-      >
-        <textarea
-          className="max-h-32 min-h-10 flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-          rows={2}
-          placeholder="Вопрос агенту (Enter — отправить)"
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value)
-          }}
-          onKeyDown={onKeyDown}
-        />
-        <button
-          type="submit"
-          disabled={pending || draft.trim().length === 0}
-          className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white disabled:bg-gray-300"
+    <main className="flex h-screen flex-col bg-white text-ink">
+      <div className="flex min-h-0 flex-1">
+        <div
+          className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
+            panes.chat ? 'w-75 shrink-0 border-r border-line' : 'flex-1'
+          }`}
         >
-          Спросить
-        </button>
-      </form>
+          <ChatSessionList
+            sessions={sessions.sessions}
+            activeId={activeId}
+            status={sessions.status}
+            createDisabled={creating}
+            onSelect={(id) => {
+              if (id !== activeId) setDraft('')
+              sessions.select(id)
+              setMode('chat')
+            }}
+            onCreate={() => void createChat()}
+            onRename={rename}
+            onDelete={sessions.remove}
+            onRetry={() => void reload()}
+            onBack={
+              panes.chat
+                ? undefined
+                : () => {
+                    setMode('chat')
+                  }
+            }
+          />
+        </div>
+
+        <div className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}>
+          <ChatHeader
+            title={activeSession?.title ?? ''}
+            onOpenList={
+              panes.backToList
+                ? () => {
+                    setMode('list')
+                  }
+                : undefined
+            }
+            newChatDisabled={creating}
+            onNewChat={() => void createChat()}
+            onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+          />
+          <ChatView
+            key={activeId ?? 'none'}
+            sessionId={activeId}
+            messages={chat.messages}
+            pending={chat.pending}
+            historyStatus={chat.historyStatus}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={(text) => void sendMessage(text)}
+            onQuickSearch={(query, title) => void sendMessage(query, title)}
+            onReloadHistory={chat.reloadHistory}
+          />
+        </div>
+      </div>
     </main>
   )
 }
