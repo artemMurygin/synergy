@@ -42,7 +42,7 @@ describe('setBackendUrl', () => {
   it('does not save or reset the session when permission is denied', async () => {
     request.mockResolvedValue(false)
     await expect(setBackendUrl('https://api.example.com')).resolves.toBe(false)
-    expect(await getBackendUrl()).toBe('http://localhost:3000')
+    expect(await getBackendUrl()).toBe('http://77.105.146.171:1234')
     expect(getAccessToken()).toBe('tok')
     expect(getAuthState().status).toBe('authenticated')
   })
@@ -54,18 +54,17 @@ describe('setBackendUrl', () => {
   })
 
   it('keeps the session when the address is unchanged', async () => {
-    await setBackendUrl('http://localhost:3000/')
+    await setBackendUrl('http://77.105.146.171:1234/')
     expect(getAccessToken()).toBe('tok')
     expect(getAuthState().status).toBe('authenticated')
   })
 
   it.each(['http://backend.corp.example:3000', 'http://192.168.0.5:3000'])(
-    'refuses cleartext http for the remote host %s',
+    'allows cleartext http for the remote host %s',
     async (url) => {
-      await expect(setBackendUrl(url)).resolves.toBe(false)
-      expect(request).not.toHaveBeenCalled()
-      expect(await getBackendUrl()).toBe('http://localhost:3000')
-      expect(getAuthState().status).toBe('authenticated')
+      await expect(setBackendUrl(url)).resolves.toBe(true)
+      expect(request).toHaveBeenCalledWith({ origins: [`${new URL(url).origin}/*`] })
+      expect(await getBackendUrl()).toBe(url)
     },
   )
 
@@ -74,7 +73,7 @@ describe('setBackendUrl', () => {
     async (url) => {
       await expect(setBackendUrl(url)).resolves.toBe(false)
       expect(request).not.toHaveBeenCalled()
-      expect(await getBackendUrl()).toBe('http://localhost:3000')
+      expect(await getBackendUrl()).toBe('http://77.105.146.171:1234')
       expect(getAuthState().status).toBe('authenticated')
     },
   )

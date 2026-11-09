@@ -19,7 +19,7 @@ export function App() {
 
   const save = async () => {
     if (!(await setBackendUrl(url))) {
-      setStatus('Нужен адрес https:// (http допустим только для localhost) и доступ к нему')
+      setStatus('Нужен адрес http:// или https:// и доступ к нему')
       return
     }
     setUrl(normalizeBackendUrl(url))

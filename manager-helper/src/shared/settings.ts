@@ -1,6 +1,6 @@
 import { endSession } from './auth/session-channel'
 
-export const DEFAULT_BACKEND_URL = 'http://localhost:3000'
+export const DEFAULT_BACKEND_URL = 'http://77.105.146.171:1234'
 
 const BACKEND_URL_KEY = 'backendUrl'
 
@@ -16,7 +16,7 @@ export async function getBackendUrl(): Promise<string> {
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
 
-/** Remote hosts must use https; cleartext http is allowed for localhost only. */
+/** Requests host access for the address; both http and https are allowed. */
 async function ensureHostPermission(url: string): Promise<boolean> {
   let parsed: URL
   try {
@@ -26,7 +26,6 @@ async function ensureHostPermission(url: string): Promise<boolean> {
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
   if (LOCAL_HOSTS.has(parsed.hostname)) return true
-  if (parsed.protocol !== 'https:') return false
   return chrome.permissions.request({ origins: [`${parsed.origin}/*`] })
 }
 

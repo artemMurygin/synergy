@@ -6,8 +6,8 @@ import { App } from './App'
 
 vi.mock('@/shared/auth', () => ({ useAuthSession: vi.fn() }))
 vi.mock('@/shared/settings', () => ({
-  DEFAULT_BACKEND_URL: 'http://localhost:3000',
-  getBackendUrl: () => Promise.resolve('http://localhost:3000'),
+  DEFAULT_BACKEND_URL: 'http://77.105.146.171:1234',
+  getBackendUrl: () => Promise.resolve('http://77.105.146.171:1234'),
   normalizeBackendUrl: (v: string) => v,
   setBackendUrl: vi.fn(),
 }))
@@ -38,7 +38,7 @@ describe('options App account block', () => {
     screen.getByRole('button', { name: 'Выйти' }).click()
     expect(logout).toHaveBeenCalledTimes(1)
     await waitFor(() => {
-      expect(screen.getByDisplayValue('http://localhost:3000')).toBeTruthy()
+      expect(screen.getByDisplayValue('http://77.105.146.171:1234')).toBeTruthy()
     })
   })
 
