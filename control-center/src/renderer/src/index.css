@@ -1,25 +1,55 @@
 @import 'tailwindcss';
+@import '@fontsource/onest/latin-400.css';
+@import '@fontsource/onest/latin-500.css';
+@import '@fontsource/onest/latin-600.css';
+@import '@fontsource/onest/latin-700.css';
+@import '@fontsource/onest/cyrillic-400.css';
+@import '@fontsource/onest/cyrillic-500.css';
+@import '@fontsource/onest/cyrillic-600.css';
+@import '@fontsource/onest/cyrillic-700.css';
+@import '@fontsource/raleway/latin-400.css';
+@import '@fontsource/raleway/latin-500.css';
+@import '@fontsource/raleway/latin-600.css';
+@import '@fontsource/raleway/latin-700.css';
+@import '@fontsource/raleway/cyrillic-400.css';
+@import '@fontsource/raleway/cyrillic-500.css';
+@import '@fontsource/raleway/cyrillic-600.css';
+@import '@fontsource/raleway/cyrillic-700.css';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
+  /* Brand tokens from design/synergy-design-kit.pen */
+  --brand-red: #ed131c;
+  --brand-red-hover: #c81018;
+  --brand-red-soft: #fde8e9;
+  --ink: #1c1c1c;
+  --ink-60: #7e7f81;
+  --ink-40: #a8a9ac;
+  --surface: #ffffff;
+  --surface-alt: #f5f5f6;
+  --surface-sunken: #ecedf0;
+  --border-strong: #cacacb;
+  --success: #1e9e62;
+  --warning: #e08a00;
+  --info: #2563d9;
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --primary: var(--brand-red);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-alt);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-alt);
+  --muted-foreground: var(--ink-60);
+  --accent: var(--brand-red-soft);
+  --accent-foreground: var(--brand-red-hover);
+  --destructive: var(--brand-red-hover);
+  --border: #e0e1e5;
+  --input: #e0e1e5;
+  --ring: var(--brand-red);
+  --radius: 0.75rem;
 }
 
 .dark {
@@ -58,9 +88,25 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-hover: var(--brand-red-hover);
+  --color-brand-red-soft: var(--brand-red-soft);
+  --color-ink: var(--ink);
+  --color-ink-60: var(--ink-60);
+  --color-ink-40: var(--ink-40);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --font-display: 'Onest', system-ui, sans-serif;
+  --font-sans: 'Raleway', system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 }
 
 @layer base {
