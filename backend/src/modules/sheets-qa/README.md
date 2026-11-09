@@ -7,8 +7,8 @@
 1. Положите книгу в `data/tables/ЦП.xlsx` (содержимое папки не коммитится). Заменили файл — агент увидит новые данные при следующем вопросе.
 2. Структура книги описана в `data/tables/ЦП.md` (рядом с книгой), подробные описания листов — в `data/tables/ЦП/<лист>.md`. `data/catalog.md` кратко говорит агенту о книге и указывает на `ЦП.md`; он подставляется в системный промпт на каждый вопрос. Агент читает описания по запросу инструментом `read_sheet_guide`, поэтому лишнее в контекст не попадает.
 3. Запустите бэкенд из папки `backend`, создайте чат и задайте вопрос (ответ приходит потоком SSE):
-   `curl -X POST localhost:3000/threads` (в ответе `id` чата), затем
-   `curl -N -X POST localhost:3000/agent -H 'content-type: application/json' -d '{"threadId":"<id>","runId":"<любая строка>","messages":[{"id":"m1","role":"user","content":"Сколько стоит Лечебное дело?"}],"tools":[],"context":[],"state":{},"forwardedProps":{}}'`
+   `curl -X POST localhost:1234/threads` (в ответе `id` чата), затем
+   `curl -N -X POST localhost:1234/agent -H 'content-type: application/json' -d '{"threadId":"<id>","runId":"<любая строка>","messages":[{"id":"m1","role":"user","content":"Сколько стоит Лечебное дело?"}],"tools":[],"context":[],"state":{},"forwardedProps":{}}'`
 
 ## Чаты и контекст агента
 

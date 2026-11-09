@@ -11,7 +11,7 @@ npm run prisma:generate
 npm run start:dev
 ```
 
-- API: http://localhost:3000 (`/health`, `/metrics`)
+- API: http://localhost:1234 (`/health`, `/metrics`)
 - Grafana: http://localhost:3001 (datasources Prometheus и Loki уже подключены)
 - Prometheus: http://localhost:9090
 
