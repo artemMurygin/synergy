@@ -44,3 +44,6 @@ google-sheets-secret.json
 
 # sheets-qa: выгруженные книги не коммитим, описания листов (md) коммитим
 src/modules/sheets-qa/data/tables/*.xlsx
+
+# Task attachments (local disk storage)
+storage/

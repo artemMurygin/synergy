@@ -10,6 +10,7 @@ import { HealthModule } from './shared/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
     imports: [
@@ -21,6 +22,7 @@ import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
         AuthModule,
         AuditAgentModule,
         SheetsQaModule,
+        TasksModule,
     ],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

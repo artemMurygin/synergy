@@ -157,3 +157,38 @@ describe('validateEnv auth settings', () => {
         ]);
     });
 });
+
+describe('validateEnv tasks settings', () => {
+    it('applies defaults', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.TASKS_STORAGE_DIR).toBe('./storage/tasks');
+        expect(env.TASKS_MAX_FILE_SIZE_MB).toBe(20);
+        expect(env.TASKS_MAX_FILES_PER_TASK).toBe(10);
+    });
+
+    it('coerces numeric overrides', () => {
+        const env = validateEnv({
+            ...REQUIRED_ENV,
+            TASKS_STORAGE_DIR: '/data/tasks',
+            TASKS_MAX_FILE_SIZE_MB: '5',
+            TASKS_MAX_FILES_PER_TASK: '3',
+        });
+
+        expect(env.TASKS_STORAGE_DIR).toBe('/data/tasks');
+        expect(env.TASKS_MAX_FILE_SIZE_MB).toBe(5);
+        expect(env.TASKS_MAX_FILES_PER_TASK).toBe(3);
+    });
+
+    it('rejects invalid values', () => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, TASKS_MAX_FILE_SIZE_MB: '0' })).toThrow(
+            'TASKS_MAX_FILE_SIZE_MB',
+        );
+        expect(() => validateEnv({ ...REQUIRED_ENV, TASKS_MAX_FILES_PER_TASK: '-1' })).toThrow(
+            'TASKS_MAX_FILES_PER_TASK',
+        );
+        expect(() => validateEnv({ ...REQUIRED_ENV, TASKS_MAX_FILES_PER_TASK: 'many' })).toThrow(
+            'TASKS_MAX_FILES_PER_TASK',
+        );
+    });
+});

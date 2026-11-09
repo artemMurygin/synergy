@@ -88,6 +88,10 @@ export const envSchema = z
                     .optional(),
             ),
 
+        TASKS_STORAGE_DIR: z.string().min(1).default('./storage/tasks'),
+        TASKS_MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(20),
+        TASKS_MAX_FILES_PER_TASK: z.coerce.number().int().positive().default(10),
+
         LOKI_URL: z.string().optional(),
         LOKI_LABELS_APP: z.string().default('audit-agent'),
         METRICS_ENABLED: z
