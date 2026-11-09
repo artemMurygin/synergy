@@ -5,7 +5,6 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../shared/config/env.schema';
 import {
     DEFAULT_BOOK,
-    OPENROUTER_BASE_URL,
     type ModelSetting,
     SHEETS_QA_BOOKS,
     SEARCHERS,
@@ -106,6 +105,7 @@ import { ActiveRunsLifecycle } from './infrastructure/active-runs-lifecycle';
             ): SheetsAssistantPort => {
                 const baseURL = config.get('OPENAI_BASE_URL', { infer: true });
                 const openRouterKey = config.get('OPENROUTER_API_KEY', { infer: true });
+                const openRouterBaseURL = config.get('OPENROUTER_BASE_URL', { infer: true });
                 const createModel = (setting: ModelSetting): ChatOpenAI => {
                     if (setting.provider === 'omniroute') {
                         return new ChatOpenAI({
@@ -122,7 +122,7 @@ import { ActiveRunsLifecycle } from './infrastructure/active-runs-lifecycle';
                         model: setting.name,
                         apiKey: openRouterKey,
                         temperature: 0,
-                        configuration: { baseURL: OPENROUTER_BASE_URL },
+                        configuration: { baseURL: openRouterBaseURL },
                         modelKwargs: {
                             provider: { sort: 'throughput' },
                             ...(setting.reasoningEffort === undefined

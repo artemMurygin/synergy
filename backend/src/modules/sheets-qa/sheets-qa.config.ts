@@ -33,8 +33,6 @@ export interface ModelSetting {
     readonly promptCache?: boolean;
 }
 
-export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-
 /** Settings of the sheets-qa prototype. Secrets (OPENAI_API_KEY, OPENAI_BASE_URL, OPENROUTER_API_KEY) stay in env. */
 export const SHEETS_QA_CONFIG = {
     /** Chat model used through the OpenAI-compatible endpoint (omniroute). */

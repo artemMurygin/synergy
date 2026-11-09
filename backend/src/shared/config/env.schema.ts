@@ -23,6 +23,8 @@ export const envSchema = z
         OPENAI_API_KEY: z.string().optional(),
         OPENROUTER_API_KEY: z.string().optional(),
         OPENAI_BASE_URL: z.url().optional(),
+        // Base URL of OpenRouter or of a reverse proxy in front of it
+        OPENROUTER_BASE_URL: z.url().default('https://openrouter.ai/api/v1'),
         OPENAI_MODEL: z.string().default('gpt-4o-mini'),
         OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
         OPENAI_MAX_RETRIES: z.coerce.number().int().nonnegative().default(1),
