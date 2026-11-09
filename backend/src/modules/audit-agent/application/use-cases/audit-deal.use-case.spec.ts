@@ -1,7 +1,6 @@
 import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
 import { AuditIssue } from '../../domain/value-objects/audit-issue.value-object';
-import type { AuditTools } from '../../domain/audit-tools';
 import { type AuditMetricsPort } from '../../domain/ports/audit-metrics.port';
 import { type CrmGatewayPort } from '../../domain/ports/crm-gateway.port';
 import { DealAudit } from '../../domain/aggregates/deal-audit.aggregate';
@@ -11,7 +10,6 @@ import { DealId } from '../../domain/value-objects/deal-id.value-object';
 import { DealNotFoundError } from '../../domain/errors/deal-not-found.error';
 import { Deal } from '../../domain/entities/deal.entity';
 import { AuditDealUseCase } from './audit-deal.use-case';
-import { type AuditToolsFactory } from '../audit-tools.factory';
 
 const now = new Date('2026-01-02T10:00:00.000Z');
 const updatedAt = new Date('2026-01-01T09:00:00.000Z');
@@ -38,8 +36,6 @@ function createFixture(): {
         save: ReturnType<typeof vi.fn<DealAuditRepositoryPort['save']>>;
     };
     auditor: { audit: ReturnType<typeof vi.fn<DealAuditorPort['audit']>> };
-    tools: AuditTools;
-    toolsFactory: { create: ReturnType<typeof vi.fn> };
     metrics: { recordAudit: ReturnType<typeof vi.fn> };
     useCase: AuditDealUseCase;
 } {
@@ -49,22 +45,16 @@ function createFixture(): {
         save: vi.fn<DealAuditRepositoryPort['save']>().mockResolvedValue(undefined),
     };
     const auditor = { audit: vi.fn<DealAuditorPort['audit']>().mockResolvedValue([]) };
-    const tools: AuditTools = {
-        getUserTelegramAccountById: { invoke: vi.fn() },
-        notifyResponsible: { invoke: vi.fn() },
-    };
-    const toolsFactory = { create: vi.fn().mockReturnValue(tools) };
     const metrics = { recordAudit: vi.fn() };
     const logger = { setContext: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const useCase = new AuditDealUseCase(
         crm as unknown as CrmGatewayPort,
         repository,
         auditor,
-        toolsFactory as unknown as AuditToolsFactory,
         logger as unknown as PinoLogger,
         metrics as unknown as AuditMetricsPort,
     );
-    return { crm, repository, auditor, tools, toolsFactory, metrics, useCase };
+    return { crm, repository, auditor, metrics, useCase };
 }
 
 describe('AuditDealUseCase', () => {
@@ -102,17 +92,13 @@ describe('AuditDealUseCase', () => {
     });
 
     it('saves verdict ok without issues', async () => {
-        const { repository, auditor, tools, toolsFactory, metrics, useCase } = createFixture();
+        const { repository, auditor, metrics, useCase } = createFixture();
 
         const result = await useCase.execute(dealId, now);
 
         expect(result).toEqual({ status: 'audited', verdict: 'ok' });
         expect(metrics.recordAudit).toHaveBeenCalledWith('ok');
-        expect(auditor.audit).toHaveBeenCalledWith(expect.any(Deal), tools);
-        expect(toolsFactory.create).toHaveBeenCalledWith({
-            dealId: dealId.value,
-            dealUpdatedAt: updatedAt,
-        });
+        expect(auditor.audit).toHaveBeenCalledWith(expect.any(Deal));
         const saved = repository.save.mock.calls[0][0];
         expect(saved.verdict).toBe('ok');
         expect(saved.issues).toEqual([]);

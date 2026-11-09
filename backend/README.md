@@ -15,12 +15,6 @@ npm run start:dev
 - Grafana: http://localhost:3001 (datasources Prometheus и Loki уже подключены)
 - Prometheus: http://localhost:9090
 
-## Демо-сотрудники и Telegram
-При `NODE_ENV` не production после миграций применяются сиды из `db/seeds` (демо-сотрудники, `ON CONFLICT DO NOTHING`). У сидовых сотрудников `telegram_chat_id` пуст, поэтому уведомления для них пропускаются (метрика `notifications_total{status="skipped"}`). Чтобы получать сообщения, сотрудник пишет боту, а chat id записывается вручную:
-```sql
-UPDATE employee SET telegram_chat_id = <chat_id> WHERE telegram_username = 'ivan_petrov';
-```
-
 ## Авторизация (JWT)
 
 Маршруты: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. Access-токен передаётся в `Authorization: Bearer <accessToken>`. Refresh-токен по умолчанию лежит только в cookie `mh_refresh` (HttpOnly, SameSite=Strict, Path=/auth); при заголовке `X-Client-Type: desktop` он идёт в теле запроса, cookie не ставится.

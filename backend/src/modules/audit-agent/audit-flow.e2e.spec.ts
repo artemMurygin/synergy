@@ -7,13 +7,9 @@ import type { Job, JobsOptions, Queue } from 'bullmq';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../shared/config/env.schema';
-import { AuditToolsFactory, EMPLOYEE_NOT_FOUND_MESSAGE } from './application/audit-tools.factory';
-import type { AuditTools } from './domain/audit-tools';
 import type { DealAudit } from './domain/aggregates/deal-audit.aggregate';
 import { DealAuditRepositoryPort } from './domain/ports/deal-audit-repository.port';
 import type { DealId } from './domain/value-objects/deal-id.value-object';
-import { EmployeeRepositoryPort } from './domain/ports/employee-repository.port';
-import { Employee } from './domain/aggregates/employee.aggregate';
 import { SyncCursorRepositoryPort } from './domain/ports/sync-cursor-repository.port';
 import { DealAuditorAdapter } from './infrastructure/agent/deal-auditor.adapter';
 import { MockCrmGatewayAdapter } from './infrastructure/crm/mock-crm-gateway.adapter';
@@ -24,17 +20,13 @@ import {
     NOTIFICATIONS_METRIC,
 } from './infrastructure/metrics/audit-metrics.constants';
 import { AuditDealUseCase } from './application/use-cases/audit-deal.use-case';
-import { DeliverNotificationUseCase } from './application/use-cases/deliver-notification.use-case';
 import { SyncDealsUseCase } from './application/use-cases/sync-deals.use-case';
 import { AuditQueueAdapter } from './infrastructure/queue/audit-queue.adapter';
 import { DealSyncScheduler } from './infrastructure/queue/deal-sync-scheduler';
-import { NotificationQueueAdapter } from './infrastructure/queue/notification-queue.adapter';
 import { JOB_NAMES, QUEUE_NAMES } from './infrastructure/queue/queue.constants';
-import { NotifierAdapter } from './infrastructure/telegram/notifier.adapter';
-import type { AuditJobData, NotificationJobData } from './infrastructure/queue/queue-job-data';
+import type { AuditJobData } from './infrastructure/queue/queue-job-data';
 import { AuditProcessor } from './interface/queue/audit.processor';
 import { DealSyncProcessor } from './interface/queue/deal-sync.processor';
-import { NotificationProcessor } from './interface/queue/notification.processor';
 
 const NOW = new Date('2026-01-20T00:00:00Z');
 const LATER = new Date('2026-01-21T00:00:00Z');
@@ -43,7 +35,6 @@ const DAY_MS = 24 * 60 * MINUTE_MS;
 const INTERVAL_MINUTES = 15;
 const ATTEMPTS = 3;
 const BACKOFF_MS = 4000;
-const TELEGRAM_URL_PATTERN = /^https:\/\/api\.telegram\.org\/bot.+\/sendMessage$/;
 const DEAL_JSON_PATTERN = /<deal>(.*)<\/deal>/;
 
 interface FakeJob {
@@ -132,53 +123,6 @@ class InMemoryAuditRepository extends DealAuditRepositoryPort {
     }
 }
 
-class InMemoryEmployeeRepository extends EmployeeRepositoryPort {
-    private readonly employees = [
-        Employee.create({
-            id: 'e-1',
-            crmResponsibleId: '101',
-            fullName: 'Ivan Petrov',
-            telegramUsername: 'ivan_petrov',
-            telegramChatId: '1001',
-            isActive: true,
-        }),
-        Employee.create({
-            id: 'e-2',
-            crmResponsibleId: '102',
-            fullName: 'Maria Sidorova',
-            telegramUsername: 'maria_sidorova',
-            telegramChatId: '1002',
-            isActive: true,
-        }),
-        Employee.create({
-            id: 'e-3',
-            crmResponsibleId: '103',
-            fullName: 'Alexey Smirnov',
-            telegramUsername: 'alexey_smirnov',
-            telegramChatId: '1003',
-            isActive: true,
-        }),
-        Employee.create({
-            id: 'e-4',
-            crmResponsibleId: '104',
-            fullName: 'Olga Kuznetsova',
-            telegramUsername: 'olga_kuznetsova',
-            telegramChatId: '1004',
-            isActive: false,
-        }),
-    ];
-
-    findByUsername(username: string): Promise<Employee | null> {
-        const found = this.employees.find((e) => e.isActive && e.telegramUsername === username);
-        return Promise.resolve(found ?? null);
-    }
-
-    findByResponsibleId(id: string): Promise<Employee | null> {
-        const found = this.employees.find((e) => e.isActive && e.crmResponsibleId === id);
-        return Promise.resolve(found ?? null);
-    }
-}
-
 class InMemoryCursorRepository extends SyncCursorRepositoryPort {
     value: Date | null = null;
 
@@ -218,45 +162,22 @@ class RuleBasedChatModel extends BaseChatModel {
         const missing = Object.entries(deal)
             .filter(([key, value]) => value === null && key !== 'responsibleId')
             .map(([key]) => key);
-        const toolMessages = messages.filter((message) => message.type === 'tool');
-        const call = this.decide(deal, missing, toolMessages);
+        const call = this.decide(missing);
         const message = new AIMessage({
             content: '',
-            tool_calls: [{ id: `call-${String(toolMessages.length)}`, ...call }],
+            tool_calls: [{ id: 'call-0', ...call }],
         });
         return Promise.resolve({ generations: [{ text: '', message }] });
     }
 
-    private decide(
-        deal: Record<string, unknown>,
-        missing: string[],
-        toolMessages: BaseMessage[],
-    ): { name: string; args: Record<string, unknown> } {
-        const verdict = missing.length === 0 ? 'ok' : 'violations';
-        const result = {
+    private decide(missing: string[]): { name: string; args: Record<string, unknown> } {
+        return {
             name: this.resolveResponseToolName(),
             args: {
-                verdict,
+                verdict: missing.length === 0 ? 'ok' : 'violations',
                 issues: missing.map((field) => ({ field, reason: `${field} is empty` })),
             },
         };
-        if (missing.length === 0) {
-            return result;
-        }
-        if (toolMessages.length === 0) {
-            return { name: 'get_user_telegram_account_by_id', args: { id: deal.responsibleId } };
-        }
-        const username = toolMessages[0].text;
-        if (toolMessages.length === 1 && username !== EMPLOYEE_NOT_FOUND_MESSAGE) {
-            return {
-                name: 'notify_responsible',
-                args: {
-                    username,
-                    message: `Deal ${String(deal.id)}: fill ${missing.join(', ')}`,
-                },
-            };
-        }
-        return result;
     }
 
     private readDeal(messages: BaseMessage[]): Record<string, unknown> {
@@ -287,21 +208,13 @@ class RuleBasedChatModel extends BaseChatModel {
     }
 }
 
-interface TelegramCall {
-    url: string;
-    chatId: string;
-    text: string;
-}
-
 interface Harness {
-    queues: Record<'dealSync' | 'audit' | 'notification', FakeQueue>;
+    queues: Record<'dealSync' | 'audit', FakeQueue>;
     auditRepository: InMemoryAuditRepository;
     cursorRepository: InMemoryCursorRepository;
-    telegramCalls: TelegramCall[];
     registry: Registry;
     scheduler: DealSyncScheduler;
     auditProcessor: AuditProcessor;
-    failTelegramTimes: { value: number };
     drain: () => Promise<void>;
 }
 
@@ -327,7 +240,6 @@ function createHarness(): Harness {
     const queues = {
         dealSync: new FakeQueue(),
         audit: new FakeQueue(),
-        notification: new FakeQueue(),
     };
     const asQueue = (queue: FakeQueue): Queue => queue as unknown as Queue;
     const registry = new Registry();
@@ -335,33 +247,10 @@ function createHarness(): Harness {
         new Counter({ name, help: name, labelNames, registers: [registry] });
 
     const crmGateway = new MockCrmGatewayAdapter();
-    const employees = new InMemoryEmployeeRepository();
     const auditRepository = new InMemoryAuditRepository();
     const cursorRepository = new InMemoryCursorRepository();
-    const failTelegramTimes = { value: 0 };
-    const telegramCalls: TelegramCall[] = [];
-    const fetchFn = vi.fn<typeof fetch>((input, init) => {
-        if (failTelegramTimes.value > 0) {
-            failTelegramTimes.value -= 1;
-            return Promise.resolve(new Response('{"description":"bad gateway"}', { status: 502 }));
-        }
-        const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as {
-            chat_id: string;
-            text: string;
-        };
-        telegramCalls.push({
-            url: input instanceof Request ? input.url : input.toString(),
-            chatId: body.chat_id,
-            text: body.text,
-        });
-        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
-    });
-
     const auditQueue = new AuditQueueAdapter(asQueue(queues.audit));
-    const notificationQueue = new NotificationQueueAdapter(asQueue(queues.notification));
     const auditor = new DealAuditorAdapter(new RuleBasedChatModel());
-    const notifier = new NotifierAdapter({ botToken: 'token', timeoutMs: 1000 }, fetchFn);
-    const toolsFactory = new AuditToolsFactory(employees, notificationQueue);
 
     const metrics = new AuditMetrics(
         counter(AUDIT_DEALS_METRIC, ['verdict']),
@@ -380,20 +269,12 @@ function createHarness(): Harness {
         crmGateway,
         auditRepository,
         auditor,
-        toolsFactory,
-        createLogger(),
-        metrics,
-    );
-    const deliverNotification = new DeliverNotificationUseCase(
-        employees,
-        notifier,
         createLogger(),
         metrics,
     );
 
     const dealSyncProcessor = new DealSyncProcessor(syncDeals, createLogger());
     const auditProcessor = new AuditProcessor(auditDeal, createLogger());
-    const notificationProcessor = new NotificationProcessor(deliverNotification, createLogger());
 
     const run = async (
         queue: FakeQueue,
@@ -420,15 +301,7 @@ function createHarness(): Harness {
         do {
             await run(queues.dealSync, () => dealSyncProcessor.process());
             await run(queues.audit, (job) => auditProcessor.process(asJob<AuditJobData>(job)));
-            await run(queues.notification, (job) =>
-                notificationProcessor.process(asJob<NotificationJobData>(job)),
-            );
-        } while (
-            queues.dealSync.jobs.length +
-                queues.audit.jobs.length +
-                queues.notification.jobs.length >
-            0
-        );
+        } while (queues.dealSync.jobs.length + queues.audit.jobs.length > 0);
     };
 
     const scheduler = new DealSyncScheduler(asQueue(queues.dealSync), createConfig());
@@ -437,11 +310,9 @@ function createHarness(): Harness {
         queues,
         auditRepository,
         cursorRepository,
-        telegramCalls,
         registry,
         scheduler,
         auditProcessor,
-        failTelegramTimes,
         drain,
     };
 }
@@ -486,7 +357,7 @@ describe('audit flow on mocks', () => {
         ]);
     });
 
-    it('audits every updated deal and notifies only responsible employees of incomplete deals', async () => {
+    it('audits every updated deal', async () => {
         const harness = createHarness();
         await harness.scheduler.register();
 
@@ -510,49 +381,25 @@ describe('audit flow on mocks', () => {
             'studyForm',
         ]);
 
-        expect(harness.telegramCalls.map((call) => call.chatId).sort()).toEqual([
-            '1001',
-            '1001',
-            '1002',
-            '1003',
-            '1003',
-        ]);
-        for (const call of harness.telegramCalls) {
-            expect(call.url).toMatch(TELEGRAM_URL_PATTERN);
-        }
-        const notifiedDeals = harness.telegramCalls.map((call) => call.text.split(':')[0]).sort();
-        expect(notifiedDeals).toEqual([
-            'Deal 1003',
-            'Deal 1004',
-            'Deal 1005',
-            'Deal 1006',
-            'Deal 1007',
-        ]);
-
         expect(await metricValue(harness.registry, DEAL_SYNC_ENQUEUED_METRIC)).toBe(10);
         expect(await metricValue(harness.registry, AUDIT_DEALS_METRIC, { verdict: 'ok' })).toBe(3);
         expect(
             await metricValue(harness.registry, AUDIT_DEALS_METRIC, { verdict: 'violations' }),
         ).toBe(7);
-        expect(await metricValue(harness.registry, NOTIFICATIONS_METRIC, { status: 'sent' })).toBe(
-            5,
-        );
     });
 
-    it('does not duplicate audits or messages on the next scheduler run', async () => {
+    it('does not duplicate audits on the next scheduler run', async () => {
         const harness = createHarness();
         await harness.scheduler.register();
         await harness.queues.dealSync.fireScheduler();
         await harness.drain();
         const auditsAfterFirstRun = harness.auditRepository.saved.length;
-        const messagesAfterFirstRun = harness.telegramCalls.length;
 
         vi.setSystemTime(LATER);
         await harness.queues.dealSync.fireScheduler();
         await harness.drain();
 
         expect(harness.auditRepository.saved).toHaveLength(auditsAfterFirstRun);
-        expect(harness.telegramCalls).toHaveLength(messagesAfterFirstRun);
         expect(harness.cursorRepository.value).toEqual(LATER);
     });
 
@@ -561,7 +408,6 @@ describe('audit flow on mocks', () => {
         await harness.scheduler.register();
         await harness.queues.dealSync.fireScheduler();
         await harness.drain();
-        const messagesAfterFirstRun = harness.telegramCalls.length;
 
         harness.cursorRepository.value = null;
         await harness.queues.dealSync.fireScheduler();
@@ -583,36 +429,6 @@ describe('audit flow on mocks', () => {
         );
         expect(result).toEqual({ status: 'already-audited' });
         expect(harness.auditRepository.saved).toHaveLength(10);
-        expect(harness.telegramCalls).toHaveLength(messagesAfterFirstRun);
-    });
-
-    it('retries a transient Telegram failure and delivers the message once', async () => {
-        const harness = createHarness();
-        harness.failTelegramTimes.value = 1;
-        await harness.scheduler.register();
-
-        await harness.queues.dealSync.fireScheduler();
-        await harness.drain();
-
-        expect(harness.telegramCalls).toHaveLength(5);
-        expect(
-            await metricValue(harness.registry, NOTIFICATIONS_METRIC, { status: 'failed' }),
-        ).toBe(1);
-        expect(await metricValue(harness.registry, NOTIFICATIONS_METRIC, { status: 'sent' })).toBe(
-            5,
-        );
-    });
-
-    it('builds tools that match the AuditTools contract', () => {
-        const tools: AuditTools = new AuditToolsFactory(
-            new InMemoryEmployeeRepository(),
-            new NotificationQueueAdapter({ add: vi.fn() } as unknown as Queue),
-        ).create({ dealId: '1', dealUpdatedAt: new Date('2026-01-01T00:00:00Z') });
-
-        expect(Object.keys(tools).sort()).toEqual([
-            'getUserTelegramAccountById',
-            'notifyResponsible',
-        ]);
     });
 
     it('keeps the queue contract of architecture.md', async () => {

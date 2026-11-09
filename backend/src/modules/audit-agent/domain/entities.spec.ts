@@ -5,7 +5,6 @@ import { DealAudit } from './aggregates/deal-audit.aggregate';
 import { DealId } from './value-objects/deal-id.value-object';
 import { DealNotFoundError } from './errors/deal-not-found.error';
 import { Deal } from './entities/deal.entity';
-import { Employee } from './aggregates/employee.aggregate';
 import { PermanentNotifyError, TransientNotifyError } from './errors/notify.errors';
 
 const updatedAt = new Date('2026-01-01T10:00:00Z');
@@ -91,38 +90,6 @@ describe('DealAudit', () => {
         source.length = 0;
         expect(audit.issues).toHaveLength(1);
         expect(Object.isFrozen(audit.issues)).toBe(true);
-    });
-});
-
-describe('Employee', () => {
-    const baseProps = {
-        id: 'e-1',
-        crmResponsibleId: '15',
-        fullName: 'Ivan Petrov',
-        telegramUsername: 'ivan',
-        telegramChatId: '1001',
-        isActive: true,
-    };
-
-    it('exposes its fields', () => {
-        const employee = Employee.create(baseProps);
-        expect(employee.crmResponsibleId).toBe('15');
-        expect(employee.fullName).toBe('Ivan Petrov');
-        expect(employee.telegramUsername).toBe('ivan');
-        expect(employee.telegramChatId).toBe('1001');
-        expect(employee.isActive).toBe(true);
-    });
-
-    it('can be notified when active and has a chat id', () => {
-        expect(Employee.create(baseProps).canBeNotified()).toBe(true);
-    });
-
-    it('cannot be notified when inactive', () => {
-        expect(Employee.create({ ...baseProps, isActive: false }).canBeNotified()).toBe(false);
-    });
-
-    it('cannot be notified without a chat id', () => {
-        expect(Employee.create({ ...baseProps, telegramChatId: null }).canBeNotified()).toBe(false);
     });
 });
 

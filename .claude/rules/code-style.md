@@ -17,8 +17,8 @@ paths:
 - Методы сервисов называем глаголами: `findById`, `create`, `markAsPaid`.
 
 ## Порты и адаптеры
-- Порт (контракт во `domain`/`application`) называется по роли с суффиксом `Port`: `EmployeeRepositoryPort`, `AuditQueuePort`, `NotifierPort`, `CrmGatewayPort`.
-- Реализация (адаптер в `infrastructure`) называется по роли без суффикса и без названия технологии: `EmployeeRepository`, `AuditQueue`, `Notifier`. Запрещены имена вида `PostgresEmployeeRepository`, `BullmqAuditQueue`, `RedisSyncCursorStore`, `TelegramNotifier`, `LangchainDealAuditor`, а также суффикс `Impl`.
+- Порт (контракт во `domain`/`application`) называется по роли с суффиксом `Port`: `DealAuditRepositoryPort`, `AuditQueuePort`, `NotifierPort`, `CrmGatewayPort`.
+- Реализация (адаптер в `infrastructure`) называется по роли без суффикса и без названия технологии: `DealAuditRepository`, `AuditQueue`, `Notifier`. Запрещены имена вида `PostgresDealAuditRepository`, `BullmqAuditQueue`, `RedisSyncCursorStore`, `TelegramNotifier`, `LangchainDealAuditor`, а также суффикс `Impl`.
 - Технология видна по пути и модулю (`infrastructure/persistence/`, `infrastructure/queue/`), а не по имени класса.
 - Допустим префикс варианта поведения, не технологии: `MockCrmGateway`.
 - Порт и реализация не должны называться одинаково, чтобы не требовались alias при импорте.

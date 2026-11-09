@@ -3,8 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../shared/config/env.schema';
 import { AuditMetricsPort } from './domain/ports/audit-metrics.port';
 import { AuditDealUseCase } from './application/use-cases/audit-deal.use-case';
-import { AuditToolsFactory } from './application/audit-tools.factory';
-import { DeliverNotificationUseCase } from './application/use-cases/deliver-notification.use-case';
 import {
     DEAL_SYNC_DEFAULT_WINDOW_MS,
     SyncDealsUseCase,
@@ -19,7 +17,6 @@ import { SyncCursorModule } from './infrastructure/redis/sync-cursor.module';
 import { TelegramModule } from './infrastructure/telegram/telegram.module';
 import { AuditProcessor } from './interface/queue/audit.processor';
 import { DealSyncProcessor } from './interface/queue/deal-sync.processor';
-import { NotificationProcessor } from './interface/queue/notification.processor';
 
 const MINUTE_MS = 60_000;
 
@@ -40,14 +37,11 @@ const MINUTE_MS = 60_000;
             useFactory: (config: ConfigService<Env, true>): number =>
                 config.get('DEAL_SYNC_DEFAULT_WINDOW_MINUTES', { infer: true }) * MINUTE_MS,
         },
-        AuditToolsFactory,
         { provide: AuditMetricsPort, useClass: AuditMetrics },
         SyncDealsUseCase,
         AuditDealUseCase,
-        DeliverNotificationUseCase,
         DealSyncProcessor,
         AuditProcessor,
-        NotificationProcessor,
     ],
 })
 export class AuditAgentModule {}

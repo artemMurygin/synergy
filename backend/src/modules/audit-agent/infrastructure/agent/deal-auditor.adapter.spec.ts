@@ -1,8 +1,7 @@
 import { AIMessage, type BaseMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { ChatResult } from '@langchain/core/outputs';
-import { describe, expect, it, vi, type Mock } from 'vitest';
-import type { AuditTools } from '../../domain/audit-tools';
+import { describe, expect, it } from 'vitest';
 import { Deal } from '../../domain/entities/deal.entity';
 import { DealId } from '../../domain/value-objects/deal-id.value-object';
 import { DealAuditorAdapter } from './deal-auditor.adapter';
@@ -87,19 +86,6 @@ function createDeal(): Deal {
     });
 }
 
-function createTools(): { tools: AuditTools; getUsername: Mock; notify: Mock } {
-    const getUsername = vi.fn().mockResolvedValue('ivan_petrov');
-    const notify = vi.fn().mockResolvedValue('queued');
-    return {
-        tools: {
-            getUserTelegramAccountById: { invoke: getUsername },
-            notifyResponsible: { invoke: notify },
-        },
-        getUsername,
-        notify,
-    };
-}
-
 describe('DealAuditorAdapter', () => {
     it('maps the structured response into audit issues', async () => {
         const model = new ScriptedChatModel([
@@ -117,7 +103,7 @@ describe('DealAuditorAdapter', () => {
             ],
         ]);
 
-        const issues = await new DealAuditorAdapter(model).audit(createDeal(), createTools().tools);
+        const issues = await new DealAuditorAdapter(model).audit(createDeal());
 
         expect(issues.map((issue) => [issue.field, issue.reason])).toEqual([
             ['phone', 'phone is empty'],
@@ -130,21 +116,11 @@ describe('DealAuditorAdapter', () => {
             [{ name: null, args: { verdict: 'ok', issues: [] } }],
         ]);
 
-        await expect(
-            new DealAuditorAdapter(model).audit(createDeal(), createTools().tools),
-        ).resolves.toEqual([]);
+        await expect(new DealAuditorAdapter(model).audit(createDeal())).resolves.toEqual([]);
     });
 
-    it('passes the deal as data and lets the model call tools', async () => {
-        const { tools, getUsername, notify } = createTools();
+    it('passes the deal to the model as data', async () => {
         const model = new ScriptedChatModel([
-            [{ name: 'get_user_telegram_account_by_id', args: { id: '42' } }],
-            [
-                {
-                    name: 'notify_responsible',
-                    args: { username: 'ivan_petrov', message: 'fill phone' },
-                },
-            ],
             [
                 {
                     name: null,
@@ -153,11 +129,9 @@ describe('DealAuditorAdapter', () => {
             ],
         ]);
 
-        const issues = await new DealAuditorAdapter(model).audit(createDeal(), tools);
+        const issues = await new DealAuditorAdapter(model).audit(createDeal());
 
         expect(issues).toHaveLength(1);
-        expect(getUsername).toHaveBeenCalledWith('42');
-        expect(notify).toHaveBeenCalledWith('ivan_petrov', 'fill phone');
         const firstPrompt = model.receivedMessages[0].map((message) => message.text).join('\n');
         expect(firstPrompt).toContain('<deal>');
         expect(firstPrompt).toContain('"responsibleId":"42"');
@@ -168,9 +142,7 @@ describe('DealAuditorAdapter', () => {
             [{ name: null, args: { verdict: 'bogus', issues: [] } }],
         ]);
 
-        await expect(
-            new DealAuditorAdapter(model).audit(createDeal(), createTools().tools),
-        ).rejects.toThrow();
+        await expect(new DealAuditorAdapter(model).audit(createDeal())).rejects.toThrow();
     });
 
     it('fails when the model reports an unknown field', async () => {
@@ -183,8 +155,6 @@ describe('DealAuditorAdapter', () => {
             ],
         ]);
 
-        await expect(
-            new DealAuditorAdapter(model).audit(createDeal(), createTools().tools),
-        ).rejects.toThrow();
+        await expect(new DealAuditorAdapter(model).audit(createDeal())).rejects.toThrow();
     });
 });

@@ -10,7 +10,6 @@ import { DealAuditorPort } from '../../domain/ports/deal-auditor.port';
 import type { DealId } from '../../domain/value-objects/deal-id.value-object';
 import { DealNotFoundError } from '../../domain/errors/deal-not-found.error';
 import type { Deal } from '../../domain/entities/deal.entity';
-import { AuditToolsFactory } from '../audit-tools.factory';
 
 export type AuditDealResult =
     | { status: 'audited'; verdict: AuditVerdict }
@@ -25,7 +24,6 @@ export class AuditDealUseCase {
         private readonly crmGateway: CrmGatewayPort,
         private readonly auditRepository: DealAuditRepositoryPort,
         private readonly auditor: DealAuditorPort,
-        private readonly toolsFactory: AuditToolsFactory,
         private readonly logger: PinoLogger,
         private readonly metrics: AuditMetricsPort,
     ) {
@@ -45,10 +43,7 @@ export class AuditDealUseCase {
             this.metrics.recordAudit('skipped');
             return { status: 'already-audited' };
         }
-        const issues = await this.auditor.audit(
-            deal,
-            this.toolsFactory.create({ dealId: dealId.value, dealUpdatedAt: deal.updatedAt }),
-        );
+        const issues = await this.auditor.audit(deal);
         const verdict: AuditVerdict = issues.length === 0 ? 'ok' : 'violations';
         await this.auditRepository.save(
             DealAudit.create({
