@@ -28,7 +28,11 @@ export interface ClaimedDelivery extends DeliveryLease {
 export abstract class OutboxStorePort {
     abstract insertEvents(events: readonly NewOutboxEvent[]): Promise<void>;
 
-    abstract claimDueDeliveries(limit: number, now: Date): Promise<ClaimedDelivery[]>;
+    abstract claimDueDeliveries(
+        limit: number,
+        now: Date,
+        subscribers: readonly string[],
+    ): Promise<ClaimedDelivery[]>;
 
     abstract markDone(lease: DeliveryLease, processedAt: Date): Promise<boolean>;
 

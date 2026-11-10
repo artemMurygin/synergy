@@ -68,27 +68,30 @@ export class InMemoryOutboxStore extends OutboxStorePort {
         if (delivery !== undefined) delivery.claimToken = randomUUID();
     }
 
-    claimDueDeliveries = vi.fn((limit: number, now: Date): Promise<ClaimedDelivery[]> => {
-        const claimed: ClaimedDelivery[] = [];
-        const claimToken = randomUUID();
-        for (const delivery of this.deliveries) {
-            if (claimed.length >= limit) break;
-            if (delivery.status !== 'pending' || delivery.nextAttemptAt > now) continue;
-            const event = this.events.get(delivery.eventId);
-            if (event === undefined || this.hasEarlierPending(delivery, event)) continue;
-            delivery.attempts += 1;
-            delivery.nextAttemptAt = new Date(now.getTime() + this.leaseMs);
-            delivery.claimToken = claimToken;
-            claimed.push({
-                eventId: delivery.eventId,
-                subscriber: delivery.subscriber,
-                claimToken,
-                attempts: delivery.attempts,
-                event,
-            });
-        }
-        return Promise.resolve(claimed);
-    });
+    claimDueDeliveries = vi.fn(
+        (limit: number, now: Date, subscribers: readonly string[]): Promise<ClaimedDelivery[]> => {
+            const claimed: ClaimedDelivery[] = [];
+            const claimToken = randomUUID();
+            for (const delivery of this.deliveries) {
+                if (claimed.length >= limit) break;
+                if (!subscribers.includes(delivery.subscriber)) continue;
+                if (delivery.status !== 'pending' || delivery.nextAttemptAt > now) continue;
+                const event = this.events.get(delivery.eventId);
+                if (event === undefined || this.hasEarlierPending(delivery, event)) continue;
+                delivery.attempts += 1;
+                delivery.nextAttemptAt = new Date(now.getTime() + this.leaseMs);
+                delivery.claimToken = claimToken;
+                claimed.push({
+                    eventId: delivery.eventId,
+                    subscriber: delivery.subscriber,
+                    claimToken,
+                    attempts: delivery.attempts,
+                    event,
+                });
+            }
+            return Promise.resolve(claimed);
+        },
+    );
 
     markDone = vi.fn((lease: DeliveryLease, processedAt: Date): Promise<boolean> => {
         const delivery = this.leased(lease);

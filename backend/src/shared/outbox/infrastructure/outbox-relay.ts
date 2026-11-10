@@ -118,6 +118,7 @@ export class OutboxRelay
         const deliveries = await this.store.claimDueDeliveries(
             this.settings.batchSize,
             new Date(claimedAt),
+            this.registry.registeredSubscriberNames(),
         );
         const leaseExpiresAt = claimedAt + this.settings.claimLeaseMs;
         for (const [index, delivery] of deliveries.entries()) {
@@ -127,7 +128,7 @@ export class OutboxRelay
             }
             await this.deliver(delivery);
         }
-        await this.refreshPendingGauge(deliveries.length > 0);
+        await this.refreshPendingGaugeIfDue();
         return deliveries.length;
     }
 
@@ -150,12 +151,14 @@ export class OutboxRelay
         );
     }
 
-    private async refreshPendingGauge(hasProcessed: boolean): Promise<void> {
+    private async refreshPendingGaugeIfDue(): Promise<void> {
         const now = this.clock.now().getTime();
-        const isDue =
-            this.lastPendingGaugeAt === undefined ||
-            now - this.lastPendingGaugeAt >= this.settings.pendingGaugeIntervalMs;
-        if (!hasProcessed && !isDue) return;
+        if (
+            this.lastPendingGaugeAt !== undefined &&
+            now - this.lastPendingGaugeAt < this.settings.pendingGaugeIntervalMs
+        ) {
+            return;
+        }
         this.lastPendingGaugeAt = now;
         this.metrics.setPendingDeliveries(await this.store.countPendingBySubscriber());
     }

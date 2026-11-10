@@ -34,6 +34,7 @@ const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
 
 const FIRST = 'testing.first';
 const SECOND = 'testing.second';
+const SUBSCRIBERS = [FIRST, SECOND];
 const LEASE_MS = 60_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -57,7 +58,7 @@ function farFuture(offsetMs = 0): Date {
 }
 
 async function claimOne(source: OutboxStore, now: Date): Promise<ClaimedDelivery> {
-    const claimed = (await source.claimDueDeliveries(1, now)).at(0);
+    const claimed = (await source.claimDueDeliveries(1, now, SUBSCRIBERS)).at(0);
     if (claimed === undefined) throw new Error('nothing claimed');
     return claimed;
 }
@@ -133,7 +134,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
                     processed_at: null,
                 });
             }
-            const [claimed] = await store.claimDueDeliveries(1, farFuture());
+            const [claimed] = await store.claimDueDeliveries(1, farFuture(), SUBSCRIBERS);
             expect(claimed.event).toMatchObject({
                 id: event.id,
                 eventType: THING_HAPPENED,
@@ -224,7 +225,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
                 new Date(),
             );
 
-            const claimed = await store.claimDueDeliveries(50, farFuture());
+            const claimed = await store.claimDueDeliveries(50, farFuture(), SUBSCRIBERS);
 
             expect(keysOf(claimed)).toEqual([`${dueId}:${FIRST}`, `${dueId}:${SECOND}`].sort());
         });
@@ -233,12 +234,12 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const eventId = await publishCommitted('aggregate-1');
             const now = farFuture();
 
-            const claimed = await store.claimDueDeliveries(50, now);
+            const claimed = await store.claimDueDeliveries(50, now, SUBSCRIBERS);
 
             expect(claimed.map((delivery) => delivery.attempts)).toEqual([1, 1]);
-            expect(await store.claimDueDeliveries(50, now)).toEqual([]);
+            expect(await store.claimDueDeliveries(50, now, SUBSCRIBERS)).toEqual([]);
             const leaseExpired = new Date(now.getTime() + LEASE_MS);
-            const reclaimed = await store.claimDueDeliveries(50, leaseExpired);
+            const reclaimed = await store.claimDueDeliveries(50, leaseExpired, SUBSCRIBERS);
             expect(keysOf(reclaimed)).toEqual([`${eventId}:${FIRST}`, `${eventId}:${SECOND}`]);
             expect(reclaimed.map((delivery) => delivery.attempts)).toEqual([2, 2]);
         });
@@ -249,7 +250,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             await setEventCreatedAt(pool, firstId, new Date('2026-01-01T00:00:02Z'));
             await setEventCreatedAt(pool, secondId, new Date('2026-01-01T00:00:01Z'));
 
-            const claimed = await store.claimDueDeliveries(2, farFuture());
+            const claimed = await store.claimDueDeliveries(2, farFuture(), SUBSCRIBERS);
 
             expect(claimed.map((delivery) => delivery.eventId)).toEqual([secondId, secondId]);
             expect(claimed[0]?.event.createdAt).toEqual(new Date('2026-01-01T00:00:01Z'));
@@ -261,16 +262,16 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             }
             const now = farFuture();
             const claimFromOtherConnection = AsyncResource.bind(() =>
-                otherStore.claimDueDeliveries(50, now),
+                otherStore.claimDueDeliveries(50, now, SUBSCRIBERS),
             );
             let claimedByOther: ClaimedDelivery[] = [];
 
             const claimedInOpenTransaction = await runner.run(async () => {
-                const claimed = await store.claimDueDeliveries(4, now);
+                const claimed = await store.claimDueDeliveries(4, now, SUBSCRIBERS);
                 claimedByOther = await claimFromOtherConnection();
                 return claimed;
             });
-            const claimedAfterCommit = await otherStore.claimDueDeliveries(50, now);
+            const claimedAfterCommit = await otherStore.claimDueDeliveries(50, now, SUBSCRIBERS);
 
             expect(claimedInOpenTransaction).toHaveLength(4);
             expect(claimedByOther).toHaveLength(8);
@@ -286,11 +287,11 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const now = farFuture();
             const claimRounds = await Promise.all(
                 Array.from({ length: 10 }, (_, round) =>
-                    (round % 2 === 0 ? store : otherStore).claimDueDeliveries(10, now),
+                    (round % 2 === 0 ? store : otherStore).claimDueDeliveries(10, now, SUBSCRIBERS),
                 ),
             );
 
-            const remaining = await store.claimDueDeliveries(80, now);
+            const remaining = await store.claimDueDeliveries(80, now, SUBSCRIBERS);
 
             const allKeys = [...claimRounds, remaining].flatMap((claimed) => keysOf(claimed));
             expect(allKeys).toHaveLength(80);
@@ -309,17 +310,17 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             await setDeliveryStatus(pool, otherId, SECOND, 'done');
             const now = farFuture();
 
-            const firstRound = await store.claimDueDeliveries(50, now);
+            const firstRound = await store.claimDueDeliveries(50, now, SUBSCRIBERS);
             expect(keysOf(firstRound)).toEqual(
                 [`${firstId}:${FIRST}`, `${otherId}:${FIRST}`].sort(),
             );
 
             await store.scheduleRetry(await leaseDelivery(pool, firstId, FIRST), 1, now, 'boom');
-            const whileRetrying = await store.claimDueDeliveries(50, now);
+            const whileRetrying = await store.claimDueDeliveries(50, now, SUBSCRIBERS);
             expect(keysOf(whileRetrying)).toEqual([`${firstId}:${FIRST}`]);
 
             await store.markDone(await leaseDelivery(pool, firstId, FIRST), now);
-            const afterDone = await store.claimDueDeliveries(50, now);
+            const afterDone = await store.claimDueDeliveries(50, now, SUBSCRIBERS);
             expect(keysOf(afterDone)).toEqual([`${secondId}:${FIRST}`]);
         });
 
@@ -332,14 +333,14 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             await setDeliveryStatus(pool, secondId, SECOND, 'done');
             const now = farFuture();
 
-            await store.claimDueDeliveries(50, now);
+            await store.claimDueDeliveries(50, now, SUBSCRIBERS);
             await store.markFailed(
                 await leaseDelivery(pool, firstId, FIRST),
                 10,
                 'poison',
                 new Date(),
             );
-            const claimed = await store.claimDueDeliveries(50, now);
+            const claimed = await store.claimDueDeliveries(50, now, SUBSCRIBERS);
 
             expect(keysOf(claimed)).toEqual([`${secondId}:${FIRST}`]);
         });
@@ -351,9 +352,29 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             await setDeliveryStatus(pool, first.id, SECOND, 'done');
             await setDeliveryStatus(pool, second.id, SECOND, 'done');
 
-            const claimed = await store.claimDueDeliveries(50, farFuture());
+            const claimed = await store.claimDueDeliveries(50, farFuture(), SUBSCRIBERS);
 
             expect(claimed.map((delivery) => delivery.eventId)).toEqual([first.id]);
+        });
+    });
+
+    describe('OutboxStore.claimDueDeliveries subscriber filter', () => {
+        it('claims only deliveries of the subscribers known to the claiming instance', async () => {
+            const eventId = await publishCommitted('aggregate-1');
+
+            const claimed = await store.claimDueDeliveries(50, farFuture(), [FIRST]);
+
+            expect(keysOf(claimed)).toEqual([`${eventId}:${FIRST}`]);
+            expect(await readDelivery(pool, eventId, SECOND)).toMatchObject({
+                status: 'pending',
+                attempts: 0,
+            });
+        });
+
+        it('claims nothing when the instance knows no subscribers', async () => {
+            await publishCommitted('aggregate-1');
+
+            expect(await store.claimDueDeliveries(50, farFuture(), [])).toEqual([]);
         });
     });
 

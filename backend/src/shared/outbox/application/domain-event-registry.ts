@@ -125,6 +125,10 @@ export class DomainEventRegistry {
         this.subscribersByEventType.set(eventType, [...subscribers, subscriber]);
     }
 
+    registeredSubscriberNames(): readonly string[] {
+        return [...this.subscriberNames];
+    }
+
     findSubscriber(eventType: string, subscriberName: string): EventSubscriber | undefined {
         return this.subscribersByEventType
             .get(eventType)

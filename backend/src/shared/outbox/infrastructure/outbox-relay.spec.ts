@@ -320,21 +320,34 @@ describe('OutboxRelay (unit)', () => {
             expect(subscriber.received.map((event) => event.id)).toEqual([healthy.id]);
         });
 
-        it('fails a delivery whose subscriber is not registered at once', async () => {
-            const relay = createRelay(createRegistry([]));
-            const event = addThing('aggregate-1', ['testing.removed']);
+        it('leaves a delivery of a subscriber unknown to this instance for another instance', async () => {
+            const relay = createRelay(createRegistry([recordingSubscriber(FIRST)]));
+            const event = addThing('aggregate-1', ['testing.newer-version']);
+
+            expect(await relay.processBatch()).toBe(0);
+
+            expect(store.delivery(event.id, 'testing.newer-version')).toMatchObject({
+                status: 'pending',
+                attempts: 0,
+            });
+            expect(store.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('fails at once a delivery whose subscriber is not subscribed to the event type', async () => {
+            const registry = createRegistry([]);
+            registry.subscribe('testing.other', recordingSubscriber(SECOND));
+            const relay = createRelay(registry);
+            const event = addThing('aggregate-1', [SECOND]);
 
             await relay.processBatch();
 
-            expect(store.delivery(event.id, 'testing.removed')).toMatchObject({
+            expect(store.delivery(event.id, SECOND)).toMatchObject({
                 status: 'failed',
                 attempts: 1,
                 lastError: 'Subscriber is not registered',
             });
             expect(store.scheduleRetry).not.toHaveBeenCalled();
-            expect(metrics.processed).toEqual([
-                { subscriber: 'testing.removed', result: 'failed' },
-            ]);
+            expect(metrics.processed).toEqual([{ subscriber: SECOND, result: 'failed' }]);
         });
 
         it('schedules a retry when the subscriber exceeds the handler timeout', async () => {
@@ -450,6 +463,22 @@ describe('OutboxRelay (unit)', () => {
             await relay.processBatch();
             expect(store.countPendingBySubscriber).toHaveBeenCalledTimes(1);
             expect(Object.fromEntries(metrics.pendingSnapshots.at(-1) ?? new Map())).toEqual({});
+        });
+
+        it('refreshes the pending gauge at most once per interval under load', async () => {
+            const relay = createRelay(createRegistry([recordingSubscriber(FIRST)]));
+            addThing('aggregate-1', [FIRST]);
+            await relay.processBatch();
+            store.countPendingBySubscriber.mockClear();
+
+            addThing('aggregate-2', [FIRST]);
+            expect(await relay.processBatch()).toBe(1);
+            expect(store.countPendingBySubscriber).not.toHaveBeenCalled();
+
+            clock.advance(PENDING_GAUGE_INTERVAL_MS);
+            addThing('aggregate-3', [FIRST]);
+            await relay.processBatch();
+            expect(store.countPendingBySubscriber).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -711,7 +740,7 @@ describe.skipIf(adminUrl === undefined)('OutboxRelay (integration)', () => {
         await publish(createRegistry([recordingSubscriber(FIRST)]), [event]);
         const clock = futureClock();
         const crashedStore = new OutboxStore(otherRunner, settings);
-        await crashedStore.claimDueDeliveries(BATCH_SIZE, clock.now());
+        await crashedStore.claimDueDeliveries(BATCH_SIZE, clock.now(), [FIRST]);
 
         const subscriber = recordingSubscriber(FIRST);
         const restartedRelay = relayFor(createRegistry([subscriber]), runner, clock);

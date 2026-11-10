@@ -16,6 +16,10 @@ export class RealtimeRedisNotConnectedError extends BaseError {
     readonly code = 'REALTIME.REDIS_NOT_CONNECTED';
 }
 
+export class UnsupportedHttpServerError extends BaseError {
+    readonly code = 'REALTIME.UNSUPPORTED_HTTP_SERVER';
+}
+
 export interface ClusteredIoAdapterOptions {
     readonly redis: RedisOptions;
     readonly logger: PinoLogger;
@@ -50,7 +54,7 @@ export class ClusteredIoAdapter extends IoAdapter {
     ): ClusteredIoAdapter {
         const httpServer: unknown = app.getHttpServer();
         if (!isHttpServer(httpServer)) {
-            throw new TypeError('The application must run on a node:http server');
+            throw new UnsupportedHttpServerError('The application must run on a node:http server');
         }
         return new ClusteredIoAdapter(httpServer, settings, options);
     }

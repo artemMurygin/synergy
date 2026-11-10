@@ -53,7 +53,12 @@ export class OutboxStore extends OutboxStorePort {
         }
     }
 
-    async claimDueDeliveries(limit: number, now: Date): Promise<ClaimedDelivery[]> {
+    async claimDueDeliveries(
+        limit: number,
+        now: Date,
+        subscribers: readonly string[],
+    ): Promise<ClaimedDelivery[]> {
+        if (subscribers.length === 0) return [];
         const leaseUntil = new Date(now.getTime() + this.settings.claimLeaseMs);
         const claimToken = randomUUID();
         const rows = await this.transactions.executor().any(sql.unsafe`
@@ -63,6 +68,7 @@ export class OutboxStore extends OutboxStorePort {
                 JOIN outbox_events e ON e.id = d.event_id
                 WHERE d.status = 'pending'
                   AND d.next_attempt_at <= ${sql.timestamp(now)}
+                  AND d.subscriber = ANY(${sql.array([...subscribers], 'text')})
                   AND NOT EXISTS (
                       SELECT 1
                       FROM outbox_deliveries earlier
