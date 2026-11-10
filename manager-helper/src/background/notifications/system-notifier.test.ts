@@ -120,6 +120,35 @@ describe('system-notifier: click', () => {
     expect(await takePendingTarget()).toEqual({ kind: 'task', taskId: 't1' })
   })
 
+  it('opens the panel synchronously inside the click so the user gesture is kept', async () => {
+    const { notifier } = setup()
+    await notifier.showNotification(
+      makeNotification('n1', '2026-11-10T09:00:00.000Z', { taskId: 't1' }),
+    )
+    chromeFake.notifications.onClicked.emit('n1')
+    expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({ windowId: 7 })
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'task', taskId: 't1' })
+    })
+  })
+
+  it('opens the panel in the most recently focused window', async () => {
+    const { notifier } = setup()
+    await notifier.showNotification(makeNotification('n1', '2026-11-10T09:00:00.000Z'))
+    chromeFake.windows.onFocusChanged.emit(12)
+    chromeFake.windows.onFocusChanged.emit(chromeFake.windows.WINDOW_ID_NONE)
+    chromeFake.notifications.onClicked.emit('n1')
+    expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({ windowId: 12 })
+  })
+
+  it('opens the panel in the current window when no window is known yet', () => {
+    setup()
+    chromeFake.notifications.onClicked.emit(SUMMARY_NOTIFICATION_ID)
+    expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({
+      windowId: chromeFake.windows.WINDOW_ID_CURRENT,
+    })
+  })
+
   it('opens the notifications list after a click on the summary', async () => {
     const { notifier, markRead } = setup()
     await notifier.showSummary(7)

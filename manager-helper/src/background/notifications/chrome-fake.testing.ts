@@ -96,6 +96,9 @@ export function createChromeFake() {
       open: vi.fn<(options: { windowId: number }) => Promise<void>>(() => Promise.resolve()),
     },
     windows: {
+      WINDOW_ID_NONE: -1,
+      WINDOW_ID_CURRENT: -2,
+      onFocusChanged: new FakeEvent<(windowId: number) => void>(),
       getLastFocused: vi.fn(() => Promise.resolve({ id: 7 })),
       update: vi.fn<(windowId: number, info: { focused: boolean }) => Promise<{ id: number }>>(() =>
         Promise.resolve({ id: 7 }),

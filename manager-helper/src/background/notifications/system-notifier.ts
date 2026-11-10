@@ -40,18 +40,35 @@ function toPendingTarget(target: NotificationTarget | null): PendingTarget {
   return target?.type === 'task' ? { kind: 'task', taskId: target.id } : { kind: 'notifications' }
 }
 
-async function openPanel(): Promise<void> {
+async function focusLastWindow(): Promise<void> {
   const focused = await chrome.windows.getLastFocused()
-  const windowId = focused.id
-  if (windowId === undefined) return
-  try {
-    await chrome.sidePanel.open({ windowId })
-  } catch {
-    await chrome.windows.update(windowId, { focused: true })
-  }
+  if (focused.id === undefined) return
+  await chrome.windows.update(focused.id, { focused: true })
 }
 
 export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
+  let lastFocusedWindowId: number | undefined
+
+  const handleFocusChanged = (windowId: number): void => {
+    if (windowId !== chrome.windows.WINDOW_ID_NONE) lastFocusedWindowId = windowId
+  }
+
+  function rememberLastFocusedWindow(): void {
+    void chrome.windows
+      .getLastFocused()
+      .then((focused) => {
+        lastFocusedWindowId ??= focused.id
+      })
+      .catch((error: unknown) => {
+        console.warn('Last focused window lookup failed', error)
+      })
+  }
+
+  function openPanel(): Promise<void> {
+    const windowId = lastFocusedWindowId ?? chrome.windows.WINDOW_ID_CURRENT
+    return chrome.sidePanel.open({ windowId }).catch(focusLastWindow)
+  }
+
   async function create(notificationId: string, title: string, message: string): Promise<void> {
     await chrome.notifications.create(notificationId, {
       type: 'basic',
@@ -69,8 +86,7 @@ export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
     return toPendingTarget(await deps.seen.findTarget(notificationId))
   }
 
-  async function handleClick(notificationId: string): Promise<void> {
-    const panelOpened = openPanel()
+  async function handleClick(notificationId: string, panelOpened: Promise<void>): Promise<void> {
     const target = await targetOf(notificationId)
     await Promise.all([
       setPendingTarget(target),
@@ -80,15 +96,18 @@ export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
   }
 
   const handleClicked = (notificationId: string): void => {
-    void handleClick(notificationId).catch((error: unknown) => {
+    void handleClick(notificationId, openPanel()).catch((error: unknown) => {
       console.warn('Notification click handling failed', error)
     })
   }
 
   return {
     attach() {
+      chrome.windows.onFocusChanged.addListener(handleFocusChanged)
       chrome.notifications.onClicked.addListener(handleClicked)
+      rememberLastFocusedWindow()
       return () => {
+        chrome.windows.onFocusChanged.removeListener(handleFocusChanged)
         chrome.notifications.onClicked.removeListener(handleClicked)
       }
     },
