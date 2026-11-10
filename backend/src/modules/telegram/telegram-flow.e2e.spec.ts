@@ -15,15 +15,20 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { RequestContextMiddleware } from '../../shared/context/request-context.middleware';
 import { HttpExceptionFilter } from '../../shared/http/http-exception.filter';
+import { OutboxSettings } from '../../shared/outbox/infrastructure/outbox-settings';
 import { OutboxModule } from '../../shared/outbox/outbox.module';
 import {
     connectTestRedis,
     disconnectTestRedis,
     testRedisOptions,
 } from '../../shared/testing/test-redis';
+import { PostgresModule } from '../../database/postgres/postgres.module';
+import { FindActiveUserUseCase } from '../auth/application/find-active-user.use-case';
 import { AuthModule } from '../auth/auth.module';
+import { UserRepository } from '../auth/domain/ports/user-repository.port';
 import { AccessTokenService } from '../auth/domain/ports/access-token-service.port';
 import { JwtAccessTokenService } from '../auth/infrastructure/jwt-access-token.service';
+import { SlonikUserRepository } from '../auth/infrastructure/slonik-user.repository';
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { PasswordChangeGuard } from '../auth/interface/http/password-change.guard';
@@ -47,6 +52,9 @@ const DELIVERY_DEADLINE_MS = 3_000;
 const RETRY_DEADLINE_MS = 8_000;
 const QUIET_PERIOD_MS = 500;
 const RETRY_AFTER_SECONDS = 2;
+const HANDLER_TIMEOUT_MS = 1_000;
+const SLOW_SEND_MS = 2_500;
+const RESERVATION_MS = 120_000;
 
 const linkTokenSchema = z.object({ url: z.string(), expiresAt: z.string() });
 const linkStatusSchema = z.object({
@@ -68,12 +76,15 @@ const tokens = new JwtAccessTokenService({
 });
 
 @Module({
+    imports: [PostgresModule],
     providers: [
         { provide: AccessTokenService, useValue: tokens },
+        { provide: UserRepository, useClass: SlonikUserRepository },
+        FindActiveUserUseCase,
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PasswordChangeGuard },
     ],
-    exports: [AccessTokenService],
+    exports: [AccessTokenService, FindActiveUserUseCase],
 })
 class AuthStubModule {}
 
@@ -252,6 +263,21 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
         throw new Error(`Telegram delivery of task ${taskId} did not finish`);
     }
 
+    async function waitForTelegramSent(taskId: string): Promise<void> {
+        const deadline = Date.now() + RETRY_DEADLINE_MS;
+        while (Date.now() < deadline) {
+            const result = await client.query<{ status: string }>(
+                `SELECT t.status FROM telegram_deliveries t
+                 JOIN notifications n ON n.id = t.notification_id
+                 WHERE n.target_id = $1`,
+                [taskId],
+            );
+            if (result.rows[0]?.status === 'sent') return;
+            await pause(50);
+        }
+        throw new Error(`Telegram message for task ${taskId} was not recorded as sent`);
+    }
+
     async function waitForSends(user: TelegramUser, count: number, ms: number): Promise<void> {
         const deadline = Date.now() + ms;
         while (Date.now() < deadline) {
@@ -308,7 +334,7 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
                             TELEGRAM_WEBHOOK_URL: 'https://backend.example.test/telegram/webhook',
                             TELEGRAM_WEBHOOK_SECRET: WEBHOOK_SECRET,
                             TELEGRAM_LINK_TOKEN_TTL_SECONDS: 600,
-                            TELEGRAM_DELIVERY_RESERVATION_MS: 120_000,
+                            TELEGRAM_DELIVERY_RESERVATION_MS: RESERVATION_MS,
                             TELEGRAM_API_BASE_URL: stub.baseUrl,
                         }),
                     ],
@@ -323,6 +349,16 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
         })
             .overrideModule(AuthModule)
             .useModule(AuthStubModule)
+            .overrideProvider(OutboxSettings)
+            .useValue(
+                new OutboxSettings({
+                    pollIntervalMs: 100,
+                    batchSize: 20,
+                    maxAttempts: 5,
+                    retentionDays: 7,
+                    handlerTimeoutMs: HANDLER_TIMEOUT_MS,
+                }),
+            )
             .compile();
         app = moduleRef.createNestApplication({ logger: false });
         const requestContext = new RequestContextMiddleware();
@@ -461,6 +497,35 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
         expect(attempts).toHaveLength(2);
         const [limitedAt = 0, retriedAt = 0] = attempts;
         expect(retriedAt - limitedAt).toBeGreaterThanOrEqual(RETRY_AFTER_SECONDS * 1000);
+    }, 15_000);
+
+    it('sends one message when the outbox retries a delivery whose send outlived the handler timeout', async () => {
+        const boris = await addUser('boris');
+        await linkTelegram(boris);
+        sends = [];
+        let isFirstSend = true;
+        sendMessageReply = () => {
+            if (!isFirstSend) return sentOk();
+            isFirstSend = false;
+            return { ...sentOk(), delayMs: SLOW_SEND_MS };
+        };
+
+        const taskId = await createTask(anna.id, {
+            title: 'Медленный Telegram',
+            assigneeId: boris.id,
+        });
+
+        await waitForTelegramSent(taskId);
+        await pause(SLOW_SEND_MS);
+        expect(sendsTo(boris)).toHaveLength(1);
+        const retried = await client.query<{ status: string; attempts: number }>(
+            `SELECT d.status, d.attempts FROM outbox_deliveries d
+             JOIN outbox_events e ON e.id = d.event_id
+             JOIN notifications n ON n.id::text = e.aggregate_id
+             WHERE n.target_id = $1 AND d.subscriber = $2`,
+            [taskId, TELEGRAM_SUBSCRIBER],
+        );
+        expect(retried.rows[0]?.attempts).toBeGreaterThanOrEqual(1);
     }, 15_000);
 
     it('delivers over WebSocket while Telegram is failing', async () => {

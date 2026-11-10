@@ -1,3 +1,5 @@
+import { normalizeBotUsername } from './bot-username';
+
 export const BOT_COMMAND_NAMES = ['start', 'help', 'unlink', 'mute', 'unmute'] as const;
 
 export type BotCommandName = (typeof BOT_COMMAND_NAMES)[number];
@@ -8,10 +10,6 @@ const MENTION_SEPARATOR = '@';
 
 function isBotCommandName(name: string): name is BotCommandName {
     return BOT_COMMAND_NAMES.some((commandName) => commandName === name);
-}
-
-function normalizeBotUsername(botUsername: string): string {
-    return botUsername.trim().replace(/^@/, '').toLowerCase();
 }
 
 export class BotCommand {
@@ -28,7 +26,7 @@ export class BotCommand {
         const mentionIndex = head.indexOf(MENTION_SEPARATOR);
         if (mentionIndex !== -1) {
             const mention = head.slice(mentionIndex + 1).toLowerCase();
-            if (mention !== normalizeBotUsername(botUsername)) return null;
+            if (mention !== normalizeBotUsername(botUsername).toLowerCase()) return null;
         }
         const name = head.slice(1, mentionIndex === -1 ? undefined : mentionIndex).toLowerCase();
         if (!isBotCommandName(name)) return null;

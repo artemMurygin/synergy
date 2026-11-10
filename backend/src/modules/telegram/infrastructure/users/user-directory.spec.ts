@@ -5,6 +5,8 @@ import { createPool, sql, type DatabasePool } from 'slonik';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../../database/postgres/migrator';
 import { TransactionRunner } from '../../../../database/postgres/transaction-runner';
+import { FindActiveUserUseCase } from '../../../auth/application/find-active-user.use-case';
+import { SlonikUserRepository } from '../../../auth/infrastructure/slonik-user.repository';
 import { UserDirectoryPort } from '../../application/ports/user-directory.port';
 import { UserDirectory } from './user-directory';
 
@@ -48,7 +50,9 @@ describe.skipIf(adminUrl === undefined)('UserDirectory', () => {
             pool,
             new PinoLogger({ pinoHttp: { level: 'silent' } }),
         );
-        directory = new UserDirectory(transactions);
+        directory = new UserDirectory(
+            new FindActiveUserUseCase(new SlonikUserRepository(pool, transactions)),
+        );
     }, 60_000);
 
     afterAll(async () => {

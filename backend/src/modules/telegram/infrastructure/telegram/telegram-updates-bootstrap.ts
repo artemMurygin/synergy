@@ -25,7 +25,15 @@ export class TelegramUpdatesBootstrap implements OnApplicationBootstrap {
             await this.registerWebhook();
             return;
         }
-        await this.attempt('deleteWebhook', () => this.client.deleteWebhook());
+        const isWebhookRemoved = await this.attempt('deleteWebhook', () =>
+            this.client.deleteWebhook(),
+        );
+        if (!isWebhookRemoved) {
+            this.logger.warn(
+                { mode },
+                'Telegram webhook may still be set, polling can hit conflicts until it is removed',
+            );
+        }
         this.poller.start();
         this.logger.info({ mode }, 'Telegram updates polling started');
     }

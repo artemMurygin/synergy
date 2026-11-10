@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../../database/postgres/migrator';
 import { TransactionRunner } from '../../../../database/postgres/transaction-runner';
 import type { DeliveryReservation } from '../../domain/ports/telegram-delivery-log.port';
-import { TelegramDeliveryLog } from './telegram-delivery-log';
+import { DeliveryLogInsideTransactionError, TelegramDeliveryLog } from './telegram-delivery-log';
 
 const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
 
@@ -36,6 +36,7 @@ describe.skipIf(adminUrl === undefined)('TelegramDeliveryLog', () => {
     const databaseName = `telegram_deliveries_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     let client: Client;
     let pool: DatabasePool;
+    let transactions: TransactionRunner;
     let deliveryLog: TelegramDeliveryLog;
     let boris: string;
 
@@ -77,9 +78,11 @@ describe.skipIf(adminUrl === undefined)('TelegramDeliveryLog', () => {
         client = new Client({ connectionString: databaseUrl });
         await client.connect();
         pool = await createPool(databaseUrl);
-        deliveryLog = new TelegramDeliveryLog(
-            new TransactionRunner(pool, new PinoLogger({ pinoHttp: { level: 'silent' } })),
+        transactions = new TransactionRunner(
+            pool,
+            new PinoLogger({ pinoHttp: { level: 'silent' } }),
         );
+        deliveryLog = new TelegramDeliveryLog(transactions);
     }, 60_000);
 
     afterAll(async () => {
@@ -238,6 +241,25 @@ describe.skipIf(adminUrl === undefined)('TelegramDeliveryLog', () => {
             await deliveryLog.release(notificationId);
 
             expect((await rowOf(notificationId))?.status).toBe('sent');
+        });
+    });
+
+    describe('inside a surrounding transaction', () => {
+        it('refuses every write so a reservation is never hidden until someone else commits', async () => {
+            const notificationId = await addNotification();
+            const writes: (() => Promise<unknown>)[] = [
+                () => reserve(notificationId, T0),
+                () => deliveryLog.markSent({ notificationId, messageId: 1n, sentAt: T0 }),
+                () => deliveryLog.markSkipped(notificationId),
+                () => deliveryLog.release(notificationId),
+            ];
+
+            for (const write of writes) {
+                await expect(transactions.run(write)).rejects.toBeInstanceOf(
+                    DeliveryLogInsideTransactionError,
+                );
+            }
+            expect(await rowOf(notificationId)).toBeNull();
         });
     });
 });

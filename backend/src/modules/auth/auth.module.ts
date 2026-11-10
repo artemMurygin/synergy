@@ -12,6 +12,7 @@ import { Redis } from 'ioredis';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
 import { ChangePasswordUseCase } from './application/change-password.use-case';
+import { FindActiveUserUseCase } from './application/find-active-user.use-case';
 import { GetCurrentUserUseCase } from './application/get-current-user.use-case';
 import { ListActiveUsersUseCase } from './application/list-active-users.use-case';
 import { LoginThrottler, LoginThrottlerLimits } from './application/login-throttler';
@@ -71,6 +72,7 @@ class RedisLifecycle implements OnApplicationShutdown {
         LogoutUseCase,
         ChangePasswordUseCase,
         GetCurrentUserUseCase,
+        FindActiveUserUseCase,
         ListActiveUsersUseCase,
         SeedUsersUseCase,
         LoginThrottler,
@@ -126,7 +128,7 @@ class RedisLifecycle implements OnApplicationShutdown {
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PasswordChangeGuard },
     ],
-    exports: [AccessTokenService],
+    exports: [AccessTokenService, FindActiveUserUseCase],
 })
 export class AuthModule implements OnModuleInit {
     onModuleInit(): void {

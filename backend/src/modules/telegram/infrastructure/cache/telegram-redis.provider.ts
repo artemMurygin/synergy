@@ -1,36 +1,33 @@
-import {
-    Inject,
-    Injectable,
-    Logger,
-    type OnApplicationShutdown,
-    type Provider,
-} from '@nestjs/common';
+import { Inject, Injectable, type OnApplicationShutdown, type Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import { PinoLogger } from 'nestjs-pino';
 import type { Env } from '../../../../shared/config/env.schema';
 import { TELEGRAM_REDIS } from './telegram-redis.token';
 
 const REDIS_COMMAND_TIMEOUT_MS = 1000;
 
+export function createTelegramRedis(config: ConfigService<Env, true>, logger: PinoLogger): Redis {
+    logger.setContext('TelegramRedis');
+    const client = new Redis({
+        host: config.get('REDIS_HOST', { infer: true }),
+        port: config.get('REDIS_PORT', { infer: true }),
+        password: config.get('REDIS_PASSWORD', { infer: true }),
+        db: config.get('REDIS_DB', { infer: true }),
+        lazyConnect: true,
+        commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
+        maxRetriesPerRequest: 1,
+    });
+    client.on('error', (error: Error) => {
+        logger.error({ err: error }, 'Telegram Redis client failed');
+    });
+    return client;
+}
+
 export const telegramRedisProvider: Provider = {
     provide: TELEGRAM_REDIS,
-    inject: [ConfigService],
-    useFactory: (config: ConfigService<Env, true>): Redis => {
-        const client = new Redis({
-            host: config.get('REDIS_HOST', { infer: true }),
-            port: config.get('REDIS_PORT', { infer: true }),
-            password: config.get('REDIS_PASSWORD', { infer: true }),
-            db: config.get('REDIS_DB', { infer: true }),
-            lazyConnect: true,
-            commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
-            maxRetriesPerRequest: 1,
-        });
-        const logger = new Logger('TelegramRedis');
-        client.on('error', (error: Error) => {
-            logger.error(error.message);
-        });
-        return client;
-    },
+    inject: [ConfigService, PinoLogger],
+    useFactory: createTelegramRedis,
 };
 
 @Injectable()

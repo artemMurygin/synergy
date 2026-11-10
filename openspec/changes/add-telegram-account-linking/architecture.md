@@ -53,11 +53,11 @@
 |---|---|---|
 | **Порты и адаптеры модуля `telegram`** | | |
 | `TelegramLinkRepositoryPort` / `TelegramLinkRepository` | port: domain; adapter: `infrastructure/persistence` | Чтение и запись `telegram_links` через `executor()` текущей транзакции |
-| `TelegramDeliveryLogPort` / `TelegramDeliveryLog` | port: domain; adapter: `infrastructure/persistence` | Журнал отправки `telegram_deliveries`: бронь, фиксация отправки, пропуск, снятие брони |
+| `TelegramDeliveryLogPort` / `TelegramDeliveryLog` | port: domain; adapter: `infrastructure/persistence` | Журнал отправки `telegram_deliveries`: бронь, фиксация отправки, пропуск, снятие брони. Каждая запись коммитится сразу; внутри открытой транзакции адаптер бросает `DeliveryLogInsideTransactionError` (design, решение 7) |
 | `LinkTokenStorePort` / `LinkTokenStore` | port: domain; adapter: `infrastructure/cache` (Redis) | `SET EX` по хешу токена, атомарное погашение через `GETDEL` |
 | `UpdateDeduplicatorPort` / `UpdateDeduplicator` | port: application; adapter: `infrastructure/cache` (Redis) | `SET NX EX 86400` по `update_id` |
 | `BotMessengerPort` / `BotMessenger` | port: application; adapter: `infrastructure/telegram` | Отправка сообщения в чат. Ошибки классифицированы (`TransientDeliveryError`, `RetryLaterDeliveryError`, `ChatUnavailableError`, `PermanentDeliveryError`) |
-| `UserDirectoryPort` / `UserDirectory` | port: application; adapter: `infrastructure/users` (через публичный контракт `auth`) | `findActiveById(userId)` → `{ id, login }` или `null` |
+| `UserDirectoryPort` / `UserDirectory` | port: application; adapter: `infrastructure/users` (через публичный контракт `auth`: `FindActiveUserUseCase`, экспортируется из `AuthModule`) | `findActiveById(userId)` → `{ id, login }` или `null` |
 | `TelegramSettingsPort` / `TelegramSettings` | port: application; adapter: `infrastructure/config` | Токен, имя бота, режим обновлений, webhook, TTL токена, `isConfigured()` |
 | `FreeTextHandlerPort` / `NotSupportedFreeTextHandler` | port: application; adapter: application | Точка расширения для будущего агента. Сейчас отвечает «пока не поддерживается» |
 | `ClockPort` / `Clock` | port: domain; adapter: infrastructure | Текущее время, для тестов |
@@ -113,8 +113,10 @@
 | `SetTelegramNotificationsUseCase.execute` | `userId: string, isEnabled: boolean` | `Promise<TelegramLinkStatusView>` | `TelegramNotLinkedError` |
 | `BotUpdateDispatcher.dispatch` | `update: unknown` | `Promise<void>` | Никогда не бросает: ошибки логируются |
 | `IdentityResolver.resolve` | `identity: TelegramIdentity` | `Promise<BotSender>` | — |
-| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Свежая чужая бронь → `RetryLaterDeliveryError`. При заблокированном боте снимает привязку |
-| `BotApiClient.call` | `method: BotMethod, params: object, schema: ZodSchema<TResult>` | `Promise<TResult>` | Общий вызов с классификацией ошибок |
+| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Вызывается вне транзакции relay (`ChannelDeliverySubscriber.isTransactional = false`). Свежая чужая бронь → `RetryLaterDeliveryError`. При заблокированном боте снимает привязку |
+| `BotApiClient.sendMessage` / `setWebhook` / `deleteWebhook` / `getUpdates` | типизированные параметры метода | результат метода | Общий вызов `call` закрытый (private): классификация ошибок и проверка ответа zod |
+| `FindActiveUserUseCase.execute` (`auth`) | `userId: string` | `Promise<{ id: string; login: string } \| null>` | Публичный контракт `auth` для других модулей |
+| `EventSubscriber.isTransactional` (`shared/outbox`) | — | `boolean \| undefined` | `false` — relay вызывает подписчика вне своей транзакции и пишет `done` отдельно |
 | `TelegramWebhookController.receive` | `secret: header, body: unknown` | `Promise<void>` (200) | 401 при неверном секрете |
 
 **REST-контракт** (все `/telegram/link*` требуют access-токен):
@@ -208,6 +210,12 @@ Miro link: https://miro.com/app/board/uXjVEP6UhAI=/?moveToWidget=345876469002913
 - **Дополнительные состояния:** `issuing` (выпуск ссылки), `unlinking` («Отключаем…»), `TELEGRAM_NOT_CONFIGURED` в ответ на выпуск ссылки при открытом диалоге, скелетон загрузки статуса в mh. Пока статус не загружен, пункт меню в cc не показывается.
 - **cc:** подтверждение отключения — отдельный диалог поверх `TelegramDialog` (по образцу `Confirm Delete Dialog`), кнопка «Готово» в подключённом состоянии. Новый компонент `components/ui/switch` (shadcn, Radix уже установлен).
 - **mh:** время привязки показывается, в шапке раздела бейдж статуса.
+
+## Уточнения после code review
+
+- **Канал вне транзакции outbox.** Подписчики `notifications.channel.*` объявляют `isTransactional = false`: relay вызывает их без своей транзакции и пишет `done` отдельно. Журнал `telegram_deliveries` коммитит каждую запись сразу и отказывается работать внутри транзакции. Вызов Bot API не держит соединение пула и блокировку строки (design, решение 7).
+- **Каталог пользователей** читается через `FindActiveUserUseCase` из `AuthModule`, а не SQL по `auth_users`.
+- **Redis-клиент модуля** логирует ошибки через `PinoLogger` (`{ err }`, постоянное сообщение).
 
 ## Confirmation Checklist
 - [x] Названия entity/aggregate/VO согласованы

@@ -2,6 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { Env } from '../../../../shared/config/env.schema';
 import { ArgumentNotProvidedError, ArgumentOutOfRangeError } from '../../../../shared/errors';
 import type { OutboxSettings } from '../../../../shared/outbox/infrastructure/outbox-settings';
+import { normalizeBotUsername } from '../../domain/bot-username';
 import {
     TelegramSettingsPort,
     type TelegramUpdatesMode,
@@ -44,7 +45,7 @@ export class TelegramSettings extends TelegramSettingsPort {
             );
         }
         this.#botToken = values.botToken ?? null;
-        this.botUsername = normalizeBotUsername(values.botUsername);
+        this.botUsername = configuredBotUsername(values.botUsername);
         this.updatesMode = values.updatesMode;
         this.webhook = resolveWebhook(values);
         this.linkTokenTtlSeconds = values.linkTokenTtlSeconds;
@@ -87,9 +88,9 @@ export class TelegramSettings extends TelegramSettingsPort {
     }
 }
 
-function normalizeBotUsername(botUsername: string | undefined): string | null {
+function configuredBotUsername(botUsername: string | undefined): string | null {
     if (botUsername === undefined) return null;
-    const normalized = botUsername.trim().replace(/^@/, '');
+    const normalized = normalizeBotUsername(botUsername);
     return normalized === '' ? null : normalized;
 }
 

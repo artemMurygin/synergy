@@ -37,7 +37,6 @@ describe('TelegramWebhookController', () => {
     const logger = new PinoLogger({ pinoHttp: { level: 'silent' } });
     const dispatch = vi.spyOn(dispatcher, 'dispatch');
     const warn = vi.spyOn(logger, 'warn');
-    const error = vi.spyOn(logger, 'error');
 
     function post(headers: Record<string, string>, body: unknown = UPDATE): Promise<Response> {
         return fixture.call('POST', '/telegram/webhook', { headers, body });
@@ -70,7 +69,6 @@ describe('TelegramWebhookController', () => {
         dispatch.mockReset();
         dispatch.mockResolvedValue('handled');
         warn.mockClear();
-        error.mockClear();
         vi.mocked(timingSafeEqual).mockClear();
         metrics.results.length = 0;
     });
@@ -117,17 +115,6 @@ describe('TelegramWebhookController', () => {
 
         expect(response.status).toBe(200);
         expect(metrics.results).toEqual(['failed']);
-    });
-
-    it('still answers 200 and logs when the dispatcher throws unexpectedly', async () => {
-        const failure = new Error('boom');
-        dispatch.mockRejectedValue(failure);
-
-        const response = await post({ [SECRET_HEADER]: WEBHOOK_SECRET });
-
-        expect(response.status).toBe(200);
-        expect(metrics.results).toEqual(['failed']);
-        expect(error).toHaveBeenCalledWith({ err: failure }, 'Telegram update processing failed');
     });
 });
 

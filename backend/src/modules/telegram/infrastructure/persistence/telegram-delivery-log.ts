@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { sql } from 'slonik';
+import { sql, type CommonQueryMethods } from 'slonik';
 import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../../database/postgres/transaction-runner.port';
+import { BaseError } from '../../../../shared/errors';
 import {
     TelegramDeliveryLogPort,
     type DeliveryReservation,
@@ -18,6 +19,10 @@ const deliveryStateRow = z.object({
     status: z.enum(['sending', 'sent', 'skipped']),
     reserved_at: z.number(),
 });
+
+export class DeliveryLogInsideTransactionError extends BaseError {
+    readonly code = 'TELEGRAM.DELIVERY_LOG_INSIDE_TRANSACTION';
+}
 
 @Injectable()
 export class TelegramDeliveryLog extends TelegramDeliveryLogPort {
@@ -37,7 +42,7 @@ export class TelegramDeliveryLog extends TelegramDeliveryLogPort {
     }
 
     async markSent(delivery: SentDelivery): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+        await this.autocommitExecutor().query(sql.unsafe`
             UPDATE telegram_deliveries
             SET status = 'sent',
                 message_id = ${delivery.messageId.toString()}::bigint,
@@ -46,20 +51,20 @@ export class TelegramDeliveryLog extends TelegramDeliveryLogPort {
     }
 
     async markSkipped(notificationId: string): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+        await this.autocommitExecutor().query(sql.unsafe`
             UPDATE telegram_deliveries SET status = 'skipped'
             WHERE notification_id = ${notificationId} AND status = 'sending'`);
     }
 
     async release(notificationId: string): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+        await this.autocommitExecutor().query(sql.unsafe`
             DELETE FROM telegram_deliveries
             WHERE notification_id = ${notificationId} AND status = 'sending'`);
     }
 
     private async tryReserve(request: DeliveryReservationRequest): Promise<boolean> {
         const staleBefore = new Date(request.now.getTime() - request.reservationMs);
-        const row = await this.transactions.executor().maybeOne(
+        const row = await this.autocommitExecutor().maybeOne(
             sql.type(reservedRow)`
                 INSERT INTO telegram_deliveries (notification_id, user_id, status, reserved_at)
                 VALUES (${request.notificationId}, ${request.userId}, 'sending',
@@ -76,9 +81,18 @@ export class TelegramDeliveryLog extends TelegramDeliveryLogPort {
     private async findState(
         notificationId: string,
     ): Promise<z.infer<typeof deliveryStateRow> | null> {
-        const row = await this.transactions.executor().maybeOne(sql.unsafe`
+        const row = await this.autocommitExecutor().maybeOne(sql.unsafe`
             SELECT status, ${millisColumn('reserved_at')}
             FROM telegram_deliveries WHERE notification_id = ${notificationId}`);
         return row === null ? null : deliveryStateRow.parse(row);
+    }
+
+    private autocommitExecutor(): CommonQueryMethods {
+        if (this.transactions.isInTransaction()) {
+            throw new DeliveryLogInsideTransactionError(
+                'Telegram delivery log must commit each write on its own',
+            );
+        }
+        return this.transactions.executor();
     }
 }

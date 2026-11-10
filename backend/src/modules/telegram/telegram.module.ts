@@ -4,6 +4,7 @@ import type { Redis } from 'ioredis';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
 import { OutboxSettings } from '../../shared/outbox/infrastructure/outbox-settings';
+import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { BotUpdateDispatcher } from './application/bot-update-dispatcher';
 import { GetTelegramLinkStatusUseCase } from './application/get-telegram-link-status.use-case';
@@ -61,7 +62,7 @@ import { TelegramWebhookController } from './interface/http/telegram-webhook.con
 import { registerTelegramErrorStatuses } from './interface/telegram-error-status';
 
 @Module({
-    imports: [PostgresModule, NotificationsModule],
+    imports: [PostgresModule, AuthModule, NotificationsModule],
     controllers: [TelegramLinkController, TelegramWebhookController],
     providers: [
         {

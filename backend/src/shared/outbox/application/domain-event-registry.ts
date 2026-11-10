@@ -48,6 +48,7 @@ export interface EventRegistration<TEvent extends DomainEvent, TPayload> {
 
 export interface EventSubscriber {
     readonly name: string;
+    readonly isTransactional?: boolean;
     handle(event: DomainEvent): Promise<void>;
 }
 

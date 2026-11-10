@@ -165,7 +165,7 @@ describe('TelegramUpdatesPoller (real Redis)', () => {
         );
     });
 
-    it('keeps polling when the dispatcher throws for one update', async () => {
+    it('keeps polling after an update that failed', async () => {
         const holder = await createInstance();
         const batches: unknown[][] = [[update(20), update(21)]];
         holder.stub.respond('getUpdates', () => ({
@@ -173,7 +173,7 @@ describe('TelegramUpdatesPoller (real Redis)', () => {
             body: { ok: true, result: batches.shift() ?? [] },
             delayMs: 30,
         }));
-        holder.dispatch.mockRejectedValueOnce(new Error('boom'));
+        holder.dispatch.mockResolvedValueOnce('failed');
 
         holder.poller.start();
         await waitFor(() => holder.polls() >= 2);

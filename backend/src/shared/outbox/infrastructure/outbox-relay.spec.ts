@@ -182,6 +182,48 @@ describe('OutboxRelay (unit)', () => {
             expect(transactions.commits).toBe(1);
         });
 
+        it('runs a subscriber that declines the transaction outside of it and then marks done', async () => {
+            let wasInTransaction = true;
+            const subscriber: EventSubscriber = {
+                ...recordingSubscriber(FIRST, () => {
+                    wasInTransaction = transactions.isInTransaction();
+                    return Promise.resolve();
+                }),
+                isTransactional: false,
+            };
+            const relay = createRelay(createRegistry([subscriber]));
+            const event = addThing('aggregate-1', [FIRST]);
+
+            await relay.processBatch();
+
+            expect(wasInTransaction).toBe(false);
+            expect(transactions.commits).toBe(0);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'done' });
+            expect(metrics.processed).toEqual([{ subscriber: FIRST, result: 'done' }]);
+        });
+
+        it('discards the result of a subscriber outside the transaction whose lease was lost', async () => {
+            const subscriber: EventSubscriber = {
+                ...recordingSubscriber(FIRST, () => {
+                    store.takeOverLease(event.id, FIRST);
+                    return Promise.resolve();
+                }),
+                isTransactional: false,
+            };
+            const relay = createRelay(createRegistry([subscriber]));
+            const event = addThing('aggregate-1', [FIRST]);
+            const warn = vi.spyOn(logger, 'warn');
+
+            await relay.processBatch();
+
+            expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'pending' });
+            expect(metrics.processed).toEqual([]);
+            expect(warn).toHaveBeenCalledWith(
+                expect.objectContaining({ eventId: event.id, subscriber: FIRST }),
+                'Outbox delivery lease was lost, result discarded',
+            );
+        });
+
         it('runs the subscriber with the correlation id of the event', async () => {
             let seenCorrelationId = '';
             const subscriber = recordingSubscriber(FIRST, () => {

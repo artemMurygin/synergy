@@ -9,6 +9,7 @@ import { BaseError } from '../../errors';
 import {
     DomainEventRegistry,
     InvalidEventPayloadError,
+    type EventSubscriber,
     UnknownEventError,
 } from '../application/domain-event-registry';
 import { OutboxClockPort } from '../application/outbox-clock.port';
@@ -226,14 +227,7 @@ export class OutboxRelay
             return;
         }
         try {
-            await this.withHandlerTimeout(
-                this.transactions.run(async () => {
-                    await subscriber.handle(event);
-                    if (!(await this.store.markDone(delivery, this.clock.now()))) {
-                        throw new DeliveryLeaseLostError('Delivery lease was lost');
-                    }
-                }),
-            );
+            await this.withHandlerTimeout(this.runSubscriber(subscriber, delivery, event));
         } catch (error: unknown) {
             if (error instanceof DeliveryLeaseLostError) {
                 this.reportLeaseLost(delivery);
@@ -250,6 +244,20 @@ export class OutboxRelay
         const lagSeconds =
             (this.clock.now().getTime() - delivery.event.createdAt.getTime()) / MS_IN_SECOND;
         this.metrics.observeDeliveryLag(subscriberName, lagSeconds);
+    }
+
+    private runSubscriber(
+        subscriber: EventSubscriber,
+        delivery: ClaimedDelivery,
+        event: DomainEvent,
+    ): Promise<void> {
+        const work = async (): Promise<void> => {
+            await subscriber.handle(event);
+            if (!(await this.store.markDone(delivery, this.clock.now()))) {
+                throw new DeliveryLeaseLostError('Delivery lease was lost');
+            }
+        };
+        return subscriber.isTransactional === false ? work() : this.transactions.run(work);
     }
 
     private async withHandlerTimeout(work: Promise<void>): Promise<void> {

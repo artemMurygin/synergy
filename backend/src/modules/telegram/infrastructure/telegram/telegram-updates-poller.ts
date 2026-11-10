@@ -1,7 +1,7 @@
 import { Inject, Injectable, type OnModuleDestroy, Optional } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
-import { BotUpdateDispatcher, type DispatchOutcome } from '../../application/bot-update-dispatcher';
+import { BotUpdateDispatcher } from '../../application/bot-update-dispatcher';
 import { TransientDeliveryError } from '../../application/errors';
 import { TelegramUpdateMetricsPort } from '../../application/ports/telegram-update-metrics.port';
 import { PollerLock } from '../cache/poller-lock';
@@ -144,17 +144,7 @@ export class TelegramUpdatesPoller implements OnModuleDestroy {
         if (parsed.success) {
             this.offset = Math.max(this.offset, parsed.data.update_id + 1);
         }
-        let outcome: DispatchOutcome;
-        try {
-            outcome = await this.dispatcher.dispatch(update);
-        } catch (error: unknown) {
-            this.logger.error(
-                { err: error, updateId: parsed.data?.update_id },
-                'Telegram update processing failed',
-            );
-            outcome = 'failed';
-        }
-        this.metrics.recordUpdate(outcome);
+        this.metrics.recordUpdate(await this.dispatcher.dispatch(update));
     }
 
     private async renew(hold: AbortController): Promise<void> {

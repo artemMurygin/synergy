@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { InvalidLinkTokenSettingsError } from './errors';
+import { MS_IN_SECOND } from './time-units';
 
 const TOKEN_BYTES = 24;
 const WELL_FORMED_TOKEN = /^[A-Za-z0-9_-]{32}$/;
-const MS_IN_SECOND = 1000;
 const DEEP_LINK_BASE_URL = 'https://t.me/';
 
 function digestValue(value: string): string {

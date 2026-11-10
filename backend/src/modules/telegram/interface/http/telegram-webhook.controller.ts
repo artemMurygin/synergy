@@ -11,7 +11,7 @@ import {
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PinoLogger } from 'nestjs-pino';
 import { Public } from '../../../auth/interface/http/decorators';
-import { BotUpdateDispatcher, type DispatchOutcome } from '../../application/bot-update-dispatcher';
+import { BotUpdateDispatcher } from '../../application/bot-update-dispatcher';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
 import { TelegramUpdateMetricsPort } from '../../application/ports/telegram-update-metrics.port';
 
@@ -56,15 +56,6 @@ export class TelegramWebhookController {
             this.logger.warn({}, 'Telegram webhook secret rejected');
             throw new UnauthorizedException();
         }
-        this.metrics.recordUpdate(await this.dispatch(update));
-    }
-
-    private async dispatch(update: unknown): Promise<DispatchOutcome> {
-        try {
-            return await this.dispatcher.dispatch(update);
-        } catch (error: unknown) {
-            this.logger.error({ err: error }, 'Telegram update processing failed');
-            return 'failed';
-        }
+        this.metrics.recordUpdate(await this.dispatcher.dispatch(update));
     }
 }

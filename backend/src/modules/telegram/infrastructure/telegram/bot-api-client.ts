@@ -8,6 +8,7 @@ import {
 import { ChatUnavailableError, TransientDeliveryError } from '../../application/errors';
 import type { SentBotMessage } from '../../application/ports/bot-messenger.port';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
+import { MS_IN_SECOND } from '../../domain/time-units';
 
 export const BOT_API_TIMEOUTS = Symbol('BOT_API_TIMEOUTS');
 
@@ -50,7 +51,6 @@ const HTTP_STATUS_FORBIDDEN = 403;
 const HTTP_STATUS_CONFLICT = 409;
 const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 const HTTP_STATUS_SERVER_ERROR_MIN = 500;
-const MS_IN_SECOND = 1000;
 const REDACTED = '[redacted]';
 const NO_DESCRIPTION = 'no description';
 const UNAVAILABLE_CHAT_BY_STATUS = new Map<number, RegExp>([
@@ -123,7 +123,7 @@ export class BotApiClient {
         );
     }
 
-    async call<TResult>(
+    private async call<TResult>(
         method: BotMethod,
         params: Record<string, unknown>,
         schema: z.ZodType<TResult>,

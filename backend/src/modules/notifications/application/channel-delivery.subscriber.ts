@@ -15,6 +15,8 @@ export function channelSubscriberName(channel: string): string {
 export class ChannelDeliverySubscriber implements EventSubscriber {
     readonly name: string;
 
+    readonly isTransactional = false;
+
     constructor(
         private readonly channel: NotificationChannelPort,
         private readonly notifications: NotificationRepositoryPort,

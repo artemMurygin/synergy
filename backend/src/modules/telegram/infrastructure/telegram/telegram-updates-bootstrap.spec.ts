@@ -55,6 +55,7 @@ describe('TelegramUpdatesBootstrap', () => {
         bootstrap: TelegramUpdatesBootstrap;
         start: MockInstance<TelegramUpdatesPoller['start']>;
         error: MockInstance<PinoLogger['error']>;
+        warn: MockInstance<PinoLogger['warn']>;
     } {
         const settings = testTelegramSettings({ apiBaseUrl: stub.baseUrl, ...overrides });
         const client = new BotApiClient(settings);
@@ -68,8 +69,9 @@ describe('TelegramUpdatesBootstrap', () => {
         const start = vi.spyOn(poller, 'start').mockImplementation(() => undefined);
         const logger = silentLogger();
         const error = vi.spyOn(logger, 'error');
+        const warn = vi.spyOn(logger, 'warn');
         const bootstrap = new TelegramUpdatesBootstrap(settings, client, poller, logger);
-        return { bootstrap, start, error };
+        return { bootstrap, start, error, warn };
     }
 
     it('registers the webhook with the secret and only message updates in webhook mode', async () => {
@@ -96,12 +98,13 @@ describe('TelegramUpdatesBootstrap', () => {
     });
 
     it('removes the webhook and starts the poller in polling mode', async () => {
-        const { bootstrap, start } = bootstrapFor({ updatesMode: 'polling' });
+        const { bootstrap, start, warn } = bootstrapFor({ updatesMode: 'polling' });
 
         await bootstrap.onApplicationBootstrap();
 
         expect(stub.requests.map((request) => request.method)).toEqual(['deleteWebhook']);
         expect(start).toHaveBeenCalledOnce();
+        expect(warn).not.toHaveBeenCalled();
     });
 
     it('does nothing in off mode', async () => {
@@ -149,11 +152,15 @@ describe('TelegramUpdatesBootstrap', () => {
             status: 502,
             body: { ok: false, description: 'Bad Gateway' },
         });
-        const { bootstrap, start, error } = bootstrapFor({ updatesMode: 'polling' });
+        const { bootstrap, start, error, warn } = bootstrapFor({ updatesMode: 'polling' });
 
         await bootstrap.onApplicationBootstrap();
 
         expect(start).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledWith(
+            { mode: 'polling' },
+            'Telegram webhook may still be set, polling can hit conflicts until it is removed',
+        );
         expect(error).toHaveBeenCalledWith(
             expect.objectContaining({ method: 'deleteWebhook' }),
             'Telegram updates setup failed',

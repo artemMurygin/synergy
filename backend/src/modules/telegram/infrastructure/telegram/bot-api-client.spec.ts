@@ -1,7 +1,6 @@
 import { createServer } from 'node:net';
 import { stdSerializers } from 'pino';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
 import {
     PermanentDeliveryError,
     RetryLaterDeliveryError,
@@ -146,14 +145,6 @@ describe('BotApiClient', () => {
                 timeout: 25,
                 allowed_updates: ['message'],
             });
-        });
-
-        it('validates the result with the given schema in a generic call', async () => {
-            stub.respond('getUpdates', { status: 200, body: { ok: true, result: [] } });
-
-            await expect(
-                client.call('getUpdates', { timeout: 0 }, z.array(z.unknown())),
-            ).resolves.toEqual([]);
         });
     });
 

@@ -73,6 +73,16 @@ describe('ChannelDeliverySubscriber', () => {
         expect(channelSubscriberName('realtime')).toBe('notifications.channel.realtime');
     });
 
+    it('runs outside the outbox transaction so a channel never holds it during external calls', () => {
+        const subscriber = new ChannelDeliverySubscriber(
+            new FakeChannel('telegram'),
+            notifications,
+            metrics,
+        );
+
+        expect(subscriber.isTransactional).toBe(false);
+    });
+
     it('loads the notification and the unread count and hands them to the channel', async () => {
         const channel = new FakeChannel('realtime');
         const first = makeNotification({ recipientId: 'boris' });
