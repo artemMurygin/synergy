@@ -114,7 +114,7 @@ transactions.run(async () => {
 ### 5. Аутентификация соединения
 
 - Клиент передаёт access-токен в `handshake.auth.token`. Query-строка не используется, чтобы токен не попадал в логи прокси.
-- В `handleConnection` шлюз проверяет токен через порт `ConnectionAuthenticatorPort`. Адаптер порта использует `AccessTokenService` из `auth`. При ошибке отправляется `error` с кодом (`token_invalid` или `token_expired`), и соединение закрывается.
+- В `handleConnection` шлюз проверяет токен через порт `ConnectionAuthenticatorPort`. Адаптер порта использует `AccessTokenService` из `auth`. При отказе отправляется `connection_error` с кодом (`token_invalid`, `token_expired`, `password_change_required`, `origin_not_allowed`), и соединение закрывается; эти коды для клиента окончательные. При неожиданной ошибке на сервере отправляется `server_error`: соединение закрывается, клиент переподключается с экспоненциальной задержкой.
 - Пользователь с `mustChangePassword` получает отказ с кодом `password_change_required`, как и на REST.
 - Сервер закрывает соединение в момент `exp` токена, предварительно отправив `auth_expired`. Клиент socket.io передаёт `auth` функцией, которая при каждом переподключении берёт свежий токен (с обновлением при необходимости). Поэтому переподключение после истечения токена происходит автоматически.
 - Проверка origin: браузерные origin сверяются с `AUTH_ALLOWED_ORIGINS`. Соединения без `Origin` из Electron main пропускаются: в них нет cookie-аутентификации, и без валидного токена они всё равно не пройдут.
