@@ -120,4 +120,14 @@ describe('TasksApp', () => {
     expect(screen.getByRole('heading', { name: 'Отчёт' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Назад' })).toBeTruthy()
   })
+
+  it('opens the details of a requested task, and "Задача не найдена" for a deleted one', async () => {
+    const { rerender } = render(<TasksApp switcher={null} requestedTaskId="b" />)
+    expect(await screen.findByRole('heading', { name: 'КП' })).toBeTruthy()
+    vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
+    rerender(<TasksApp switcher={null} requestedTaskId="gone" />)
+    expect((await screen.findByRole('status', { name: 'Сообщение' })).textContent).toMatch(
+      /Задача не найдена/,
+    )
+  })
 })

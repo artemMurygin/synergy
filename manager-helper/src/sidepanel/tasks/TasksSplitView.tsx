@@ -21,10 +21,14 @@ export function TasksSplitView({
   userId,
   login,
   switcher,
+  requestedTaskId = null,
+  onTaskRequestHandled,
 }: {
   userId: string
   login: string
   switcher: ReactNode
+  requestedTaskId?: string | null
+  onTaskRequestHandled?: () => void
 }) {
   const tasks = useTasks(userId)
   const { reload } = tasks
@@ -36,6 +40,18 @@ export function TasksSplitView({
   const [detailsVersion, setDetailsVersion] = useState(0)
   const panes = tasksPaneVisibility(widthPx, selectedId)
   const createButton = useRef<HTMLButtonElement>(null)
+
+  const [openedRequest, setOpenedRequest] = useState<string | null>(null)
+  if (requestedTaskId !== openedRequest) {
+    setOpenedRequest(requestedTaskId)
+    if (requestedTaskId !== null) {
+      setSelectedId(requestedTaskId)
+      setMessage(null)
+    }
+  }
+  useEffect(() => {
+    if (requestedTaskId !== null) onTaskRequestHandled?.()
+  }, [requestedTaskId, onTaskRequestHandled])
 
   // Focus goes back to "+" once the create sheet is closed.
   const wasCreating = useRef(false)

@@ -259,3 +259,32 @@ describe('TasksSplitView views and search', () => {
     expect(listTasks).not.toHaveBeenCalled()
   })
 })
+
+describe('TasksSplitView requested task', () => {
+  it('opens the details of the requested task and reports it handled', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 380 })
+    const onTaskRequestHandled = vi.fn()
+    render(
+      <TasksSplitView
+        userId="u1"
+        login="anna"
+        switcher={null}
+        requestedTaskId="b"
+        onTaskRequestHandled={onTaskRequestHandled}
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: 'КП' })).toBeTruthy()
+    expect(getTask).toHaveBeenCalledWith('b')
+    expect(onTaskRequestHandled).toHaveBeenCalledTimes(1)
+  })
+
+  it('switches to a task requested later', async () => {
+    const { rerender } = render(
+      <TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId={null} />,
+    )
+    await screen.findByRole('button', { name: 'Отчёт' })
+    expect(screen.getByText('Выберите задачу')).toBeTruthy()
+    rerender(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="a" />)
+    expect(await screen.findByRole('heading', { name: 'Отчёт' })).toBeTruthy()
+  })
+})

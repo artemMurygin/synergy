@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { NotificationDto } from '@/shared/notifications/notifications-schema'
 
 type AnyListener = (...args: never[]) => unknown
 
@@ -121,7 +122,7 @@ export function makeNotification(
   id: string,
   createdAt: string,
   overrides: Partial<{ title: string; body: string; taskId: string }> = {},
-) {
+): NotificationDto {
   return {
     id,
     type: 'task.assigned',
