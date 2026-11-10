@@ -7,6 +7,7 @@ import { AppLoggerModule } from './shared/logger/app-logger.module';
 import { MetricsModule } from './shared/metrics/metrics.module';
 import { MssqlModule } from './database/mssql/mssql.module';
 import { HealthModule } from './shared/health/health.module';
+import { OutboxModule } from './shared/outbox/outbox.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
@@ -19,6 +20,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
         MssqlModule,
         MetricsModule,
         HealthModule,
+        OutboxModule,
         AuthModule,
         AuditAgentModule,
         SheetsQaModule,
