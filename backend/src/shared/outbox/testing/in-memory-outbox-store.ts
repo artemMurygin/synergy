@@ -1,14 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 import {
     OutboxStorePort,
     type ClaimedDelivery,
+    type DeliveryLease,
     type NewOutboxEvent,
     type StoredOutboxEvent,
 } from '../application/outbox-store.port';
 import { OutboxClockPort } from '../application/outbox-clock.port';
 import { OutboxMetricsPort, type OutboxDeliveryResult } from '../application/outbox-metrics.port';
 
-const LEASE_MS = 60_000;
+const DEFAULT_LEASE_MS = 60_000;
 
 export interface InMemoryDelivery {
     readonly eventId: string;
@@ -18,6 +20,7 @@ export interface InMemoryDelivery {
     nextAttemptAt: Date;
     lastError: string | null;
     processedAt: Date | null;
+    claimToken: string | null;
 }
 
 export class InMemoryOutboxStore extends OutboxStorePort {
@@ -25,7 +28,10 @@ export class InMemoryOutboxStore extends OutboxStorePort {
 
     readonly deliveries: InMemoryDelivery[] = [];
 
-    constructor(private readonly clock: OutboxClockPort) {
+    constructor(
+        private readonly clock: OutboxClockPort,
+        private readonly leaseMs = DEFAULT_LEASE_MS,
+    ) {
         super();
     }
 
@@ -41,6 +47,7 @@ export class InMemoryOutboxStore extends OutboxStorePort {
                 nextAttemptAt: createdAt,
                 lastError: null,
                 processedAt: null,
+                claimToken: null,
             });
         }
     }
@@ -56,18 +63,26 @@ export class InMemoryOutboxStore extends OutboxStorePort {
         return Promise.resolve();
     });
 
+    takeOverLease(eventId: string, subscriber: string): void {
+        const delivery = this.delivery(eventId, subscriber);
+        if (delivery !== undefined) delivery.claimToken = randomUUID();
+    }
+
     claimDueDeliveries = vi.fn((limit: number, now: Date): Promise<ClaimedDelivery[]> => {
         const claimed: ClaimedDelivery[] = [];
+        const claimToken = randomUUID();
         for (const delivery of this.deliveries) {
             if (claimed.length >= limit) break;
             if (delivery.status !== 'pending' || delivery.nextAttemptAt > now) continue;
             const event = this.events.get(delivery.eventId);
             if (event === undefined || this.hasEarlierPending(delivery, event)) continue;
             delivery.attempts += 1;
-            delivery.nextAttemptAt = new Date(now.getTime() + LEASE_MS);
+            delivery.nextAttemptAt = new Date(now.getTime() + this.leaseMs);
+            delivery.claimToken = claimToken;
             claimed.push({
                 eventId: delivery.eventId,
                 subscriber: delivery.subscriber,
+                claimToken,
                 attempts: delivery.attempts,
                 event,
             });
@@ -75,52 +90,59 @@ export class InMemoryOutboxStore extends OutboxStorePort {
         return Promise.resolve(claimed);
     });
 
-    markDone = vi.fn((eventId: string, subscriber: string, processedAt: Date): Promise<void> => {
-        const delivery = this.delivery(eventId, subscriber);
-        if (delivery !== undefined) {
-            delivery.status = 'done';
-            delivery.lastError = null;
-            delivery.processedAt = processedAt;
-        }
-        return Promise.resolve();
+    markDone = vi.fn((lease: DeliveryLease, processedAt: Date): Promise<boolean> => {
+        const delivery = this.leased(lease);
+        if (delivery === undefined) return Promise.resolve(false);
+        delivery.status = 'done';
+        delivery.lastError = null;
+        delivery.processedAt = processedAt;
+        delivery.claimToken = null;
+        return Promise.resolve(true);
     });
 
     scheduleRetry = vi.fn(
         (
-            eventId: string,
-            subscriber: string,
+            lease: DeliveryLease,
             attempt: number,
             nextAttemptAt: Date,
             error: string,
-        ): Promise<void> => {
-            const delivery = this.delivery(eventId, subscriber);
-            if (delivery !== undefined) {
-                delivery.attempts = attempt;
-                delivery.nextAttemptAt = nextAttemptAt;
-                delivery.lastError = error;
-            }
-            return Promise.resolve();
+        ): Promise<boolean> => {
+            const delivery = this.leased(lease);
+            if (delivery === undefined) return Promise.resolve(false);
+            delivery.attempts = attempt;
+            delivery.nextAttemptAt = nextAttemptAt;
+            delivery.lastError = error;
+            delivery.claimToken = null;
+            return Promise.resolve(true);
         },
     );
 
     markFailed = vi.fn(
         (
-            eventId: string,
-            subscriber: string,
+            lease: DeliveryLease,
             attempts: number,
             error: string,
             processedAt: Date,
-        ): Promise<void> => {
-            const delivery = this.delivery(eventId, subscriber);
-            if (delivery !== undefined) {
-                delivery.status = 'failed';
-                delivery.attempts = attempts;
-                delivery.lastError = error;
-                delivery.processedAt = processedAt;
-            }
-            return Promise.resolve();
+        ): Promise<boolean> => {
+            const delivery = this.leased(lease);
+            if (delivery === undefined) return Promise.resolve(false);
+            delivery.status = 'failed';
+            delivery.attempts = attempts;
+            delivery.lastError = error;
+            delivery.processedAt = processedAt;
+            delivery.claimToken = null;
+            return Promise.resolve(true);
         },
     );
+
+    releaseClaim = vi.fn((lease: DeliveryLease): Promise<boolean> => {
+        const delivery = this.leased(lease);
+        if (delivery === undefined) return Promise.resolve(false);
+        delivery.attempts -= 1;
+        delivery.nextAttemptAt = new Date(delivery.nextAttemptAt.getTime() - this.leaseMs);
+        delivery.claimToken = null;
+        return Promise.resolve(true);
+    });
 
     deleteProcessedBefore = vi.fn((before: Date): Promise<number> => {
         let deletedCount = 0;
@@ -146,6 +168,11 @@ export class InMemoryOutboxStore extends OutboxStorePort {
         }
         return Promise.resolve(pendingBySubscriber);
     });
+
+    private leased(lease: DeliveryLease): InMemoryDelivery | undefined {
+        const delivery = this.delivery(lease.eventId, lease.subscriber);
+        return delivery?.claimToken === lease.claimToken ? delivery : undefined;
+    }
 
     private hasEarlierPending(delivery: InMemoryDelivery, event: StoredOutboxEvent): boolean {
         return this.deliveries.some((other) => {

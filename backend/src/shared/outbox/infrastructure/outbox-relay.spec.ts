@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { PinoLogger } from 'nestjs-pino';
-import type { DatabasePool } from 'slonik';
+import { sql, type DatabasePool } from 'slonik';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InMemoryTransactionRunner } from '../../../database/postgres/testing/in-memory-transaction-runner';
 import { TransactionRunner } from '../../../database/postgres/transaction-runner';
@@ -44,6 +44,8 @@ const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 3;
 const LEASE_MS = 60_000;
 const RETRY_STEP_MS = 10 * 60 * SECOND_MS;
+const HANDLER_TIMEOUT_MS = 20_000;
+const PENDING_GAUGE_INTERVAL_MS = 15_000;
 
 const settings = new OutboxSettings({
     pollIntervalMs: POLL_INTERVAL_MS,
@@ -51,6 +53,8 @@ const settings = new OutboxSettings({
     maxAttempts: MAX_ATTEMPTS,
     retentionDays: 7,
     claimLeaseMs: LEASE_MS,
+    handlerTimeoutMs: HANDLER_TIMEOUT_MS,
+    pendingGaugeIntervalMs: PENDING_GAUGE_INTERVAL_MS,
 });
 
 const silentLogger = (): PinoLogger => new PinoLogger({ pinoHttp: { level: 'silent' } });
@@ -187,8 +191,7 @@ describe('OutboxRelay (unit)', () => {
                 lastError: 'subscriber failed',
             });
             expect(store.scheduleRetry).toHaveBeenCalledWith(
-                event.id,
-                SECOND,
+                expect.objectContaining({ eventId: event.id, subscriber: SECOND }),
                 1,
                 new Date(START.getTime() + SECOND_MS),
                 'subscriber failed',
@@ -228,8 +231,7 @@ describe('OutboxRelay (unit)', () => {
                 lastError: 'down',
             });
             expect(store.markFailed).toHaveBeenCalledWith(
-                event.id,
-                FIRST,
+                expect.objectContaining({ eventId: event.id, subscriber: FIRST }),
                 MAX_ATTEMPTS,
                 'down',
                 new Date(START.getTime() + (MAX_ATTEMPTS - 1) * RETRY_STEP_MS),
@@ -318,20 +320,112 @@ describe('OutboxRelay (unit)', () => {
             expect(subscriber.received.map((event) => event.id)).toEqual([healthy.id]);
         });
 
-        it('retries a delivery whose subscriber is not registered on this instance', async () => {
+        it('fails a delivery whose subscriber is not registered at once', async () => {
             const relay = createRelay(createRegistry([]));
             const event = addThing('aggregate-1', ['testing.removed']);
 
             await relay.processBatch();
 
             expect(store.delivery(event.id, 'testing.removed')).toMatchObject({
-                status: 'pending',
+                status: 'failed',
                 attempts: 1,
+                lastError: 'Subscriber is not registered',
             });
+            expect(store.scheduleRetry).not.toHaveBeenCalled();
+            expect(metrics.processed).toEqual([
+                { subscriber: 'testing.removed', result: 'failed' },
+            ]);
+        });
+
+        it('schedules a retry when the subscriber exceeds the handler timeout', async () => {
+            vi.useFakeTimers();
+            try {
+                const hanging = recordingSubscriber(
+                    FIRST,
+                    () => new Promise<void>(() => undefined),
+                );
+                const relay = createRelay(createRegistry([hanging]));
+                const event = addThing('aggregate-1', [FIRST]);
+
+                const processing = relay.processBatch();
+                await vi.advanceTimersByTimeAsync(HANDLER_TIMEOUT_MS);
+                await processing;
+
+                expect(store.delivery(event.id, FIRST)).toMatchObject({
+                    status: 'pending',
+                    attempts: 1,
+                });
+                expect(store.delivery(event.id, FIRST)?.lastError).toContain('timed out');
+                expect(metrics.processed).toEqual([{ subscriber: FIRST, result: 'retry' }]);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not write the result of a delivery whose lease was taken over', async () => {
+            const subscriber = recordingSubscriber(FIRST, () => {
+                store.takeOverLease(event.id, FIRST);
+                return Promise.reject(new Error('subscriber failed'));
+            });
+            const relay = createRelay(createRegistry([subscriber]));
+            const event = addThing('aggregate-1', [FIRST]);
+            const warn = vi.spyOn(logger, 'warn');
+
+            await relay.processBatch();
+
+            expect(store.delivery(event.id, FIRST)).toMatchObject({
+                status: 'pending',
+                lastError: null,
+            });
+            expect(metrics.processed).toEqual([]);
+            expect(warn).toHaveBeenCalledWith(
+                expect.objectContaining({ eventId: event.id, subscriber: FIRST }),
+                'Outbox delivery lease was lost, result discarded',
+            );
+        });
+
+        it('rolls back the subscriber work when the lease is lost before done is written', async () => {
+            const subscriber = recordingSubscriber(FIRST, () => {
+                store.takeOverLease(event.id, FIRST);
+                return Promise.resolve();
+            });
+            const relay = createRelay(createRegistry([subscriber]));
+            const event = addThing('aggregate-1', [FIRST]);
+
+            await relay.processBatch();
+
+            expect(transactions.commits).toBe(0);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'pending' });
+            expect(metrics.processed).toEqual([]);
+        });
+
+        it('releases the rest of the batch when the lease would expire during the next handler', async () => {
+            const subscriber = recordingSubscriber(FIRST, () => {
+                clock.advance(LEASE_MS - HANDLER_TIMEOUT_MS);
+                return Promise.resolve();
+            });
+            const relay = createRelay(createRegistry([subscriber]));
+            const first = addThing('aggregate-1', [FIRST]);
+            const second = addThing('aggregate-2', [FIRST]);
+
+            expect(await relay.processBatch()).toBe(2);
+
+            expect(subscriber.received.map((received) => received.id)).toEqual([first.id]);
+            expect(store.delivery(first.id, FIRST)).toMatchObject({ status: 'done' });
+            expect(store.delivery(second.id, FIRST)).toMatchObject({
+                status: 'pending',
+                attempts: 0,
+            });
+            expect(store.releaseClaim).toHaveBeenCalledTimes(1);
         });
 
         it('publishes the pending deliveries gauge', async () => {
-            const relay = createRelay(createRegistry([recordingSubscriber(FIRST)]));
+            const relay = createRelay(
+                createRegistry([
+                    recordingSubscriber(FIRST),
+                    recordingSubscriber(SECOND, failingTimes(1)),
+                ]),
+            );
             addThing('aggregate-1', [FIRST, SECOND]);
 
             await relay.processBatch();
@@ -339,6 +433,23 @@ describe('OutboxRelay (unit)', () => {
             expect(Object.fromEntries(metrics.pendingSnapshots.at(-1) ?? new Map())).toEqual({
                 [SECOND]: 1,
             });
+        });
+
+        it('refreshes the pending gauge after an empty batch only once the interval has passed', async () => {
+            const relay = createRelay(createRegistry([recordingSubscriber(FIRST)]));
+            addThing('aggregate-1', [FIRST]);
+            await relay.processBatch();
+            store.countPendingBySubscriber.mockClear();
+
+            await relay.processBatch();
+            clock.advance(PENDING_GAUGE_INTERVAL_MS - 1);
+            await relay.processBatch();
+            expect(store.countPendingBySubscriber).not.toHaveBeenCalled();
+
+            clock.advance(1);
+            await relay.processBatch();
+            expect(store.countPendingBySubscriber).toHaveBeenCalledTimes(1);
+            expect(Object.fromEntries(metrics.pendingSnapshots.at(-1) ?? new Map())).toEqual({});
         });
     });
 
@@ -615,6 +726,56 @@ describe.skipIf(adminUrl === undefined)('OutboxRelay (integration)', () => {
         });
     });
 
+    it.each([
+        { outcome: 'succeeds', staleFailure: undefined },
+        { outcome: 'fails', staleFailure: new Error('stale relay failed late') },
+    ])(
+        'a relay whose lease expired and then $outcome cannot overwrite the result of the relay that took over',
+        async ({ staleFailure }) => {
+            const event = thingHappened('aggregate-1');
+            await publish(createRegistry([recordingSubscriber(FIRST)]), [event]);
+            await pool.query(sql.unsafe`
+                CREATE TABLE IF NOT EXISTS stale_side_effects (event_id uuid NOT NULL)`);
+            await pool.query(sql.unsafe`TRUNCATE stale_side_effects`);
+            const clock = futureClock();
+            let releaseStale: () => void = () => undefined;
+            const staleGate = new Promise<void>((resolve) => {
+                releaseStale = resolve;
+            });
+            let markStaleStarted: () => void = () => undefined;
+            const staleStarted = new Promise<void>((resolve) => {
+                markStaleStarted = resolve;
+            });
+            const staleSubscriber = recordingSubscriber(FIRST, async (handled) => {
+                markStaleStarted();
+                await staleGate;
+                await runner.executor().query(sql.unsafe`
+                    INSERT INTO stale_side_effects (event_id) VALUES (${handled.id})`);
+                if (staleFailure !== undefined) throw staleFailure;
+            });
+            const staleRelay = relayFor(createRegistry([staleSubscriber]), runner, clock);
+            const currentSubscriber = recordingSubscriber(FIRST);
+            const currentRelay = relayFor(createRegistry([currentSubscriber]), otherRunner, clock);
+
+            const staleProcessing = staleRelay.processBatch();
+            await staleStarted;
+            clock.advance(LEASE_MS);
+            expect(await currentRelay.processBatch()).toBe(1);
+            releaseStale();
+            await staleProcessing;
+
+            expect(currentSubscriber.received.map((received) => received.id)).toEqual([event.id]);
+            expect(await readDelivery(pool, event.id, FIRST)).toMatchObject({
+                status: 'done',
+                attempts: 2,
+                last_error: null,
+            });
+            expect(
+                await pool.anyFirst(sql.unsafe`SELECT event_id FROM stale_side_effects`),
+            ).toEqual([]);
+        },
+    );
+
     it('two relays running in parallel never process one delivery twice', async () => {
         const events = Array.from({ length: 30 }, (_, index) =>
             thingHappened(`aggregate-${String(index)}`),
@@ -693,10 +854,11 @@ describe.skipIf(adminUrl === undefined)('OutboxRelay (integration)', () => {
 
     it('updates the outbox metrics', async () => {
         const event = thingHappened('aggregate-1');
-        const registry = createRegistry([recordingSubscriber(FIRST)]);
-        await publish(createRegistry([recordingSubscriber(FIRST), recordingSubscriber(SECOND)]), [
-            event,
+        const registry = createRegistry([
+            recordingSubscriber(FIRST),
+            recordingSubscriber(SECOND, failingTimes(1)),
         ]);
+        await publish(registry, [event]);
         const metrics = new RecordingOutboxMetrics();
         const relay = relayFor(registry, runner, futureClock(), metrics);
 

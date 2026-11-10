@@ -17,6 +17,7 @@ CREATE TABLE outbox_deliveries (
   next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_error TEXT,
   processed_at TIMESTAMPTZ,
+  claim_token UUID,
   PRIMARY KEY (event_id, subscriber)
 );
 

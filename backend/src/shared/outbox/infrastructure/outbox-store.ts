@@ -1,10 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { sql } from 'slonik';
+import { sql, type FragmentSqlToken } from 'slonik';
 import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import {
     OutboxStorePort,
     type ClaimedDelivery,
+    type DeliveryLease,
     type NewOutboxEvent,
 } from '../application/outbox-store.port';
 import { OutboxSettings } from './outbox-settings';
@@ -14,6 +16,7 @@ const MAX_ERROR_LENGTH = 2000;
 const claimedRow = z.object({
     event_id: z.string(),
     subscriber: z.string(),
+    claim_token: z.string(),
     attempts: z.number(),
     event_type: z.string(),
     aggregate_id: z.string(),
@@ -52,6 +55,7 @@ export class OutboxStore extends OutboxStorePort {
 
     async claimDueDeliveries(limit: number, now: Date): Promise<ClaimedDelivery[]> {
         const leaseUntil = new Date(now.getTime() + this.settings.claimLeaseMs);
+        const claimToken = randomUUID();
         const rows = await this.transactions.executor().any(sql.unsafe`
             WITH due AS (
                 SELECT d.event_id, d.subscriber, e.created_at
@@ -74,12 +78,13 @@ export class OutboxStore extends OutboxStorePort {
             ),
             claimed AS (
                 UPDATE outbox_deliveries d
-                SET attempts = d.attempts + 1, next_attempt_at = ${sql.timestamp(leaseUntil)}
+                SET attempts = d.attempts + 1, next_attempt_at = ${sql.timestamp(leaseUntil)},
+                    claim_token = ${claimToken}
                 FROM due
                 WHERE d.event_id = due.event_id AND d.subscriber = due.subscriber
-                RETURNING d.event_id, d.subscriber, d.attempts
+                RETURNING d.event_id, d.subscriber, d.attempts, d.claim_token
             )
-            SELECT claimed.event_id, claimed.subscriber, claimed.attempts,
+            SELECT claimed.event_id, claimed.subscriber, claimed.attempts, claimed.claim_token,
                    e.event_type, e.aggregate_id, e.payload, e.metadata,
                    (extract(epoch FROM e.created_at) * 1000)::float8 AS created_at
             FROM claimed
@@ -90,6 +95,7 @@ export class OutboxStore extends OutboxStorePort {
             return {
                 eventId: row.event_id,
                 subscriber: row.subscriber,
+                claimToken: row.claim_token,
                 attempts: row.attempts,
                 event: {
                     id: row.event_id,
@@ -103,40 +109,53 @@ export class OutboxStore extends OutboxStorePort {
         });
     }
 
-    async markDone(eventId: string, subscriber: string, processedAt: Date): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+    async markDone(lease: DeliveryLease, processedAt: Date): Promise<boolean> {
+        const result = await this.transactions.executor().query(sql.unsafe`
             UPDATE outbox_deliveries
-            SET status = 'done', last_error = NULL, processed_at = ${sql.timestamp(processedAt)}
-            WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
+            SET status = 'done', last_error = NULL, processed_at = ${sql.timestamp(processedAt)},
+                claim_token = NULL
+            WHERE ${this.isHeldBy(lease)}`);
+        return result.rowCount === 1;
     }
 
     async scheduleRetry(
-        eventId: string,
-        subscriber: string,
+        lease: DeliveryLease,
         attempt: number,
         nextAttemptAt: Date,
         error: string,
-    ): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+    ): Promise<boolean> {
+        const result = await this.transactions.executor().query(sql.unsafe`
             UPDATE outbox_deliveries
             SET status = 'pending', attempts = ${attempt},
                 next_attempt_at = ${sql.timestamp(nextAttemptAt)},
-                last_error = ${truncateError(error)}
-            WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
+                last_error = ${truncateError(error)}, claim_token = NULL
+            WHERE ${this.isHeldBy(lease)}`);
+        return result.rowCount === 1;
     }
 
     async markFailed(
-        eventId: string,
-        subscriber: string,
+        lease: DeliveryLease,
         attempts: number,
         error: string,
         processedAt: Date,
-    ): Promise<void> {
-        await this.transactions.executor().query(sql.unsafe`
+    ): Promise<boolean> {
+        const result = await this.transactions.executor().query(sql.unsafe`
             UPDATE outbox_deliveries
             SET status = 'failed', attempts = ${attempts},
-                last_error = ${truncateError(error)}, processed_at = ${sql.timestamp(processedAt)}
-            WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
+                last_error = ${truncateError(error)}, processed_at = ${sql.timestamp(processedAt)},
+                claim_token = NULL
+            WHERE ${this.isHeldBy(lease)}`);
+        return result.rowCount === 1;
+    }
+
+    async releaseClaim(lease: DeliveryLease): Promise<boolean> {
+        const result = await this.transactions.executor().query(sql.unsafe`
+            UPDATE outbox_deliveries
+            SET attempts = attempts - 1,
+                next_attempt_at = next_attempt_at - ${this.settings.claimLeaseMs} * interval '1 millisecond',
+                claim_token = NULL
+            WHERE ${this.isHeldBy(lease)}`);
+        return result.rowCount === 1;
     }
 
     async deleteProcessedBefore(before: Date): Promise<number> {
@@ -162,5 +181,10 @@ export class OutboxStore extends OutboxStorePort {
                 return [row.subscriber, row.count];
             }),
         );
+    }
+
+    private isHeldBy(lease: DeliveryLease): FragmentSqlToken {
+        return sql.fragment`event_id = ${lease.eventId} AND subscriber = ${lease.subscriber}
+              AND claim_token = ${lease.claimToken}`;
     }
 }

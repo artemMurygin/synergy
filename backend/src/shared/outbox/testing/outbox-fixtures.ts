@@ -145,3 +145,21 @@ export async function setDeliveryStatus(
         UPDATE outbox_deliveries SET status = ${status}
         WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
 }
+
+export interface TestDeliveryLease {
+    readonly eventId: string;
+    readonly subscriber: string;
+    readonly claimToken: string;
+}
+
+export async function leaseDelivery(
+    pool: DatabasePool,
+    eventId: string,
+    subscriber: string,
+): Promise<TestDeliveryLease> {
+    const claimToken = randomUUID();
+    await pool.query(sql.unsafe`
+        UPDATE outbox_deliveries SET claim_token = ${claimToken}
+        WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
+    return { eventId, subscriber, claimToken };
+}

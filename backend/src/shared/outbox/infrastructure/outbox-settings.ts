@@ -1,7 +1,10 @@
 import type { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.schema';
+import { ArgumentOutOfRangeError } from '../../errors';
 
 export const DEFAULT_CLAIM_LEASE_MS = 5 * 60 * 1000;
+export const DEFAULT_HANDLER_TIMEOUT_MS = 60 * 1000;
+export const DEFAULT_PENDING_GAUGE_INTERVAL_MS = 15 * 1000;
 export const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface OutboxSettingsValues {
@@ -10,6 +13,8 @@ export interface OutboxSettingsValues {
     readonly maxAttempts: number;
     readonly retentionDays: number;
     readonly claimLeaseMs?: number;
+    readonly handlerTimeoutMs?: number;
+    readonly pendingGaugeIntervalMs?: number;
     readonly cleanupIntervalMs?: number;
 }
 
@@ -19,6 +24,8 @@ export class OutboxSettings {
     readonly maxAttempts: number;
     readonly retentionDays: number;
     readonly claimLeaseMs: number;
+    readonly handlerTimeoutMs: number;
+    readonly pendingGaugeIntervalMs: number;
     readonly cleanupIntervalMs: number;
 
     constructor(values: OutboxSettingsValues) {
@@ -27,7 +34,17 @@ export class OutboxSettings {
         this.maxAttempts = values.maxAttempts;
         this.retentionDays = values.retentionDays;
         this.claimLeaseMs = values.claimLeaseMs ?? DEFAULT_CLAIM_LEASE_MS;
+        this.handlerTimeoutMs = values.handlerTimeoutMs ?? DEFAULT_HANDLER_TIMEOUT_MS;
+        this.pendingGaugeIntervalMs =
+            values.pendingGaugeIntervalMs ?? DEFAULT_PENDING_GAUGE_INTERVAL_MS;
         this.cleanupIntervalMs = values.cleanupIntervalMs ?? CLEANUP_INTERVAL_MS;
+        if (this.handlerTimeoutMs >= this.claimLeaseMs) {
+            throw new ArgumentOutOfRangeError(
+                'Outbox handler timeout must be shorter than the claim lease',
+                undefined,
+                { handlerTimeoutMs: this.handlerTimeoutMs, claimLeaseMs: this.claimLeaseMs },
+            );
+        }
     }
 
     static fromConfig(config: ConfigService<Env, true>): OutboxSettings {

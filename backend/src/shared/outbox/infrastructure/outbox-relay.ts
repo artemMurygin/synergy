@@ -13,15 +13,30 @@ import {
 } from '../application/domain-event-registry';
 import { OutboxClockPort } from '../application/outbox-clock.port';
 import { OutboxMetricsPort } from '../application/outbox-metrics.port';
-import { OutboxStorePort, type ClaimedDelivery } from '../application/outbox-store.port';
+import {
+    OutboxStorePort,
+    type ClaimedDelivery,
+    type DeliveryLease,
+} from '../application/outbox-store.port';
 import { OutboxWakeUpPort } from '../application/outbox-wake-up.port';
 import { RetryPolicy } from '../domain/retry-policy';
 import { OutboxSettings } from './outbox-settings';
 
 export const UNKNOWN_SUBSCRIBER = 'OUTBOX.UNKNOWN_SUBSCRIBER';
 
+export const HANDLER_TIMED_OUT = 'OUTBOX.HANDLER_TIMED_OUT';
+export const DELIVERY_LEASE_LOST = 'OUTBOX.DELIVERY_LEASE_LOST';
+
 export class UnknownSubscriberError extends BaseError {
     readonly code: string = UNKNOWN_SUBSCRIBER;
+}
+
+export class HandlerTimedOutError extends BaseError {
+    readonly code: string = HANDLER_TIMED_OUT;
+}
+
+export class DeliveryLeaseLostError extends BaseError {
+    readonly code: string = DELIVERY_LEASE_LOST;
 }
 
 const WAKE_DEBOUNCE_MS = 10;
@@ -49,6 +64,8 @@ export class OutboxRelay
     private isWakeScheduled = false;
 
     private lastCleanupAt: number | undefined;
+
+    private lastPendingGaugeAt: number | undefined;
 
     private readonly runCycleDetached: () => void;
 
@@ -97,14 +114,20 @@ export class OutboxRelay
     }
 
     async processBatch(): Promise<number> {
+        const claimedAt = this.clock.now().getTime();
         const deliveries = await this.store.claimDueDeliveries(
             this.settings.batchSize,
-            this.clock.now(),
+            new Date(claimedAt),
         );
-        for (const delivery of deliveries) {
+        const leaseExpiresAt = claimedAt + this.settings.claimLeaseMs;
+        for (const [index, delivery] of deliveries.entries()) {
+            if (this.clock.now().getTime() + this.settings.handlerTimeoutMs >= leaseExpiresAt) {
+                await this.release(deliveries.slice(index));
+                break;
+            }
             await this.deliver(delivery);
         }
-        this.metrics.setPendingDeliveries(await this.store.countPendingBySubscriber());
+        await this.refreshPendingGauge(deliveries.length > 0);
         return deliveries.length;
     }
 
@@ -117,6 +140,24 @@ export class OutboxRelay
             this.logger.info({ deletedCount }, 'Outbox events cleaned up');
         }
         return deletedCount;
+    }
+
+    private async release(deliveries: readonly ClaimedDelivery[]): Promise<void> {
+        for (const delivery of deliveries) await this.store.releaseClaim(delivery);
+        this.logger.warn(
+            { releasedCount: deliveries.length },
+            'Outbox lease is running out, the rest of the batch is released',
+        );
+    }
+
+    private async refreshPendingGauge(hasProcessed: boolean): Promise<void> {
+        const now = this.clock.now().getTime();
+        const isDue =
+            this.lastPendingGaugeAt === undefined ||
+            now - this.lastPendingGaugeAt >= this.settings.pendingGaugeIntervalMs;
+        if (!hasProcessed && !isDue) return;
+        this.lastPendingGaugeAt = now;
+        this.metrics.setPendingDeliveries(await this.store.countPendingBySubscriber());
     }
 
     private schedule(delayMs: number): void {
@@ -169,22 +210,31 @@ export class OutboxRelay
     }
 
     private async handle(delivery: ClaimedDelivery, event: DomainEvent): Promise<void> {
-        const { eventId, subscriber: subscriberName } = delivery;
-        try {
-            const subscriber = this.registry.findSubscriber(
-                delivery.event.eventType,
-                subscriberName,
-            );
-            if (subscriber === undefined) {
-                throw new UnknownSubscriberError('Subscriber is not registered', undefined, {
+        const subscriberName = delivery.subscriber;
+        const subscriber = this.registry.findSubscriber(delivery.event.eventType, subscriberName);
+        if (subscriber === undefined) {
+            await this.fail(
+                delivery,
+                new UnknownSubscriberError('Subscriber is not registered', undefined, {
                     subscriber: subscriberName,
-                });
-            }
-            await this.transactions.run(async () => {
-                await subscriber.handle(event);
-                await this.store.markDone(eventId, subscriberName, this.clock.now());
-            });
+                }),
+            );
+            return;
+        }
+        try {
+            await this.withHandlerTimeout(
+                this.transactions.run(async () => {
+                    await subscriber.handle(event);
+                    if (!(await this.store.markDone(delivery, this.clock.now()))) {
+                        throw new DeliveryLeaseLostError('Delivery lease was lost');
+                    }
+                }),
+            );
         } catch (error: unknown) {
+            if (error instanceof DeliveryLeaseLostError) {
+                this.reportLeaseLost(delivery);
+                return;
+            }
             await this.retryOrFail(delivery, error);
             return;
         }
@@ -194,6 +244,29 @@ export class OutboxRelay
         this.metrics.observeDeliveryLag(subscriberName, lagSeconds);
     }
 
+    private async withHandlerTimeout(work: Promise<void>): Promise<void> {
+        const timeoutMs = this.settings.handlerTimeoutMs;
+        let timer: NodeJS.Timeout | undefined;
+        let isTimedOut = false;
+        const timeout = new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+                isTimedOut = true;
+                reject(
+                    new HandlerTimedOutError(`Subscriber timed out after ${String(timeoutMs)} ms`),
+                );
+            }, timeoutMs);
+        });
+        work.catch((error: unknown) => {
+            if (!isTimedOut || error instanceof DeliveryLeaseLostError) return;
+            this.logger.warn({ err: error }, 'Timed out outbox handler finished with an error');
+        });
+        try {
+            await Promise.race([work, timeout]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
     private async retryOrFail(delivery: ClaimedDelivery, error: unknown): Promise<void> {
         const attempt = delivery.attempts;
         if (this.retryPolicy.isExhausted(attempt)) {
@@ -201,13 +274,16 @@ export class OutboxRelay
             return;
         }
         const nextAttemptAt = this.retryPolicy.nextAttemptAt(attempt, this.clock.now());
-        await this.store.scheduleRetry(
-            delivery.eventId,
-            delivery.subscriber,
+        const isScheduled = await this.store.scheduleRetry(
+            delivery,
             attempt,
             nextAttemptAt,
             describeError(error),
         );
+        if (!isScheduled) {
+            this.reportLeaseLost(delivery);
+            return;
+        }
         this.logger.warn(
             { eventId: delivery.eventId, subscriber: delivery.subscriber, attempt, err: error },
             'Outbox delivery will be retried',
@@ -216,13 +292,16 @@ export class OutboxRelay
     }
 
     private async fail(delivery: ClaimedDelivery, error: unknown): Promise<void> {
-        await this.store.markFailed(
-            delivery.eventId,
-            delivery.subscriber,
+        const isFailed = await this.store.markFailed(
+            delivery,
             delivery.attempts,
             describeError(error),
             this.clock.now(),
         );
+        if (!isFailed) {
+            this.reportLeaseLost(delivery);
+            return;
+        }
         this.logger.error(
             {
                 eventId: delivery.eventId,
@@ -233,5 +312,12 @@ export class OutboxRelay
             'Outbox delivery failed',
         );
         this.metrics.recordProcessed(delivery.subscriber, 'failed');
+    }
+
+    private reportLeaseLost(lease: DeliveryLease): void {
+        this.logger.warn(
+            { eventId: lease.eventId, subscriber: lease.subscriber },
+            'Outbox delivery lease was lost, result discarded',
+        );
     }
 }

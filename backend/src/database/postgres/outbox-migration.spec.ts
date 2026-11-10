@@ -100,6 +100,7 @@ describe.skipIf(adminUrl === undefined)('016_outbox migration', () => {
             next_attempt_at: 'timestamp with time zone not null',
             last_error: 'text null',
             processed_at: 'timestamp with time zone null',
+            claim_token: 'uuid null',
         });
     });
 
@@ -115,7 +116,7 @@ describe.skipIf(adminUrl === undefined)('016_outbox migration', () => {
         expect(event.metadata).toEqual({});
         expect(event.created_at).toBeInstanceOf(Date);
         const [delivery] = await query(
-            `SELECT status, attempts, next_attempt_at, last_error, processed_at
+            `SELECT status, attempts, next_attempt_at, last_error, processed_at, claim_token
              FROM outbox_deliveries WHERE event_id = $1`,
             [eventId],
         );
@@ -124,6 +125,7 @@ describe.skipIf(adminUrl === undefined)('016_outbox migration', () => {
         expect(delivery.next_attempt_at).toBeInstanceOf(Date);
         expect(delivery.last_error).toBeNull();
         expect(delivery.processed_at).toBeNull();
+        expect(delivery.claim_token).toBeNull();
     });
 
     it('uses the domain event id as the primary key of outbox_events', async () => {

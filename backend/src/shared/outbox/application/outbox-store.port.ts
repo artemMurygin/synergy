@@ -14,9 +14,13 @@ export interface StoredOutboxEvent extends OutboxEventRecord {
     readonly createdAt: Date;
 }
 
-export interface ClaimedDelivery {
+export interface DeliveryLease {
     readonly eventId: string;
     readonly subscriber: string;
+    readonly claimToken: string;
+}
+
+export interface ClaimedDelivery extends DeliveryLease {
     readonly attempts: number;
     readonly event: StoredOutboxEvent;
 }
@@ -26,23 +30,23 @@ export abstract class OutboxStorePort {
 
     abstract claimDueDeliveries(limit: number, now: Date): Promise<ClaimedDelivery[]>;
 
-    abstract markDone(eventId: string, subscriber: string, processedAt: Date): Promise<void>;
+    abstract markDone(lease: DeliveryLease, processedAt: Date): Promise<boolean>;
 
     abstract scheduleRetry(
-        eventId: string,
-        subscriber: string,
+        lease: DeliveryLease,
         attempt: number,
         nextAttemptAt: Date,
         error: string,
-    ): Promise<void>;
+    ): Promise<boolean>;
 
     abstract markFailed(
-        eventId: string,
-        subscriber: string,
+        lease: DeliveryLease,
         attempts: number,
         error: string,
         processedAt: Date,
-    ): Promise<void>;
+    ): Promise<boolean>;
+
+    abstract releaseClaim(lease: DeliveryLease): Promise<boolean>;
 
     abstract deleteProcessedBefore(before: Date): Promise<number>;
 

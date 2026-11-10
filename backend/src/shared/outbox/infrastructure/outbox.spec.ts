@@ -13,6 +13,7 @@ import {
     createRegistry,
     readDelivery,
     readDeliveries,
+    leaseDelivery,
     readEventIds,
     setDeliveryStatus,
     setEventCreatedAt,
@@ -48,10 +49,17 @@ const settings = new OutboxSettings({
     maxAttempts: 10,
     retentionDays: 7,
     claimLeaseMs: LEASE_MS,
+    handlerTimeoutMs: LEASE_MS / 3,
 });
 
 function farFuture(offsetMs = 0): Date {
     return new Date(Date.now() + DAY_MS + offsetMs);
+}
+
+async function claimOne(source: OutboxStore, now: Date): Promise<ClaimedDelivery> {
+    const claimed = (await source.claimDueDeliveries(1, now)).at(0);
+    if (claimed === undefined) throw new Error('nothing claimed');
+    return claimed;
 }
 
 function keysOf(claimed: readonly ClaimedDelivery[]): string[] {
@@ -189,12 +197,32 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const laterId = await publishCommitted('aggregate-later');
             const doneId = await publishCommitted('aggregate-done');
             const failedId = await publishCommitted('aggregate-failed');
-            await store.scheduleRetry(laterId, FIRST, 1, farFuture(DAY_MS), 'boom');
-            await store.scheduleRetry(laterId, SECOND, 1, farFuture(DAY_MS), 'boom');
-            await store.markDone(doneId, FIRST, new Date());
-            await store.markDone(doneId, SECOND, new Date());
-            await store.markFailed(failedId, FIRST, 10, 'boom', new Date());
-            await store.markFailed(failedId, SECOND, 10, 'boom', new Date());
+            await store.scheduleRetry(
+                await leaseDelivery(pool, laterId, FIRST),
+                1,
+                farFuture(DAY_MS),
+                'boom',
+            );
+            await store.scheduleRetry(
+                await leaseDelivery(pool, laterId, SECOND),
+                1,
+                farFuture(DAY_MS),
+                'boom',
+            );
+            await store.markDone(await leaseDelivery(pool, doneId, FIRST), new Date());
+            await store.markDone(await leaseDelivery(pool, doneId, SECOND), new Date());
+            await store.markFailed(
+                await leaseDelivery(pool, failedId, FIRST),
+                10,
+                'boom',
+                new Date(),
+            );
+            await store.markFailed(
+                await leaseDelivery(pool, failedId, SECOND),
+                10,
+                'boom',
+                new Date(),
+            );
 
             const claimed = await store.claimDueDeliveries(50, farFuture());
 
@@ -286,11 +314,11 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
                 [`${firstId}:${FIRST}`, `${otherId}:${FIRST}`].sort(),
             );
 
-            await store.scheduleRetry(firstId, FIRST, 1, now, 'boom');
+            await store.scheduleRetry(await leaseDelivery(pool, firstId, FIRST), 1, now, 'boom');
             const whileRetrying = await store.claimDueDeliveries(50, now);
             expect(keysOf(whileRetrying)).toEqual([`${firstId}:${FIRST}`]);
 
-            await store.markDone(firstId, FIRST, now);
+            await store.markDone(await leaseDelivery(pool, firstId, FIRST), now);
             const afterDone = await store.claimDueDeliveries(50, now);
             expect(keysOf(afterDone)).toEqual([`${secondId}:${FIRST}`]);
         });
@@ -305,7 +333,12 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const now = farFuture();
 
             await store.claimDueDeliveries(50, now);
-            await store.markFailed(firstId, FIRST, 10, 'poison', new Date());
+            await store.markFailed(
+                await leaseDelivery(pool, firstId, FIRST),
+                10,
+                'poison',
+                new Date(),
+            );
             const claimed = await store.claimDueDeliveries(50, now);
 
             expect(keysOf(claimed)).toEqual([`${secondId}:${FIRST}`]);
@@ -324,13 +357,79 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
         });
     });
 
+    describe('OutboxStore lease ownership', () => {
+        it('hands out a new claim token on every claim', async () => {
+            await publishCommitted('aggregate-1');
+            const now = farFuture();
+
+            const first = await claimOne(store, now);
+            const second = await claimOne(otherStore, new Date(now.getTime() + LEASE_MS));
+
+            expect(first.claimToken).toMatch(/^[0-9a-f-]{36}$/);
+            expect(second.claimToken).toMatch(/^[0-9a-f-]{36}$/);
+            expect(second.claimToken).not.toBe(first.claimToken);
+            expect(second.eventId).toBe(first.eventId);
+        });
+
+        it('does not let a relay whose lease was taken over overwrite the result', async () => {
+            const eventId = await publishCommitted('aggregate-1');
+            await setDeliveryStatus(pool, eventId, SECOND, 'done');
+            const now = farFuture();
+            const stale = await claimOne(store, now);
+            const current = await claimOne(otherStore, new Date(now.getTime() + LEASE_MS));
+            const processedAt = new Date('2026-03-01T10:00:00Z');
+            expect(await otherStore.markDone(current, processedAt)).toBe(true);
+
+            expect(await store.markDone(stale, new Date())).toBe(false);
+            expect(await store.scheduleRetry(stale, 1, new Date(), 'late failure')).toBe(false);
+            expect(await store.markFailed(stale, 1, 'late failure', new Date())).toBe(false);
+            expect(await store.releaseClaim(stale)).toBe(false);
+
+            expect(await readDelivery(pool, eventId, FIRST)).toMatchObject({
+                status: 'done',
+                attempts: 2,
+                last_error: null,
+                processed_at: processedAt.getTime(),
+            });
+        });
+
+        it('closes the lease once the result is written', async () => {
+            await publishCommitted('aggregate-1');
+            const claimed = await claimOne(store, farFuture());
+
+            expect(await store.scheduleRetry(claimed, 1, farFuture(), 'boom')).toBe(true);
+
+            expect(await store.markDone(claimed, new Date())).toBe(false);
+        });
+
+        it('releaseClaim returns an untouched delivery to the queue without spending the attempt', async () => {
+            const eventId = await publishCommitted('aggregate-1');
+            await setDeliveryStatus(pool, eventId, SECOND, 'done');
+            const now = farFuture();
+            const claimed = await claimOne(store, now);
+
+            expect(await store.releaseClaim(claimed)).toBe(true);
+
+            expect(await claimOne(store, now)).toMatchObject({
+                eventId,
+                subscriber: FIRST,
+                attempts: 1,
+            });
+        });
+    });
+
     describe('OutboxStore state changes', () => {
         it('markDone closes the delivery and clears the error', async () => {
             const eventId = await publishCommitted('aggregate-1');
             const processedAt = new Date('2026-03-01T10:00:00Z');
-            await store.scheduleRetry(eventId, FIRST, 1, new Date(), 'boom');
+            await store.scheduleRetry(
+                await leaseDelivery(pool, eventId, FIRST),
+                1,
+                new Date(),
+                'boom',
+            );
 
-            await store.markDone(eventId, FIRST, processedAt);
+            await store.markDone(await leaseDelivery(pool, eventId, FIRST), processedAt);
 
             expect(await readDelivery(pool, eventId, FIRST)).toMatchObject({
                 status: 'done',
@@ -344,7 +443,12 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const eventId = await publishCommitted('aggregate-1');
             const nextAttemptAt = new Date('2026-03-01T10:00:05Z');
 
-            await store.scheduleRetry(eventId, FIRST, 3, nextAttemptAt, 'subscriber failed');
+            await store.scheduleRetry(
+                await leaseDelivery(pool, eventId, FIRST),
+                3,
+                nextAttemptAt,
+                'subscriber failed',
+            );
 
             expect(await readDelivery(pool, eventId, FIRST)).toMatchObject({
                 status: 'pending',
@@ -360,7 +464,12 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
 
             const processedAt = new Date('2026-03-01T10:00:07Z');
 
-            await store.markFailed(eventId, FIRST, 10, 'gave up', processedAt);
+            await store.markFailed(
+                await leaseDelivery(pool, eventId, FIRST),
+                10,
+                'gave up',
+                processedAt,
+            );
 
             expect(await readDelivery(pool, eventId, FIRST)).toMatchObject({
                 status: 'failed',
@@ -373,7 +482,12 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
         it('stores long errors truncated', async () => {
             const eventId = await publishCommitted('aggregate-1');
 
-            await store.markFailed(eventId, FIRST, 1, 'x'.repeat(10_000), new Date());
+            await store.markFailed(
+                await leaseDelivery(pool, eventId, FIRST),
+                1,
+                'x'.repeat(10_000),
+                new Date(),
+            );
 
             const delivery = await readDelivery(pool, eventId, FIRST);
             expect(delivery?.last_error?.length).toBeLessThanOrEqual(2000);
@@ -390,11 +504,16 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             }
             await setEventCreatedAt(pool, recentDoneId, new Date('2026-02-02T00:00:00Z'));
             for (const eventId of [oldDoneId, oldFailedId, oldPendingId, recentDoneId]) {
-                await store.markDone(eventId, FIRST, cutoff);
+                await store.markDone(await leaseDelivery(pool, eventId, FIRST), cutoff);
             }
-            await store.markDone(oldDoneId, SECOND, cutoff);
-            await store.markFailed(oldFailedId, SECOND, 10, 'gave up', new Date());
-            await store.markDone(recentDoneId, SECOND, cutoff);
+            await store.markDone(await leaseDelivery(pool, oldDoneId, SECOND), cutoff);
+            await store.markFailed(
+                await leaseDelivery(pool, oldFailedId, SECOND),
+                10,
+                'gave up',
+                new Date(),
+            );
+            await store.markDone(await leaseDelivery(pool, recentDoneId, SECOND), cutoff);
 
             const deletedCount = await store.deleteProcessedBefore(cutoff);
 
@@ -409,7 +528,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
         it('countPendingBySubscriber counts pending deliveries per subscriber', async () => {
             const firstId = await publishCommitted('aggregate-1');
             await publishCommitted('aggregate-2');
-            await store.markDone(firstId, FIRST, new Date());
+            await store.markDone(await leaseDelivery(pool, firstId, FIRST), new Date());
 
             const pending = await store.countPendingBySubscriber();
 
@@ -418,10 +537,11 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
 
         it('writes through the transaction executor', async () => {
             const eventId = await publishCommitted('aggregate-1');
+            const lease = await leaseDelivery(pool, eventId, FIRST);
 
             await expect(
                 runner.run(async () => {
-                    await store.markDone(eventId, FIRST, new Date());
+                    await store.markDone(lease, new Date());
                     throw new Error('rolled back');
                 }),
             ).rejects.toThrow('rolled back');
