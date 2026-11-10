@@ -1,0 +1,6 @@
+# Voice recordings and their transcripts hold real conversations: keep them local
+*.ogg
+*.mp3
+*.wav
+*.m4a
+results/
