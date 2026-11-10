@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RetryLaterDeliveryError } from '../../../../shared/outbox/domain/delivery-errors';
 import { ChatUnavailableError } from '../../application/errors';
 import { BotMessengerPort } from '../../application/ports/bot-messenger.port';
+import { RecordingMessageMetrics } from '../../application/test-doubles';
 import { BotApiStub } from '../../testing/bot-api-stub';
 import { TEST_BOT_TOKEN, testTelegramSettings } from '../../testing/telegram-settings.fixture';
 import { BotApiClient } from './bot-api-client';
@@ -12,16 +13,21 @@ const CHAT_ID = 777n;
 describe('BotMessenger', () => {
     let stub: BotApiStub;
     let messenger: BotMessenger;
+    let metrics: RecordingMessageMetrics;
 
     beforeAll(async () => {
         stub = await BotApiStub.start();
+        metrics = new RecordingMessageMetrics();
         messenger = new BotMessenger(
             new BotApiClient(testTelegramSettings({ apiBaseUrl: stub.baseUrl })),
+            metrics,
         );
     });
 
     afterEach(() => {
         stub.reset();
+        metrics.sent.length = 0;
+        metrics.errors.length = 0;
     });
 
     afterAll(async () => {
@@ -46,6 +52,7 @@ describe('BotMessenger', () => {
             method: 'sendMessage',
             body: { chat_id: '777', text: '<b>Привет</b>', parse_mode: 'HTML' },
         });
+        expect(metrics.sent).toEqual(['reply']);
     });
 
     it('passes the classified errors through', async () => {
@@ -69,5 +76,7 @@ describe('BotMessenger', () => {
             },
         });
         await expect(messenger.send(CHAT_ID, 'x')).rejects.toBeInstanceOf(RetryLaterDeliveryError);
+        expect(metrics.errors).toEqual(['chat_unavailable', 'rate_limited']);
+        expect(metrics.sent).toEqual([]);
     });
 });

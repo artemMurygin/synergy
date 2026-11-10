@@ -204,4 +204,24 @@ describe('NotificationChannelSubscriptions', () => {
         });
         expect(metrics.failures).toEqual(['telegram']);
     });
+
+    it('subscribes a channel registered by another module after the built-in channels', () => {
+        const registry = new DomainEventRegistry();
+        registerNotificationEvents(registry);
+        const subscriptions = new NotificationChannelSubscriptions(
+            registry,
+            [new FakeChannel('realtime')],
+            new InMemoryNotificationRepository(),
+            new RecordingChannelMetrics(),
+        );
+        subscriptions.onModuleInit();
+
+        subscriptions.register(new FakeChannel('telegram'));
+
+        const notification = makeNotification({ recipientId: 'boris' });
+        expect(registry.serialize(createdEvent(notification)).subscribers).toEqual([
+            'notifications.channel.realtime',
+            'notifications.channel.telegram',
+        ]);
+    });
 });

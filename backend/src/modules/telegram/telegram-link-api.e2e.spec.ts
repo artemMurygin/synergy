@@ -24,6 +24,7 @@ import { RequestRateCounter } from './infrastructure/cache/request-rate-counter'
 import type { TelegramSettings } from './infrastructure/config/telegram-settings';
 import { TelegramLinkRepository } from './infrastructure/persistence/telegram-link.repository';
 import { BotApiClient } from './infrastructure/telegram/bot-api-client';
+import { RecordingMessageMetrics } from './application/test-doubles';
 import { BotMessenger } from './infrastructure/telegram/bot-messenger';
 import { Clock } from './infrastructure/time/clock';
 import { LinkTokenThrottlerGuard } from './interface/http/link-token-throttler.guard';
@@ -100,7 +101,10 @@ describe.skipIf(adminUrl === undefined)('telegram link REST API (real storage)',
                 { provide: RequestRateCounterPort, useValue: new RequestRateCounter(connection) },
                 {
                     provide: BotMessengerPort,
-                    useValue: new BotMessenger(new BotApiClient(settings)),
+                    useValue: new BotMessenger(
+                        new BotApiClient(settings),
+                        new RecordingMessageMetrics(),
+                    ),
                 },
                 { provide: ClockPort, useClass: Clock },
             ],

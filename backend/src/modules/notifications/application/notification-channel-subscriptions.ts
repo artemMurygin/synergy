@@ -18,11 +18,13 @@ export class NotificationChannelSubscriptions implements OnModuleInit {
     ) {}
 
     onModuleInit(): void {
-        for (const channel of this.channels) {
-            this.registry.subscribe(
-                NOTIFICATION_CREATED_EVENT_TYPE,
-                new ChannelDeliverySubscriber(channel, this.notifications, this.metrics),
-            );
-        }
+        for (const channel of this.channels) this.register(channel);
+    }
+
+    register(channel: NotificationChannelPort): void {
+        this.registry.subscribe(
+            NOTIFICATION_CREATED_EVENT_TYPE,
+            new ChannelDeliverySubscriber(channel, this.notifications, this.metrics),
+        );
     }
 }
