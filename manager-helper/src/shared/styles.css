@@ -11,6 +11,11 @@
   --color-line: #e0e1e5;
   --color-surface-alt: #f5f5f6;
   --color-surface-sunken: #ecedf0;
+  --color-ink-80: #3a3a3a;
+  --color-info: #2563d9;
+  --color-info-soft: #e9effc;
+  --color-accent-green: #1c8d00;
+  --color-success-soft: #e6f4ec;
 }
 
 .markdown > * + * {

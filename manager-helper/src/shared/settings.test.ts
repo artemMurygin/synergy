@@ -42,7 +42,7 @@ describe('setBackendUrl', () => {
   it('does not save or reset the session when permission is denied', async () => {
     request.mockResolvedValue(false)
     await expect(setBackendUrl('https://api.example.com')).resolves.toBe(false)
-    expect(await getBackendUrl()).toBe('http://77.105.146.171:1234')
+    expect(await getBackendUrl()).toBe('http://localhost:3000')
     expect(getAccessToken()).toBe('tok')
     expect(getAuthState().status).toBe('authenticated')
   })
@@ -54,7 +54,7 @@ describe('setBackendUrl', () => {
   })
 
   it('keeps the session when the address is unchanged', async () => {
-    await setBackendUrl('http://77.105.146.171:1234/')
+    await setBackendUrl('http://localhost:3000/')
     expect(getAccessToken()).toBe('tok')
     expect(getAuthState().status).toBe('authenticated')
   })
@@ -73,7 +73,7 @@ describe('setBackendUrl', () => {
     async (url) => {
       await expect(setBackendUrl(url)).resolves.toBe(false)
       expect(request).not.toHaveBeenCalled()
-      expect(await getBackendUrl()).toBe('http://77.105.146.171:1234')
+      expect(await getBackendUrl()).toBe('http://localhost:3000')
       expect(getAuthState().status).toBe('authenticated')
     },
   )

@@ -1,6 +1,6 @@
 import { endSession } from './auth/session-channel'
 
-export const DEFAULT_BACKEND_URL = 'http://77.105.146.171:1234'
+export const DEFAULT_BACKEND_URL = 'http://localhost:3000'
 
 const BACKEND_URL_KEY = 'backendUrl'
 

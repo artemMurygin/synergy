@@ -4,7 +4,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type * as AgentClient from '@/shared/agent-client'
 import { Subject } from 'rxjs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
+import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
 import { cancelRun, createAgent } from '@/shared/agent-client'
 import { createThread, getThread, listThreads, renameThread } from '@/shared/threads-api'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
@@ -12,6 +14,7 @@ import { App } from './App'
 import { RUN_POLL_INTERVAL_MS } from './use-thread-run-status'
 
 vi.mock('@/shared/active-session')
+vi.mock('@/shared/active-section')
 vi.mock('@/shared/agent-client', async (importOriginal) => ({
   ...(await importOriginal<typeof AgentClient>()),
   cancelRun: vi.fn(),
@@ -102,6 +105,10 @@ async function ask(text: string) {
 }
 
 beforeEach(() => {
+  resetAuthState()
+  setAuthState({ status: 'authenticated', user: { id: 'u1', login: 'anna' } })
+  vi.mocked(getActiveSection).mockResolvedValue('chat')
+  vi.mocked(setActiveSection).mockResolvedValue(undefined)
   agent = new FakeAgent({ url: 'http://api.test/agent', threadId: 'a' })
   vi.mocked(createAgent).mockImplementation((threadId: string) => {
     agent.threadId = threadId
@@ -453,3 +460,76 @@ async function openApp0(marker?: string) {
     })
   }
 }
+
+/** Both sections carry a switch; the one inside the hidden section is not reachable. */
+function tab(name: string): HTMLElement {
+  const visible = screen
+    .getAllByRole('tab', { name })
+    .filter((el) => el.closest('.hidden') === null)
+  const [first] = visible
+  if (first === undefined || visible.length > 1) throw new Error(`Expected one visible tab ${name}`)
+  return first
+}
+
+describe('section switch', () => {
+  const chatPane = () => {
+    const element = document.querySelector('[data-section="chat"]')
+    if (element === null) throw new Error('The chat section is not mounted')
+    return element
+  }
+
+  it('shows the switch with the chat selected', async () => {
+    await openApp()
+    expect(tab('Чат').getAttribute('aria-selected')).toBe('true')
+    expect(screen.queryByRole('region', { name: 'Задачи' })).toBeNull()
+  })
+
+  it('switches to the tasks and keeps the chat mounted but hidden', async () => {
+    await openApp()
+    fireEvent.click(tab('Задачи'))
+    expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
+    expect(chatPane().classList.contains('hidden')).toBe(true)
+    expect(document.body.contains(input())).toBe(true)
+    fireEvent.click(tab('Чат'))
+    expect(chatPane().classList.contains('hidden')).toBe(false)
+  })
+
+  it('does not interrupt the answer while the tasks are open', async () => {
+    await openApp()
+    await ask('q')
+    startRun()
+    emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'a1', delta: 'Часть' })
+    fireEvent.click(tab('Задачи'))
+    emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'a1', delta: ' ответа' })
+    fireEvent.click(tab('Чат'))
+    await waitFor(() => {
+      expect(screen.getByText('Часть ответа')).toBeTruthy()
+    })
+    expect(cancelRun).not.toHaveBeenCalled()
+  })
+
+  it('remembers the chosen section', async () => {
+    await openApp()
+    fireEvent.click(tab('Задачи'))
+    expect(setActiveSection).toHaveBeenCalledWith('tasks')
+  })
+
+  it('opens the remembered section', async () => {
+    vi.mocked(getActiveSection).mockResolvedValue('tasks')
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
+    })
+    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('is unavailable without a session', async () => {
+    resetAuthState()
+    setAuthState({ status: 'anonymous', user: null })
+    vi.mocked(getActiveSection).mockResolvedValue('tasks')
+    await openApp()
+    expect(screen.queryAllByRole('tab', { name: 'Задачи' })).toHaveLength(0)
+    expect(screen.queryByRole('region', { name: 'Задачи' })).toBeNull()
+    expect(chatPane().classList.contains('hidden')).toBe(false)
+  })
+})

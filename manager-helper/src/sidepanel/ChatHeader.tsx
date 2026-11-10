@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { ListIcon, NewChatIcon, SettingsIcon } from './icons'
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
   newChatDisabled?: boolean
   /** The agent is answering in this chat. */
   running?: boolean
+  /** Section switch; omitted while the tasks are unavailable (no session). */
+  sectionSwitch?: ReactNode
 }
 
 const iconButton =
@@ -21,6 +24,7 @@ export function ChatHeader({
   onOpenSettings,
   newChatDisabled,
   running,
+  sectionSwitch,
 }: Props) {
   return (
     <header className="flex items-center gap-2 border-b border-line px-3 py-2">
@@ -34,6 +38,7 @@ export function ChatHeader({
           <ListIcon />
         </button>
       )}
+      {sectionSwitch}
       <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
         {title.trim().length > 0 ? title : 'Новый чат'}
       </h1>

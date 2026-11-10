@@ -1,12 +1,17 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { getActiveSection, setActiveSection } from '@/shared/active-section'
+import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
+import { getAuthState, subscribeAuth } from '@/shared/auth/auth-state'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { ChatHeader } from './ChatHeader'
 import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 import { ChatSessionList } from './ChatSessionList'
 import { paneVisibility } from './panel-layout'
 import type { PanelMode } from './panel-layout'
+import { SectionSwitch } from './SectionSwitch'
+import { TasksApp } from './tasks/TasksApp'
 import { ThreadView } from './ThreadView'
 import { useChatSessions } from './use-chat-sessions'
 import { useThreadRunStatus } from './use-thread-run-status'
@@ -109,6 +114,30 @@ export function App() {
   // Run flag reported by the loaded history or a refused question: fresher than the chat list.
   const [reported, setReported] = useState<{ threadId: string; running: boolean } | null>(null)
   const [finished, setFinished] = useState<FinishedRun | null>(null)
+  const auth = useSyncExternalStore(subscribeAuth, getAuthState)
+  const signedIn = auth.status === 'authenticated'
+  const [storedSection, setStoredSection] = useState<Section>('chat')
+  // The tasks are mounted on first open and then stay mounted with their state.
+  const [tasksOpened, setTasksOpened] = useState(false)
+  const section: Section = signedIn ? storedSection : 'chat'
+
+  useEffect(() => {
+    void getActiveSection().then((stored) => {
+      setStoredSection(stored)
+      if (stored === 'tasks') setTasksOpened(true)
+    })
+  }, [])
+
+  const changeSection = (next: Section) => {
+    setStoredSection(next)
+    if (next === 'tasks') setTasksOpened(true)
+    void setActiveSection(next)
+  }
+  const showTasks = signedIn && tasksOpened
+
+  const sectionSwitch = signedIn ? (
+    <SectionSwitch section={section} onChange={changeSection} />
+  ) : undefined
 
   const panes = paneVisibility(widthPx, mode)
   const activeSession = sessions.sessions.find((s) => s.id === activeId)
@@ -170,7 +199,7 @@ export function App() {
         onSelect={sessions.select}
         onCreate={() => create()}
       >
-        <div className="flex min-h-0 flex-1">
+        <div data-section="chat" className={section === 'chat' ? 'flex min-h-0 flex-1' : 'hidden'}>
           <div
             className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
               panes.chat ? 'w-75 shrink-0 border-r border-line' : 'flex-1'
@@ -210,6 +239,7 @@ export function App() {
                     }
                   : undefined
               }
+              sectionSwitch={sectionSwitch}
               newChatDisabled={creating}
               onNewChat={() => void createChat()}
               onOpenSettings={() => void chrome.runtime.openOptionsPage()}
@@ -228,6 +258,11 @@ export function App() {
           </div>
         </div>
       </ChatRuntimeProvider>
+      {showTasks && (
+        <div className={section === 'tasks' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+          <TasksApp switcher={sectionSwitch} />
+        </div>
+      )}
     </main>
   )
 }
