@@ -22,6 +22,8 @@ export interface TaskView {
     createdAt: Date;
     updatedAt: Date;
     completedAt: Date | null;
+    /** Number of attachments of the task, >= 0. */
+    attachmentCount: number;
 }
 
 export type TaskSummary = TaskView;
@@ -42,10 +44,14 @@ export async function assertActiveUsers(
     if (missing.length > 0) throw new TaskUserNotFoundError(missing);
 }
 
-/** Resolves participants of all tasks with a single directory lookup. */
+/**
+ * Resolves participants of all tasks with a single directory lookup.
+ * `attachmentCounts` maps task id to its attachment count; a missing entry means 0.
+ */
 export async function toTaskViews(
     tasks: readonly Task[],
     directory: UserDirectory,
+    attachmentCounts: ReadonlyMap<string, number> = new Map(),
 ): Promise<TaskView[]> {
     const ids = new Set<string>();
     for (const task of tasks) {
@@ -72,10 +78,15 @@ export async function toTaskViews(
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         completedAt: task.completedAt,
+        attachmentCount: attachmentCounts.get(task.id) ?? 0,
     }));
 }
 
-export async function toTaskView(task: Task, directory: UserDirectory): Promise<TaskView> {
-    const [view] = await toTaskViews([task], directory);
+export async function toTaskView(
+    task: Task,
+    directory: UserDirectory,
+    attachmentCount = 0,
+): Promise<TaskView> {
+    const [view] = await toTaskViews([task], directory, new Map([[task.id, attachmentCount]]));
     return view;
 }

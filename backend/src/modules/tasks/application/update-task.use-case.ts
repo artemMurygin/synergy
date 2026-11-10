@@ -4,6 +4,7 @@ import { TaskAccessDeniedError } from '../domain/access-denied.error';
 import { TaskNotFoundError } from '../domain/errors';
 import { Clock } from '../domain/ports/clock.port';
 import { TaskAccessPolicy } from '../domain/ports/task-access-policy.port';
+import { TaskAttachmentRepository } from '../domain/ports/task-attachment-repository.port';
 import { TaskRepository } from '../domain/ports/task-repository.port';
 import { UserDirectory } from '../domain/ports/user-directory.port';
 import { TaskStatus } from '../domain/task-status';
@@ -24,6 +25,7 @@ export interface TaskPatch {
 export class UpdateTaskUseCase {
     constructor(
         private readonly tasks: TaskRepository,
+        private readonly attachments: TaskAttachmentRepository,
         private readonly users: UserDirectory,
         private readonly policy: TaskAccessPolicy,
         private readonly clock: Clock,
@@ -49,6 +51,6 @@ export class UpdateTaskUseCase {
         if (status !== undefined) task.changeStatus(status, this.clock.now());
 
         await this.tasks.save(task);
-        return toTaskView(task, this.users);
+        return toTaskView(task, this.users, await this.attachments.countByTask(id));
     }
 }

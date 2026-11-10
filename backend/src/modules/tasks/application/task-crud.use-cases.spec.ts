@@ -54,6 +54,18 @@ const seed = async (
     return task;
 };
 
+const attachmentOf = (id: string, taskId: string): TaskAttachment =>
+    TaskAttachment.create({
+        id,
+        taskId,
+        originalName: FileName.of(`${id}.pdf`),
+        storageKey: `key-${id}`,
+        sizeBytes: 7,
+        contentType: 'application/pdf',
+        uploadedBy: 'anna',
+        createdAt: new Date('2026-01-02T00:00:00Z'),
+    });
+
 describe('CreateTaskUseCase', () => {
     const create = (): CreateTaskUseCase => new CreateTaskUseCase(tasks, directory, fakeClock);
 
@@ -69,6 +81,12 @@ describe('CreateTaskUseCase', () => {
         expect(view.creator).toEqual({ id: 'me', login: 'me' });
         expect(view.createdAt).toEqual(NOW);
         expect(tasks.byId.get(view.id)?.creatorId).toBe('me');
+    });
+
+    it('answers attachmentCount 0 for a new task', async () => {
+        const view = await create().execute(me, { title: 'Отчёт' });
+
+        expect(view.attachmentCount).toBe(0);
     });
 
     it('ignores a creator passed in the input', async () => {
@@ -123,6 +141,25 @@ describe('GetTaskUseCase', () => {
         expect(view.creator).toEqual({ id: 'anna', login: 'anna' });
         expect(view.assignee).toEqual({ id: 'boris', login: 'boris' });
         expect(view.watchers).toEqual([{ id: 'carl', login: 'carl' }]);
+    });
+
+    it('reports attachmentCount equal to the number of attachments', async () => {
+        await seed();
+        await seed({ id: 't2' });
+        await attachments.insert(attachmentOf('a1', 't1'));
+        await attachments.insert(attachmentOf('a2', 't1'));
+        await attachments.insert(attachmentOf('other', 't2'));
+
+        const view = await get().execute(me, 't1');
+
+        expect(view.attachmentCount).toBe(2);
+        expect(view.attachments).toHaveLength(2);
+    });
+
+    it('reports attachmentCount 0 for a task without files', async () => {
+        await seed();
+
+        expect((await get().execute(me, 't1')).attachmentCount).toBe(0);
     });
 
     it('returns an empty attachment list for a task without files', async () => {
@@ -194,7 +231,18 @@ describe('GetTaskUseCase', () => {
 
 describe('UpdateTaskUseCase', () => {
     const update = (): UpdateTaskUseCase =>
-        new UpdateTaskUseCase(tasks, directory, policy, fakeClock);
+        new UpdateTaskUseCase(tasks, attachments, directory, policy, fakeClock);
+
+    it('includes the current attachmentCount', async () => {
+        await seed();
+        await attachments.insert(attachmentOf('a1', 't1'));
+        await attachments.insert(attachmentOf('a2', 't1'));
+        await attachments.insert(attachmentOf('other', 't2'));
+
+        const view = await update().execute(me, 't1', { title: 'Новое название' });
+
+        expect(view.attachmentCount).toBe(2);
+    });
 
     it('changes only the provided fields', async () => {
         await seed({ assigneeId: 'boris', watcherIds: ['carl'] });

@@ -34,6 +34,7 @@ const view: TaskView = {
     createdAt: new Date('2026-11-06T10:00:00.000Z'),
     updatedAt: new Date('2026-11-06T10:05:00.000Z'),
     completedAt: null,
+    attachmentCount: 2,
 };
 
 describe('TasksController', () => {
@@ -101,6 +102,7 @@ describe('TasksController', () => {
                 createdAt: '2026-11-06T10:00:00.000Z',
                 updatedAt: '2026-11-06T10:05:00.000Z',
                 completedAt: null,
+                attachmentCount: 2,
             });
             const [actor, input] = create.execute.mock.calls[0] as [
                 { userId: string },
@@ -153,6 +155,12 @@ describe('TasksController', () => {
     });
 
     describe('GET /tasks/:id', () => {
+        it('includes attachmentCount', async () => {
+            const response = await call('GET', `/tasks/${TASK_ID}`);
+
+            expect(await response.json()).toMatchObject({ attachmentCount: 2 });
+        });
+
         it('returns the task', async () => {
             const response = await call('GET', `/tasks/${TASK_ID}`);
             expect(response.status).toBe(200);
@@ -217,6 +225,13 @@ describe('TasksController', () => {
     });
 
     describe('GET /tasks', () => {
+        it('includes attachmentCount in every item', async () => {
+            const response = await call('GET', '/tasks');
+
+            const body = (await response.json()) as { items: { attachmentCount: number }[] };
+            expect(body.items[0]?.attachmentCount).toBe(2);
+        });
+
         it('lists with defaults', async () => {
             const response = await call('GET', '/tasks');
 
@@ -300,6 +315,12 @@ describe('TasksController', () => {
     });
 
     describe('PATCH /tasks/:id', () => {
+        it('includes attachmentCount in the response', async () => {
+            const response = await call('PATCH', `/tasks/${TASK_ID}`, { status: 'done' });
+
+            expect(await response.json()).toMatchObject({ attachmentCount: 2 });
+        });
+
         it('passes only the provided fields, converting the deadline to a Date', async () => {
             const response = await call('PATCH', `/tasks/${TASK_ID}`, {
                 status: 'done',

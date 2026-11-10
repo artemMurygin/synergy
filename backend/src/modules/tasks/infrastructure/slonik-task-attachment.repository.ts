@@ -103,6 +103,19 @@ export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
         );
     }
 
+    async countByTasks(taskIds: readonly string[]): Promise<Map<string, number>> {
+        const counts = new Map<string, number>();
+        if (taskIds.length === 0) return counts;
+        const rows = await this.pool.any(
+            sql.type(z.object({ task_id: z.string(), count: z.number() }))`
+                SELECT task_id, count(*)::int AS count FROM task_attachment
+                WHERE task_id = ANY(${sql.array([...taskIds], 'uuid')})
+                GROUP BY task_id`,
+        );
+        for (const row of rows) counts.set(row.task_id, row.count);
+        return counts;
+    }
+
     async delete(attachmentId: string): Promise<boolean> {
         const result = await this.pool.query(sql.unsafe`
             DELETE FROM task_attachment WHERE id = ${attachmentId}`);

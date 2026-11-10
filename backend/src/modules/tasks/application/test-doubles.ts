@@ -168,6 +168,16 @@ export class InMemoryAttachmentRepository implements TaskAttachmentRepository {
         Promise.resolve([...this.byId.values()].filter((a) => a.taskId === taskId).length),
     );
 
+    countByTasks = vi.fn((taskIds: readonly string[]) => {
+        const counts = new Map<string, number>();
+        for (const attachment of this.byId.values()) {
+            if (taskIds.includes(attachment.taskId)) {
+                counts.set(attachment.taskId, (counts.get(attachment.taskId) ?? 0) + 1);
+            }
+        }
+        return Promise.resolve(counts);
+    });
+
     /** Mirrors the SQL implementation: the task must be live and under the limit. */
     insertWithinLimit = vi.fn(async (attachment: TaskAttachment, limit: number) => {
         if (this.taskExists !== null && !(await this.taskExists(attachment.taskId))) {

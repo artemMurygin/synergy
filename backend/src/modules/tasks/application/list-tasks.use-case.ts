@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { PaginationQuery } from '../../../shared/http/pagination.schema';
 import type { Actor } from '../domain/actor';
+import { TaskAttachmentRepository } from '../domain/ports/task-attachment-repository.port';
 import { TaskRepository } from '../domain/ports/task-repository.port';
 import { UserDirectory } from '../domain/ports/user-directory.port';
 import type { TaskFilter } from '../domain/task-filter';
@@ -18,6 +19,7 @@ export interface TaskListResult {
 export class ListTasksUseCase {
     constructor(
         private readonly tasks: TaskRepository,
+        private readonly attachments: TaskAttachmentRepository,
         private readonly users: UserDirectory,
     ) {}
 
@@ -29,8 +31,9 @@ export class ListTasksUseCase {
         page: PaginationQuery,
     ): Promise<TaskListResult> {
         const { items, total } = await this.tasks.list(filter, sort, page);
+        const counts = await this.attachments.countByTasks(items.map((task) => task.id));
         return {
-            items: await toTaskViews(items, this.users),
+            items: await toTaskViews(items, this.users, counts),
             total,
             limit: page.limit,
             page: page.page,

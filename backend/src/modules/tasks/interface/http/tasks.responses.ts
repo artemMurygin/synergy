@@ -58,6 +58,9 @@ export class TaskResponse {
     @ApiProperty({ type: String, nullable: true, example: '2026-11-07T10:00:00.000Z' })
     readonly completedAt: string | null;
 
+    @ApiProperty({ type: Number, minimum: 0, example: 2, description: 'Number of attachments' })
+    readonly attachmentCount: number;
+
     constructor(view: TaskView) {
         this.id = view.id;
         this.title = view.title;
@@ -70,6 +73,7 @@ export class TaskResponse {
         this.createdAt = view.createdAt.toISOString();
         this.updatedAt = view.updatedAt.toISOString();
         this.completedAt = view.completedAt?.toISOString() ?? null;
+        this.attachmentCount = view.attachmentCount;
     }
 }
 

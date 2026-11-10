@@ -18,6 +18,11 @@ export abstract class TaskAttachmentRepository {
     /** Looks up the attachment only inside the given task. */
     abstract findByTask(taskId: string, attachmentId: string): Promise<TaskAttachment | null>;
     abstract countByTask(taskId: string): Promise<number>;
+    /**
+     * Attachment counts for many tasks in a single query. Tasks without attachments are absent
+     * from the map (read them as 0).
+     */
+    abstract countByTasks(taskIds: readonly string[]): Promise<Map<string, number>>;
     /** Returns false when no such attachment existed (already deleted). */
     abstract delete(attachmentId: string): Promise<boolean>;
 }

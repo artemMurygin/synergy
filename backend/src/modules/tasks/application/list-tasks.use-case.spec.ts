@@ -1,17 +1,26 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Actor } from '../domain/actor';
+import { FileName } from '../domain/file-name';
 import { Task } from '../domain/task';
+import { TaskAttachment } from '../domain/task-attachment';
 import { TaskFilter } from '../domain/task-filter';
 import { TaskSort } from '../domain/task-sort';
 import { TaskTitle } from '../domain/task-title';
 import { ListTasksUseCase } from './list-tasks.use-case';
-import { FakeUserDirectory, InMemoryTaskRepository, NOW, fakeClock } from './test-doubles';
+import {
+    FakeUserDirectory,
+    InMemoryAttachmentRepository,
+    InMemoryTaskRepository,
+    NOW,
+    fakeClock,
+} from './test-doubles';
 
 const me = Actor.of('me');
 const day = (n: number): Date => new Date(Date.UTC(2026, 0, n));
 const firstPage = { limit: 20, page: 0 };
 
 let tasks: InMemoryTaskRepository;
+let attachments: InMemoryAttachmentRepository;
 let list: ListTasksUseCase;
 
 interface SeedOptions {
@@ -42,8 +51,10 @@ const ids = (result: { items: { id: string }[] }): string[] => result.items.map(
 
 beforeEach(() => {
     tasks = new InMemoryTaskRepository(fakeClock);
+    attachments = new InMemoryAttachmentRepository();
     list = new ListTasksUseCase(
         tasks,
+        attachments,
         new FakeUserDirectory([
             { id: 'anna', login: 'anna' },
             { id: 'boris', login: 'boris' },
@@ -255,5 +266,61 @@ describe('ListTasksUseCase sorting and paging', () => {
             assignee: { id: 'boris', login: 'boris' },
             watchers: [{ id: 'anna', login: 'anna' }],
         });
+    });
+});
+
+describe('ListTasksUseCase attachmentCount', () => {
+    const attach = async (id: string, taskId: string): Promise<void> => {
+        await attachments.insert(
+            TaskAttachment.create({
+                id,
+                taskId,
+                originalName: FileName.of(`${id}.pdf`),
+                storageKey: `key-${id}`,
+                sizeBytes: 7,
+                contentType: 'application/pdf',
+                uploadedBy: 'anna',
+                createdAt: day(2),
+            }),
+        );
+    };
+
+    it('reports the number of attachments per task and 0 for tasks without any', async () => {
+        await seed('a', 'A', { createdDay: 3 });
+        await seed('b', 'B', { createdDay: 2 });
+        await seed('c', 'C', { createdDay: 1 });
+        await attach('f1', 'a');
+        await attach('f2', 'a');
+        await attach('f3', 'b');
+
+        const result = await list.execute(me, TaskFilter.of({}), TaskSort.default(), firstPage);
+
+        expect(result.items.map((t) => [t.id, t.attachmentCount])).toEqual([
+            ['a', 2],
+            ['b', 1],
+            ['c', 0],
+        ]);
+    });
+
+    it('counts all tasks of the page with a single query', async () => {
+        await seed('a', 'A');
+        await seed('b', 'B');
+        await seed('c', 'C');
+
+        await list.execute(me, TaskFilter.of({}), TaskSort.default(), firstPage);
+
+        expect(attachments.countByTasks).toHaveBeenCalledTimes(1);
+        expect(attachments.countByTask).not.toHaveBeenCalled();
+    });
+
+    it('reflects a deleted attachment', async () => {
+        await seed('a', 'A');
+        await attach('f1', 'a');
+        await attach('f2', 'a');
+        await attachments.delete('f1');
+
+        const result = await list.execute(me, TaskFilter.of({}), TaskSort.default(), firstPage);
+
+        expect(result.items[0]?.attachmentCount).toBe(1);
     });
 });

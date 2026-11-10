@@ -438,6 +438,37 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
             expect(await attachments.countByTask(randomUUID())).toBe(0);
         });
 
+        it('countByTasks returns counts per task in one call and omits tasks without attachments', async () => {
+            const one = makeTask();
+            const two = makeTask();
+            const none = makeTask();
+            await tasks.save(one);
+            await tasks.save(two);
+            await tasks.save(none);
+            await attachments.insert(makeAttachment(one.id));
+            await attachments.insert(makeAttachment(one.id, 'b.txt'));
+            await attachments.insert(makeAttachment(two.id));
+
+            const counts = await attachments.countByTasks([one.id, two.id, none.id]);
+
+            expect(counts.get(one.id)).toBe(2);
+            expect(counts.get(two.id)).toBe(1);
+            expect(counts.get(none.id) ?? 0).toBe(0);
+            expect(counts.size).toBe(2);
+        });
+
+        it('countByTasks ignores tasks outside the requested set and handles an empty set', async () => {
+            const one = makeTask();
+            const two = makeTask();
+            await tasks.save(one);
+            await tasks.save(two);
+            await attachments.insert(makeAttachment(one.id));
+            await attachments.insert(makeAttachment(two.id));
+
+            expect([...(await attachments.countByTasks([one.id]))]).toEqual([[one.id, 1]]);
+            expect((await attachments.countByTasks([])).size).toBe(0);
+        });
+
         it('listByTask returns the attachments of the task ordered by creation', async () => {
             const one = makeTask();
             const two = makeTask();

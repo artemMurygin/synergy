@@ -24,10 +24,8 @@ export class GetTaskUseCase {
         if (!this.policy.canRead(actor, task)) {
             throw new TaskAccessDeniedError(actor.userId, 'read', id);
         }
-        const [view, attachments] = await Promise.all([
-            toTaskView(task, this.users),
-            this.attachments.listByTask(id),
-        ]);
+        const attachments = await this.attachments.listByTask(id);
+        const view = await toTaskView(task, this.users, attachments.length);
         return { ...view, attachments: attachments.map(toAttachmentView) };
     }
 }
