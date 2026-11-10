@@ -51,6 +51,7 @@ export interface NotificationsSocket {
 }
 
 interface Connection {
+  userId: string | null
   client: SocketClientPort
   lastErrorCode: ConnectionErrorCode | null
   isTokenUnavailable: boolean
@@ -94,8 +95,9 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
     current.client.connect()
   }
 
-  const open = (): void => {
+  const open = (userId: string | null): void => {
     const current: Connection = {
+      userId,
       client: createClient(`${backendUrl}${NAMESPACE}`, {
         transports: ['websocket'],
         autoConnect: false,
@@ -178,11 +180,14 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
   }
 
   const follow = (snapshot: SessionSnapshot): void => {
-    if (snapshot.state === 'authenticated') {
-      if (connection === null) open()
+    if (snapshot.state !== 'authenticated') {
+      close()
       return
     }
+    const userId = snapshot.user?.id ?? null
+    if (connection !== null && connection.userId === userId) return
     close()
+    open(userId)
   }
 
   const unsubscribeAuth = auth.onChange(follow)

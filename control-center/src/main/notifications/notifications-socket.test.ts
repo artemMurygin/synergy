@@ -156,6 +156,15 @@ describe('createNotificationsSocket', () => {
     }
   )
 
+  it('reconnects when the authenticated session switches to another user', () => {
+    const { session, createClient, fakes } = setup()
+    session.setSnapshot(AUTHENTICATED)
+    session.setSnapshot({ state: 'authenticated', user: { id: 'u2', login: 'boris' } })
+    expect(createClient).toHaveBeenCalledTimes(2)
+    expect(fakes[0].client.disconnect).toHaveBeenCalledTimes(1)
+    expect(fakes[1].client.connect).toHaveBeenCalledTimes(1)
+  })
+
   it('opens a new connection after logging in again', () => {
     const { session, createClient } = setup()
     session.setSnapshot(AUTHENTICATED)
