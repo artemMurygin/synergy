@@ -6,6 +6,8 @@ import { TokenVault } from './auth/infrastructure/token-vault'
 import { registerAuthIpc } from './auth/interface/auth-ipc'
 import { getBackendUrl } from './backend-config'
 import { install as installCcApi, registerScheme as registerCcApiScheme } from './cc-api-protocol'
+import { createNotificationsConnection } from './notifications/notifications-composition'
+import { registerNotificationsIpc } from './notifications/notifications-ipc'
 
 registerCcApiScheme()
 
@@ -64,6 +66,9 @@ app.whenReady().then(() => {
     })
     registerAuthIpc({ ipcMain, auth, getWindows: () => BrowserWindow.getAllWindows() })
     installCcApi(backendUrl, auth)
+    const notifications = createNotificationsConnection(backendUrl, auth)
+    registerNotificationsIpc({ ipcMain, socket: notifications, getWindows: () => BrowserWindow.getAllWindows() })
+    app.on('before-quit', () => notifications.dispose())
   } catch (error) {
     // A bad CC_BACKEND_URL must not leave a windowless process behind
     dialog.showErrorBox('Control Center', error instanceof Error ? error.message : String(error))

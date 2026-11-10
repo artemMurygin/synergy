@@ -133,7 +133,16 @@ describe('forward', () => {
     expect(headers.get('accept')).toBe('application/json')
   })
 
-  it.each(['/tasks', '/tasks/abc?status=todo', '/tasks/abc/attachments/def', '/users?search=an'])(
+  it.each([
+    '/tasks',
+    '/tasks/abc?status=todo',
+    '/tasks/abc/attachments/def',
+    '/users?search=an',
+    '/notifications?limit=20&page=0',
+    '/notifications/unread-count',
+    '/notifications/n1/read',
+    '/notifications/read-all'
+  ])(
     'allows path %s',
     async (path) => {
       await forward(new Request(`cc-api://backend${path}`), BACKEND, auth)
@@ -161,7 +170,7 @@ describe('forward', () => {
     expect(res.headers.get('content-disposition')).toContain('a.bin')
   })
 
-  it.each(['/other', '/taskss', '/usersx', '/admin/tasks', '/threadsx', '/admin/threads'])('rejects path %s with 403', async (path) => {
+  it.each(['/other', '/taskss', '/usersx', '/admin/tasks', '/threadsx', '/admin/threads', '/notificationsx', '/admin/notifications'])('rejects path %s with 403', async (path) => {
     const res = await forward(new Request(`cc-api://backend${path}`), BACKEND, auth)
     expect(res.status).toBe(403)
     expect(fetchMock).not.toHaveBeenCalled()
