@@ -126,8 +126,6 @@ describe('TasksApp', () => {
     expect(await screen.findByRole('heading', { name: 'КП' })).toBeTruthy()
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
     rerender(<TasksApp switcher={null} requestedTaskId="gone" />)
-    expect((await screen.findByRole('status', { name: 'Сообщение' })).textContent).toMatch(
-      /Задача не найдена/,
-    )
+    expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
   })
 })

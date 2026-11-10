@@ -8,6 +8,7 @@ import { useViewportSize } from '../use-viewport-size'
 import { TaskCreateSheet } from './TaskCreateSheet'
 import { TaskDetails } from './TaskDetails'
 import { TaskList } from './TaskList'
+import { TaskNotFound } from './TaskNotFound'
 import { TasksToolbar } from './TasksToolbar'
 import { tasksPaneVisibility } from './tasks-layout'
 import { useTasks } from './use-tasks'
@@ -23,12 +24,14 @@ export function TasksSplitView({
   switcher,
   requestedTaskId = null,
   onTaskRequestHandled,
+  notifications,
 }: {
   userId: string
   login: string
   switcher: ReactNode
   requestedTaskId?: string | null
   onTaskRequestHandled?: () => void
+  notifications?: ReactNode
 }) {
   const tasks = useTasks(userId)
   const { reload } = tasks
@@ -42,10 +45,14 @@ export function TasksSplitView({
   const createButton = useRef<HTMLButtonElement>(null)
 
   const [openedRequest, setOpenedRequest] = useState<string | null>(null)
+  const [lastRequestedId, setLastRequestedId] = useState<string | null>(null)
+  const [missingRequestedId, setMissingRequestedId] = useState<string | null>(null)
   if (requestedTaskId !== openedRequest) {
     setOpenedRequest(requestedTaskId)
     if (requestedTaskId !== null) {
       setSelectedId(requestedTaskId)
+      setLastRequestedId(requestedTaskId)
+      setMissingRequestedId(null)
       setMessage(null)
     }
   }
@@ -67,11 +74,16 @@ export function TasksSplitView({
 
   const missing = useCallback(
     (taskId: string) => {
+      if (taskId === lastRequestedId) {
+        setMissingRequestedId(taskId)
+        void reload()
+        return
+      }
       setSelectedId((current) => (current === taskId ? null : current))
       setMessage('Задача не найдена: возможно, её удалили')
       void reload()
     },
-    [reload],
+    [reload, lastRequestedId],
   )
   const changed = useCallback(() => {
     void reload()
@@ -91,6 +103,7 @@ export function TasksSplitView({
             setCreating((open) => !open)
           }}
           onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+          notifications={notifications}
         />
         <div className="flex min-h-0 flex-1">
           <div
@@ -156,6 +169,19 @@ export function TasksSplitView({
               <p className="m-auto px-4 text-center font-heading text-base font-semibold text-ink-60">
                 Выберите задачу
               </p>
+            ) : selectedId === missingRequestedId ? (
+              <TaskNotFound
+                onBack={
+                  panes.backToList
+                    ? () => {
+                        setSelectedId(null)
+                      }
+                    : undefined
+                }
+                onShowList={() => {
+                  setSelectedId(null)
+                }}
+              />
             ) : (
               <TaskDetails
                 key={`${selectedId}:${String(detailsVersion)}`}

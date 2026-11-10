@@ -1,6 +1,6 @@
 import { EventType, HttpAgent } from '@ag-ui/client'
 import type { BaseEvent, RunAgentInput } from '@ag-ui/client'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type * as AgentClient from '@/shared/agent-client'
 import { Subject } from 'rxjs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +9,18 @@ import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
 import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
 import { cancelRun, createAgent } from '@/shared/agent-client'
 import { createThread, getThread, listThreads, renameThread } from '@/shared/threads-api'
+import { installChromeFake, makeNotification } from '@/background/notifications/chrome-fake.testing'
+import type { ChromeFake } from '@/background/notifications/chrome-fake.testing'
+import type * as NotificationsApi from '@/shared/notifications/notifications-api'
+import {
+  getUnreadCount,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/shared/notifications/notifications-api'
+import type * as TasksApi from '@/shared/tasks-api'
+import { TaskNotFoundError, getTask, listTasks } from '@/shared/tasks-api'
+import { makeDetails, makeTask } from './tasks/fixtures'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { App } from './App'
 import { RUN_POLL_INTERVAL_MS } from './use-thread-run-status'
@@ -21,6 +33,21 @@ vi.mock('@/shared/agent-client', async (importOriginal) => ({
   createAgent: vi.fn(),
 }))
 vi.mock('@/shared/threads-api')
+vi.mock('@/shared/notifications/notifications-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof NotificationsApi>()),
+  listNotifications: vi.fn(),
+  getUnreadCount: vi.fn(),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+}))
+vi.mock('@/shared/tasks-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof TasksApi>()),
+  listTasks: vi.fn(),
+  getTask: vi.fn(),
+  updateTask: vi.fn(),
+  createTask: vi.fn(),
+  searchUsers: vi.fn(),
+}))
 
 /** Agent whose runs are driven by the test. */
 class FakeAgent extends HttpAgent {
@@ -37,6 +64,7 @@ class FakeAgent extends HttpAgent {
 }
 
 let agent: FakeAgent
+let chromeFake: ChromeFake
 
 function thread(id: string, overrides: Partial<Thread> = {}): Thread {
   return {
@@ -105,6 +133,20 @@ async function ask(text: string) {
 }
 
 beforeEach(() => {
+  chromeFake = installChromeFake()
+  vi.mocked(listNotifications).mockResolvedValue({ items: [], total: 0, limit: 20, page: 0 })
+  vi.mocked(getUnreadCount).mockResolvedValue(0)
+  vi.mocked(markNotificationRead).mockResolvedValue(0)
+  vi.mocked(markAllNotificationsRead).mockResolvedValue(0)
+  vi.mocked(listTasks).mockResolvedValue({
+    items: [makeTask('t0', { title: 'Задача в списке' })],
+    total: 1,
+    limit: 50,
+    page: 0,
+  })
+  vi.mocked(getTask).mockImplementation((id) =>
+    Promise.resolve(makeDetails(id, { title: `Детали ${id}` })),
+  )
   resetAuthState()
   setAuthState({ status: 'authenticated', user: { id: 'u1', login: 'anna' } })
   vi.mocked(getActiveSection).mockResolvedValue('chat')
@@ -128,6 +170,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
@@ -551,5 +595,117 @@ describe('section switch', () => {
     expect(screen.queryAllByRole('tab', { name: 'Задачи' })).toHaveLength(0)
     expect(screen.queryByRole('region', { name: 'Задачи' })).toBeNull()
     expect(chatPane().classList.contains('hidden')).toBe(false)
+  })
+})
+
+describe('notifications', () => {
+  const NOTIFICATION = makeNotification('n1', new Date().toISOString(), {
+    title: 'Вам назначена задача',
+    body: 'ivanov назначил вас ответственным',
+    taskId: 't1',
+  })
+
+  function lastPort() {
+    const result = chromeFake.runtime.connect.mock.results.at(-1)
+    if (result?.type !== 'return') throw new Error('no port was opened')
+    return result.value
+  }
+
+  function bell() {
+    return screen.getByRole('button', { name: /^Уведомления/ })
+  }
+
+  beforeEach(() => {
+    vi.mocked(listNotifications).mockResolvedValue({
+      items: [NOTIFICATION],
+      total: 1,
+      limit: 20,
+      page: 0,
+    })
+    vi.mocked(getUnreadCount).mockResolvedValue(3)
+    vi.mocked(markNotificationRead).mockResolvedValue(2)
+  })
+
+  it('shows the button with the unread count in the panel header', async () => {
+    await openApp()
+    expect(await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })).toBeTruthy()
+  })
+
+  it('has no notifications button without a session', async () => {
+    resetAuthState()
+    setAuthState({ status: 'anonymous', user: null })
+    await openApp()
+    expect(screen.queryByRole('button', { name: /^Уведомления/ })).toBeNull()
+  })
+
+  it('opens the list and switches to the task of a clicked notification', async () => {
+    await openApp()
+    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    fireEvent.click(bell())
+    const overlay = screen.getByRole('dialog', { name: 'Уведомления' })
+    fireEvent.click(await within(overlay).findByRole('button', { name: /Вам назначена задача/ }))
+    expect(markNotificationRead).toHaveBeenCalledWith('n1')
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
+    })
+    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+    expect(await screen.findByRole('heading', { name: 'Детали t1' })).toBeTruthy()
+    expect(getTask).toHaveBeenCalledWith('t1')
+    expect(screen.queryByRole('dialog', { name: 'Уведомления' })).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Уведомления: 2 непрочитанных' })).toBeTruthy()
+  })
+
+  it('shows "Задача не найдена" for a notification about a deleted task', async () => {
+    vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
+    await openApp()
+    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    fireEvent.click(bell())
+    fireEvent.click(await screen.findByRole('button', { name: /Вам назначена задача/ }))
+    expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
+    expect(markNotificationRead).toHaveBeenCalledWith('n1')
+  })
+
+  it('shows a toast for a new notification and opens its task', async () => {
+    await openApp()
+    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    const fresh = makeNotification('n9', new Date().toISOString(), {
+      title: 'Новая задача от petrova',
+      taskId: 't9',
+    })
+    act(() => {
+      lastPort().onMessage.emit({
+        kind: 'event',
+        event: { type: 'notification.created', payload: { notification: fresh, unreadCount: 4 } },
+      })
+    })
+    const toast = await screen.findByRole('status', { name: 'Новое уведомление' })
+    expect(toast.textContent).toContain('Новая задача от petrova')
+    expect(screen.getByRole('button', { name: 'Уведомления: 4 непрочитанных' })).toBeTruthy()
+    fireEvent.click(within(toast).getByRole('button', { name: /Новая задача от petrova/ }))
+    expect(markNotificationRead).toHaveBeenCalledWith('n9')
+    expect(await screen.findByRole('heading', { name: 'Детали t9' })).toBeTruthy()
+    expect(screen.queryByRole('status', { name: 'Новое уведомление' })).toBeNull()
+  })
+
+  it('opens the task left by a click on a system notification', async () => {
+    chromeFake.storage.session.store.pendingTarget = { kind: 'task', taskId: 't5' }
+    await openApp()
+    expect(await screen.findByRole('heading', { name: 'Детали t5' })).toBeTruthy()
+    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('opens the list for a click on the summary system notification', async () => {
+    chromeFake.storage.session.store.pendingTarget = { kind: 'notifications' }
+    await openApp()
+    expect(await screen.findByRole('dialog', { name: 'Уведомления' })).toBeTruthy()
+  })
+
+  it('reads all notifications from the list', async () => {
+    await openApp()
+    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    fireEvent.click(bell())
+    fireEvent.click(screen.getByRole('button', { name: 'Прочитать все' }))
+    expect(markAllNotificationsRead).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('button', { name: 'Уведомления' })).toBeTruthy()
   })
 })

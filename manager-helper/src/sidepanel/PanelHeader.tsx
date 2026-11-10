@@ -13,6 +13,7 @@ interface Props {
   onOpenSettings: () => void
   /** The create button, to return focus to it after a modal create form closes. */
   actionRef?: Ref<HTMLButtonElement>
+  notifications?: ReactNode
 }
 
 const iconButton =
@@ -27,9 +28,10 @@ export function PanelHeader({
   actionExpanded,
   onOpenSettings,
   actionRef,
+  notifications,
 }: Props) {
   return (
-    <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2.5">
+    <header className="relative z-30 flex shrink-0 items-center gap-2 border-b border-line px-3 py-2.5">
       {switcher}
       <span className="flex-1" />
       <button
@@ -43,6 +45,7 @@ export function PanelHeader({
       >
         <PlusIcon />
       </button>
+      {notifications}
       <button
         type="button"
         aria-label="Настройки"

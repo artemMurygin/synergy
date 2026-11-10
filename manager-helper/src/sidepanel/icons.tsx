@@ -184,3 +184,30 @@ export const CalendarClockIcon = () => (
     <circle cx="16" cy="16" r="6" />
   </Icon>
 )
+export const BellIcon = ({ size = 18 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+    <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+  </Icon>
+)
+export const ListChecksIcon = () => (
+  <Icon size={16}>
+    <path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8" />
+  </Icon>
+)
+export const CheckCheckIcon = () => (
+  <Icon size={16}>
+    <path d="M18 6 7 17l-5-5M22 10l-7.5 7.5L13 16" />
+  </Icon>
+)
+export const LoaderCircleIcon = () => (
+  <Icon size={16}>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </Icon>
+)
+export const FileXIcon = ({ size = 28 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4M14.5 12.5l-5 5M9.5 12.5l5 5" />
+  </Icon>
+)

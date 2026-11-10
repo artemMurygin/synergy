@@ -8,10 +8,16 @@ interface Props {
   switcher: ReactNode
   requestedTaskId?: string | null
   onTaskRequestHandled?: () => void
+  notifications?: ReactNode
 }
 
 /** Tasks section: "my open tasks" list with quick create and the details of the chosen task. */
-export function TasksApp({ switcher, requestedTaskId, onTaskRequestHandled }: Props) {
+export function TasksApp({
+  switcher,
+  requestedTaskId,
+  onTaskRequestHandled,
+  notifications,
+}: Props) {
   const user = useSyncExternalStore(subscribeAuth, getAuthState).user
   if (user === null) return <section aria-label="Задачи" className="flex min-h-0 flex-1" />
   return (
@@ -22,6 +28,7 @@ export function TasksApp({ switcher, requestedTaskId, onTaskRequestHandled }: Pr
       switcher={switcher}
       requestedTaskId={requestedTaskId}
       onTaskRequestHandled={onTaskRequestHandled}
+      notifications={notifications}
     />
   )
 }

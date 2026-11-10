@@ -37,6 +37,21 @@ describe('PanelHeader', () => {
     expect(onAction).not.toHaveBeenCalled()
   })
 
+  it('renders the notifications slot between the create and the settings buttons', () => {
+    render(
+      <PanelHeader
+        actionLabel="Новый чат"
+        onAction={() => undefined}
+        onOpenSettings={() => undefined}
+        notifications={<button type="button">Уведомления</button>}
+      />,
+    )
+    const names = screen
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent)
+    expect(names).toEqual(['Новый чат', 'Уведомления', 'Настройки'])
+  })
+
   it('reports the expanded state of an inline create form', () => {
     render(
       <PanelHeader

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as TasksApi from '@/shared/tasks-api'
-import { getTask, listTasks, searchUsers, updateTask } from '@/shared/tasks-api'
+import { TaskNotFoundError, getTask, listTasks, searchUsers, updateTask } from '@/shared/tasks-api'
 import { makeDetails, makeTask } from './fixtures'
 import { TasksSplitView } from './TasksSplitView'
 
@@ -286,5 +286,27 @@ describe('TasksSplitView requested task', () => {
     expect(screen.getByText('Выберите задачу')).toBeTruthy()
     rerender(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="a" />)
     expect(await screen.findByRole('heading', { name: 'Отчёт' })).toBeTruthy()
+  })
+
+  it('shows "Задача не найдена" for a requested task that was deleted', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 380 })
+    vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
+    render(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="gone" />)
+    expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Её удалили или у вас больше нет к ней доступа. Уведомление отмечено прочитанным.',
+      ),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'К списку задач' }))
+    expect(await screen.findByRole('button', { name: 'Отчёт' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Задача не найдена' })).toBeNull()
+  })
+
+  it('shows "Задача не найдена" next to the list on a wide panel', async () => {
+    vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
+    render(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="gone" />)
+    expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Отчёт' }).closest('[hidden]')).toBeNull()
   })
 })

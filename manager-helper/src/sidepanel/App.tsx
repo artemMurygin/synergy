@@ -4,10 +4,17 @@ import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
 import { getAuthState, subscribeAuth } from '@/shared/auth/auth-state'
+import type { NotificationDto } from '@/shared/notifications/notifications-schema'
+import type { PendingTarget } from '@/shared/notifications/pending-target'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 import { ChatSessionList } from './ChatSessionList'
 import { ChatTitleBar } from './ChatTitleBar'
+import { NotificationsButton } from './notifications/NotificationsButton'
+import { NotificationsOverlay } from './notifications/NotificationsOverlay'
+import { NotificationToast } from './notifications/NotificationToast'
+import { useNotifications } from './notifications/use-notifications'
+import { usePendingTarget } from './notifications/use-pending-target'
 import { paneVisibility } from './panel-layout'
 import type { PanelMode } from './panel-layout'
 import { PanelHeader } from './PanelHeader'
@@ -121,20 +128,83 @@ export function App() {
   // The tasks are mounted on first open and then stay mounted with their state.
   const [tasksOpened, setTasksOpened] = useState(false)
   const section: Section = signedIn ? storedSection : 'chat'
+  const isSectionChosen = useRef(false)
+  const notifications = useNotifications(signedIn)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null)
+  const notificationsAnchor = useRef<HTMLButtonElement>(null)
+  const isOverlayVisible = signedIn && isNotificationsOpen
 
   useEffect(() => {
     void getActiveSection().then((stored) => {
+      if (isSectionChosen.current) return
       setStoredSection(stored)
       if (stored === 'tasks') setTasksOpened(true)
     })
   }, [])
 
   const changeSection = (next: Section) => {
+    isSectionChosen.current = true
     setStoredSection(next)
     if (next === 'tasks') setTasksOpened(true)
     void setActiveSection(next)
   }
   const showTasks = signedIn && tasksOpened
+
+  const showTask = (taskId: string) => {
+    changeSection('tasks')
+    setRequestedTaskId(taskId)
+  }
+
+  const openNotification = (notification: NotificationDto) => {
+    setIsNotificationsOpen(false)
+    if (notifications.toast?.id === notification.id) notifications.dismissToast()
+    void notifications.markRead(notification.id)
+    if (notification.target.type === 'task') showTask(notification.target.id)
+  }
+
+  usePendingTarget((target: PendingTarget) => {
+    if (target.kind === 'task') showTask(target.taskId)
+    else setIsNotificationsOpen(true)
+  }, signedIn)
+
+  const clearTaskRequest = useCallback(() => {
+    setRequestedTaskId(null)
+  }, [])
+
+  const closeNotifications = useCallback(() => {
+    setIsNotificationsOpen(false)
+  }, [])
+
+  const notificationsSlot = signedIn ? (
+    <>
+      <NotificationsButton
+        buttonRef={notificationsAnchor}
+        unreadCount={notifications.unreadCount}
+        isOpen={isOverlayVisible}
+        onClick={() => {
+          if (!isNotificationsOpen) notifications.dismissToast()
+          setIsNotificationsOpen(!isNotificationsOpen)
+        }}
+      />
+      {isOverlayVisible && (
+        <NotificationsOverlay
+          items={notifications.items}
+          unreadCount={notifications.unreadCount}
+          status={notifications.status}
+          isInitialLoad={notifications.isInitialLoad}
+          hasMore={notifications.hasMore}
+          loadMoreStatus={notifications.loadMoreStatus}
+          anchorRef={notificationsAnchor}
+          onOpen={openNotification}
+          onReadAll={() => void notifications.markAllRead()}
+          onLoadMore={notifications.loadMore}
+          onRetry={notifications.retry}
+          onClose={closeNotifications}
+        />
+      )}
+    </>
+  ) : undefined
 
   const sectionSwitch = signedIn ? (
     <SectionSwitch section={section} onChange={changeSection} />
@@ -191,7 +261,7 @@ export function App() {
   }
 
   return (
-    <main className="flex h-screen flex-col bg-white text-ink">
+    <main className="relative flex h-screen flex-col bg-white text-ink">
       <ChatRuntimeProvider
         activeId={activeId}
         onRunningChange={(threadId, running) => {
@@ -210,6 +280,7 @@ export function App() {
             actionDisabled={creating}
             onAction={() => void createChat()}
             onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+            notifications={section === 'chat' ? notificationsSlot : undefined}
           />
           <div className="flex min-h-0 flex-1">
             <div
@@ -269,8 +340,21 @@ export function App() {
       </ChatRuntimeProvider>
       {showTasks && (
         <div className={section === 'tasks' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
-          <TasksApp switcher={sectionSwitch} />
+          <TasksApp
+            switcher={sectionSwitch}
+            requestedTaskId={requestedTaskId}
+            onTaskRequestHandled={clearTaskRequest}
+            notifications={section === 'tasks' ? notificationsSlot : undefined}
+          />
         </div>
+      )}
+      {signedIn && notifications.toast !== null && !isOverlayVisible && (
+        <NotificationToast
+          key={notifications.toast.id}
+          notification={notifications.toast}
+          onOpen={openNotification}
+          onDismiss={notifications.dismissToast}
+        />
       )}
     </main>
   )
