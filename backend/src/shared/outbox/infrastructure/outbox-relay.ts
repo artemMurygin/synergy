@@ -19,6 +19,7 @@ import {
     type DeliveryLease,
 } from '../application/outbox-store.port';
 import { OutboxWakeUpPort } from '../application/outbox-wake-up.port';
+import { PermanentDeliveryError, RetryLaterDeliveryError } from '../domain/delivery-errors';
 import { RetryPolicy } from '../domain/retry-policy';
 import { OutboxSettings } from './outbox-settings';
 
@@ -238,6 +239,10 @@ export class OutboxRelay
                 this.reportLeaseLost(delivery);
                 return;
             }
+            if (error instanceof PermanentDeliveryError) {
+                await this.fail(delivery, error);
+                return;
+            }
             await this.retryOrFail(delivery, error);
             return;
         }
@@ -274,7 +279,7 @@ export class OutboxRelay
             await this.fail(delivery, error);
             return;
         }
-        const nextAttemptAt = this.retryPolicy.nextAttemptAt(attempt, this.clock.now());
+        const nextAttemptAt = this.nextAttemptAt(attempt, error);
         const isScheduled = await this.store.scheduleRetry(
             delivery,
             attempt,
@@ -290,6 +295,13 @@ export class OutboxRelay
             'Outbox delivery will be retried',
         );
         this.metrics.recordProcessed(delivery.subscriber, 'retry');
+    }
+
+    private nextAttemptAt(attempt: number, error: unknown): Date {
+        const now = this.clock.now();
+        const policyAttemptAt = this.retryPolicy.nextAttemptAt(attempt, now);
+        if (!(error instanceof RetryLaterDeliveryError)) return policyAttemptAt;
+        return new Date(Math.max(policyAttemptAt.getTime(), now.getTime() + error.retryAfterMs));
     }
 
     private async fail(delivery: ClaimedDelivery, error: unknown): Promise<void> {

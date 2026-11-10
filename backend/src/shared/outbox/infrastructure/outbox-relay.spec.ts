@@ -8,6 +8,7 @@ import { RequestContext } from '../../context/request-context';
 import type { DomainEvent } from '../../ddd';
 import type { DomainEventRegistry, EventSubscriber } from '../application/domain-event-registry';
 import { OutboxWakeUpPort } from '../application/outbox-wake-up.port';
+import { PermanentDeliveryError, RetryLaterDeliveryError } from '../domain/delivery-errors';
 import {
     FakeOutboxClock,
     InMemoryOutboxStore,
@@ -87,6 +88,15 @@ function failingTimes(times: number): (event: DomainEvent) => Promise<void> {
     };
 }
 
+function failingWith(failure: Error, times: number): (event: DomainEvent) => Promise<void> {
+    let failuresLeft = times;
+    return () => {
+        if (failuresLeft <= 0) return Promise.resolve();
+        failuresLeft -= 1;
+        return Promise.reject(failure);
+    };
+}
+
 describe('OutboxRelay (unit)', () => {
     let clock: FakeOutboxClock;
     let store: InMemoryOutboxStore;
@@ -94,8 +104,19 @@ describe('OutboxRelay (unit)', () => {
     let logger: PinoLogger;
     let transactions: InMemoryTransactionRunner;
 
-    function createRelay(registry: DomainEventRegistry): OutboxRelay {
-        return new OutboxRelay(store, registry, transactions, settings, clock, metrics, logger);
+    function createRelay(
+        registry: DomainEventRegistry,
+        relaySettings: OutboxSettings = settings,
+    ): OutboxRelay {
+        return new OutboxRelay(
+            store,
+            registry,
+            transactions,
+            relaySettings,
+            clock,
+            metrics,
+            logger,
+        );
     }
 
     function addThing(aggregateId: string, subscribers: readonly string[]): ThingHappenedEvent {
@@ -482,6 +503,157 @@ describe('OutboxRelay (unit)', () => {
         });
     });
 
+    describe('subscriber decisions', () => {
+        it('fails a delivery at once when the subscriber reports a permanent error', async () => {
+            const failure = new PermanentDeliveryError('chat rejected the message');
+            const rejecting = recordingSubscriber(FIRST, () => Promise.reject(failure));
+            const relay = createRelay(createRegistry([rejecting]));
+            const event = addThing('aggregate-1', [FIRST]);
+            const error = vi.spyOn(logger, 'error');
+
+            await relay.processBatch();
+            clock.advance(RETRY_STEP_MS);
+            await relay.processBatch();
+
+            expect(rejecting.received).toHaveLength(1);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({
+                status: 'failed',
+                attempts: 1,
+                lastError: 'chat rejected the message',
+                processedAt: START,
+            });
+            expect(store.scheduleRetry).not.toHaveBeenCalled();
+            expect(error).toHaveBeenCalledWith(
+                expect.objectContaining({ eventId: event.id, subscriber: FIRST, err: failure }),
+                'Outbox delivery failed',
+            );
+            expect(metrics.processed).toEqual([{ subscriber: FIRST, result: 'failed' }]);
+        });
+
+        it('does not affect other subscribers of the event when one reports a permanent error', async () => {
+            const rejecting = recordingSubscriber(FIRST, () =>
+                Promise.reject(new PermanentDeliveryError('never deliverable')),
+            );
+            const healthy = recordingSubscriber(SECOND);
+            const relay = createRelay(createRegistry([rejecting, healthy]));
+            const event = addThing('aggregate-1', [FIRST, SECOND]);
+
+            await relay.processBatch();
+
+            expect(healthy.received.map((received) => received.id)).toEqual([event.id]);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'failed' });
+            expect(store.delivery(event.id, SECOND)).toMatchObject({ status: 'done' });
+            expect(metrics.processed).toEqual([
+                { subscriber: FIRST, result: 'failed' },
+                { subscriber: SECOND, result: 'done' },
+            ]);
+        });
+
+        it('waits for the pause asked by the subscriber when it is longer than the retry policy', async () => {
+            const pausing = recordingSubscriber(
+                FIRST,
+                failingWith(new RetryLaterDeliveryError('slow down', 5 * SECOND_MS), 1),
+            );
+            const relay = createRelay(createRegistry([pausing]));
+            const event = addThing('aggregate-1', [FIRST]);
+
+            await relay.processBatch();
+
+            expect(store.delivery(event.id, FIRST)).toMatchObject({
+                status: 'pending',
+                attempts: 1,
+                nextAttemptAt: new Date(START.getTime() + 5 * SECOND_MS),
+                lastError: 'slow down',
+            });
+            expect(metrics.processed).toEqual([{ subscriber: FIRST, result: 'retry' }]);
+            clock.advance(5 * SECOND_MS - 1);
+            expect(await relay.processBatch()).toBe(0);
+            clock.advance(1);
+            expect(await relay.processBatch()).toBe(1);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'done' });
+        });
+
+        it('keeps the retry policy delay when it is longer than the pause asked by the subscriber', async () => {
+            const longerSettings = new OutboxSettings({
+                pollIntervalMs: POLL_INTERVAL_MS,
+                batchSize: BATCH_SIZE,
+                maxAttempts: 5,
+                retentionDays: 7,
+                claimLeaseMs: LEASE_MS,
+                handlerTimeoutMs: HANDLER_TIMEOUT_MS,
+                pendingGaugeIntervalMs: PENDING_GAUGE_INTERVAL_MS,
+            });
+            const pausing = recordingSubscriber(
+                FIRST,
+                failingWith(new RetryLaterDeliveryError('slow down', 5 * SECOND_MS), 3),
+            );
+            const relay = createRelay(createRegistry([pausing]), longerSettings);
+            const event = addThing('aggregate-1', [FIRST]);
+
+            await relay.processBatch();
+            clock.advance(5 * SECOND_MS);
+            await relay.processBatch();
+            clock.advance(5 * SECOND_MS);
+            const thirdAttemptAt = clock.now().getTime();
+            await relay.processBatch();
+
+            expect(store.delivery(event.id, FIRST)).toMatchObject({
+                status: 'pending',
+                attempts: 3,
+                nextAttemptAt: new Date(thirdAttemptAt + 30 * SECOND_MS),
+            });
+        });
+
+        it('counts the attempts with a pause towards the attempt limit', async () => {
+            const pausing = recordingSubscriber(FIRST, () =>
+                Promise.reject(new RetryLaterDeliveryError('slow down', SECOND_MS)),
+            );
+            const relay = createRelay(createRegistry([pausing]));
+            const event = addThing('aggregate-1', [FIRST]);
+
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+                await relay.processBatch();
+                clock.advance(RETRY_STEP_MS);
+            }
+            await relay.processBatch();
+
+            expect(pausing.received).toHaveLength(MAX_ATTEMPTS);
+            expect(store.delivery(event.id, FIRST)).toMatchObject({
+                status: 'failed',
+                attempts: MAX_ATTEMPTS,
+                lastError: 'slow down',
+            });
+            expect(metrics.processed.map((entry) => entry.result)).toEqual([
+                'retry',
+                'retry',
+                'failed',
+            ]);
+        });
+
+        it.each([
+            { decision: 'a permanent error', failure: new PermanentDeliveryError('rejected') },
+            { decision: 'a pause', failure: new RetryLaterDeliveryError('slow down', SECOND_MS) },
+        ])(
+            'does not write $decision for a delivery whose lease was taken over',
+            async ({ failure }) => {
+                const subscriber = recordingSubscriber(FIRST, () => {
+                    store.takeOverLease(event.id, FIRST);
+                    return Promise.reject(failure);
+                });
+                const relay = createRelay(createRegistry([subscriber]));
+                const event = addThing('aggregate-1', [FIRST]);
+
+                await relay.processBatch();
+
+                expect(store.delivery(event.id, FIRST)).toMatchObject({
+                    status: 'pending',
+                    lastError: null,
+                });
+                expect(metrics.processed).toEqual([]);
+            },
+        );
+    });
+
     describe('cleanup', () => {
         it('deletes processed events older than the retention period', async () => {
             const relay = createRelay(createRegistry([recordingSubscriber(FIRST)]));
@@ -758,6 +930,14 @@ describe.skipIf(adminUrl === undefined)('OutboxRelay (integration)', () => {
     it.each([
         { outcome: 'succeeds', staleFailure: undefined },
         { outcome: 'fails', staleFailure: new Error('stale relay failed late') },
+        {
+            outcome: 'reports a permanent error',
+            staleFailure: new PermanentDeliveryError('stale relay rejected late'),
+        },
+        {
+            outcome: 'asks for a pause',
+            staleFailure: new RetryLaterDeliveryError('stale relay paused late', DAY_MS),
+        },
     ])(
         'a relay whose lease expired and then $outcome cannot overwrite the result of the relay that took over',
         async ({ staleFailure }) => {
@@ -867,6 +1047,64 @@ describe.skipIf(adminUrl === undefined)('OutboxRelay (integration)', () => {
         expect(flaky.received).toHaveLength(2);
         expect(await readDelivery(pool, event.id, SECOND)).toMatchObject({ status: 'done' });
     });
+
+    it('fails at once only the subscriber that reported a permanent error against the real store', async () => {
+        const event = thingHappened('aggregate-1');
+        const rejecting = recordingSubscriber(FIRST, () =>
+            Promise.reject(new PermanentDeliveryError('never deliverable')),
+        );
+        const healthy = recordingSubscriber(SECOND);
+        const registry = createRegistry([rejecting, healthy]);
+        await publish(registry, [event]);
+        const clock = futureClock();
+        const metrics = new RecordingOutboxMetrics();
+        const relay = relayFor(registry, runner, clock, metrics);
+
+        await relay.processBatch();
+        clock.advance(DAY_MS);
+        await relay.processBatch();
+
+        expect(rejecting.received).toHaveLength(1);
+        expect(healthy.received).toHaveLength(1);
+        expect(await readDelivery(pool, event.id, FIRST)).toMatchObject({
+            status: 'failed',
+            attempts: 1,
+            last_error: 'never deliverable',
+        });
+        expect(await readDelivery(pool, event.id, SECOND)).toMatchObject({ status: 'done' });
+        expect(metrics.processed).toContainEqual({ subscriber: FIRST, result: 'failed' });
+    });
+
+    it.each([
+        {
+            direction: 'the subscriber pause',
+            retryAfterMs: 5 * SECOND_MS,
+            expectedDelayMs: 5 * SECOND_MS,
+        },
+        { direction: 'the retry policy', retryAfterMs: SECOND_MS / 2, expectedDelayMs: SECOND_MS },
+    ])(
+        'schedules the next attempt by the later of the policy and the pause, here $direction, against the real store',
+        async ({ retryAfterMs, expectedDelayMs }) => {
+            const event = thingHappened('aggregate-1');
+            const pausing = recordingSubscriber(
+                FIRST,
+                failingWith(new RetryLaterDeliveryError('slow down', retryAfterMs), 1),
+            );
+            const registry = createRegistry([pausing]);
+            await publish(registry, [event]);
+            const clock = futureClock();
+            const relay = relayFor(registry, runner, clock);
+
+            await relay.processBatch();
+
+            expect(await readDelivery(pool, event.id, FIRST)).toMatchObject({
+                status: 'pending',
+                attempts: 1,
+                last_error: 'slow down',
+                next_attempt_at: clock.now().getTime() + expectedDelayMs,
+            });
+        },
+    );
 
     it('cleanup removes old processed events', async () => {
         const oldEvent = thingHappened('aggregate-old');
