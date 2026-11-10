@@ -126,6 +126,7 @@ class RedisLifecycle implements OnApplicationShutdown {
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PasswordChangeGuard },
     ],
+    exports: [AccessTokenService],
 })
 export class AuthModule implements OnModuleInit {
     onModuleInit(): void {
