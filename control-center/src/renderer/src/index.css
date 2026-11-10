@@ -24,6 +24,7 @@
   --brand-red-hover: #c81018;
   --brand-red-soft: #fde8e9;
   --ink: #1c1c1c;
+  --ink-80: #3a3a3a;
   --ink-60: #7e7f81;
   --ink-40: #a8a9ac;
   --surface: #ffffff;
@@ -96,6 +97,7 @@
   --color-brand-red-hover: var(--brand-red-hover);
   --color-brand-red-soft: var(--brand-red-soft);
   --color-ink: var(--ink);
+  --color-ink-80: var(--ink-80);
   --color-ink-60: var(--ink-60);
   --color-ink-40: var(--ink-40);
   --color-surface: var(--surface);

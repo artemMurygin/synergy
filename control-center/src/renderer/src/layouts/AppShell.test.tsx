@@ -1,16 +1,33 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authenticatedSnapshot } from '@/features/auth/auth-test-utils'
 import { useSessionStore } from '@/features/auth/session.store'
+import {
+  createTestQueryClient,
+  installNotificationsBridgeMock,
+  makeNotification
+} from '@/features/notifications/test-utils'
+import * as notificationsApi from '@/lib/backend/notifications.api'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { useUiStore } from '@/stores/ui.store'
 import { AppShell } from './AppShell'
 import { NavRail } from './NavRail'
 
-afterEach(cleanup)
+vi.mock('@/lib/backend/notifications.api')
+
+afterEach(() => {
+  cleanup()
+  useNotificationsStore.getState().reset()
+})
+
+let notificationsBridge: ReturnType<typeof installNotificationsBridgeMock>
 
 beforeEach(() => {
+  notificationsBridge = installNotificationsBridgeMock()
+  vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 })
   useUiStore.setState({ section: 'chats', dark: false })
   useSessionStore.setState({ snapshot: authenticatedSnapshot })
 })
@@ -25,7 +42,11 @@ function mount(tasks: () => void = () => {}) {
     tasks()
     return <Draft label="Фильтр задач" />
   }
-  render(<AppShell rail={<NavRail />} chats={<Draft label="Сообщение" />} tasks={<Tasks />} />)
+  render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <AppShell rail={<NavRail />} chats={<Draft label="Сообщение" />} tasks={<Tasks />} />
+    </QueryClientProvider>
+  )
   return userEvent.setup()
 }
 
@@ -73,5 +94,22 @@ describe('AppShell', () => {
     useUiStore.setState({ section: 'tasks' })
     mount()
     expect(screen.getByLabelText('Фильтр задач')).toBeTruthy()
+  })
+
+  it('puts the notifications button in the bottom group of the rail, above the theme toggle', () => {
+    mount()
+    const buttons = within(screen.getByRole('navigation')).getAllByRole('button')
+    const labels = buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)
+    expect(labels.slice(0, 3)).toEqual(['Чаты', 'Задачи', 'Уведомления'])
+    expect(labels[3]).toBe('Тёмная тема')
+  })
+
+  it('streams notifications into toasts', () => {
+    mount()
+    act(() =>
+      notificationsBridge.emitEvent({ type: 'notification.created', notification: makeNotification('1'), unreadCount: 1 })
+    )
+    const toaster = screen.getByRole('region', { name: 'Новые уведомления' })
+    expect(within(toaster).getByRole('group', { name: 'Уведомление 1' })).toBeTruthy()
   })
 })

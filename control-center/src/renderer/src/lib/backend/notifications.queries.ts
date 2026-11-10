@@ -34,7 +34,7 @@ export const unreadCountQuery = () =>
     queryFn: () => notificationsApi.getUnreadCount()
   })
 
-export function flattenNotifications(data: NotificationPages | undefined): Notification[] {
+export function flattenNotifications(data: InfiniteData<NotificationPage, unknown> | undefined): Notification[] {
   if (data === undefined) return []
   const seenIds = new Set<string>()
   const notifications: Notification[] = []

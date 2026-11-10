@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { NotificationsStream } from '@/features/notifications/NotificationsStream'
+import { NotificationToaster } from '@/features/notifications/NotificationToaster'
 import { useUiStore } from '@/stores/ui.store'
 
 interface AppShellProps {
@@ -25,6 +27,8 @@ export function AppShell({ rail, chats, tasks }: AppShellProps) {
           {tasks}
         </section>
       ) : null}
+      <NotificationsStream />
+      <NotificationToaster />
     </div>
   )
 }

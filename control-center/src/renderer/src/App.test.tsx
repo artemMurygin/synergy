@@ -10,6 +10,8 @@ import { useUiStore } from '@/stores/ui.store'
 import App from './App'
 import { authenticatedSnapshot, installBridgeMock, unauthenticatedSnapshot } from '@/features/auth/auth-test-utils'
 import { useSessionStore } from '@/features/auth/session.store'
+import { installNotificationsBridgeMock } from '@/features/notifications/test-utils'
+import { getUnreadCount } from '@/lib/backend/notifications.api'
 import { EventType } from '@ag-ui/client'
 import { FakeAgent } from '@/features/chat/fake-agent'
 import { createAgent } from '@/lib/backend/agent'
@@ -17,6 +19,7 @@ import { act } from '@testing-library/react'
 
 vi.mock('@/lib/backend/agent')
 vi.mock('@/lib/backend/threads.api')
+vi.mock('@/lib/backend/notifications.api')
 
 afterEach(cleanup)
 
@@ -43,6 +46,8 @@ let bridge: ReturnType<typeof installBridgeMock>
 
 beforeEach(() => {
   bridge = installBridgeMock(authenticatedSnapshot)
+  installNotificationsBridgeMock()
+  vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 0 })
   useSessionStore.setState({ snapshot: authenticatedSnapshot })
   useChatStore.setState({ activeThreadId: null })
   useUiStore.setState({ section: 'chats' })

@@ -1,2 +1,5 @@
 export { useNotificationsStream } from './use-notifications-stream'
 export { useOpenNotification, TASK_NOT_FOUND_NOTICE } from './use-open-notification'
+export { NotificationsButton } from './NotificationsButton'
+export { NotificationsStream } from './NotificationsStream'
+export { NotificationToaster } from './NotificationToaster'

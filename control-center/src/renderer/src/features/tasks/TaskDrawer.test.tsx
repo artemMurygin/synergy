@@ -1,6 +1,6 @@
 import './test-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSessionStore } from '@/features/auth/session.store'
@@ -8,6 +8,7 @@ import { TaskNotFoundError } from '@/lib/backend/errors'
 import * as tasksApi from '@/lib/backend/tasks.api'
 import type { TaskDetails } from '@/lib/backend/tasks.schema'
 import { listUsers } from '@/lib/backend/users.api'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
 import { TaskDrawer } from './TaskDrawer'
@@ -17,7 +18,10 @@ import { mkTask, NOW } from './test-utils'
 vi.mock('@/lib/backend/tasks.api')
 vi.mock('@/lib/backend/users.api')
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  useNotificationsStore.getState().reset()
+})
 
 const mkDetails = (extra: Partial<TaskDetails> = {}): TaskDetails => ({
   ...mkTask('t1', { title: 'Подготовить КП', description: 'Описание задачи' }),
@@ -163,6 +167,19 @@ describe('TaskDrawer', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Закрыть' }))
     expect(screen.queryByRole('complementary')).toBeNull()
+  })
+
+  it('says «Задача не найдена» once when the task was opened from a notification', async () => {
+    setup(new TaskNotFoundError('gone'))
+    act(() => useNotificationsStore.getState().showNotice('Задача не найдена'))
+    const alert = await screen.findByRole('alert')
+    await waitFor(() => expect(alert.textContent).toContain('Задача не найдена'))
+    expect(alert.textContent).toContain('Уведомление отмечено прочитанным')
+    expect(alert.textContent).not.toContain('Задача удалена')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Закрыть' }))
+    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(useNotificationsStore.getState().notice).toBeNull()
   })
 
   it('changes the status from the panel', async () => {

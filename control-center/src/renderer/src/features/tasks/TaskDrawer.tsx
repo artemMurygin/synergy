@@ -7,6 +7,7 @@ import { BackendError, TaskNotFoundError, TaskUserNotFoundError } from '@/lib/ba
 import type { CreateTaskInput } from '@/lib/backend/tasks.api'
 import { useDeleteTask, useTask, useUpdateTask } from '@/lib/backend/tasks.queries'
 import { TASK_STATUSES, type TaskDetails, type TaskStatus, type TaskUser } from '@/lib/backend/tasks.schema'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
 import { fieldErrorsFromError } from './field-errors'
@@ -95,7 +96,13 @@ function toInitial(task: TaskDetails): TaskFormInitial {
   }
 }
 
+const GONE_TEXT = { title: 'Задача удалена', caption: 'Её удалил другой пользователь. Список обновлён.' }
+const NOT_FOUND_CAPTION = 'Её удалили или у вас больше нет к ней доступа. Уведомление отмечено прочитанным.'
+
 function GoneNotice({ onClose }: { onClose: () => void }) {
+  const notice = useNotificationsStore((s) => s.notice)
+  const title = notice ?? GONE_TEXT.title
+  const caption = notice === null ? GONE_TEXT.caption : NOT_FOUND_CAPTION
   useEffect(() => {
     const timer = setTimeout(onClose, GONE_NOTICE_MS)
     return () => clearTimeout(timer)
@@ -111,8 +118,8 @@ function GoneNotice({ onClose }: { onClose: () => void }) {
         <span className="mb-1 flex size-16 items-center justify-center rounded-full bg-surface-sunken text-ink-60">
           <FileX aria-hidden className="size-7" />
         </span>
-        <h3 className="font-display text-lg font-semibold">Задача удалена</h3>
-        <p className="max-w-[300px] text-[13px] text-ink-60">Её удалил другой пользователь. Список обновлён.</p>
+        <h3 className="font-display text-lg font-semibold">{title}</h3>
+        <p className="max-w-[300px] text-[13px] text-ink-60">{caption}</p>
         <Button type="button" variant="outline" className="mt-1 h-10 rounded-full px-5" onClick={onClose}>
           Закрыть
         </Button>
@@ -422,7 +429,10 @@ export function TaskDrawer() {
   const id = useTasksStore((s) => s.selectedTaskId)
   // set when the open task turned out to be deleted: the panel stays to say so, then closes itself
   const [gone, setGone] = useState(false)
-  const onOpen = useRef(() => setGone(false)).current
+  const onOpen = useRef(() => {
+    setGone(false)
+    useNotificationsStore.getState().clearNotice()
+  }).current
   const onGone = useRef(() => setGone(true)).current
 
   if (id === null) return gone ? <GoneNotice onClose={onOpen} /> : null

@@ -1,5 +1,6 @@
 import { ListChecks, MessageSquare, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { AccountMenu } from '@/features/auth/AccountMenu'
+import { NotificationsButton } from '@/features/notifications/NotificationsButton'
 import { cn } from '@/lib/utils'
 import { useUiStore, type AppSection } from '@/stores/ui.store'
 
@@ -8,7 +9,7 @@ const ITEMS: { section: AppSection; label: string; icon: LucideIcon }[] = [
   { section: 'tasks', label: 'Задачи', icon: ListChecks }
 ]
 
-// Vertical rail: section switch, theme and the account menu with logout (frame A6WsC)
+// Vertical rail: section switch, notifications, theme and the account menu with logout (frames A6WsC, GCorB)
 export function NavRail() {
   const section = useUiStore((s) => s.section)
   const setSection = useUiStore((s) => s.setSection)
@@ -39,6 +40,7 @@ export function NavRail() {
         )
       })}
       <div className="flex-1" />
+      <NotificationsButton />
       <button
         type="button"
         aria-label={dark ? 'Светлая тема' : 'Тёмная тема'}
