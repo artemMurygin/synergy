@@ -1,5 +1,6 @@
 import { isExtensionMessage } from '@/shared/messages'
 import type { ExtensionResponse } from '@/shared/messages'
+import { startBackgroundNotifications } from './notifications'
 
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
@@ -13,3 +14,5 @@ chrome.runtime.onMessage.addListener(
     }
   },
 )
+
+startBackgroundNotifications()

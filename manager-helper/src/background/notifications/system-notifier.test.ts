@@ -1,0 +1,142 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { takePendingTarget } from '@/shared/notifications/pending-target'
+import { installChromeFake, makeNotification } from './chrome-fake.testing'
+import type { ChromeFake } from './chrome-fake.testing'
+import { createSeenStore } from './seen-store'
+import { SUMMARY_NOTIFICATION_ID, createSystemNotifier } from './system-notifier'
+
+let chromeFake: ChromeFake
+let isPanelOpen: boolean
+
+function setup() {
+  const markRead = vi.fn<(notificationId: string) => Promise<number>>(() => Promise.resolve(0))
+  const seen = createSeenStore(() => 'u1')
+  const notifier = createSystemNotifier({ isPanelOpen: () => isPanelOpen, seen, markRead })
+  notifier.attach()
+  return { notifier, markRead, seen }
+}
+
+async function click(notificationId: string) {
+  chromeFake.notifications.onClicked.emit(notificationId)
+  await vi.waitFor(() => {
+    expect(
+      chromeFake.sidePanel.open.mock.calls.length + chromeFake.windows.update.mock.calls.length,
+    ).toBeGreaterThan(0)
+  })
+}
+
+beforeEach(() => {
+  chromeFake = installChromeFake()
+  isPanelOpen = false
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('system-notifier: showing', () => {
+  it('creates a system notification with the notification id, title and body', async () => {
+    const { notifier } = setup()
+    await notifier.showNotification(
+      makeNotification('n1', '2026-11-10T09:00:00.000Z', { title: 'Новая задача', body: 'КП' }),
+    )
+    expect(chromeFake.notifications.create).toHaveBeenCalledWith(
+      'n1',
+      expect.objectContaining({ type: 'basic', title: 'Новая задача', message: 'КП' }),
+    )
+  })
+
+  it('does not show a system notification while the panel is open', async () => {
+    isPanelOpen = true
+    const { notifier } = setup()
+    await notifier.showNotification(makeNotification('n1', '2026-11-10T09:00:00.000Z'))
+    expect(chromeFake.notifications.create).not.toHaveBeenCalled()
+  })
+
+  it('does not show the same notification twice', async () => {
+    const { notifier } = setup()
+    const notification = makeNotification('n1', '2026-11-10T09:00:00.000Z')
+    await notifier.showNotification(notification)
+    await notifier.showNotification(notification)
+    expect(chromeFake.notifications.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a summary with the count and the right word form', async () => {
+    const { notifier } = setup()
+    await notifier.showSummary(7)
+    expect(chromeFake.notifications.create).toHaveBeenLastCalledWith(
+      SUMMARY_NOTIFICATION_ID,
+      expect.objectContaining({ message: 'У вас 7 новых уведомлений' }),
+    )
+    await notifier.showSummary(4)
+    expect(chromeFake.notifications.create).toHaveBeenLastCalledWith(
+      SUMMARY_NOTIFICATION_ID,
+      expect.objectContaining({ message: 'У вас 4 новых уведомления' }),
+    )
+    await notifier.showSummary(21)
+    expect(chromeFake.notifications.create).toHaveBeenLastCalledWith(
+      SUMMARY_NOTIFICATION_ID,
+      expect.objectContaining({ message: 'У вас 21 новое уведомление' }),
+    )
+  })
+
+  it('closes the given notifications and all of them', async () => {
+    const { notifier } = setup()
+    await notifier.showNotification(makeNotification('n1', '2026-11-10T09:00:00.000Z'))
+    await notifier.showNotification(makeNotification('n2', '2026-11-10T09:01:00.000Z'))
+    await notifier.showSummary(5)
+    await notifier.clearNotifications(['n1'])
+    expect([...chromeFake.shownNotifications.keys()]).toEqual(['n2', SUMMARY_NOTIFICATION_ID])
+    await notifier.closeAll()
+    expect(chromeFake.shownNotifications.size).toBe(0)
+  })
+})
+
+describe('system-notifier: click', () => {
+  it('marks the notification read, stores the task target and opens the panel', async () => {
+    const { notifier, markRead } = setup()
+    await notifier.showNotification(
+      makeNotification('n1', '2026-11-10T09:00:00.000Z', { taskId: 't1' }),
+    )
+    await click('n1')
+    expect(markRead).toHaveBeenCalledWith('n1')
+    expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({ windowId: 7 })
+    expect(chromeFake.windows.update).not.toHaveBeenCalled()
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'task', taskId: 't1' })
+    })
+    expect(chromeFake.shownNotifications.has('n1')).toBe(false)
+  })
+
+  it('focuses the window when the panel cannot be opened', async () => {
+    chromeFake.sidePanel.open.mockRejectedValue(new Error('user gesture required'))
+    const { notifier } = setup()
+    await notifier.showNotification(
+      makeNotification('n1', '2026-11-10T09:00:00.000Z', { taskId: 't1' }),
+    )
+    chromeFake.notifications.onClicked.emit('n1')
+    await vi.waitFor(() => {
+      expect(chromeFake.windows.update).toHaveBeenCalledWith(7, { focused: true })
+    })
+    expect(await takePendingTarget()).toEqual({ kind: 'task', taskId: 't1' })
+  })
+
+  it('opens the notifications list after a click on the summary', async () => {
+    const { notifier, markRead } = setup()
+    await notifier.showSummary(7)
+    await click(SUMMARY_NOTIFICATION_ID)
+    expect(markRead).not.toHaveBeenCalled()
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'notifications' })
+    })
+  })
+
+  it('still opens the panel when marking read fails', async () => {
+    const { notifier, markRead } = setup()
+    markRead.mockRejectedValue(new Error('offline'))
+    await notifier.showNotification(
+      makeNotification('n1', '2026-11-10T09:00:00.000Z', { taskId: 't1' }),
+    )
+    await click('n1')
+    expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({ windowId: 7 })
+  })
+})

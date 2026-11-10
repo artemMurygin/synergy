@@ -7,6 +7,7 @@ const EXTENSION_PUBLIC_KEY =
 
 export default defineManifest({
   manifest_version: 3,
+  minimum_chrome_version: '116',
   key: EXTENSION_PUBLIC_KEY,
   name: 'Manager Helper',
   description: packageJson.description,
@@ -35,7 +36,7 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'sidePanel'],
+  permissions: ['storage', 'sidePanel', 'notifications', 'alarms'],
   host_permissions: ['http://localhost/*', 'http://127.0.0.1/*', 'http://77.105.146.171/*'],
   optional_host_permissions: ['https://*/*', 'http://*/*'],
 })
