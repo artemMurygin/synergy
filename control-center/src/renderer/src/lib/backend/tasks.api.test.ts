@@ -84,8 +84,15 @@ describe("tasks.api", () => {
         sort: "deadline",
         order: "asc",
         limit: "50",
-        page: "2",
+        page: "1",
       });
+    });
+
+    it("converts the 1-based UI page to the 0-based backend page and back", async () => {
+      const fn = stubFetch(json(page));
+      const result = await listTasks({ page: 1 });
+      expect(calledUrl(fn).searchParams.get("page")).toBe("0");
+      expect(result.page).toBe(1);
     });
 
     it("sends overdue=false and no query for empty filters", async () => {

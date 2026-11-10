@@ -11,7 +11,7 @@ interface TasksData {
   search: string
   sort: TaskSort
   order: TaskOrder
-  /** 1-based, as in the backend API. */
+  /** 1-based; tasks.api converts it to the 0-based backend page. */
   page: number
   selectedTaskId: string | null
 }

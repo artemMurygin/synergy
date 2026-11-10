@@ -29,6 +29,7 @@ export interface TaskFilters {
   sort?: "deadline" | "createdAt" | "updatedAt";
   order?: "asc" | "desc";
   limit?: number;
+  /** 1-based, as shown in the UI; the backend counts pages from 0. */
   page?: number;
 }
 
@@ -80,13 +81,19 @@ const attachmentPath = (taskId: string, attachmentId: string): string =>
   `${taskPath(taskId)}/attachments/${encodeURIComponent(attachmentId)}`;
 
 export async function listTasks(filters: TaskFilters): Promise<TaskPage> {
+  const { page, ...rest } = filters;
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
+  for (const [key, value] of Object.entries(rest)) {
     if (value === undefined || value === "") continue;
     query.set(key, String(value));
   }
+  if (page !== undefined) query.set("page", String(page - 1));
   const qs = query.toString();
-  return parseBody(await call(qs ? `/tasks?${qs}` : "/tasks"), TaskPageSchema);
+  const result = await parseBody(
+    await call(qs ? `/tasks?${qs}` : "/tasks"),
+    TaskPageSchema,
+  );
+  return { ...result, page: result.page + 1 };
 }
 
 export async function getTask(id: string): Promise<TaskDetails> {
