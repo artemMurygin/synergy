@@ -60,11 +60,15 @@ describe('ChatSessionList states', () => {
     expect(screen.queryByText('Чатов пока нет')).toBeNull()
   })
 
-  it('hides the back button when no handler is given and creates from the header', () => {
-    const { onCreate } = setup({ onBack: undefined })
+  it('hides the back button when no handler is given', () => {
+    setup({ onBack: undefined })
     expect(screen.queryByRole('button', { name: 'Назад к чату' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Новый чат' }))
-    expect(onCreate).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: 'Чаты' })).toBeTruthy()
+  })
+
+  it('has no create button in the header: it lives in the panel header', () => {
+    setup()
+    expect(screen.queryByRole('button', { name: 'Новый чат' })).toBeNull()
   })
 
   it('goes back to the chat', () => {

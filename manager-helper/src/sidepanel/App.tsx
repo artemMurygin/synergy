@@ -5,11 +5,12 @@ import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
 import { getAuthState, subscribeAuth } from '@/shared/auth/auth-state'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
-import { ChatHeader } from './ChatHeader'
 import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 import { ChatSessionList } from './ChatSessionList'
+import { ChatTitleBar } from './ChatTitleBar'
 import { paneVisibility } from './panel-layout'
 import type { PanelMode } from './panel-layout'
+import { PanelHeader } from './PanelHeader'
 import { SectionSwitch } from './SectionSwitch'
 import { TasksApp } from './tasks/TasksApp'
 import { ThreadView } from './ThreadView'
@@ -199,62 +200,70 @@ export function App() {
         onSelect={sessions.select}
         onCreate={() => create()}
       >
-        <div data-section="chat" className={section === 'chat' ? 'flex min-h-0 flex-1' : 'hidden'}>
-          <div
-            className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-              panes.chat ? 'w-75 shrink-0 border-r border-line' : 'min-w-0 flex-1'
-            }`}
-          >
-            <ChatSessionList
-              sessions={sessions.sessions}
-              activeId={activeId}
-              status={sessions.status}
-              createDisabled={creating}
-              onSelect={(id) => {
-                sessions.select(id)
-                setMode('chat')
-              }}
-              onCreate={() => void createChat()}
-              onRename={rename}
-              onDelete={sessions.remove}
-              onRetry={() => void reload()}
-              onBack={
-                panes.chat
-                  ? undefined
-                  : () => {
-                      setMode('chat')
-                    }
-              }
-            />
-          </div>
+        <div
+          data-section="chat"
+          className={section === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        >
+          <PanelHeader
+            switcher={sectionSwitch}
+            actionLabel="Новый чат"
+            actionDisabled={creating}
+            onAction={() => void createChat()}
+            onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+          />
+          <div className="flex min-h-0 flex-1">
+            <div
+              className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
+                panes.chat ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
+              }`}
+            >
+              <ChatSessionList
+                sessions={sessions.sessions}
+                activeId={activeId}
+                status={sessions.status}
+                createDisabled={creating}
+                onSelect={(id) => {
+                  sessions.select(id)
+                  setMode('chat')
+                }}
+                onCreate={() => void createChat()}
+                onRename={rename}
+                onDelete={sessions.remove}
+                onRetry={() => void reload()}
+                onBack={
+                  panes.chat
+                    ? undefined
+                    : () => {
+                        setMode('chat')
+                      }
+                }
+              />
+            </div>
 
-          <div className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}>
-            <ChatHeader
-              title={activeSession?.title ?? ''}
-              running={run.running}
-              onOpenList={
-                panes.backToList
-                  ? () => {
-                      setMode('list')
-                    }
-                  : undefined
-              }
-              sectionSwitch={sectionSwitch}
-              newChatDisabled={creating}
-              onNewChat={() => void createChat()}
-              onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-            />
-            <ChatPane
-              activeId={activeId}
-              activeSession={activeSession}
-              create={create}
-              rename={rename}
-              serverRunning={run.running}
-              onStopServerRun={stopServerRun}
-              onSettled={() => void reload()}
-              finished={finished}
-              onFinishedApplied={clearFinished}
-            />
+            <div className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}>
+              <ChatTitleBar
+                title={activeSession?.title ?? ''}
+                running={run.running}
+                onOpenList={
+                  panes.backToList
+                    ? () => {
+                        setMode('list')
+                      }
+                    : undefined
+                }
+              />
+              <ChatPane
+                activeId={activeId}
+                activeSession={activeSession}
+                create={create}
+                rename={rename}
+                serverRunning={run.running}
+                onStopServerRun={stopServerRun}
+                onSettled={() => void reload()}
+                finished={finished}
+                onFinishedApplied={clearFinished}
+              />
+            </div>
           </div>
         </div>
       </ChatRuntimeProvider>

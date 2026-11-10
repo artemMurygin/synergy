@@ -1,12 +1,13 @@
 import type { Thread } from '@/shared/threads-api'
 import { ChatSessionItem } from './ChatSessionItem'
-import { ArrowLeftIcon, ChatsIcon, CloudOffIcon, PlusIcon } from './icons'
+import { ArrowLeftIcon, ChatsIcon, CloudOffIcon } from './icons'
 
 interface Props {
   sessions: Thread[]
   activeId: string | null
   status: 'loading' | 'ready' | 'error'
   onSelect: (id: string) => void
+  /** Create action of the empty state; the header create button lives in the panel header. */
   onCreate: () => void
   onRename: (id: string, title: string) => Promise<unknown>
   onDelete: (id: string) => Promise<unknown>
@@ -59,27 +60,18 @@ export function ChatSessionList(props: Props) {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-white">
-      <header className="flex items-center gap-2 border-b border-line px-3 py-2">
+      <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2">
         {onBack && (
           <button
             type="button"
             aria-label="Назад к чату"
-            className="flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-alt"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface-alt"
             onClick={onBack}
           >
             <ArrowLeftIcon />
           </button>
         )}
-        <h2 className="min-w-0 flex-1 font-heading text-base font-semibold text-ink">Чаты</h2>
-        <button
-          type="button"
-          className={primary}
-          disabled={props.createDisabled}
-          onClick={onCreate}
-        >
-          <PlusIcon />
-          Новый чат
-        </button>
+        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">Чаты</h2>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">

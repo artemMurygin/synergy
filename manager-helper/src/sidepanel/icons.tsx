@@ -29,12 +29,6 @@ export const ArrowLeftIcon = () => (
     <path d="m12 19-7-7 7-7M19 12H5" />
   </Icon>
 )
-export const NewChatIcon = () => (
-  <Icon>
-    <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" />
-  </Icon>
-)
 export const PlusIcon = () => (
   <Icon>
     <path d="M5 12h14M12 5v14" />

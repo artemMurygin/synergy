@@ -140,6 +140,17 @@ describe('TasksSplitView narrowing (< 640)', () => {
     expect(back.closest('[hidden]')).toBeNull()
   })
 
+  it('keeps one panel header with the switcher above the task details', async () => {
+    setup()
+    fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
+    await screen.findByRole('heading', { name: 'Отчёт' })
+    resizeTo(400)
+    const switcher = screen.getByText('переключатель')
+    expect(switcher.closest('[hidden]')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Новая задача' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
+  })
+
   it('shows only the list when nothing is selected', async () => {
     resizeTo(400)
     setup()

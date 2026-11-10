@@ -473,7 +473,7 @@ function tab(name: string): HTMLElement {
 
 describe('section switch', () => {
   const chatPane = () => {
-    const element = document.querySelector('[data-section="chat"]')
+    const element = document.querySelector<HTMLElement>('[data-section="chat"]')
     if (element === null) throw new Error('The chat section is not mounted')
     return element
   }
@@ -521,6 +521,26 @@ describe('section switch', () => {
       expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
     })
     expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('renders one panel header per section with a single create and settings button', async () => {
+    await openApp()
+    expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(1)
+    expect(within(chatPane()).getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
+    expect(within(chatPane()).getAllByRole('tablist')).toHaveLength(1)
+  })
+
+  it('keeps the switch in the narrow chat list', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 380 })
+    try {
+      await openApp()
+      fireEvent.click(screen.getByRole('button', { name: 'К списку чатов' }))
+      expect(screen.getByRole('heading', { name: 'Чаты' })).toBeTruthy()
+      expect(tab('Чат').getAttribute('aria-selected')).toBe('true')
+      expect(screen.getByRole('button', { name: 'Назад к чату' })).toBeTruthy()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+    }
   })
 
   it('is unavailable without a session', async () => {
