@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import { PinoLogger } from 'nestjs-pino';
 import { Client } from 'pg';
 import { createPool, type DatabasePool } from 'slonik';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../database/postgres/migrator';
+import { TransactionRunner } from '../../../database/postgres/transaction-runner';
+import { DomainEventRegistry } from '../../../shared/outbox/application/domain-event-registry';
+import { OutboxWakeUpPort } from '../../../shared/outbox/application/outbox-wake-up.port';
+import { OutboxDomainEventPublisher } from '../../../shared/outbox/infrastructure/outbox-domain-event-publisher';
+import { OutboxSettings } from '../../../shared/outbox/infrastructure/outbox-settings';
+import { OutboxStore } from '../../../shared/outbox/infrastructure/outbox-store';
+import { registerTaskEvents } from '../contracts/register-task-events';
+import { TASK_CREATED_EVENT_TYPE } from '../contracts/task-created.event';
 import { TaskNotFoundError } from '../domain/errors';
 import { FileName } from '../domain/file-name';
 import type { TaskPage } from '../domain/ports/task-repository.port';
@@ -27,11 +36,20 @@ function withDatabase(url: string, database: string): string {
 
 const DAY = 86_400_000;
 const T0 = new Date('2026-01-01T00:00:00.000Z');
+const TASK_CREATED_LISTENER = 'testing.task-created-listener';
+
+class SilentWakeUp extends OutboxWakeUpPort {
+    wake(): void {
+        return undefined;
+    }
+}
 
 describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
     const dbName = `tasks_repo_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     let client: Client;
     let pool: DatabasePool;
+    let transactions: TransactionRunner;
+    let publisher: OutboxDomainEventPublisher;
     let tasks: SlonikTaskRepository;
     let attachments: SlonikTaskAttachmentRepository;
     let directory: SlonikUserDirectory;
@@ -92,8 +110,32 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
         client = new Client({ connectionString: dbUrl });
         await client.connect();
         pool = await createPool(dbUrl);
-        tasks = new SlonikTaskRepository(pool);
-        attachments = new SlonikTaskAttachmentRepository(pool);
+        transactions = new TransactionRunner(
+            pool,
+            new PinoLogger({ pinoHttp: { level: 'silent' } }),
+        );
+        const registry = new DomainEventRegistry();
+        registerTaskEvents(registry);
+        registry.subscribe(TASK_CREATED_EVENT_TYPE, {
+            name: TASK_CREATED_LISTENER,
+            handle: () => Promise.resolve(),
+        });
+        publisher = new OutboxDomainEventPublisher(
+            transactions,
+            registry,
+            new OutboxStore(
+                transactions,
+                new OutboxSettings({
+                    pollIntervalMs: 1000,
+                    batchSize: 50,
+                    maxAttempts: 10,
+                    retentionDays: 7,
+                }),
+            ),
+            new SilentWakeUp(),
+        );
+        tasks = new SlonikTaskRepository(transactions);
+        attachments = new SlonikTaskAttachmentRepository(transactions);
         directory = new SlonikUserDirectory(pool);
     }, 60_000);
 
@@ -107,12 +149,94 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
     });
 
     beforeEach(async () => {
+        await client.query('DELETE FROM outbox_events');
         await client.query('DELETE FROM task');
         await client.query('DELETE FROM auth_users');
         alice = await addUser('alice');
         bob = await addUser('bob');
         carol = await addUser('carol');
         inactive = await addUser('gone', false);
+    });
+
+    describe('task creation with its outbox event', () => {
+        async function countRows(
+            table: 'task' | 'task_watcher' | 'outbox_events',
+        ): Promise<number> {
+            const result = await client.query<{ count: number }>(
+                `SELECT count(*)::int AS count FROM ${table}`,
+            );
+            return result.rows[0]?.count ?? 0;
+        }
+
+        it('commits the task, its watchers and the outbox event together', async () => {
+            const task = makeTask({
+                title: 'Подготовить КП',
+                assigneeId: bob,
+                watcherIds: [carol],
+            });
+
+            await transactions.run(async () => {
+                await tasks.save(task);
+                await publisher.publish(task.pullDomainEvents());
+            });
+
+            expect(await tasks.findById(task.id)).not.toBeNull();
+            expect(await countRows('task_watcher')).toBe(1);
+            const events = await client.query<{
+                event_type: string;
+                aggregate_id: string;
+                payload: unknown;
+            }>('SELECT event_type, aggregate_id, payload FROM outbox_events');
+            expect(events.rows).toEqual([
+                {
+                    event_type: TASK_CREATED_EVENT_TYPE,
+                    aggregate_id: task.id,
+                    payload: { title: 'Подготовить КП', creatorId: alice, assigneeId: bob },
+                },
+            ]);
+            const deliveries = await client.query<{ subscriber: string; status: string }>(
+                'SELECT subscriber, status FROM outbox_deliveries',
+            );
+            expect(deliveries.rows).toEqual([
+                { subscriber: TASK_CREATED_LISTENER, status: 'pending' },
+            ]);
+        });
+
+        it('rolls back the task and the outbox event when saving the watchers fails', async () => {
+            const task = makeTask({ assigneeId: bob, watcherIds: [carol, randomUUID()] });
+
+            await expect(
+                transactions.run(async () => {
+                    await publisher.publish(task.pullDomainEvents());
+                    await tasks.save(task);
+                }),
+            ).rejects.toThrow();
+
+            expect(await countRows('task')).toBe(0);
+            expect(await countRows('task_watcher')).toBe(0);
+            expect(await countRows('outbox_events')).toBe(0);
+        });
+
+        it('rolls back the task and its watchers when the event cannot be written', async () => {
+            const task = makeTask({ assigneeId: bob, watcherIds: [carol] });
+            const events = task.pullDomainEvents();
+            await client.query(
+                `INSERT INTO outbox_events (id, event_type, aggregate_id, payload)
+                 VALUES ($1, 'testing.taken', 'other', '{}')`,
+                [events[0]?.id],
+            );
+
+            await expect(
+                transactions.run(async () => {
+                    await tasks.save(task);
+                    await publisher.publish(events);
+                }),
+            ).rejects.toThrow();
+
+            expect(await countRows('task')).toBe(0);
+            expect(await countRows('task_watcher')).toBe(0);
+            expect(await countRows('outbox_events')).toBe(1);
+        });
     });
 
     describe('SlonikTaskRepository', () => {

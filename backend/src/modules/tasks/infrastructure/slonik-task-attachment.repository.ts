@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { sql, type CommonQueryMethods, type DatabasePool } from 'slonik';
+import { Injectable } from '@nestjs/common';
+import { sql, type CommonQueryMethods } from 'slonik';
 import { z } from 'zod';
-import { PG_POOL } from '../../../database/postgres/database.constants';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { FileName } from '../domain/file-name';
 import {
     TaskAttachmentRepository,
@@ -51,19 +51,20 @@ async function insertRow(executor: CommonQueryMethods, attachment: TaskAttachmen
 
 @Injectable()
 export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
-    constructor(@Inject(PG_POOL) private readonly pool: DatabasePool) {
+    constructor(private readonly transactions: TransactionRunnerPort) {
         super();
     }
 
     async insert(attachment: TaskAttachment): Promise<void> {
-        await insertRow(this.pool, attachment);
+        await insertRow(this.transactions.executor(), attachment);
     }
 
     async insertWithinLimit(
         attachment: TaskAttachment,
         limit: number,
     ): Promise<InsertWithinLimitResult> {
-        return this.pool.transaction(async (tx) => {
+        return this.transactions.run(async () => {
+            const tx = this.transactions.executor();
             // The row lock serializes uploads (and a concurrent soft delete) of one task.
             const locked = await tx.maybeOne(sql.unsafe`
                 SELECT id FROM task
@@ -82,7 +83,7 @@ export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
     }
 
     async listByTask(taskId: string): Promise<TaskAttachment[]> {
-        const rows = await this.pool.any(sql.unsafe`
+        const rows = await this.transactions.executor().any(sql.unsafe`
             SELECT ${COLUMNS} FROM task_attachment
             WHERE task_id = ${taskId}
             ORDER BY created_at ASC, id ASC`);
@@ -90,14 +91,14 @@ export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
     }
 
     async findByTask(taskId: string, attachmentId: string): Promise<TaskAttachment | null> {
-        const row = await this.pool.maybeOne(sql.unsafe`
+        const row = await this.transactions.executor().maybeOne(sql.unsafe`
             SELECT ${COLUMNS} FROM task_attachment
             WHERE id = ${attachmentId} AND task_id = ${taskId}`);
         return row === null ? null : toAttachment(row);
     }
 
     async countByTask(taskId: string): Promise<number> {
-        return this.pool.oneFirst(
+        return this.transactions.executor().oneFirst(
             sql.type(z.object({ count: z.number() }))`
                 SELECT count(*)::int AS count FROM task_attachment WHERE task_id = ${taskId}`,
         );
@@ -106,7 +107,7 @@ export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
     async countByTasks(taskIds: readonly string[]): Promise<Map<string, number>> {
         const counts = new Map<string, number>();
         if (taskIds.length === 0) return counts;
-        const rows = await this.pool.any(
+        const rows = await this.transactions.executor().any(
             sql.type(z.object({ task_id: z.string(), count: z.number() }))`
                 SELECT task_id, count(*)::int AS count FROM task_attachment
                 WHERE task_id = ANY(${sql.array([...taskIds], 'uuid')})
@@ -117,7 +118,7 @@ export class SlonikTaskAttachmentRepository extends TaskAttachmentRepository {
     }
 
     async delete(attachmentId: string): Promise<boolean> {
-        const result = await this.pool.query(sql.unsafe`
+        const result = await this.transactions.executor().query(sql.unsafe`
             DELETE FROM task_attachment WHERE id = ${attachmentId}`);
         return result.rowCount > 0;
     }

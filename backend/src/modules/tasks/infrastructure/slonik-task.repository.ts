@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { sql, type DatabasePool, type FragmentSqlToken, type ValueExpression } from 'slonik';
+import { Injectable } from '@nestjs/common';
+import { sql, type FragmentSqlToken, type ValueExpression } from 'slonik';
 import { z } from 'zod';
-import { PG_POOL } from '../../../database/postgres/database.constants';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import {
     TaskRepository,
     type TaskPage,
@@ -102,12 +102,12 @@ function buildOrderBy(sort: TaskSort): FragmentSqlToken {
 
 @Injectable()
 export class SlonikTaskRepository extends TaskRepository {
-    constructor(@Inject(PG_POOL) private readonly pool: DatabasePool) {
+    constructor(private readonly transactions: TransactionRunnerPort) {
         super();
     }
 
     async findById(id: string): Promise<Task | null> {
-        const row = await this.pool.maybeOne(sql.unsafe`
+        const row = await this.transactions.executor().maybeOne(sql.unsafe`
             SELECT ${COLUMNS} FROM task WHERE id = ${id} AND deleted_at IS NULL`);
         if (row === null) return null;
         const watchers = await this.loadWatchers([id]);
@@ -115,7 +115,8 @@ export class SlonikTaskRepository extends TaskRepository {
     }
 
     async save(task: Task): Promise<void> {
-        await this.pool.transaction(async (tx) => {
+        await this.transactions.run(async () => {
+            const tx = this.transactions.executor();
             // Serialize writers of one task and refuse to touch a task deleted in the meantime.
             const current = await tx.maybeOne(sql.unsafe`
                 SELECT (extract(epoch FROM deleted_at) * 1000)::float8 AS deleted_at
@@ -156,11 +157,12 @@ export class SlonikTaskRepository extends TaskRepository {
 
     async list(filter: TaskFilter, sort: TaskSort, page: TaskPageRequest): Promise<TaskPage> {
         const where = buildWhere(filter);
-        const total = await this.pool.oneFirst(
+        const executor = this.transactions.executor();
+        const total = await executor.oneFirst(
             sql.type(z.object({ count: z.number() }))`
                 SELECT count(*)::int AS count FROM task t ${where}`,
         );
-        const rows = await this.pool.any(sql.unsafe`
+        const rows = await executor.any(sql.unsafe`
             SELECT ${COLUMNS} FROM task t ${where} ${buildOrderBy(sort)}
             LIMIT ${page.limit} OFFSET ${page.page * page.limit}`);
         const watchers = await this.loadWatchers(rows.map((row) => taskRow.parse(row).id));
@@ -173,7 +175,7 @@ export class SlonikTaskRepository extends TaskRepository {
     private async loadWatchers(taskIds: string[]): Promise<Map<string, string[]>> {
         const result = new Map<string, string[]>();
         if (taskIds.length === 0) return result;
-        const rows = await this.pool.any(sql.unsafe`
+        const rows = await this.transactions.executor().any(sql.unsafe`
             SELECT task_id, user_id FROM task_watcher
             WHERE task_id = ANY(${sql.array(taskIds, 'uuid')})
             ORDER BY user_id`);

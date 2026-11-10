@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { TaskCreatedEvent } from '../contracts/task-created.event';
 import { TaskNotFoundError } from './errors';
 import {
     InvalidTaskDescriptionError,
@@ -125,6 +126,64 @@ describe('Task.restore', () => {
         expect(task.completedAt).toEqual(t1);
         expect(task.createdAt).toEqual(t0);
         expect(task.updatedAt).toEqual(t1);
+    });
+
+    it('does not raise domain events', () => {
+        const task = Task.restore({
+            id: 't5',
+            title: TaskTitle.of('Из БД'),
+            description: '',
+            status: 'todo',
+            deadline: null,
+            creatorId: 'creator',
+            assigneeId: 'a1',
+            watcherIds: [],
+            createdAt: t0,
+            updatedAt: t0,
+            completedAt: null,
+            deletedAt: null,
+        });
+
+        expect(task.pullDomainEvents()).toEqual([]);
+    });
+});
+
+describe('Task.create domain events', () => {
+    it('raises exactly one TaskCreatedEvent with the task facts', () => {
+        const task = Task.create({
+            id: 't7',
+            title: TaskTitle.of('  Подготовить КП  '),
+            creatorId: 'creator',
+            assigneeId: 'a1',
+            now: t0,
+        });
+
+        const events = task.pullDomainEvents();
+
+        expect(events).toHaveLength(1);
+        const [created] = events;
+        expect(created).toBeInstanceOf(TaskCreatedEvent);
+        if (!(created instanceof TaskCreatedEvent)) return;
+        expect(created.aggregateId).toBe('t7');
+        expect(created.taskId).toBe('t7');
+        expect(created.title).toBe('Подготовить КП');
+        expect(created.creatorId).toBe('creator');
+        expect(created.assigneeId).toBe('a1');
+    });
+
+    it('carries a null assignee when the task has none', () => {
+        const [created] = minimal().pullDomainEvents();
+
+        expect(created).toBeInstanceOf(TaskCreatedEvent);
+        if (!(created instanceof TaskCreatedEvent)) return;
+        expect(created.assigneeId).toBeNull();
+    });
+
+    it('hands the event out only once', () => {
+        const task = minimal();
+        task.pullDomainEvents();
+
+        expect(task.pullDomainEvents()).toEqual([]);
     });
 });
 

@@ -1,4 +1,4 @@
-import { Module, type INestApplication } from '@nestjs/common';
+import { Global, Module, type INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -9,6 +9,17 @@ import { join } from 'node:path';
 import { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PostgresModule } from '../../database/postgres/postgres.module';
+import { InMemoryTransactionRunner } from '../../database/postgres/testing/in-memory-transaction-runner';
+import { TransactionRunnerPort } from '../../database/postgres/transaction-runner.port';
+import { DomainEventPublisherPort } from '../../shared/ddd';
+import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
+import { OutboxStorePort } from '../../shared/outbox/application/outbox-store.port';
+import { OutboxWakeUpPort } from '../../shared/outbox/application/outbox-wake-up.port';
+import { OutboxDomainEventPublisher } from '../../shared/outbox/infrastructure/outbox-domain-event-publisher';
+import {
+    FakeOutboxClock,
+    InMemoryOutboxStore,
+} from '../../shared/outbox/testing/in-memory-outbox-store';
 import { RequestContextMiddleware } from '../../shared/context/request-context.middleware';
 import { HttpExceptionFilter } from '../../shared/http/http-exception.filter';
 import { AccessTokenService } from '../auth/domain/ports/access-token-service.port';
@@ -25,6 +36,7 @@ import { TaskRepository } from './domain/ports/task-repository.port';
 import { UserDirectory } from './domain/ports/user-directory.port';
 import { LocalDiskFileStorage } from './infrastructure/local-disk-file-storage';
 import { FileStorage } from './domain/ports/file-storage.port';
+import { TASK_CREATED_EVENT_TYPE } from './contracts/task-created.event';
 import { TasksModule } from './tasks.module';
 
 const ANNA = '0b9a7c2e-1d3f-4a5b-8c6d-7e8f90a1b2c3';
@@ -39,9 +51,29 @@ const fakeLogger = {
     debug: () => undefined,
 };
 
+const transactions = new InMemoryTransactionRunner();
+const outbox = new InMemoryOutboxStore(new FakeOutboxClock(new Date()));
+
 /** Stands in for the real pool module: no database is needed to exercise the wiring. */
-@Module({})
+@Module({
+    providers: [{ provide: TransactionRunnerPort, useValue: transactions }],
+    exports: [TransactionRunnerPort],
+})
 class NoDatabaseModule {}
+
+/** What the global OutboxModule provides, writing into an in-memory store without a relay. */
+@Global()
+@Module({
+    imports: [NoDatabaseModule],
+    providers: [
+        DomainEventRegistry,
+        { provide: OutboxStorePort, useValue: outbox },
+        { provide: OutboxWakeUpPort, useValue: { wake: () => undefined } },
+        { provide: DomainEventPublisherPort, useClass: OutboxDomainEventPublisher },
+    ],
+    exports: [DomainEventRegistry, DomainEventPublisherPort],
+})
+class OutboxStubModule {}
 
 /** What AuthModule provides to the rest of the app: the global guard and its token service. */
 @Module({
@@ -97,6 +129,7 @@ describe('tasks flow (TasksModule wired end to end)', () => {
                     ],
                 }),
                 AuthStubModule,
+                OutboxStubModule,
                 TasksModule,
             ],
         })
@@ -188,6 +221,15 @@ describe('tasks flow (TasksModule wired end to end)', () => {
         const taskId = created.body.id;
         expect(created.body.assignee).toEqual({ id: BORIS, login: 'boris' });
         expect(created.body.watchers).toEqual([{ id: VERA, login: 'vera' }]);
+        const recorded = [...outbox.events.values()].filter(
+            (event) => event.aggregateId === taskId,
+        );
+        expect(recorded).toMatchObject([
+            {
+                eventType: TASK_CREATED_EVENT_TYPE,
+                payload: { title: 'Подготовить КП', creatorId: ANNA, assigneeId: BORIS },
+            },
+        ]);
 
         const bytes = Buffer.from([0, 1, 2, 250, 251, 252, 10, 13, 0]);
         const form = new FormData();

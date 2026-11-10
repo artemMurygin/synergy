@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
+import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
 import { CreateTaskUseCase } from './application/create-task.use-case';
 import { DeleteAttachmentUseCase } from './application/delete-attachment.use-case';
 import { DeleteTaskUseCase } from './application/delete-task.use-case';
@@ -11,6 +12,7 @@ import { GetTaskUseCase } from './application/get-task.use-case';
 import { ListTasksUseCase } from './application/list-tasks.use-case';
 import { UpdateTaskUseCase } from './application/update-task.use-case';
 import { UploadAttachmentUseCase } from './application/upload-attachment.use-case';
+import { registerTaskEvents } from './contracts/register-task-events';
 import { Clock } from './domain/ports/clock.port';
 import { FileStorage } from './domain/ports/file-storage.port';
 import { TaskAccessPolicy } from './domain/ports/task-access-policy.port';
@@ -66,7 +68,10 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
     ],
 })
 export class TasksModule implements OnModuleInit {
+    constructor(private readonly events: DomainEventRegistry) {}
+
     onModuleInit(): void {
         registerTaskErrorStatuses();
+        registerTaskEvents(this.events);
     }
 }

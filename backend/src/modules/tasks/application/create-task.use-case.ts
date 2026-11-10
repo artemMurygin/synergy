@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
+import { DomainEventPublisherPort } from '../../../shared/ddd';
 import type { Actor } from '../domain/actor';
 import { Clock } from '../domain/ports/clock.port';
 import { TaskRepository } from '../domain/ports/task-repository.port';
@@ -22,6 +24,8 @@ export class CreateTaskUseCase {
         private readonly tasks: TaskRepository,
         private readonly users: UserDirectory,
         private readonly clock: Clock,
+        private readonly transactions: TransactionRunnerPort,
+        private readonly events: DomainEventPublisherPort,
     ) {}
 
     async execute(actor: Actor, input: CreateTaskInput): Promise<TaskView> {
@@ -37,7 +41,10 @@ export class CreateTaskUseCase {
             watcherIds: input.watcherIds,
             now: this.clock.now(),
         });
-        await this.tasks.save(task);
+        await this.transactions.run(async () => {
+            await this.tasks.save(task);
+            await this.events.publish(task.pullDomainEvents());
+        });
         return toTaskView(task, this.users);
     }
 }

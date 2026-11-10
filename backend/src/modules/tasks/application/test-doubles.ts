@@ -1,5 +1,9 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Readable } from 'node:stream';
+import type { CommonQueryMethods } from 'slonik';
 import { vi } from 'vitest';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
+import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd';
 import type { Actor } from '../domain/actor';
 import type { DirectoryUser } from '../domain/ports/user-directory.port';
 import type { Task } from '../domain/task';
@@ -21,8 +25,86 @@ import type { TaskAttachment } from '../domain/task-attachment';
 export const NOW = new Date('2026-01-10T12:00:00Z');
 export const fakeClock = { now: (): Date => NOW };
 
-export class InMemoryTaskRepository implements TaskRepository {
+export interface TransactionParticipant {
+    snapshot(): () => void;
+}
+
+export class SnapshotTransactionRunner extends TransactionRunnerPort {
+    private readonly storage = new AsyncLocalStorage<(() => void)[]>();
+
+    commits = 0;
+
+    rollbacks = 0;
+
+    constructor(private readonly participants: readonly TransactionParticipant[]) {
+        super();
+    }
+
+    async run<T>(work: () => Promise<T>): Promise<T> {
+        if (this.storage.getStore() !== undefined) return work();
+        const restores = this.participants.map((participant) => participant.snapshot());
+        const callbacks: (() => void)[] = [];
+        try {
+            const result = await this.storage.run(callbacks, work);
+            this.commits += 1;
+            for (const callback of callbacks) callback();
+            return result;
+        } catch (error: unknown) {
+            this.rollbacks += 1;
+            for (const restore of restores) restore();
+            throw error;
+        }
+    }
+
+    executor(): CommonQueryMethods {
+        throw new Error('SnapshotTransactionRunner has no database connection');
+    }
+
+    afterCommit(callback: () => void): void {
+        const callbacks = this.storage.getStore();
+        if (callbacks === undefined) {
+            throw new Error('afterCommit was called outside a transaction');
+        }
+        callbacks.push(callback);
+    }
+
+    isInTransaction(): boolean {
+        return this.storage.getStore() !== undefined;
+    }
+}
+
+export class RecordingEventPublisher extends DomainEventPublisherPort {
+    readonly published: DomainEvent[] = [];
+
+    readonly publishedInTransaction: boolean[] = [];
+
+    failure: Error | null = null;
+
+    onPublish: (() => void) | null = null;
+
+    constructor(private readonly transactions: TransactionRunnerPort) {
+        super();
+    }
+
+    publish(events: readonly DomainEvent[]): Promise<void> {
+        this.publishedInTransaction.push(this.transactions.isInTransaction());
+        this.onPublish?.();
+        if (this.failure !== null) return Promise.reject(this.failure);
+        this.published.push(...events);
+        return Promise.resolve();
+    }
+}
+
+export class InMemoryTaskRepository implements TaskRepository, TransactionParticipant {
     readonly byId = new Map<string, Task>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, task] of saved) this.byId.set(id, task);
+        };
+    }
 
     constructor(private readonly clock: { now(): Date } = fakeClock) {}
 

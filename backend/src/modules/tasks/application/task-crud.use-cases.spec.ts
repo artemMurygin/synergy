@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { TaskCreatedEvent } from '../contracts/task-created.event';
 import { Actor } from '../domain/actor';
 import { TaskAccessDeniedError } from '../domain/access-denied.error';
 import { TaskNotFoundError, TaskUserNotFoundError } from '../domain/errors';
@@ -15,6 +16,8 @@ import {
     InMemoryAttachmentRepository,
     InMemoryTaskRepository,
     NOW,
+    RecordingEventPublisher,
+    SnapshotTransactionRunner,
     fakeClock,
 } from './test-doubles';
 import { UpdateTaskUseCase } from './update-task.use-case';
@@ -31,9 +34,13 @@ let tasks: InMemoryTaskRepository;
 let attachments: InMemoryAttachmentRepository;
 let directory: FakeUserDirectory;
 let policy: FakeAccessPolicy;
+let transactions: SnapshotTransactionRunner;
+let events: RecordingEventPublisher;
 
 beforeEach((): void => {
     tasks = new InMemoryTaskRepository();
+    transactions = new SnapshotTransactionRunner([tasks]);
+    events = new RecordingEventPublisher(transactions);
     attachments = new InMemoryAttachmentRepository();
     directory = new FakeUserDirectory(users);
     policy = new FakeAccessPolicy();
@@ -67,7 +74,8 @@ const attachmentOf = (id: string, taskId: string): TaskAttachment =>
     });
 
 describe('CreateTaskUseCase', () => {
-    const create = (): CreateTaskUseCase => new CreateTaskUseCase(tasks, directory, fakeClock);
+    const create = (): CreateTaskUseCase =>
+        new CreateTaskUseCase(tasks, directory, fakeClock, transactions, events);
 
     it('creates a task with the actor as creator and defaults', async () => {
         const view = await create().execute(me, { title: '  Отчёт  ' });
@@ -126,6 +134,68 @@ describe('CreateTaskUseCase', () => {
             create().execute(me, { title: 'Отчёт', watcherIds: ['anna', 'ghost'] }),
         ).rejects.toMatchObject({ userIds: ['ghost'] });
         expect(tasks.save).not.toHaveBeenCalled();
+    });
+
+    it('saves the task and publishes its TaskCreatedEvent in one transaction', async () => {
+        const savedInTransaction: boolean[] = [];
+        tasks.save.mockImplementation((task: Task) => {
+            savedInTransaction.push(transactions.isInTransaction());
+            tasks.byId.set(task.id, task);
+            return Promise.resolve();
+        });
+
+        const view = await create().execute(me, { title: 'Отчёт', assigneeId: 'anna' });
+
+        expect(savedInTransaction).toEqual([true]);
+        expect(events.publishedInTransaction).toEqual([true]);
+        expect(transactions.commits).toBe(1);
+        expect(events.published).toHaveLength(1);
+        const [created] = events.published;
+        expect(created).toBeInstanceOf(TaskCreatedEvent);
+        if (!(created instanceof TaskCreatedEvent)) return;
+        expect(created.taskId).toBe(view.id);
+        expect(created.title).toBe('Отчёт');
+        expect(created.creatorId).toBe('me');
+        expect(created.assigneeId).toBe('anna');
+    });
+
+    it('publishes the event after the task is saved', async () => {
+        const order: string[] = [];
+        tasks.save.mockImplementation((task: Task) => {
+            order.push('save');
+            tasks.byId.set(task.id, task);
+            return Promise.resolve();
+        });
+        events.onPublish = () => {
+            order.push('publish');
+        };
+
+        await create().execute(me, { title: 'Отчёт' });
+
+        expect(order).toEqual(['save', 'publish']);
+    });
+
+    it('rolls the task back when the event cannot be published', async () => {
+        const failure = new Error('outbox is unavailable');
+        events.failure = failure;
+
+        await expect(create().execute(me, { title: 'Отчёт', assigneeId: 'anna' })).rejects.toBe(
+            failure,
+        );
+
+        expect(tasks.save).toHaveBeenCalledTimes(1);
+        expect(tasks.byId.size).toBe(0);
+        expect(transactions.commits).toBe(0);
+        expect(transactions.rollbacks).toBe(1);
+    });
+
+    it('does not publish anything when the task cannot be saved', async () => {
+        tasks.save.mockRejectedValueOnce(new Error('database is down'));
+
+        await expect(create().execute(me, { title: 'Отчёт' })).rejects.toThrow('database is down');
+
+        expect(events.published).toEqual([]);
+        expect(transactions.commits).toBe(0);
     });
 });
 

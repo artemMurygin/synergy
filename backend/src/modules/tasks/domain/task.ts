@@ -1,5 +1,7 @@
+import { RequestContext } from '../../../shared/context/request-context';
 import { AggregateRoot } from '../../../shared/ddd';
 import { ArgumentInvalidError } from '../../../shared/errors';
+import { TaskCreatedEvent } from '../contracts/task-created.event';
 import { TaskNotFoundError } from './errors';
 import type { TaskStatus } from './task-status';
 import type { TaskTitle } from './task-title';
@@ -42,7 +44,7 @@ export interface RestoreTaskInput extends TaskProps {
 
 export class Task extends AggregateRoot<TaskProps> {
     static create(input: CreateTaskInput): Task {
-        return new Task({
+        const task = new Task({
             id: input.id,
             createdAt: input.now,
             updatedAt: input.now,
@@ -58,6 +60,20 @@ export class Task extends AggregateRoot<TaskProps> {
                 deletedAt: null,
             },
         });
+        task.addEvent(
+            new TaskCreatedEvent({
+                aggregateId: task.id,
+                title: task.title.value,
+                creatorId: task.creatorId,
+                assigneeId: task.assigneeId,
+                metadata: {
+                    timestamp: input.now.getTime(),
+                    correlationId: RequestContext.getCorrelationId(),
+                    userId: task.creatorId,
+                },
+            }),
+        );
+        return task;
     }
 
     static restore({ id, createdAt, updatedAt, ...props }: RestoreTaskInput): Task {
