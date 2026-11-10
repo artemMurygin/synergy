@@ -83,10 +83,11 @@ describe('MessengerChannel', () => {
     let metrics: RecordingMessageMetrics;
     let channel: MessengerChannel;
 
-    function channelWith(apiBaseUrl: string): MessengerChannel {
+    function channelWith(apiBaseUrl: string, botToken?: string | null): MessengerChannel {
         const settings = testTelegramSettings({
             apiBaseUrl,
             deliveryReservationMs: RESERVATION_MS,
+            ...(botToken === null ? { botToken: undefined } : {}),
         });
         return new MessengerChannel(
             deliveries,
@@ -189,6 +190,16 @@ describe('MessengerChannel', () => {
     });
 
     describe('skipped deliveries', () => {
+        it('skips without sending when the bot token is not configured', async () => {
+            linkBoris();
+            const notification = notificationFor(BORIS_ID);
+
+            await channelWith(stub.baseUrl, null).deliver(notification);
+
+            expect(stub.requestsOf('sendMessage')).toHaveLength(0);
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('skipped');
+        });
+
         it.each([
             ['the recipient has no link', () => undefined],
             [

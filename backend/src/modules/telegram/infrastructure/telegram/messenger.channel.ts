@@ -81,6 +81,7 @@ export class MessengerChannel extends NotificationChannelPort {
     }
 
     private async findDeliverableChat(userId: string): Promise<bigint | null> {
+        if (this.settings.botToken === null) return null;
         const link = await this.links.findByUserId(userId);
         if (link?.notificationsEnabled !== true) return null;
         const user = await this.users.findActiveById(userId);

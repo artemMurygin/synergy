@@ -13,6 +13,7 @@ import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { TelegramModule } from './modules/telegram/telegram.module';
 
 @Module({
     imports: [
@@ -27,6 +28,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
         SheetsQaModule,
         TasksModule,
         NotificationsModule,
+        TelegramModule,
     ],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

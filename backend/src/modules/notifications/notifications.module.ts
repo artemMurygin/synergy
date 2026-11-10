@@ -86,6 +86,7 @@ import { UserRealtimeEmitter } from './interface/ws/user-realtime-emitter';
         notificationsCreatedMetricProvider,
         { provide: NotificationCreationMetricsPort, useClass: NotificationCreationMetrics },
     ],
+    exports: [NotificationChannelSubscriptions],
 })
 export class NotificationsModule implements OnModuleInit {
     onModuleInit(): void {

@@ -33,6 +33,6 @@ import { OutboxStore } from './infrastructure/outbox-store';
         { provide: OutboxWakeUpPort, useExisting: OutboxRelay },
         { provide: DomainEventPublisherPort, useClass: OutboxDomainEventPublisher },
     ],
-    exports: [DomainEventRegistry, DomainEventPublisherPort],
+    exports: [DomainEventRegistry, DomainEventPublisherPort, OutboxSettings],
 })
 export class OutboxModule {}
