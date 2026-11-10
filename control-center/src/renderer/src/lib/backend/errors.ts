@@ -25,3 +25,7 @@ export class AttachmentTooLargeError extends BackendError {}
 export class AttachmentLimitError extends BackendError {}
 
 export class NotificationNotFoundError extends BackendError {}
+
+export class TelegramNotConfiguredError extends BackendError {}
+
+export class TelegramNotLinkedError extends BackendError {}
