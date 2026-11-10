@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import type { Env } from '../config/env.schema';
 import { RequestContext } from '../context/request-context';
 import { resolveRequestIds } from '../context/request-id';
+import { LOG_REDACT_PATHS } from './log-redact-paths';
 
 @Module({
     imports: [
@@ -38,13 +39,7 @@ import { resolveRequestIds } from '../context/request-id';
                         genReqId: (req, res) => resolveRequestIds(req, res).requestId,
                         mixin: () => RequestContext.getIds() ?? {},
                         redact: {
-                            paths: [
-                                'req.headers.authorization',
-                                'req.headers.cookie',
-                                'res.headers["set-cookie"]',
-                                '*.password',
-                                '*.apiKey',
-                            ],
+                            paths: [...LOG_REDACT_PATHS],
                             censor: '[Redacted]',
                         },
                         autoLogging: {
