@@ -10,7 +10,7 @@ import {
 import { authFetch } from './auth-fetch'
 import { setAuthState, type AuthUser } from './auth-state'
 import { refreshAccessToken } from './refresh-coordinator'
-import { endSession } from './session-channel'
+import { endSession, startSession } from './session-channel'
 
 async function loadUser(token: string): Promise<AuthUser | null> {
   try {
@@ -51,10 +51,12 @@ export function restoreSession(): Promise<void> {
 
 export async function login(loginName: string, password: string): Promise<void> {
   await applyTokens(await loginRequest(loginName, password))
+  startSession()
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   await applyTokens(await changePasswordRequest({ currentPassword, newPassword }, authFetch))
+  startSession()
 }
 
 export async function logout(): Promise<void> {

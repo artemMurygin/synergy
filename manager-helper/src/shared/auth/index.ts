@@ -13,6 +13,6 @@ export {
   WeakPasswordError,
   WrongPasswordError,
 } from './auth-api'
-export { onSessionEnded } from './session-channel'
+export { onSessionEnded, onSessionStarted } from './session-channel'
 export { useAuthSession } from './use-auth-session'
 export type { AuthSession } from './use-auth-session'

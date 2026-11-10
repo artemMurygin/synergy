@@ -1,13 +1,22 @@
 const CHANNEL_NAME = 'mh-auth'
-const SESSION_ENDED = { type: 'session-ended' }
 
+type SessionSignal = 'session-started' | 'session-ended'
 type Listener = () => void
 
-const listeners = new Set<Listener>()
+const listenersBySignal: Record<SessionSignal, Set<Listener>> = {
+  'session-started': new Set(),
+  'session-ended': new Set(),
+}
 let channel: BroadcastChannel | null | undefined
 
-function notify(): void {
-  for (const listener of [...listeners]) listener()
+function notify(signal: SessionSignal): void {
+  for (const listener of [...listenersBySignal[signal]]) listener()
+}
+
+function readSignal(data: unknown): SessionSignal | null {
+  if (typeof data !== 'object' || data === null || !('type' in data)) return null
+  if (data.type === 'session-started' || data.type === 'session-ended') return data.type
+  return null
 }
 
 function getChannel(): BroadcastChannel | null {
@@ -17,31 +26,40 @@ function getChannel(): BroadcastChannel | null {
     } else {
       channel = new BroadcastChannel(CHANNEL_NAME)
       channel.onmessage = (event: MessageEvent) => {
-        const data: unknown = event.data
-        if (
-          typeof data === 'object' &&
-          data !== null &&
-          'type' in data &&
-          data.type === 'session-ended'
-        ) {
-          notify()
-        }
+        const signal = readSignal(event.data)
+        if (signal !== null) notify(signal)
       }
     }
   }
   return channel
 }
 
+function send(signal: SessionSignal): void {
+  getChannel()?.postMessage({ type: signal })
+  notify(signal)
+}
+
+function subscribe(signal: SessionSignal, listener: Listener): () => void {
+  getChannel()
+  listenersBySignal[signal].add(listener)
+  return () => {
+    listenersBySignal[signal].delete(listener)
+  }
+}
+
 /** Tells every extension context (including this one) that the session is over. */
 export function endSession(): void {
-  getChannel()?.postMessage(SESSION_ENDED)
-  notify()
+  send('session-ended')
 }
 
 export function onSessionEnded(listener: Listener): () => void {
-  getChannel()
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  return subscribe('session-ended', listener)
+}
+
+export function startSession(): void {
+  send('session-started')
+}
+
+export function onSessionStarted(listener: Listener): () => void {
+  return subscribe('session-started', listener)
 }
