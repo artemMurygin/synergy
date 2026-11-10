@@ -86,6 +86,23 @@ describe('useNotificationsStream', () => {
     expect(toastIds()).toEqual([])
   })
 
+  it('clears the notifications cache and toasts when another user signs in', () => {
+    const { bridge, client } = setup()
+    act(() => bridge.emitEvent({ type: 'notification.created', notification: makeNotification('b'), unreadCount: 2 }))
+    act(() =>
+      useSessionStore.getState().setSnapshot({ state: 'authenticated', user: { id: 'other-user', login: 'boris' } })
+    )
+    expect(client.getQueryData(LIST_KEY)).toBeUndefined()
+    expect(client.getQueryData(COUNT_KEY)).toBeUndefined()
+    expect(toastIds()).toEqual([])
+  })
+
+  it('keeps the cache when the same user snapshot is refreshed', () => {
+    const { client } = setup()
+    act(() => useSessionStore.getState().setSnapshot({ ...authenticatedSnapshot, warning: 'vault' }))
+    expect(listIds(client)).toEqual(['a'])
+  })
+
   it('stops listening after unmount', () => {
     const { bridge, hook } = setup()
     expect(bridge.listenerCount()).toBe(2)

@@ -25,7 +25,10 @@ export function useNotificationsStream(): void {
 
     const unsubscribeSession = useSessionStore.subscribe((current, previous) => {
       const isLoggedOut = current.snapshot.state === 'unauthenticated' && previous.snapshot.state !== 'unauthenticated'
-      if (!isLoggedOut) return
+      const previousUserId = previous.snapshot.user?.id
+      const isUserSwitched =
+        current.snapshot.user !== null && previousUserId !== undefined && current.snapshot.user.id !== previousUserId
+      if (!isLoggedOut && !isUserSwitched) return
       queryClient.removeQueries({ queryKey: NOTIFICATIONS_KEY })
       useNotificationsStore.getState().reset()
     })

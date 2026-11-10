@@ -104,8 +104,8 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
         auth: (callback) => {
           const mustRefresh = current.mustRefreshToken
           current.mustRefreshToken = false
-          const token = mustRefresh ? auth.refresh().then((refreshed) => refreshed.value) : auth.getAccessToken()
-          token.then(
+          const pendingToken = mustRefresh ? auth.refresh().then((refreshed) => refreshed.value) : auth.getAccessToken()
+          pendingToken.then(
             (token) => {
               current.isTokenUnavailable = false
               callback(token === null ? {} : { token })
