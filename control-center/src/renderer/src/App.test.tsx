@@ -77,10 +77,12 @@ describe('App', () => {
     expect(useChatStore.getState().activeThreadId).toBe('b')
   })
 
-  it('shows the user login and logs out from the sidebar footer', async () => {
+  it('logs out from the account menu in the tasks section', async () => {
     bridge.logout.mockResolvedValue({ serverRevoked: true })
     const user = mount()
-    expect(await screen.findByText('admin')).toBeTruthy()
+    await user.click(await screen.findByRole('button', { name: 'Задачи' }))
+    await user.click(screen.getByRole('button', { name: 'Учётная запись admin' }))
+    expect(screen.getByText('admin')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Выйти' }))
     await waitFor(() => {
       expect(bridge.logout).toHaveBeenCalledTimes(1)

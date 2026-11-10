@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createWrapper, installBridgeMock, authenticatedSnapshot } from './auth-test-utils'
 import { AuthGate } from './AuthGate'
 import { LogoutButton } from './LogoutButton'
-import { SidebarFooter } from './SidebarFooter'
+import { AccountMenu } from './AccountMenu'
 import { useSessionStore } from './session.store'
 
 afterEach(() => {
@@ -39,7 +39,7 @@ describe('LogoutButton', () => {
     render(
       <Wrapper>
         <AuthGate>
-          <SidebarFooter />
+          <LogoutButton />
         </AuthGate>
       </Wrapper>
     )
@@ -49,17 +49,33 @@ describe('LogoutButton', () => {
   })
 })
 
-describe('SidebarFooter', () => {
-  it('shows the login of the current user and the logout button', () => {
-    installBridgeMock(authenticatedSnapshot)
+describe('AccountMenu', () => {
+  it('opens the account card with the login and the logout button', async () => {
+    const mock = installBridgeMock(authenticatedSnapshot)
+    mock.logout.mockResolvedValue({ serverRevoked: true })
     useSessionStore.setState({ snapshot: authenticatedSnapshot })
     const Wrapper = createWrapper()
     render(
       <Wrapper>
-        <SidebarFooter />
+        <AccountMenu />
       </Wrapper>
     )
+    const user = userEvent.setup()
+    expect(screen.queryByRole('button', { name: 'Выйти' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Учётная запись admin' }))
     expect(screen.getByText('admin')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Выйти' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Выйти' }))
+    await waitFor(() => expect(mock.logout).toHaveBeenCalledTimes(1))
+  })
+
+  it('renders nothing without a session', () => {
+    installBridgeMock(authenticatedSnapshot)
+    const Wrapper = createWrapper()
+    const { container } = render(
+      <Wrapper>
+        <AccountMenu />
+      </Wrapper>
+    )
+    expect(container.querySelector('button')).toBeNull()
   })
 })

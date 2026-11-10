@@ -1,5 +1,5 @@
 import { ListChecks, MessageSquare, Moon, Sun, type LucideIcon } from 'lucide-react'
-import { useSessionStore } from '@/features/auth/session.store'
+import { AccountMenu } from '@/features/auth/AccountMenu'
 import { cn } from '@/lib/utils'
 import { useUiStore, type AppSection } from '@/stores/ui.store'
 
@@ -8,13 +8,12 @@ const ITEMS: { section: AppSection; label: string; icon: LucideIcon }[] = [
   { section: 'tasks', label: 'Задачи', icon: ListChecks }
 ]
 
-// Vertical rail: section switch, theme and the current user (frame A6WsC)
+// Vertical rail: section switch, theme and the account menu with logout (frame A6WsC)
 export function NavRail() {
   const section = useUiStore((s) => s.section)
   const setSection = useUiStore((s) => s.setSection)
   const dark = useUiStore((s) => s.dark)
   const toggleDark = useUiStore((s) => s.toggleDark)
-  const login = useSessionStore((s) => s.snapshot.user?.login)
 
   return (
     <nav
@@ -48,16 +47,7 @@ export function NavRail() {
       >
         {dark ? <Sun aria-hidden className="size-4" /> : <Moon aria-hidden className="size-4" />}
       </button>
-      {login ? (
-        <span
-          title={login}
-          aria-label={`Вы вошли как ${login}`}
-          role="img"
-          className="flex size-9 items-center justify-center rounded-full bg-brand-red-soft text-xs font-semibold text-brand-red"
-        >
-          {login.slice(0, 2).toUpperCase()}
-        </span>
-      ) : null}
+      <AccountMenu />
     </nav>
   )
 }

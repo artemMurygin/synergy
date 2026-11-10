@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AuthGate, SidebarFooter } from '@/features/auth'
+import { AuthGate } from '@/features/auth'
 import { ChatList } from '@/features/chat-list'
 import { ChatThread } from '@/features/chat'
 import { TasksPage } from '@/features/tasks'
@@ -19,7 +19,7 @@ export default function App() {
     <AuthGate>
       <AppShell
         rail={<NavRail />}
-        chats={<ChatLayout sidebar={<ChatList />} main={<ChatThread />} sidebarFooter={<SidebarFooter />} />}
+        chats={<ChatLayout sidebar={<ChatList />} main={<ChatThread />} />}
         tasks={<TasksPage />}
       />
     </AuthGate>
