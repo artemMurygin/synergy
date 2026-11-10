@@ -11,7 +11,7 @@ function res(): { cookie: ReturnType<typeof vi.fn>; clearCookie: ReturnType<type
 describe('RefreshCookieService', () => {
     it('sets mh_refresh as HttpOnly, SameSite=Strict, Path=/auth, living as long as the token', () => {
         const response = res();
-        service.set({ hostname: 'localhost' } as Request, response as unknown as Response, 'tok');
+        service.set({ secure: false } as Request, response as unknown as Response, 'tok');
         expect(response.cookie).toHaveBeenCalledWith('mh_refresh', 'tok', {
             httpOnly: true,
             sameSite: 'strict',
@@ -21,25 +21,21 @@ describe('RefreshCookieService', () => {
         });
     });
 
-    it.each(['localhost', '127.0.0.1', '::1'])('omits Secure on %s', (hostname) => {
+    it('omits Secure over plain HTTP, so the browser keeps the cookie', () => {
         const response = res();
-        service.set({ hostname } as Request, response as unknown as Response, 'tok');
+        service.set({ secure: false } as Request, response as unknown as Response, 'tok');
         expect(response.cookie.mock.calls[0][2]).toMatchObject({ secure: false });
     });
 
-    it('sets Secure outside localhost', () => {
+    it('sets Secure over HTTPS', () => {
         const response = res();
-        service.set(
-            { hostname: 'api.example.com' } as Request,
-            response as unknown as Response,
-            't',
-        );
+        service.set({ secure: true } as Request, response as unknown as Response, 't');
         expect(response.cookie.mock.calls[0][2]).toMatchObject({ secure: true });
     });
 
     it('clears the cookie with the same scope', () => {
         const response = res();
-        service.clear({ hostname: 'api.example.com' } as Request, response as unknown as Response);
+        service.clear({ secure: true } as Request, response as unknown as Response);
         expect(response.clearCookie).toHaveBeenCalledWith('mh_refresh', {
             httpOnly: true,
             sameSite: 'strict',

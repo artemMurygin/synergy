@@ -3,7 +3,6 @@ import type { Request, Response } from 'express';
 import { AuthSettings } from '../../domain/ports/auth-settings.port';
 
 export const REFRESH_COOKIE = 'mh_refresh';
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 @Injectable()
 export class RefreshCookieService {
@@ -25,6 +24,7 @@ export class RefreshCookieService {
         return typeof value === 'string' && value !== '' ? value : undefined;
     }
 
+    /** `Secure` only on HTTPS: browsers drop a Secure cookie received over plain HTTP. */
     private scope(request: Request): {
         httpOnly: true;
         sameSite: 'strict';
@@ -35,7 +35,7 @@ export class RefreshCookieService {
             httpOnly: true,
             sameSite: 'strict',
             path: '/auth',
-            secure: !LOCAL_HOSTS.has(request.hostname),
+            secure: request.secure,
         };
     }
 }
