@@ -11,6 +11,9 @@ vi.mock('@/shared/settings', () => ({
   normalizeBackendUrl: (v: string) => v,
   setBackendUrl: vi.fn(),
 }))
+vi.mock('./telegram/TelegramSection', () => ({
+  TelegramSection: () => <section aria-label="Telegram" />,
+}))
 
 function setSession(patch: Partial<AuthSession>) {
   vi.mocked(useAuthSession).mockReturnValue({
@@ -47,5 +50,14 @@ describe('options App account block', () => {
     expect(screen.getByText(/Войдите в боковой панели/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Выйти' })).toBeNull()
     expect(screen.getByLabelText('Адрес сервера')).toBeTruthy()
+  })
+
+  it('renders the Telegram section after the account block', () => {
+    render(<App />)
+    const account = screen.getByRole('heading', { name: 'Аккаунт' })
+    const telegram = screen.getByRole('region', { name: 'Telegram' })
+    expect(
+      account.compareDocumentPosition(telegram) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

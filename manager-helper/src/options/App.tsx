@@ -7,6 +7,7 @@ import {
   normalizeBackendUrl,
   setBackendUrl,
 } from '@/shared/settings'
+import { TelegramSection } from './telegram/TelegramSection'
 
 export function App() {
   const [url, setUrl] = useState(DEFAULT_BACKEND_URL)
@@ -100,6 +101,7 @@ export function App() {
             </p>
           )}
         </section>
+        <TelegramSection />
       </main>
     </div>
   )
