@@ -13,7 +13,7 @@ export interface DomainEventMetadata {
 export type DomainEventProps<T> = Omit<T, 'id' | 'metadata'> & {
     id?: string;
     aggregateId: string;
-    metadata?: DomainEventMetadata;
+    metadata?: Partial<DomainEventMetadata>;
 };
 
 export abstract class DomainEvent {

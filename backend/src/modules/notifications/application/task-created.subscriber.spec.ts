@@ -63,7 +63,7 @@ describe('TaskCreatedSubscriber', () => {
         expect(notification.recipientId).toBe('petrova-id');
         expect(notification.type).toBe('task.assigned');
         expect(notification.content.title).toBe('Вам назначена задача');
-        expect(notification.content.body).toBe('ivanov назначил вас ответственным: Подготовить КП');
+        expect(notification.content.body).toBe('От ivanov: Подготовить КП');
         expect(notification.target.id).toBe(TASK_ID);
         expect(notification.actorId).toBe('ivanov-id');
         expect(notification.sourceEventId).toBe(EVENT_ID);
@@ -74,6 +74,7 @@ describe('TaskCreatedSubscriber', () => {
     it('creates nothing for a task assigned to its creator', async () => {
         await subscriber.handle(taskCreated('ivanov-id'));
 
+        expect(users.requestedIds).toEqual([]);
         expect(notifications.byId.size).toBe(0);
         expect(events.published).toEqual([]);
     });
@@ -81,6 +82,7 @@ describe('TaskCreatedSubscriber', () => {
     it('creates nothing for a task without an assignee', async () => {
         await subscriber.handle(taskCreated(null));
 
+        expect(users.requestedIds).toEqual([]);
         expect(notifications.byId.size).toBe(0);
         expect(events.published).toEqual([]);
     });
@@ -105,6 +107,14 @@ describe('TaskCreatedSubscriber', () => {
         await expect(
             subscriber.handle(taskCreated('petrova-id', 'missing-id')),
         ).rejects.toBeInstanceOf(NotificationActorNotFoundError);
+        expect(notifications.byId.size).toBe(0);
+    });
+
+    it('does not fail on an unknown creator when no notification is needed', async () => {
+        await subscriber.handle(taskCreated(null, 'missing-id'));
+        await subscriber.handle(taskCreated('missing-id', 'missing-id'));
+
+        expect(users.requestedIds).toEqual([]);
         expect(notifications.byId.size).toBe(0);
     });
 

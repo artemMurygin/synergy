@@ -32,6 +32,7 @@ export class TaskCreatedSubscriber implements EventSubscriber {
                 eventClass: event.constructor.name,
             });
         }
+        if (!this.rule.appliesTo(event)) return;
         const actorLogin = await this.users.findLoginById(event.creatorId);
         if (actorLogin === null) throw new NotificationActorNotFoundError(event.creatorId);
         await this.createNotifications.execute(event.id, this.rule.apply(event, actorLogin));

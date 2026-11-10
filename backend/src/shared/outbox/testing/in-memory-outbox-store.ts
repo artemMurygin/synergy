@@ -104,13 +104,19 @@ export class InMemoryOutboxStore extends OutboxStorePort {
     );
 
     markFailed = vi.fn(
-        (eventId: string, subscriber: string, attempts: number, error: string): Promise<void> => {
+        (
+            eventId: string,
+            subscriber: string,
+            attempts: number,
+            error: string,
+            processedAt: Date,
+        ): Promise<void> => {
             const delivery = this.delivery(eventId, subscriber);
             if (delivery !== undefined) {
                 delivery.status = 'failed';
                 delivery.attempts = attempts;
                 delivery.lastError = error;
-                delivery.processedAt = this.clock.now();
+                delivery.processedAt = processedAt;
             }
             return Promise.resolve();
         },

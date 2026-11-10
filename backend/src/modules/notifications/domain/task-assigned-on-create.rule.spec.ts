@@ -25,9 +25,7 @@ describe('TaskAssignedOnCreateRule', () => {
         expect(draft.recipientId).toBe('petrova-id');
         expect(draft.type).toBe('task.assigned');
         expect(draft.content.title).toBe('Вам назначена задача');
-        expect(draft.content.body).toBe(
-            'ivanov назначил вас ответственным: Подготовить КП для клиента',
-        );
+        expect(draft.content.body).toBe('От ivanov: Подготовить КП для клиента');
         expect(draft.target.type).toBe('task');
         expect(draft.target.id).toBe(TASK_ID);
         expect(draft.actorId).toBe('ivanov-id');
@@ -39,5 +37,11 @@ describe('TaskAssignedOnCreateRule', () => {
 
     it('drafts nothing for a task without an assignee', () => {
         expect(rule.apply(taskCreated(null), 'ivanov')).toEqual([]);
+    });
+
+    it('applies only to a task assigned to someone other than the creator', () => {
+        expect(rule.appliesTo(taskCreated('petrova-id'))).toBe(true);
+        expect(rule.appliesTo(taskCreated('ivanov-id'))).toBe(false);
+        expect(rule.appliesTo(taskCreated(null))).toBe(false);
     });
 });

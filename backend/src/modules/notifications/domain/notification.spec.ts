@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RequestContext } from '../../../shared/context/request-context';
 import { InvalidNotificationStateError } from './errors';
 import { NotificationCreatedEvent } from './events/notification-created.event';
 import { Notification } from './notification';
@@ -70,6 +71,21 @@ describe('Notification.create', () => {
         expect(event.aggregateId).toBe('n-1');
         expect(event.notificationId).toBe('n-1');
         expect(event.recipientId).toBe('boris');
+    });
+
+    it('stamps the event with the creation time, request correlation id and source event', () => {
+        const notification = RequestContext.run(
+            { requestId: 'req-1', correlationId: 'corr-7' },
+            created,
+        );
+
+        const [event] = notification.pullDomainEvents();
+
+        expect(event.metadata).toMatchObject({
+            timestamp: CREATED_AT.getTime(),
+            correlationId: 'corr-7',
+            causationId: 'event-1',
+        });
     });
 
     it('keeps a missing actor as null', () => {

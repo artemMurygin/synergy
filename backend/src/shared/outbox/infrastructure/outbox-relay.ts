@@ -159,7 +159,8 @@ export class OutboxRelay
                 await this.fail(delivery, error);
                 return;
             }
-            throw error;
+            await this.retryOrFail(delivery, error);
+            return;
         }
         await RequestContext.run(
             { requestId: randomUUID(), correlationId: event.metadata.correlationId },
@@ -220,6 +221,7 @@ export class OutboxRelay
             delivery.subscriber,
             delivery.attempts,
             describeError(error),
+            this.clock.now(),
         );
         this.logger.error(
             {

@@ -1,4 +1,3 @@
-import { RequestContext } from '../../../shared/context/request-context';
 import { AggregateRoot } from '../../../shared/ddd';
 import { ArgumentInvalidError } from '../../../shared/errors';
 import { TaskCreatedEvent } from '../contracts/task-created.event';
@@ -68,7 +67,6 @@ export class Task extends AggregateRoot<TaskProps> {
                 assigneeId: task.assigneeId,
                 metadata: {
                     timestamp: input.now.getTime(),
-                    correlationId: RequestContext.getCorrelationId(),
                     userId: task.creatorId,
                 },
             }),

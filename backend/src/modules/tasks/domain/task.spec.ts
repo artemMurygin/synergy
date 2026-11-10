@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RequestContext } from '../../../shared/context/request-context';
 import { TaskCreatedEvent } from '../contracts/task-created.event';
 import { TaskNotFoundError } from './errors';
 import {
@@ -169,6 +170,20 @@ describe('Task.create domain events', () => {
         expect(created.title).toBe('Подготовить КП');
         expect(created.creatorId).toBe('creator');
         expect(created.assigneeId).toBe('a1');
+    });
+
+    it('stamps the event with the creation time, creator and request correlation id', () => {
+        const task = RequestContext.run({ requestId: 'req-1', correlationId: 'corr-7' }, () =>
+            Task.create({ id: 't8', title: TaskTitle.of('КП'), creatorId: 'creator', now: t0 }),
+        );
+
+        const [created] = task.pullDomainEvents();
+
+        expect(created.metadata).toMatchObject({
+            timestamp: t0.getTime(),
+            correlationId: 'corr-7',
+            userId: 'creator',
+        });
     });
 
     it('carries a null assignee when the task has none', () => {

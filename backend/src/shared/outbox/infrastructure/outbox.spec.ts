@@ -193,8 +193,8 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             await store.scheduleRetry(laterId, SECOND, 1, farFuture(DAY_MS), 'boom');
             await store.markDone(doneId, FIRST, new Date());
             await store.markDone(doneId, SECOND, new Date());
-            await store.markFailed(failedId, FIRST, 10, 'boom');
-            await store.markFailed(failedId, SECOND, 10, 'boom');
+            await store.markFailed(failedId, FIRST, 10, 'boom', new Date());
+            await store.markFailed(failedId, SECOND, 10, 'boom', new Date());
 
             const claimed = await store.claimDueDeliveries(50, farFuture());
 
@@ -305,7 +305,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
             const now = farFuture();
 
             await store.claimDueDeliveries(50, now);
-            await store.markFailed(firstId, FIRST, 10, 'poison');
+            await store.markFailed(firstId, FIRST, 10, 'poison', new Date());
             const claimed = await store.claimDueDeliveries(50, now);
 
             expect(keysOf(claimed)).toEqual([`${secondId}:${FIRST}`]);
@@ -358,19 +358,22 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
         it('markFailed stops the delivery and keeps the last error', async () => {
             const eventId = await publishCommitted('aggregate-1');
 
-            await store.markFailed(eventId, FIRST, 10, 'gave up');
+            const processedAt = new Date('2026-03-01T10:00:07Z');
+
+            await store.markFailed(eventId, FIRST, 10, 'gave up', processedAt);
 
             expect(await readDelivery(pool, eventId, FIRST)).toMatchObject({
                 status: 'failed',
                 attempts: 10,
                 last_error: 'gave up',
+                processed_at: processedAt.getTime(),
             });
         });
 
         it('stores long errors truncated', async () => {
             const eventId = await publishCommitted('aggregate-1');
 
-            await store.markFailed(eventId, FIRST, 1, 'x'.repeat(10_000));
+            await store.markFailed(eventId, FIRST, 1, 'x'.repeat(10_000), new Date());
 
             const delivery = await readDelivery(pool, eventId, FIRST);
             expect(delivery?.last_error?.length).toBeLessThanOrEqual(2000);
@@ -390,7 +393,7 @@ describe.skipIf(adminUrl === undefined)('Outbox publisher and store', () => {
                 await store.markDone(eventId, FIRST, cutoff);
             }
             await store.markDone(oldDoneId, SECOND, cutoff);
-            await store.markFailed(oldFailedId, SECOND, 10, 'gave up');
+            await store.markFailed(oldFailedId, SECOND, 10, 'gave up', new Date());
             await store.markDone(recentDoneId, SECOND, cutoff);
 
             const deletedCount = await store.deleteProcessedBefore(cutoff);

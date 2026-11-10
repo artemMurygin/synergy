@@ -230,6 +230,7 @@ describe('validateEnv outbox and notifications settings', () => {
         ['OUTBOX_RETENTION_DAYS', '0'],
         ['NOTIFICATIONS_WS_PING_INTERVAL_MS', '-1'],
         ['NOTIFICATIONS_WS_PING_INTERVAL_MS', 'fast'],
+        ['NOTIFICATIONS_WS_PING_INTERVAL_MS', '25001'],
     ])('rejects %s=%s', (name, value) => {
         expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
     });

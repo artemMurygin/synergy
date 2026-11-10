@@ -41,6 +41,7 @@ export abstract class OutboxStorePort {
         subscriber: string,
         attempts: number,
         error: string,
+        processedAt: Date,
     ): Promise<void>;
 
     abstract deleteProcessedBefore(before: Date): Promise<number>;

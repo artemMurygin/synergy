@@ -12,6 +12,7 @@ import {
     type NotificationPage,
     type NotificationPageQuery,
 } from '../domain/ports/notification-repository.port';
+import { isUuid } from './is-uuid';
 
 const notificationRow = z.object({
     id: z.string(),
@@ -32,8 +33,6 @@ const insertedRow = z.object({ id: z.string() });
 const countRow = z.object({ count: z.number() });
 
 const markReadRow = z.object({ found: z.number(), marked: z.number() });
-
-const uuidSchema = z.guid();
 
 const millis = (column: string): FragmentSqlToken =>
     sql.fragment`(extract(epoch FROM ${sql.identifier([column])}) * 1000)::float8 AS ${sql.identifier([column])}`;
@@ -59,10 +58,6 @@ function toNotification(raw: unknown): Notification {
 
 function nullableTimestamp(value: Date | null): ValueExpression {
     return value === null ? null : sql.timestamp(value);
-}
-
-function isUuid(value: string): boolean {
-    return uuidSchema.safeParse(value).success;
 }
 
 @Injectable()

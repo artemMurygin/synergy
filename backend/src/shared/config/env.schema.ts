@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const MAX_WS_PING_INTERVAL_MS = 25_000;
+
 const ttl = (fallback: string): z.ZodDefault<z.ZodString> =>
     z
         .string()
@@ -98,7 +100,12 @@ export const envSchema = z
         OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
         OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
         OUTBOX_RETENTION_DAYS: z.coerce.number().int().positive().default(7),
-        NOTIFICATIONS_WS_PING_INTERVAL_MS: z.coerce.number().int().positive().default(20000),
+        NOTIFICATIONS_WS_PING_INTERVAL_MS: z.coerce
+            .number()
+            .int()
+            .positive()
+            .max(MAX_WS_PING_INTERVAL_MS)
+            .default(20000),
 
         LOKI_URL: z.string().optional(),
         LOKI_LABELS_APP: z.string().default('audit-agent'),

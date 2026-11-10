@@ -130,11 +130,12 @@ export class OutboxStore extends OutboxStorePort {
         subscriber: string,
         attempts: number,
         error: string,
+        processedAt: Date,
     ): Promise<void> {
         await this.transactions.executor().query(sql.unsafe`
             UPDATE outbox_deliveries
             SET status = 'failed', attempts = ${attempts},
-                last_error = ${truncateError(error)}, processed_at = now()
+                last_error = ${truncateError(error)}, processed_at = ${sql.timestamp(processedAt)}
             WHERE event_id = ${eventId} AND subscriber = ${subscriber}`);
     }
 

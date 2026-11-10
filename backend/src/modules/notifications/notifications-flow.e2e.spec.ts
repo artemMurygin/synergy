@@ -250,7 +250,7 @@ describe.skipIf(adminUrl === undefined)('notifications flow (modules wired end t
             notification: {
                 type: 'task.assigned',
                 title: 'Вам назначена задача',
-                body: 'anna назначил вас ответственным: Подготовить КП',
+                body: 'От anna: Подготовить КП',
                 target: { type: 'task', id: taskId },
                 actorId: anna,
                 readAt: null,
@@ -313,7 +313,7 @@ describe.skipIf(adminUrl === undefined)('notifications flow (modules wired end t
                 'notification.created after the retry',
             ),
         );
-        expect(payload.notification.body).toBe('anna назначил вас ответственным: После сбоя');
+        expect(payload.notification.body).toBe('От anna: После сбоя');
         expect(deliver).toHaveBeenCalledTimes(2);
         deliver.mockRestore();
     }, 10_000);

@@ -43,6 +43,7 @@ const POLL_INTERVAL_MS = 1000;
 const BATCH_SIZE = 10;
 const MAX_ATTEMPTS = 3;
 const LEASE_MS = 60_000;
+const RETRY_STEP_MS = 10 * 60 * SECOND_MS;
 
 const settings = new OutboxSettings({
     pollIntervalMs: POLL_INTERVAL_MS,
@@ -216,7 +217,7 @@ describe('OutboxRelay (unit)', () => {
 
             for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
                 await relay.processBatch();
-                clock.advance(10 * 60 * SECOND_MS);
+                clock.advance(RETRY_STEP_MS);
             }
             await relay.processBatch();
 
@@ -226,7 +227,13 @@ describe('OutboxRelay (unit)', () => {
                 attempts: MAX_ATTEMPTS,
                 lastError: 'down',
             });
-            expect(store.markFailed).toHaveBeenCalledWith(event.id, FIRST, MAX_ATTEMPTS, 'down');
+            expect(store.markFailed).toHaveBeenCalledWith(
+                event.id,
+                FIRST,
+                MAX_ATTEMPTS,
+                'down',
+                new Date(START.getTime() + (MAX_ATTEMPTS - 1) * RETRY_STEP_MS),
+            );
             expect(error).toHaveBeenCalledWith(
                 expect.objectContaining({
                     eventId: event.id,
@@ -286,6 +293,29 @@ describe('OutboxRelay (unit)', () => {
 
             expect(store.deliveries[0]).toMatchObject({ status: 'failed', attempts: 1 });
             expect(subscriber.received).toEqual([]);
+        });
+
+        it('retries an event that fails to restore without stopping the rest of the batch', async () => {
+            const subscriber = recordingSubscriber(FIRST);
+            const registry = createRegistry([subscriber]);
+            const broken = addThing('aggregate-1', [FIRST]);
+            const healthy = addThing('aggregate-2', [FIRST]);
+            const restore = registry.restore.bind(registry);
+            vi.spyOn(registry, 'restore').mockImplementation((record) => {
+                if (record.id === broken.id) throw new Error('restore crashed');
+                return restore(record);
+            });
+            const relay = createRelay(registry);
+
+            await relay.processBatch();
+
+            expect(store.delivery(broken.id, FIRST)).toMatchObject({
+                status: 'pending',
+                attempts: 1,
+                lastError: 'restore crashed',
+            });
+            expect(store.delivery(healthy.id, FIRST)).toMatchObject({ status: 'done' });
+            expect(subscriber.received.map((event) => event.id)).toEqual([healthy.id]);
         });
 
         it('retries a delivery whose subscriber is not registered on this instance', async () => {

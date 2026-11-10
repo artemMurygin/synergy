@@ -35,7 +35,7 @@ export class NotificationResponse {
     @ApiProperty({ example: 'Вам назначена задача' })
     readonly title: string;
 
-    @ApiProperty({ example: 'anna назначил вас ответственным: Подготовить КП' })
+    @ApiProperty({ example: 'От anna: Подготовить КП' })
     readonly body: string;
 
     @ApiProperty({ type: NotificationTargetResponse })

@@ -1,4 +1,3 @@
-import { RequestContext } from '../../../shared/context/request-context';
 import { AggregateRoot } from '../../../shared/ddd';
 import { InvalidNotificationStateError } from './errors';
 import { NotificationCreatedEvent } from './events/notification-created.event';
@@ -51,7 +50,6 @@ export class Notification extends AggregateRoot<NotificationProps> {
                 recipientId: draft.recipientId,
                 metadata: {
                     timestamp: now.getTime(),
-                    correlationId: RequestContext.getCorrelationId(),
                     causationId: sourceEventId,
                 },
             }),
