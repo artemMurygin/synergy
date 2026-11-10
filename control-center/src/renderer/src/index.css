@@ -129,3 +129,68 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Agent answers rendered by MarkdownText (react-markdown + remark-gfm) */
+@layer components {
+  .markdown > * + * {
+    @apply mt-2;
+  }
+  .markdown :is(h1, h2, h3, h4) {
+    @apply font-display leading-tight font-semibold text-foreground;
+  }
+  .markdown h1 {
+    @apply text-lg;
+  }
+  .markdown h2 {
+    @apply text-base;
+  }
+  .markdown :is(h3, h4) {
+    @apply text-sm;
+  }
+  .markdown * + :is(h1, h2, h3, h4) {
+    @apply mt-3;
+  }
+  .markdown strong {
+    @apply font-semibold;
+  }
+  .markdown ul {
+    @apply list-disc pl-5;
+  }
+  .markdown ol {
+    @apply list-decimal pl-5;
+  }
+  .markdown li + li,
+  .markdown li > :is(ul, ol) {
+    @apply mt-1;
+  }
+  .markdown li > p + p {
+    @apply mt-1;
+  }
+  .markdown a {
+    @apply text-info underline underline-offset-2 hover:opacity-80;
+  }
+  .markdown blockquote {
+    @apply border-l-2 border-border-strong pl-3 text-ink-60;
+  }
+  .markdown hr {
+    @apply border-border;
+  }
+  .markdown code {
+    @apply rounded bg-surface-sunken px-1 py-0.5 font-mono text-[0.85em];
+  }
+  .markdown pre {
+    @apply overflow-x-auto rounded-md bg-surface-sunken p-3 text-[13px] leading-snug;
+  }
+  .markdown pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+  .markdown table {
+    @apply block max-w-full overflow-x-auto border-collapse text-[13px];
+  }
+  .markdown :is(th, td) {
+    @apply border border-border-strong px-2 py-1 text-left align-top;
+  }
+  .markdown th {
+    @apply bg-surface-sunken font-semibold;
+  }
+}

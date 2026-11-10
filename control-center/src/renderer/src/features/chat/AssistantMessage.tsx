@@ -1,5 +1,6 @@
 import { MessagePrimitive, useAui, useAuiState } from '@assistant-ui/react'
 import { CircleAlert, Info, Square } from 'lucide-react'
+import { MarkdownText } from './MarkdownText'
 import { RunNotice } from './RunNotice'
 import { isRunConflict, isUnreachable, UNREACHABLE_MESSAGE } from './run-errors'
 
@@ -22,8 +23,8 @@ export function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex w-full flex-col gap-1.5">
       {hasText && (
-        <div className="max-w-[85%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-[1.4] break-words whitespace-pre-wrap text-foreground">
-          <MessagePrimitive.Parts />
+        <div className="max-w-[85%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-[1.5] break-words text-foreground">
+          <MessagePrimitive.Parts components={{ Text: ({ text }) => <MarkdownText text={text} /> }} />
         </div>
       )}
       {failed && isRunConflict(raw) && (
