@@ -1,6 +1,6 @@
 import type { Task, TaskStatus } from '@/shared/tasks-api'
 import type { TasksView } from '@/shared/tasks-view'
-import { CloudOffIcon, ListIcon } from '../icons'
+import { CircleCheckIcon, CloudOffIcon, ListIcon, PlusIcon, SortAscIcon } from '../icons'
 import { TaskRow } from './TaskRow'
 
 interface Props {
@@ -16,6 +16,8 @@ interface Props {
   view?: TasksView
   /** A title search is active. */
   searching?: boolean
+  /** Всего задач в представлении (загруженные + оставшиеся); без него строка сортировки скрыта. */
+  total?: number
   onOpen: (taskId: string) => void
   onSetStatus: (taskId: string, status: TaskStatus) => void
   onLoadMore: () => void
@@ -24,9 +26,11 @@ interface Props {
 }
 
 const primary =
-  'rounded-full bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-hover'
+  'inline-flex h-10 items-center gap-2 rounded-xl bg-brand-red px-4.5 text-[15px] font-semibold text-white shadow-[0_6px_12px_#66000033] hover:bg-brand-red-hover'
 const secondary =
-  'rounded-full border border-line bg-surface-alt px-5 py-2 text-sm font-semibold text-ink hover:bg-surface-sunken disabled:text-ink-40'
+  'rounded-full border border-field-line bg-white px-5 py-2 text-sm font-semibold text-ink hover:bg-surface-alt disabled:text-ink-40'
+const retry =
+  'rounded-full border border-brand-red bg-white px-4 py-1.5 text-[13px] font-semibold text-brand-red hover:bg-brand-red-soft'
 
 function Skeleton() {
   return (
@@ -51,20 +55,39 @@ function Notice(props: {
   children: React.ReactNode
 }) {
   return (
-    <div className="m-auto flex flex-col items-center gap-2 px-4 py-8 text-center">
-      <span className="text-ink-40">{props.icon}</span>
-      <h2 className="text-sm font-bold text-ink">{props.title}</h2>
-      <p className="text-xs break-words text-ink-60">{props.text}</p>
-      <div className="mt-2">{props.children}</div>
+    <div className="m-auto flex max-w-72 flex-col items-center gap-2.5 p-6 text-center">
+      <span className="flex size-14 items-center justify-center rounded-full bg-surface-sunken text-ink-60">
+        {props.icon}
+      </span>
+      <h2 className="font-heading text-base font-semibold text-ink">{props.title}</h2>
+      <p className="text-[13px] break-words text-ink-60">{props.text}</p>
+      {props.children !== null && props.children !== false && <div>{props.children}</div>}
     </div>
   )
 }
 
-const EMPTY_TEXT: Record<TasksView, string> = {
-  mine: 'У вас нет незавершённых задач.',
-  watching: 'Вы не наблюдаете ни за одной задачей.',
-  created: 'Вы ещё не создавали задач.',
-  done: 'Завершённых задач пока нет.',
+const EMPTY: Record<TasksView, { title: string; text: string }> = {
+  mine: { title: 'Нет задач на вас', text: 'Все дела закрыты. Создайте новую задачу' },
+  watching: { title: 'Нет задач', text: 'Вы не наблюдаете ни за одной задачей.' },
+  created: { title: 'Нет задач', text: 'Вы ещё не создавали задач.' },
+  done: { title: 'Нет задач', text: 'Завершённых задач пока нет.' },
+}
+
+/** Порядок, в котором сервер отдаёт задачи представления (см. viewStreamFilters). */
+const SORT_LABEL: Record<TasksView, string> = {
+  mine: 'По дедлайну',
+  watching: 'Сначала обновлённые',
+  created: 'Сначала обновлённые',
+  done: 'Сначала обновлённые',
+}
+
+function pluralizeTasks(count: number): string {
+  const mod100 = count % 100
+  const mod10 = count % 10
+  if (mod100 >= 11 && mod100 <= 14) return `${String(count)} задач`
+  if (mod10 === 1) return `${String(count)} задача`
+  if (mod10 >= 2 && mod10 <= 4) return `${String(count)} задачи`
+  return `${String(count)} задач`
 }
 
 /** Tasks of the selected view: loading, empty and error states, rows and "Показать ещё". */
@@ -76,8 +99,8 @@ export function TaskList(props: Props) {
   if (error !== null && items.length === 0) {
     return (
       <div role="alert" className="flex flex-1 flex-col">
-        <Notice icon={<CloudOffIcon />} title="Не удалось загрузить задачи" text={error}>
-          <button type="button" className={secondary} onClick={props.onRetry}>
+        <Notice icon={<CloudOffIcon size={24} />} title="Не удалось загрузить" text={error}>
+          <button type="button" className={retry} onClick={props.onRetry}>
             Повторить
           </button>
         </Notice>
@@ -86,6 +109,7 @@ export function TaskList(props: Props) {
   }
   if (items.length === 0) {
     const view = props.view ?? 'mine'
+    const empty = EMPTY[view]
     if (props.searching === true) {
       return (
         <Notice icon={<ListIcon />} title="Ничего не найдено" text="По этому запросу задач нет.">
@@ -94,9 +118,10 @@ export function TaskList(props: Props) {
       )
     }
     return (
-      <Notice icon={<ListIcon />} title="Задач нет" text={EMPTY_TEXT[view]}>
+      <Notice icon={<CircleCheckIcon />} title={empty.title} text={empty.text}>
         {view === 'mine' && (
           <button type="button" className={primary} onClick={props.onCreate}>
+            <PlusIcon />
             Создать задачу
           </button>
         )}
@@ -105,6 +130,12 @@ export function TaskList(props: Props) {
   }
   return (
     <div className="flex flex-col">
+      {props.total !== undefined && (
+        <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-ink-60">
+          <SortAscIcon />
+          {`${SORT_LABEL[props.view ?? 'mine']} · ${pluralizeTasks(props.total)}`}
+        </p>
+      )}
       <ul>
         {items.map((task) => (
           <TaskRow

@@ -12,6 +12,7 @@ import {
 } from '@/shared/quick-search.config'
 import type { EgeValue, LevelId, Segment } from '@/shared/quick-search.config'
 import { buildQuickSearchQuery, buildQuickSearchTitle } from '@/shared/quick-search'
+import { ChevronDownIcon, ChevronRightIcon, SlidersIcon } from './icons'
 
 interface Props {
   open: boolean
@@ -125,20 +126,21 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
   }
 
   return (
-    <section className="border-t border-line bg-white">
+    <section className="border-t border-line bg-surface-alt">
       <button
         type="button"
-        className="flex w-full items-center justify-between px-3 py-3 text-xs font-semibold text-ink disabled:text-ink-40"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[13px] font-semibold text-ink disabled:text-ink-40"
         onClick={onToggle}
         disabled={pending}
         aria-expanded={open}
       >
-        Быстрый подбор
-        <span>{open ? '▾' : '▸'}</span>
+        <SlidersIcon />
+        <span className="min-w-0 flex-1">Быстрый подбор</span>
+        <span className="text-ink-60">{open ? <ChevronDownIcon /> : <ChevronRightIcon />}</span>
       </button>
       {open && (
         <>
-          <div className="flex max-h-72 flex-col gap-3 overflow-y-auto px-3 pb-3">
+          <div className="flex max-h-72 flex-col gap-3.5 overflow-y-auto px-4 pb-3">
             <Field label="Что ищем">
               <Segmented
                 options={[
@@ -229,11 +231,11 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
               />
             </Field>
           </div>
-          <div className="px-3 pb-3 pt-2">
+          <div className="border-t border-line px-4 pt-2.5 pb-3">
             <button
               type="button"
               disabled={pending}
-              className="h-10 w-full rounded-full bg-brand-red text-sm font-semibold text-white shadow-md hover:bg-brand-red-hover disabled:bg-ink-40 disabled:shadow-none"
+              className="h-11 w-full rounded-2xl bg-brand-red text-[15px] font-semibold text-white shadow-[0_8px_4px_#66000033] hover:bg-brand-red-hover disabled:bg-ink-40 disabled:shadow-none"
               onClick={submit}
             >
               Начать подбор

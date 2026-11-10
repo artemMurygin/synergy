@@ -183,7 +183,7 @@ describe('TasksSplitView views and search', () => {
     resizeTo(400)
     setup()
     await screen.findByRole('button', { name: 'Отчёт' })
-    fireEvent.click(screen.getByRole('tab', { name: 'Созданные мной' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Созданные' }))
     fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по названию' }), {
       target: { value: 'от' },
     })
@@ -197,7 +197,7 @@ describe('TasksSplitView views and search', () => {
     await screen.findByRole('heading', { name: 'КП' })
     vi.mocked(listTasks).mockClear()
     fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
-    expect(screen.getByRole('tab', { name: 'Созданные мной' }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: 'Созданные' }).getAttribute('aria-selected')).toBe(
       'true',
     )
     expect(screen.getByRole('searchbox', { name: 'Поиск по названию' })).toHaveProperty(

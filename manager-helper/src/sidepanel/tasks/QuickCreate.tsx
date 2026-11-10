@@ -12,9 +12,10 @@ interface Props {
 }
 
 const chip =
-  'inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-surface-alt'
+  'inline-flex items-center gap-1.5 rounded-full border border-field-line bg-white px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-surface-alt'
+// Фокус — фирменная красная рамка вместо синего outline браузера.
 const field =
-  'w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-60'
+  'w-full rounded-xl border border-field-line bg-white px-4 py-2.5 text-[15px] text-ink outline-none placeholder:text-ink-40 focus:border-brand-red'
 
 /** One-field task creation; deadline, assignee and description are revealed on demand. */
 export function QuickCreate({ me, onCreated, onCancel }: Props) {
@@ -156,7 +157,7 @@ export function QuickCreate({ me, onCreated, onCancel }: Props) {
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-sunken"
+            className="rounded-full border border-field-line bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-alt"
             onClick={onCancel}
           >
             Отмена
@@ -164,7 +165,7 @@ export function QuickCreate({ me, onCreated, onCancel }: Props) {
           <button
             type="submit"
             disabled={blank || busy}
-            className="rounded-full bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-hover disabled:bg-ink-40"
+            className="rounded-full bg-brand-red px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_12px_#66000033] hover:bg-brand-red-hover disabled:bg-ink-40 disabled:shadow-none"
           >
             Создать
           </button>

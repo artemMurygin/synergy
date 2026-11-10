@@ -11,8 +11,14 @@ interface Props {
 /** Views of the tasks list ("Мои", "Наблюдаю", ...) and a search by title. */
 export function TasksToolbar({ view, search, onViewChange, onSearchChange }: Props) {
   return (
-    <div className="flex flex-col gap-2 border-b border-line px-3 py-2">
-      <div role="tablist" aria-label="Представление" className="flex gap-1 overflow-x-auto">
+    <div className="flex flex-col gap-2 px-4 pt-3 pb-1 max-[359px]:px-2">
+      {/* Четыре фильтра умещаются в одну строку и на 320 px (там отступы плотнее, как в макете
+          «Узкая панель»); если не хватит места, строка прокручивается без видимой полосы. */}
+      <div
+        role="tablist"
+        aria-label="Представление"
+        className="flex gap-1.5 overflow-x-auto max-[359px]:gap-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {TASKS_VIEWS.map(({ id, label }) => {
           const active = id === view
           return (
@@ -21,10 +27,10 @@ export function TasksToolbar({ view, search, onViewChange, onSearchChange }: Pro
               type="button"
               role="tab"
               aria-selected={active}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`h-7.5 shrink-0 rounded-full border px-3 text-[13px] font-medium max-[359px]:px-2 ${
                 active
-                  ? 'bg-ink text-white'
-                  : 'border border-line bg-surface-alt text-ink-60 hover:text-ink'
+                  ? 'border-brand-red bg-brand-red-soft text-brand-red'
+                  : 'border-field-line bg-white text-ink hover:bg-surface-alt'
               }`}
               onClick={() => {
                 if (!active) onViewChange(id)
@@ -40,7 +46,7 @@ export function TasksToolbar({ view, search, onViewChange, onSearchChange }: Pro
         aria-label="Поиск по названию"
         placeholder="Поиск по названию"
         value={search}
-        className="w-full min-w-0 rounded-lg border border-line bg-surface-alt px-3 py-1.5 text-sm text-ink placeholder:text-ink-40"
+        className="h-9 w-full min-w-0 rounded-xl border border-field-line bg-white px-3 text-sm text-ink outline-none placeholder:text-ink-40 focus:border-brand-red"
         onChange={(event) => {
           onSearchChange(event.target.value)
         }}

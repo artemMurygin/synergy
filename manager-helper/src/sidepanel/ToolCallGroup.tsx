@@ -64,7 +64,7 @@ function StatusIcon({ status }: { status: ToolCallView['status'] }) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={running ? 'shrink-0 animate-spin text-brand-red' : 'shrink-0 text-[#1e9e62]'}
+      className={running ? 'shrink-0 animate-spin text-brand-red' : 'shrink-0 text-success'}
     >
       {running ? <path d="M21 12a9 9 0 1 1-6.219-8.56" /> : <path d="M20 6 9 17l-5-5" />}
     </svg>
@@ -72,7 +72,16 @@ function StatusIcon({ status }: { status: ToolCallView['status'] }) {
 }
 
 export function ToolCallGroup({ toolCalls, status, durationMs }: Props) {
-  const [open, setOpen] = useState(false)
+  // Пока ответ формируется, ход работы раскрыт; после завершения сворачивается.
+  // Ручное раскрытие/сворачивание действует до смены статуса.
+  const running = status === 'running'
+  const [manual, setManual] = useState<boolean | null>(null)
+  const [seenRunning, setSeenRunning] = useState(running)
+  if (seenRunning !== running) {
+    setSeenRunning(running)
+    setManual(null)
+  }
+  const open = manual ?? running
   const bodyId = useId()
 
   if (toolCalls.length === 0) return null
@@ -85,7 +94,7 @@ export function ToolCallGroup({ toolCalls, status, durationMs }: Props) {
         aria-controls={bodyId}
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs"
         onClick={() => {
-          setOpen((value) => !value)
+          setManual(!open)
         }}
       >
         <svg

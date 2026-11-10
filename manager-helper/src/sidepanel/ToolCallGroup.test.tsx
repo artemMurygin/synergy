@@ -10,14 +10,23 @@ const calls: ToolCallView[] = [
 const toggle = () => screen.getByRole('button', { name: /Ход работы/ })
 
 describe('ToolCallGroup', () => {
-  it('is collapsed by default and hides the calls', () => {
+  it('is expanded while the answer is running', () => {
     render(<ToolCallGroup toolCalls={calls} status="running" />)
+    expect(toggle().getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('search_books')).toBeTruthy()
+  })
+
+  it('collapses when the run completes', () => {
+    const { rerender } = render(<ToolCallGroup toolCalls={calls} status="running" />)
+    const done = calls.map((c) => ({ ...c, status: 'complete' as const }))
+    rerender(<ToolCallGroup toolCalls={done} status="complete" />)
     expect(toggle().getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText('search_books')).toBeNull()
   })
 
-  it('expands on click and collapses on a second click', () => {
-    render(<ToolCallGroup toolCalls={calls} status="running" />)
+  it('is collapsed when complete and expands on click, collapses on a second click', () => {
+    render(<ToolCallGroup toolCalls={calls} status="complete" />)
+    expect(toggle().getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(toggle())
     expect(toggle().getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText('search_books')).toBeTruthy()
@@ -27,7 +36,6 @@ describe('ToolCallGroup', () => {
 
   it('shows name, arguments and status of each call', () => {
     render(<ToolCallGroup toolCalls={calls} status="running" />)
-    fireEvent.click(toggle())
     expect(screen.getByText('find_programs')).toBeTruthy()
     expect(screen.getByText('книги: ДПО, Магистратура')).toBeTruthy()
     expect(screen.getByText('запрос: МВА, очно')).toBeTruthy()

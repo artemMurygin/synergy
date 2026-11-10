@@ -10,7 +10,7 @@ import {
   updateTask,
 } from '@/shared/tasks-api'
 import { FIXED_WIDTH, makeDetails } from './fixtures'
-import { TaskDetails } from './TaskDetails'
+import { TaskDetails, initials } from './TaskDetails'
 
 vi.mock('@/shared/tasks-api', async (importOriginal) => ({
   ...(await importOriginal<typeof TasksApi>()),
@@ -78,6 +78,7 @@ describe('TaskDetails view', () => {
     expect(screen.getByText('Собрать условия по программе')).toBeTruthy()
     expect(screen.getByText(/12 дек/)).toBeTruthy()
     expect(screen.getByText('petr')).toBeTruthy()
+    expect(screen.getByText('AN')).toBeTruthy()
     expect(screen.getByText('anna')).toBeTruthy()
     expect(screen.getByText('ivan, olga')).toBeTruthy()
     expect(screen.getByText('Предложение.pdf')).toBeTruthy()
@@ -176,10 +177,14 @@ describe('TaskDetails actions', () => {
     setup()
     await screen.findByRole('heading', { name: 'Подготовить КП' })
     fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }))
+    // Ответственный — закрытый выпадающий список: поиск появляется по клику.
+    expect(screen.queryByRole('combobox', { name: 'Ответственный' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ответственный: anna' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Ответственный' }), {
       target: { value: 'iv' },
     })
     fireEvent.click(await screen.findByRole('option', { name: 'ivan' }))
+    expect(screen.getByRole('button', { name: 'Ответственный: ivan' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => {
       expect(updateTask).toHaveBeenCalledWith('t1', { assigneeId: 'u2' })
@@ -195,6 +200,17 @@ describe('TaskDetails actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect((await screen.findByRole('alert')).textContent).toMatch(/Не сохранилось/)
     expect(screen.getByLabelText<HTMLInputElement>('Название').value).toBe('Другое')
+  })
+
+  it('clears the deadline from the edit form', async () => {
+    setup()
+    await screen.findByRole('heading', { name: 'Подготовить КП' })
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить дедлайн' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(updateTask).toHaveBeenCalledWith('t1', { deadline: null })
+    })
   })
 
   it('cancels editing without a request', async () => {
@@ -251,5 +267,13 @@ describe('TaskDetails in a 320 px panel', () => {
     const html = document.body.innerHTML
     expect(html).not.toMatch(FIXED_WIDTH)
     expect(html).not.toMatch(/style="[^"]*width/)
+  })
+})
+
+describe('initials', () => {
+  it('takes the first letters of the login parts or the first two letters', () => {
+    expect(initials('ivan.petrov')).toBe('IP')
+    expect(initials('maria')).toBe('MA')
+    expect(initials('a')).toBe('A')
   })
 })

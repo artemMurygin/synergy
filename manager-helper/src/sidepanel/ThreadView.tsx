@@ -24,7 +24,7 @@ interface Props {
 }
 
 const BUTTON =
-  'h-13 shrink-0 rounded-xl px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2'
+  'h-13 shrink-0 rounded-2xl px-4 text-[15px] font-semibold transition-colors flex items-center justify-center gap-2'
 
 /** Feed of the chat, quick search form, next steps and the composer. */
 export function ThreadView({
@@ -139,9 +139,6 @@ export function ThreadView({
               onSend={(query) => {
                 aui.thread.append(query)
               }}
-              onNewSearch={() => {
-                setOpenedAt(agentCount)
-              }}
             />
           )}
         </div>
@@ -157,10 +154,12 @@ export function ThreadView({
         }}
       >
         <ComposerPrimitive.Input
-          rows={2}
+          rows={1}
           disabled={blocked || serverRunning}
-          placeholder="Вопрос агенту (Enter — отправить)"
-          className="max-h-32 min-h-13 flex-1 resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-brand-red disabled:bg-surface-alt"
+          placeholder="Вопрос агенту"
+          aria-label="Вопрос агенту (Enter — отправить)"
+          title="Enter — отправить, Shift+Enter — новая строка"
+          className="max-h-32 min-h-13 min-w-0 flex-1 resize-none rounded-xl border border-[#cacacb] px-4 py-3.5 text-[15px] leading-snug outline-none placeholder:text-ink-40 focus:border-brand-red disabled:bg-surface-alt"
         />
         {running ? (
           <button

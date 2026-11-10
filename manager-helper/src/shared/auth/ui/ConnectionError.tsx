@@ -12,7 +12,7 @@ export function ConnectionError({ onRetry, serverUrl, onChangeServer }: Props) {
   return (
     <div className="flex min-h-screen flex-col justify-center gap-6 bg-white p-8">
       <header className="flex flex-col gap-2">
-        <h1 className="text-[26px] font-bold text-ink">Manager Helper</h1>
+        <h1 className="font-heading text-[26px] font-bold text-ink">Manager Helper</h1>
         <p className="text-sm text-ink-60">Не удалось связаться с сервером</p>
       </header>
       <RunNotice

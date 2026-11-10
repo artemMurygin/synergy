@@ -20,13 +20,13 @@ interface Props {
   disabled?: boolean
   lastAnswer: string
   onSend: (query: string) => void
-  onNewSearch: () => void
 }
 
-export function NextSteps({ lastAnswer, onSend, onNewSearch, disabled }: Props) {
+export function NextSteps({ lastAnswer, onSend, disabled }: Props) {
   const kind = classifyAnswer(lastAnswer)
   const steps = kind === 'overview' ? OVERVIEW_STEPS : kind === 'card' ? CARD_STEPS : []
   const chip = 'rounded-full border px-3 py-1 text-xs'
+  if (steps.length === 0) return null
 
   return (
     <div className="flex flex-wrap gap-2 bg-white px-3 pb-3">
@@ -43,14 +43,6 @@ export function NextSteps({ lastAnswer, onSend, onNewSearch, disabled }: Props) 
           {step.label}
         </button>
       ))}
-      <button
-        type="button"
-        disabled={disabled}
-        className={`${chip} border-line bg-white font-medium text-ink-60 hover:bg-surface-alt disabled:opacity-50`}
-        onClick={onNewSearch}
-      >
-        Новый подбор
-      </button>
     </div>
   )
 }

@@ -8,6 +8,8 @@ import { ServerLine } from './ServerLine'
 interface Props {
   onSubmit: (login: string, password: string) => Promise<void> | void
   error: string | null
+  /** Вторая строка уведомления об ошибке; по умолчанию — совет проверить данные. */
+  errorHint?: string
   /** Seconds until the next attempt is allowed (429). */
   retryAfter: number | null
   /** The previous logout could not reach the server. */
@@ -25,6 +27,7 @@ function formatCountdown(seconds: number): string {
 export function LoginForm({
   onSubmit,
   error,
+  errorHint = 'Проверьте данные и попробуйте снова.',
   retryAfter,
   logoutOffline = false,
   serverUrl,
@@ -70,7 +73,7 @@ export function LoginForm({
   return (
     <div className="flex min-h-screen flex-col justify-center gap-6 bg-white p-8">
       <header className="flex flex-col gap-2">
-        <h1 className="text-[26px] font-bold text-ink">Manager Helper</h1>
+        <h1 className="font-heading text-[26px] font-bold text-ink">Manager Helper</h1>
         <p className="text-sm text-ink-60">Войдите, чтобы работать с чатами</p>
       </header>
       {logoutOffline && (
@@ -89,7 +92,7 @@ export function LoginForm({
             value={login}
             placeholder="Введите логин"
             autoComplete="username"
-            className={`${inputClass} border-line`}
+            className={`${inputClass} border-field-line`}
             onChange={(event) => {
               setLogin(event.target.value)
             }}
@@ -112,7 +115,13 @@ export function LoginForm({
           />
         ) : (
           error !== null && (
-            <RunNotice tone="error" role="alert" icon={<AlertCircleIcon />} title={error} text="" />
+            <RunNotice
+              tone="error"
+              role="alert"
+              icon={<AlertCircleIcon />}
+              title={error}
+              text={errorHint}
+            />
           )
         )}
         <PrimaryButton disabled={disabled}>

@@ -6,10 +6,12 @@ interface Props {
   /** Currently chosen user, shown as the input placeholder. */
   value: UserSummary | null
   onChange: (user: UserSummary) => void
+  /** Фокус в поле поиска сразу после появления (выпадающий список ответственного). */
+  autoFocus?: boolean
 }
 
 /** Assignee search over `GET /users`; the latest query wins. */
-export function UserSearchSelect({ value, onChange }: Props) {
+export function UserSearchSelect({ value, onChange, autoFocus = false }: Props) {
   const listId = useId()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<UserSummary[]>([])
@@ -41,9 +43,10 @@ export function UserSearchSelect({ value, onChange }: Props) {
         aria-expanded="true"
         aria-controls={listId}
         aria-autocomplete="list"
+        autoFocus={autoFocus}
         placeholder={value === null ? 'Поиск по логину' : value.login}
         value={query}
-        className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-60"
+        className="w-full rounded-xl border border-field-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-60 focus:border-brand-red"
         onChange={(event) => {
           setQuery(event.target.value)
         }}
@@ -52,7 +55,7 @@ export function UserSearchSelect({ value, onChange }: Props) {
         id={listId}
         role="listbox"
         aria-label="Пользователи"
-        className="max-h-40 overflow-y-auto rounded-xl border border-line bg-white"
+        className="max-h-40 overflow-y-auto rounded-xl border border-field-line bg-white"
       >
         {failed && (
           <li className="px-3 py-2 text-xs text-ink-60">Не удалось найти пользователей</li>

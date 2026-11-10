@@ -41,6 +41,7 @@ describe('LoginForm', () => {
   it('shows the 401 error', () => {
     render(<LoginForm {...base} onSubmit={vi.fn()} error="Неверный логин или пароль" />)
     expect(screen.getByRole('alert').textContent).toContain('Неверный логин или пароль')
+    expect(screen.getByRole('alert').textContent).toContain('Проверьте данные и попробуйте снова.')
   })
 
   it('blocks the button and counts down after 429', () => {

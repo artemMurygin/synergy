@@ -15,7 +15,22 @@
   --color-info: #2563d9;
   --color-info-soft: #e9effc;
   --color-accent-green: #1c8d00;
+  --color-success: #1e9e62;
   --color-success-soft: #e6f4ec;
+  /* Обводка полей ввода и вторичных кнопок */
+  --color-field-line: #cacacb;
+
+  /* Raleway — основной текст, Onest — заголовки. Шрифты локальные (@fontsource-variable,
+     импорт в main.tsx): CSP расширения MV3 не пускает Google Fonts. */
+  --font-sans: 'Raleway Variable', 'Raleway', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-heading: 'Onest Variable', 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Chrome подмешивает страницам расширения свой стиль `body { font-family: system-ui }`,
+   он перебивает шрифт, унаследованный от html: задаём шрифт body явно и вне слоёв, чтобы
+   правило не проиграло стилю браузера по каскаду. */
+body {
+  font-family: var(--font-sans);
 }
 
 .markdown > * + * {

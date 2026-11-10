@@ -21,6 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const session = useAuthSession()
   const [serverUrl, setServerUrl] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginHint, setLoginHint] = useState<string | undefined>(undefined)
   const [retryAfter, setRetryAfter] = useState<number | null>(null)
   const [violations, setViolations] = useState<string[]>([])
   const [changeError, setChangeError] = useState<ChangePasswordError | null>(null)
@@ -31,13 +32,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const login = async (name: string, password: string) => {
     setLoginError(null)
+    setLoginHint(undefined)
     setRetryAfter(null)
     try {
       await session.login(name, password)
     } catch (error) {
       if (error instanceof InvalidCredentialsError) setLoginError('Неверный логин или пароль')
       else if (error instanceof RateLimitedError) setRetryAfter(error.retryAfter)
-      else setLoginError('Не удалось войти. Проверьте подключение к серверу.')
+      else {
+        setLoginError('Не удалось войти')
+        setLoginHint('Проверьте подключение к серверу и попробуйте снова.')
+      }
     }
   }
 
@@ -86,6 +91,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <LoginForm
           onSubmit={login}
           error={loginError}
+          errorHint={loginHint}
           retryAfter={retryAfter}
           logoutOffline={session.notice === 'logout-offline'}
           serverUrl={serverUrl}

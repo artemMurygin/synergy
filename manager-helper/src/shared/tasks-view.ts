@@ -11,7 +11,7 @@ export type TasksView = 'mine' | 'watching' | 'created' | 'done'
 export const TASKS_VIEWS: readonly { id: TasksView; label: string }[] = [
   { id: 'mine', label: 'Мои' },
   { id: 'watching', label: 'Наблюдаю' },
-  { id: 'created', label: 'Созданные мной' },
+  { id: 'created', label: 'Созданные' },
   { id: 'done', label: 'Готовые' },
 ]
 

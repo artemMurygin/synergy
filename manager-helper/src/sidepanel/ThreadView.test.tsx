@@ -157,7 +157,7 @@ describe('ThreadView', () => {
     expect(screen.getByRole('button', { name: 'Повторить вопрос' })).toBeTruthy()
   })
 
-  it('shows tool calls of the answer in a collapsed trace', async () => {
+  it('shows tool calls of the answer in a trace expanded while running', async () => {
     await mount()
     await ask('q')
     startRunEvents()
@@ -167,8 +167,6 @@ describe('ThreadView', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Ход работы/ })).toBeTruthy()
     })
-    expect(screen.queryByText('search_books')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Ход работы/ }))
     expect(screen.getByText('search_books')).toBeTruthy()
     expect(screen.getByText('q: МВА')).toBeTruthy()
   })

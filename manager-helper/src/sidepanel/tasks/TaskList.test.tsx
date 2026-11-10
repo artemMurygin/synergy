@@ -45,6 +45,16 @@ describe('TaskList rows', () => {
     expect(screen.getByText('Без срока')).toBeTruthy()
   })
 
+  it('shows the sort order and the total count of the view', () => {
+    setup({ items: [makeTask('a'), makeTask('b')], total: 7 })
+    expect(screen.getByText('По дедлайну · 7 задач')).toBeTruthy()
+  })
+
+  it('names the order of the other views and pluralizes the count', () => {
+    setup({ items: [makeTask('a')], total: 2, view: 'watching' })
+    expect(screen.getByText('Сначала обновлённые · 2 задачи')).toBeTruthy()
+  })
+
   it('labels an overdue task with the word "Просрочено"', () => {
     setup({ items: [makeTask('a', { deadline: '2026-11-05T12:00:00.000Z' })] })
     expect(screen.getByText(/Просрочено/)).toBeTruthy()
@@ -128,7 +138,7 @@ describe('TaskList states', () => {
 
   it('shows the empty state with a "Создать задачу" action', () => {
     const { onCreate } = setup()
-    expect(screen.getByText('Задач нет')).toBeTruthy()
+    expect(screen.getByText('Нет задач на вас')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Создать задачу' }))
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
@@ -159,7 +169,7 @@ describe('TaskList states', () => {
   it('keeps the list out of the loading state once loaded', () => {
     setup({ items: [makeTask('a')] })
     expect(screen.queryByRole('status', { name: 'Загрузка задач' })).toBeNull()
-    expect(screen.queryByText('Задач нет')).toBeNull()
+    expect(screen.queryByText('Нет задач на вас')).toBeNull()
   })
 })
 

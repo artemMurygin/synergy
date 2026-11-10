@@ -21,13 +21,8 @@ describe('TasksToolbar', () => {
   it('lists the four views and marks the current one', () => {
     setup('created')
     const tabs = screen.getAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      'Мои',
-      'Наблюдаю',
-      'Созданные мной',
-      'Готовые',
-    ])
-    expect(screen.getByRole('tab', { name: 'Созданные мной' }).getAttribute('aria-selected')).toBe(
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Мои', 'Наблюдаю', 'Созданные', 'Готовые'])
+    expect(screen.getByRole('tab', { name: 'Созданные' }).getAttribute('aria-selected')).toBe(
       'true',
     )
     expect(screen.getByRole('tab', { name: 'Мои' }).getAttribute('aria-selected')).toBe('false')

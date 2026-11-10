@@ -72,8 +72,8 @@ export const ChatsIcon = () => (
     <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
   </Icon>
 )
-export const CloudOffIcon = () => (
-  <Icon size={36}>
+export const CloudOffIcon = ({ size = 36 }: { size?: number }) => (
+  <Icon size={size}>
     <path d="m2 2 20 20M5.8 5.8A7 7 0 0 0 7 19h10.5a4.5 4.5 0 0 0 1.4-.2M9.2 4.5A7 7 0 0 1 19 11a4.5 4.5 0 0 1 3 4" />
   </Icon>
 )
@@ -120,5 +120,37 @@ export const FileIcon = () => (
   <Icon size={20}>
     <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
     <path d="M14 2v4a2 2 0 0 0 2 2h4M10 13H8M16 17H8" />
+  </Icon>
+)
+export const SlidersIcon = () => (
+  <Icon size={16}>
+    <path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4" />
+  </Icon>
+)
+export const ChevronRightIcon = () => (
+  <Icon size={16}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
+)
+export const ChevronDownIcon = () => (
+  <Icon size={16}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+)
+export const CircleCheckIcon = () => (
+  <Icon size={24}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m9 12 2 2 4-4" />
+  </Icon>
+)
+export const SortAscIcon = () => (
+  <Icon size={14}>
+    <path d="m3 8 4-4 4 4M7 4v16M11 12h4M11 16h7M11 20h10" />
+  </Icon>
+)
+export const UserIcon = () => (
+  <Icon>
+    <circle cx="12" cy="8" r="5" />
+    <path d="M20 21a8 8 0 0 0-16 0" />
   </Icon>
 )

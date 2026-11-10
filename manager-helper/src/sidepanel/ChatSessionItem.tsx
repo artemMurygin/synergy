@@ -14,8 +14,10 @@ interface Props {
 
 type Mode = 'idle' | 'renaming' | 'confirming'
 
+// Цвет иконки задаёт каждая кнопка сама: иначе text-ink-40 перебивает цвет состояния.
 const actionButton =
-  'flex size-8 items-center justify-center rounded-lg text-ink-40 hover:bg-surface-sunken hover:text-ink disabled:opacity-50'
+  'flex size-8 shrink-0 items-center justify-center rounded-xl hover:bg-surface-sunken disabled:opacity-50'
+const mutedAction = `${actionButton} text-ink-40 hover:text-ink`
 
 export function ChatSessionItem({ session, active, onSelect, onRename, onDelete }: Props) {
   const [mode, setMode] = useState<Mode>('idle')
@@ -75,7 +77,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
             autoFocus
             aria-label="Название чата"
             maxLength={120}
-            className="min-w-0 flex-1 rounded-xl border border-brand-red px-3 py-2 text-sm text-ink outline-none"
+            className="h-10 min-w-0 flex-1 rounded-xl border border-brand-red px-4 text-[15px] text-ink outline-none"
             value={name}
             disabled={busy}
             onChange={(event) => {
@@ -86,7 +88,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
           <button
             type="button"
             aria-label="Сохранить название"
-            className={`${actionButton} text-success`}
+            className={`${actionButton} text-success hover:text-success`}
             disabled={busy}
             onClick={() => void saveName()}
           >
@@ -95,7 +97,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
           <button
             type="button"
             aria-label="Отменить переименование"
-            className={actionButton}
+            className={`${actionButton} text-ink-60 hover:text-ink`}
             onClick={reset}
           >
             <CloseIcon />
@@ -132,7 +134,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
         <button
           type="button"
           aria-label="Переименовать"
-          className={actionButton}
+          className={mutedAction}
           onClick={() => {
             setName(session.title)
             setError(null)
@@ -144,7 +146,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
         <button
           type="button"
           aria-label="Удалить чат"
-          className={`${actionButton} ${mode === 'confirming' ? 'text-brand-red' : ''}`}
+          className={mode === 'confirming' ? `${actionButton} text-brand-red` : mutedAction}
           onClick={() => {
             setError(null)
             setMode('confirming')
@@ -155,11 +157,11 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
       </div>
       {mode === 'confirming' && (
         <div className="px-4 pb-3">
-          <p className="text-xs text-ink-60">Удалить чат вместе с историей? Это необратимо.</p>
+          <p className="text-[13px] text-ink-80">Удалить чат вместе с историей? Это необратимо.</p>
           <div className="mt-2 flex justify-end gap-2">
             <button
               type="button"
-              className="rounded-full border border-line bg-white px-4 py-1.5 text-xs font-semibold text-ink hover:bg-surface-alt"
+              className="h-9 rounded-2xl border border-field-line bg-surface-alt px-3.5 text-[13px] font-semibold text-ink hover:bg-surface-sunken"
               disabled={busy}
               onClick={reset}
             >
@@ -167,7 +169,7 @@ export function ChatSessionItem({ session, active, onSelect, onRename, onDelete 
             </button>
             <button
               type="button"
-              className="rounded-full bg-brand-red px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-red-hover disabled:opacity-50"
+              className="h-9 rounded-2xl bg-brand-red px-3.5 text-[13px] font-semibold text-white shadow-[0_4px_10px_#66000033] hover:bg-brand-red-hover disabled:opacity-50"
               disabled={busy}
               onClick={() => void confirmDelete()}
             >

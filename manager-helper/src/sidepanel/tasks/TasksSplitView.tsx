@@ -62,7 +62,7 @@ export function TasksSplitView({
       <div
         hidden={!panes.list}
         className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-          isWidePanel(widthPx) ? 'w-85 shrink-0 border-r border-line' : 'flex-1'
+          isWidePanel(widthPx) ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
         }`}
       >
         <header className="flex items-center gap-2 border-b border-line px-3 py-2">
@@ -137,6 +137,7 @@ export function TasksSplitView({
             selectedId={selectedId}
             view={tasks.view}
             searching={tasks.search.trim() !== ''}
+            total={tasks.items.length + tasks.remaining}
             onOpen={setSelectedId}
             onSetStatus={(taskId, status) => void setStatus(taskId, status)}
             onLoadMore={() => void tasks.loadMore()}
@@ -153,7 +154,9 @@ export function TasksSplitView({
         className={`${panes.details ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}
       >
         {selectedId === null ? (
-          <p className="m-auto px-4 text-center text-sm text-ink-60">Выберите задачу</p>
+          <p className="m-auto px-4 text-center font-heading text-base font-semibold text-ink-60">
+            Выберите задачу
+          </p>
         ) : (
           <TaskDetails
             key={`${selectedId}:${String(detailsVersion)}`}

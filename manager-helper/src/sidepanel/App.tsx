@@ -202,7 +202,7 @@ export function App() {
         <div data-section="chat" className={section === 'chat' ? 'flex min-h-0 flex-1' : 'hidden'}>
           <div
             className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-              panes.chat ? 'w-75 shrink-0 border-r border-line' : 'flex-1'
+              panes.chat ? 'w-75 shrink-0 border-r border-line' : 'min-w-0 flex-1'
             }`}
           >
             <ChatSessionList

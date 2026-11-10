@@ -62,7 +62,7 @@ export function ChangePasswordDialog({ onSubmit, onLogout, violations = [], erro
         className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-[0_4px_16px_#0000000f]"
         onSubmit={(event) => void submit(event)}
       >
-        <h1 className="text-[22px] font-bold text-ink">Смените пароль</h1>
+        <h1 className="font-heading text-[22px] font-bold text-ink">Смените пароль</h1>
         <p className="text-sm text-ink-60">
           Вы вошли с временным паролем. Задайте новый пароль, чтобы продолжить.
         </p>

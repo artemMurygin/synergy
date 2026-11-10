@@ -13,7 +13,7 @@ interface Props {
 }
 
 export const inputClass =
-  'h-12 w-full rounded-xl border bg-white px-3.5 text-sm text-ink outline-none placeholder:text-ink-40 focus:border-ink-60'
+  'h-13 w-full rounded-xl border bg-white px-4 text-[15px] text-ink outline-none placeholder:text-ink-40 focus:border-ink-60'
 
 export function Field({
   label,
@@ -57,7 +57,7 @@ export function PasswordField({
           placeholder={placeholder}
           autoComplete={autoComplete}
           aria-invalid={invalid}
-          className={`${inputClass} pr-11 ${invalid ? 'border-brand-red' : 'border-line'}`}
+          className={`${inputClass} pr-11 ${invalid ? 'border-brand-red' : 'border-field-line'}`}
           onChange={(event) => {
             onChange(event.target.value)
           }}

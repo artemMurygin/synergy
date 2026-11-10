@@ -46,7 +46,7 @@ function Notice(props: {
   return (
     <div className="m-auto flex max-w-64 flex-col items-center gap-2 px-4 text-center">
       <span className="text-ink-40">{props.icon}</span>
-      <h2 className="text-sm font-bold text-ink">{props.title}</h2>
+      <h2 className="font-heading text-base font-semibold text-ink">{props.title}</h2>
       <p className="text-xs text-ink-60">{props.text}</p>
       <div className="mt-2">{props.children}</div>
     </div>
@@ -70,7 +70,7 @@ export function ChatSessionList(props: Props) {
             <ArrowLeftIcon />
           </button>
         )}
-        <h2 className="flex-1 text-base font-semibold text-ink">Чаты</h2>
+        <h2 className="min-w-0 flex-1 font-heading text-base font-semibold text-ink">Чаты</h2>
         <button
           type="button"
           className={primary}
