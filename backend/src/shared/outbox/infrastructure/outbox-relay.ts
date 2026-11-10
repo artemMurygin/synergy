@@ -144,7 +144,7 @@ export class OutboxRelay
     }
 
     private async release(deliveries: readonly ClaimedDelivery[]): Promise<void> {
-        for (const delivery of deliveries) await this.store.releaseClaim(delivery);
+        await Promise.all(deliveries.map((delivery) => this.store.releaseClaim(delivery)));
         this.logger.warn(
             { releasedCount: deliveries.length },
             'Outbox lease is running out, the rest of the batch is released',
@@ -254,9 +254,7 @@ export class OutboxRelay
         const timeout = new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => {
                 isTimedOut = true;
-                reject(
-                    new HandlerTimedOutError(`Subscriber timed out after ${String(timeoutMs)} ms`),
-                );
+                reject(new HandlerTimedOutError('Subscriber timed out', undefined, { timeoutMs }));
             }, timeoutMs);
         });
         work.catch((error: unknown) => {
