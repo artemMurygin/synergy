@@ -49,6 +49,7 @@ function createFakeAuth(initial: SessionSnapshot = UNAUTHENTICATED) {
   let snapshot = initial
   const auth = {
     getAccessToken: vi.fn<NotificationsAuthPort['getAccessToken']>().mockResolvedValue('access-1'),
+    refresh: vi.fn<NotificationsAuthPort['refresh']>().mockResolvedValue({ value: 'access-refreshed' }),
     getSnapshot: vi.fn(() => snapshot),
     onChange: vi.fn((listener: (next: SessionSnapshot) => void) => {
       listeners.add(listener)
@@ -243,6 +244,38 @@ describe('createNotificationsSocket', () => {
     latest().emit('disconnect', 'io server disconnect')
     expect(latest().client.connect).toHaveBeenCalledTimes(2)
     expect(socket.getConnectionState()).toBe('connecting')
+  })
+
+  it.each([
+    ['auth_expired', 'auth_expired', undefined],
+    ['token_expired', 'connection_error', { code: 'token_expired' }]
+  ])('forces a token refresh for the reconnect after %s', async (_name, event, payload) => {
+    const { session, latest, options } = setup()
+    session.setSnapshot(AUTHENTICATED)
+    await resolveAuth(options[0].options)
+    latest().emit('connect')
+    latest().emit(event, payload)
+    latest().emit('disconnect', 'io server disconnect')
+    await expect(resolveAuth(options[0].options)).resolves.toEqual({ token: 'access-refreshed' })
+    expect(session.auth.refresh).toHaveBeenCalledTimes(1)
+    expect(session.auth.getAccessToken).toHaveBeenCalledTimes(1)
+    await expect(resolveAuth(options[0].options)).resolves.toEqual({ token: 'access-1' })
+    expect(session.auth.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries later when the forced refresh fails', async () => {
+    vi.useFakeTimers()
+    const { session, latest, options } = setup()
+    session.setSnapshot(AUTHENTICATED)
+    session.auth.refresh.mockRejectedValueOnce(new Error('network'))
+    latest().emit('connection_error', { code: 'token_expired' })
+    latest().emit('disconnect', 'io server disconnect')
+    await expect(resolveAuth(options[0].options)).resolves.toEqual({})
+    latest().emit('connection_error', { code: 'token_invalid' })
+    latest().emit('disconnect', 'io server disconnect')
+    expect(latest().client.connect).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(5_000)
+    expect(latest().client.connect).toHaveBeenCalledTimes(3)
   })
 
   it.each(['token_invalid', 'password_change_required', 'origin_not_allowed'])(

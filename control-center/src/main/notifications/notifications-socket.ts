@@ -9,6 +9,7 @@ const TERMINAL_CODES: readonly ConnectionErrorCode[] = ['token_invalid', 'passwo
 
 export interface NotificationsAuthPort {
   getAccessToken(): Promise<string | null>
+  refresh(): Promise<{ value: string }>
   getSnapshot(): SessionSnapshot
   onChange(listener: (snapshot: SessionSnapshot) => void): () => void
 }
@@ -53,6 +54,7 @@ interface Connection {
   client: SocketClientPort
   lastErrorCode: ConnectionErrorCode | null
   isTokenUnavailable: boolean
+  mustRefreshToken: boolean
   retryTimer: ReturnType<typeof setTimeout> | null
 }
 
@@ -98,7 +100,10 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
         transports: ['websocket'],
         autoConnect: false,
         auth: (callback) => {
-          auth.getAccessToken().then(
+          const mustRefresh = current.mustRefreshToken
+          current.mustRefreshToken = false
+          const token = mustRefresh ? auth.refresh().then((refreshed) => refreshed.value) : auth.getAccessToken()
+          token.then(
             (token) => {
               current.isTokenUnavailable = false
               callback(token === null ? {} : { token })
@@ -112,6 +117,7 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
       }),
       lastErrorCode: null,
       isTokenUnavailable: false,
+      mustRefreshToken: false,
       retryTimer: null
     }
     connection = current
@@ -138,10 +144,13 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
       if (!isCurrent(current)) return
       const parsed = ConnectionErrorSchema.safeParse(payload)
       current.lastErrorCode = parsed.success ? parsed.data.code : null
+      if (current.lastErrorCode === 'token_expired') current.mustRefreshToken = true
       logger.warn('Notifications connection rejected', { code: current.lastErrorCode ?? 'unknown' })
     })
     client.on('auth_expired', () => {
-      if (isCurrent(current)) current.lastErrorCode = null
+      if (!isCurrent(current)) return
+      current.lastErrorCode = null
+      current.mustRefreshToken = true
     })
     for (const eventName of NOTIFICATION_EVENT_NAMES) {
       client.on(eventName, (payload: unknown) => {
