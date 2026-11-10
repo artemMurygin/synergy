@@ -1,7 +1,10 @@
+import { PinoLogger } from 'nestjs-pino';
 import { ClockPort } from '../domain/ports/clock.port';
 import { LinkTokenStorePort } from '../domain/ports/link-token-store.port';
 import { TelegramLinkRepositoryPort } from '../domain/ports/telegram-link-repository.port';
 import type { TelegramLink } from '../domain/telegram-link';
+import { BotMessengerPort, type SentBotMessage } from './ports/bot-messenger.port';
+import { UpdateDeduplicatorPort } from './ports/update-deduplicator.port';
 import { UserDirectoryPort, type DirectoryUser } from './ports/user-directory.port';
 
 export const NOW = new Date('2026-03-01T12:00:00.000Z');
@@ -70,4 +73,44 @@ export class InMemoryUserDirectory extends UserDirectoryPort {
     findActiveById(userId: string): Promise<DirectoryUser | null> {
         return Promise.resolve(this.activeUsersById.get(userId) ?? null);
     }
+}
+
+export interface SentChatMessage {
+    readonly chatId: bigint;
+    readonly html: string;
+}
+
+export class RecordingBotMessenger extends BotMessengerPort {
+    readonly sent: SentChatMessage[] = [];
+    failure: Error | null = null;
+    onSend: (message: SentChatMessage) => void = () => undefined;
+    private nextMessageId = 1n;
+
+    send(chatId: bigint, html: string): Promise<SentBotMessage> {
+        const message = { chatId, html };
+        this.onSend(message);
+        if (this.failure !== null) return Promise.reject(this.failure);
+        this.sent.push(message);
+        const messageId = this.nextMessageId;
+        this.nextMessageId += 1n;
+        return Promise.resolve({ messageId });
+    }
+
+    textsTo(chatId: bigint): string[] {
+        return this.sent.filter((message) => message.chatId === chatId).map(({ html }) => html);
+    }
+}
+
+export class InMemoryUpdateDeduplicator extends UpdateDeduplicatorPort {
+    readonly processedUpdateIds = new Set<number>();
+
+    markProcessed(updateId: number): Promise<boolean> {
+        if (this.processedUpdateIds.has(updateId)) return Promise.resolve(false);
+        this.processedUpdateIds.add(updateId);
+        return Promise.resolve(true);
+    }
+}
+
+export function silentLogger(): PinoLogger {
+    return new PinoLogger({ pinoHttp: { level: 'silent' } });
 }
