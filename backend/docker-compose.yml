@@ -1,10 +1,10 @@
 services:
   app:
     build: { context: ., dockerfile: Dockerfile.dev }
-    ports: ["${APP_PORT:-1234}:1234"]
+    ports: ["${APP_PORT:-3000}:3000"]
     env_file: .env
     environment: # внутри сети compose хосты сервисов другие
-      PORT: "1234"
+      PORT: "3000"
       POSTGRES_URL: postgresql://audit:audit@postgres:5432/audit_agent
       REDIS_HOST: redis
       REDIS_PORT: "6379"
