@@ -192,3 +192,45 @@ describe('validateEnv tasks settings', () => {
         );
     });
 });
+
+describe('validateEnv outbox and notifications settings', () => {
+    it('applies defaults', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.OUTBOX_POLL_INTERVAL_MS).toBe(1000);
+        expect(env.OUTBOX_BATCH_SIZE).toBe(50);
+        expect(env.OUTBOX_MAX_ATTEMPTS).toBe(10);
+        expect(env.OUTBOX_RETENTION_DAYS).toBe(7);
+        expect(env.NOTIFICATIONS_WS_PING_INTERVAL_MS).toBe(20000);
+    });
+
+    it('coerces numeric overrides', () => {
+        const env = validateEnv({
+            ...REQUIRED_ENV,
+            OUTBOX_POLL_INTERVAL_MS: '250',
+            OUTBOX_BATCH_SIZE: '10',
+            OUTBOX_MAX_ATTEMPTS: '3',
+            OUTBOX_RETENTION_DAYS: '30',
+            NOTIFICATIONS_WS_PING_INTERVAL_MS: '5000',
+        });
+
+        expect(env.OUTBOX_POLL_INTERVAL_MS).toBe(250);
+        expect(env.OUTBOX_BATCH_SIZE).toBe(10);
+        expect(env.OUTBOX_MAX_ATTEMPTS).toBe(3);
+        expect(env.OUTBOX_RETENTION_DAYS).toBe(30);
+        expect(env.NOTIFICATIONS_WS_PING_INTERVAL_MS).toBe(5000);
+    });
+
+    it.each([
+        ['OUTBOX_POLL_INTERVAL_MS', '0'],
+        ['OUTBOX_POLL_INTERVAL_MS', 'often'],
+        ['OUTBOX_BATCH_SIZE', '-5'],
+        ['OUTBOX_BATCH_SIZE', '1.5'],
+        ['OUTBOX_MAX_ATTEMPTS', '0'],
+        ['OUTBOX_RETENTION_DAYS', '0'],
+        ['NOTIFICATIONS_WS_PING_INTERVAL_MS', '-1'],
+        ['NOTIFICATIONS_WS_PING_INTERVAL_MS', 'fast'],
+    ])('rejects %s=%s', (name, value) => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
+    });
+});

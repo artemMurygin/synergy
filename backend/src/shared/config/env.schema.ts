@@ -94,6 +94,12 @@ export const envSchema = z
         TASKS_MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(20),
         TASKS_MAX_FILES_PER_TASK: z.coerce.number().int().positive().default(10),
 
+        OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
+        OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
+        OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
+        OUTBOX_RETENTION_DAYS: z.coerce.number().int().positive().default(7),
+        NOTIFICATIONS_WS_PING_INTERVAL_MS: z.coerce.number().int().positive().default(20000),
+
         LOKI_URL: z.string().optional(),
         LOKI_LABELS_APP: z.string().default('audit-agent'),
         METRICS_ENABLED: z
