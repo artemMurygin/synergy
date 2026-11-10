@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { RetryLaterDeliveryError } from '../../../../shared/outbox/domain/delivery-errors';
-import { ChatUnavailableError } from '../../application/errors';
+import { BotApiRateLimitedError, ChatUnavailableError } from '../../application/errors';
 import { BotMessengerPort } from '../../application/ports/bot-messenger.port';
 import { RecordingMessageMetrics } from '../../application/test-doubles';
 import { BotApiStub } from '../../testing/bot-api-stub';
@@ -75,7 +74,7 @@ describe('BotMessenger', () => {
                 parameters: { retry_after: 3 },
             },
         });
-        await expect(messenger.send(CHAT_ID, 'x')).rejects.toBeInstanceOf(RetryLaterDeliveryError);
+        await expect(messenger.send(CHAT_ID, 'x')).rejects.toBeInstanceOf(BotApiRateLimitedError);
         expect(metrics.errors).toEqual(['chat_unavailable', 'rate_limited']);
         expect(metrics.sent).toEqual([]);
     });

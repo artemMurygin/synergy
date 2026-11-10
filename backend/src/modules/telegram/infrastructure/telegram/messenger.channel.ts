@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
+import {
+    PermanentDeliveryError,
+    RetryLaterDeliveryError,
+} from '../../../../shared/outbox/domain/delivery-errors';
 import type { Notification } from '../../../notifications/domain/notification';
 import {
     ChannelDeliveryInProgressError,
@@ -7,7 +11,13 @@ import {
 } from '../../../notifications/domain/ports/notification-channel.port';
 import { escapeHtml } from '../../application/bot-replies';
 import type { SentBotMessage } from '../../application/ports/bot-messenger.port';
-import { ChatUnavailableError } from '../../application/errors';
+import {
+    BotApiConflictError,
+    BotApiRateLimitedError,
+    BotApiRejectedError,
+    ChatUnavailableError,
+    TransientDeliveryError,
+} from '../../application/errors';
 import { TelegramMessageMetricsPort } from '../../application/ports/telegram-message-metrics.port';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
 import { UserDirectoryPort } from '../../application/ports/user-directory.port';
@@ -18,6 +28,14 @@ import { TelegramLinkRepositoryPort } from '../../domain/ports/telegram-link-rep
 import { BotApiClient } from './bot-api-client';
 
 export const TELEGRAM_CHANNEL = 'telegram';
+
+const STALE_RESERVATION_OFFSET_MS = 1;
+
+interface DeliveryAttempt {
+    readonly notification: Notification;
+    readonly chatId: bigint;
+    readonly reservedAt: Date;
+}
 
 export function notificationMessage(notification: Notification): string {
     const title = `<b>${escapeHtml(notification.content.title)}</b>`;
@@ -66,7 +84,7 @@ export class MessengerChannel extends NotificationChannelPort {
             await this.deliveries.markSkipped(notificationId);
             return;
         }
-        const sent = await this.send(chatId, notification);
+        const sent = await this.send({ notification, chatId, reservedAt: now });
         if (sent === null) return;
         this.metrics.recordSent('notification');
         await this.deliveries.markSent({
@@ -76,11 +94,14 @@ export class MessengerChannel extends NotificationChannelPort {
         });
     }
 
-    private async send(chatId: bigint, notification: Notification): Promise<SentBotMessage | null> {
+    private async send(attempt: DeliveryAttempt): Promise<SentBotMessage | null> {
         try {
-            return await this.client.sendMessage(chatId, notificationMessage(notification));
+            return await this.client.sendMessage(
+                attempt.chatId,
+                notificationMessage(attempt.notification),
+            );
         } catch (error: unknown) {
-            await this.handleSendFailure(error, notification, chatId);
+            await this.handleSendFailure(error, attempt);
             return null;
         }
     }
@@ -93,16 +114,12 @@ export class MessengerChannel extends NotificationChannelPort {
         return user === null ? null : link.chatId;
     }
 
-    private async handleSendFailure(
-        error: unknown,
-        notification: Notification,
-        chatId: bigint,
-    ): Promise<void> {
-        const notificationId = notification.id;
-        const userId = notification.recipientId;
+    private async handleSendFailure(error: unknown, attempt: DeliveryAttempt): Promise<void> {
+        const notificationId = attempt.notification.id;
+        const userId = attempt.notification.recipientId;
         this.metrics.recordSendError(sendErrorReasonOf(error));
         if (error instanceof ChatUnavailableError) {
-            await this.links.deleteByUserIdAndChatId(userId, chatId);
+            await this.links.deleteByUserIdAndChatId(userId, attempt.chatId);
             await this.deliveries.markSkipped(notificationId);
             this.logger.info(
                 { userId, notificationId },
@@ -110,7 +127,41 @@ export class MessengerChannel extends NotificationChannelPort {
             );
             return;
         }
-        await this.deliveries.release(notificationId);
-        throw error;
+        if (error instanceof TransientDeliveryError) {
+            throw new RetryLaterDeliveryError(
+                'Telegram send outcome is unknown, retry after the reservation expires',
+                this.untilReservationExpires(attempt.reservedAt),
+                error,
+                { notificationId },
+            );
+        }
+        await this.release(notificationId);
+        throw toOutboxError(error);
     }
+
+    private untilReservationExpires(reservedAt: Date): number {
+        const expiresAt = reservedAt.getTime() + this.settings.deliveryReservationMs;
+        return Math.max(0, expiresAt - this.clock.now().getTime()) + STALE_RESERVATION_OFFSET_MS;
+    }
+
+    private async release(notificationId: string): Promise<void> {
+        try {
+            await this.deliveries.release(notificationId);
+        } catch (releaseError: unknown) {
+            this.logger.warn(
+                { err: releaseError, notificationId },
+                'Telegram delivery reservation was not released',
+            );
+        }
+    }
+}
+
+function toOutboxError(error: unknown): unknown {
+    if (error instanceof BotApiRateLimitedError && error.retryAfterMs !== null) {
+        return new RetryLaterDeliveryError(error.message, error.retryAfterMs, error);
+    }
+    if (error instanceof BotApiRejectedError || error instanceof BotApiConflictError) {
+        return new PermanentDeliveryError(error.message, error);
+    }
+    return error;
 }

@@ -10,7 +10,11 @@ import {
 import { NotificationContent } from '../../../notifications/domain/notification-content';
 import { Notification } from '../../../notifications/domain/notification';
 import { NotificationTarget } from '../../../notifications/domain/notification-target';
-import { TransientDeliveryError } from '../../application/errors';
+import {
+    BotApiRateLimitedError,
+    BotApiRejectedError,
+    TransientDeliveryError,
+} from '../../application/errors';
 import {
     FixedClock,
     InMemoryTelegramDeliveryLog,
@@ -89,7 +93,11 @@ describe('MessengerChannel', () => {
 
     let logger: PinoLogger;
 
-    function channelWith(apiBaseUrl: string, botToken?: string | null): MessengerChannel {
+    function channelWith(
+        apiBaseUrl: string,
+        botToken?: string | null,
+        requestTimeoutMs?: number,
+    ): MessengerChannel {
         const settings = testTelegramSettings({
             apiBaseUrl,
             deliveryReservationMs: RESERVATION_MS,
@@ -99,7 +107,10 @@ describe('MessengerChannel', () => {
             deliveries,
             links,
             users,
-            new BotApiClient(settings),
+            new BotApiClient(
+                settings,
+                requestTimeoutMs === undefined ? undefined : { requestTimeoutMs },
+            ),
             clock,
             settings,
             metrics,
@@ -302,48 +313,71 @@ describe('MessengerChannel', () => {
                 },
             ],
             [
-                'a 429 response without retry_after',
+                'a response that outlives the request timeout',
                 () => {
-                    stub.respond('sendMessage', failure(429, 'Too Many Requests'));
+                    stub.respond('sendMessage', { ...sentOk(1), delayMs: 1_000 });
                 },
             ],
-        ])('releases the reservation and rethrows a transient error on %s', async (_c, arrange) => {
+        ])('keeps the reservation when the outcome of %s is unknown', async (_c, arrange) => {
             linkBoris();
             arrange();
+            const impatient = channelWith(stub.baseUrl, undefined, 50);
             const notification = notificationFor(BORIS_ID);
 
-            await expect(channel.deliver(notification)).rejects.toBeInstanceOf(
-                TransientDeliveryError,
-            );
+            const error: unknown = await impatient.deliver(notification).catch((e: unknown) => e);
 
-            expect(deliveries.rowsByNotificationId.has(notification.id)).toBe(false);
+            expect(error).toBeInstanceOf(RetryLaterDeliveryError);
+            expect(error).not.toBeInstanceOf(ChannelDeliveryInProgressError);
+            expect(error).toMatchObject({ retryAfterMs: RESERVATION_MS + 1 });
+            expect(error).toHaveProperty('cause', expect.any(TransientDeliveryError));
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sending');
             expect(metrics.errors).toEqual(['transient']);
         });
 
-        it('releases the reservation and rethrows a transient error on a network failure', async () => {
+        it('keeps the reservation on a network failure', async () => {
             linkBoris();
             const unreachable = channelWith('http://127.0.0.1:1');
             const notification = notificationFor(BORIS_ID);
 
             await expect(unreachable.deliver(notification)).rejects.toBeInstanceOf(
-                TransientDeliveryError,
+                RetryLaterDeliveryError,
             );
 
-            expect(deliveries.rowsByNotificationId.has(notification.id)).toBe(false);
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sending');
         });
 
-        it('sends exactly one message when a retry follows a transient failure', async () => {
+        it('does not send again before the reservation expires after an unknown outcome', async () => {
             linkBoris();
             const notification = notificationFor(BORIS_ID);
             stub.respond('sendMessage', failure(500, 'Internal Server Error'));
             await expect(channel.deliver(notification)).rejects.toThrow();
 
             stub.respond('sendMessage', sentOk(506));
+            clock.current = new Date(NOW.getTime() + RESERVATION_MS - 1);
+            const early: unknown = await channel.deliver(notification).catch((e: unknown) => e);
+
+            expect(early).toBeInstanceOf(ChannelDeliveryInProgressError);
+            expect(stub.requestsOf('sendMessage')).toHaveLength(1);
+
+            clock.current = new Date(NOW.getTime() + RESERVATION_MS + 1);
             await channel.deliver(notification);
             await channel.deliver(notification);
 
             expect(stub.requestsOf('sendMessage')).toHaveLength(2);
             expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sent');
+        });
+
+        it('releases the reservation and retries by policy on 429 without retry_after', async () => {
+            linkBoris();
+            stub.respond('sendMessage', failure(429, 'Too Many Requests'));
+            const notification = notificationFor(BORIS_ID);
+
+            const error: unknown = await channel.deliver(notification).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(BotApiRateLimitedError);
+            expect(error).not.toBeInstanceOf(PermanentDeliveryError);
+            expect(deliveries.rowsByNotificationId.has(notification.id)).toBe(false);
+            expect(metrics.errors).toEqual(['rate_limited']);
         });
 
         it('asks to retry not earlier than retry_after on 429', async () => {
@@ -359,9 +393,38 @@ describe('MessengerChannel', () => {
             expect(metrics.errors).toEqual(['rate_limited']);
         });
 
+        it('keeps the send error when releasing the reservation fails', async () => {
+            const warnLog = vi.spyOn(logger, 'warn');
+            linkBoris();
+            stub.respond('sendMessage', failure(429, 'Too Many Requests: retry after 5', 5));
+            vi.spyOn(deliveries, 'release').mockRejectedValueOnce(new Error('database down'));
+            const notification = notificationFor(BORIS_ID);
+
+            const error: unknown = await channel.deliver(notification).catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(RetryLaterDeliveryError);
+            expect(error).toMatchObject({ retryAfterMs: 5000 });
+            expect(warnLog).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps the reservation and retries when removing the unavailable link fails', async () => {
+            linkBoris();
+            stub.respond('sendMessage', failure(403, 'Forbidden: bot was blocked by the user'));
+            const databaseDown = new Error('database down');
+            vi.spyOn(links, 'deleteByUserIdAndChatId').mockRejectedValueOnce(databaseDown);
+            const notification = notificationFor(BORIS_ID);
+
+            await expect(channel.deliver(notification)).rejects.toBe(databaseDown);
+
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sending');
+            expect(links.linksByUserId.has(BORIS_ID)).toBe(true);
+            expect(metrics.errors).toEqual(['chat_unavailable']);
+        });
+
         it.each([
             [403, 'Forbidden: bot was blocked by the user'],
             [403, 'Forbidden: user is deactivated'],
+            [403, 'Forbidden: bot was kicked from the group chat'],
             [400, 'Bad Request: chat not found'],
         ])('removes the link and completes the delivery on %i %s', async (status, description) => {
             linkBoris();
@@ -406,10 +469,10 @@ describe('MessengerChannel', () => {
             stub.respond('sendMessage', failure(status, description));
             const notification = notificationFor(BORIS_ID);
 
-            await expect(channel.deliver(notification)).rejects.toBeInstanceOf(
-                PermanentDeliveryError,
-            );
+            const error: unknown = await channel.deliver(notification).catch((e: unknown) => e);
 
+            expect(error).toBeInstanceOf(PermanentDeliveryError);
+            expect(error).toHaveProperty('cause', expect.any(BotApiRejectedError));
             expect(links.linksByUserId.has(BORIS_ID)).toBe(true);
             expect(deliveries.rowsByNotificationId.has(notification.id)).toBe(false);
             expect(metrics.errors).toEqual(['permanent']);

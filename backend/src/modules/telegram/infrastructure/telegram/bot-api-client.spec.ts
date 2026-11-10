@@ -5,10 +5,16 @@ import {
     PermanentDeliveryError,
     RetryLaterDeliveryError,
 } from '../../../../shared/outbox/domain/delivery-errors';
-import { ChatUnavailableError, TransientDeliveryError } from '../../application/errors';
+import {
+    BotApiConflictError,
+    BotApiRateLimitedError,
+    BotApiRejectedError,
+    ChatUnavailableError,
+    TransientDeliveryError,
+} from '../../application/errors';
 import { BotApiStub } from '../../testing/bot-api-stub';
 import { TEST_BOT_TOKEN, testTelegramSettings } from '../../testing/telegram-settings.fixture';
-import { BotApiClient, BotApiConflictError } from './bot-api-client';
+import { BotApiClient } from './bot-api-client';
 
 const CHAT_ID = 9_007_199_254_740_993n;
 const HTML = '<b>Новая задача</b>\nПроверить договор';
@@ -154,12 +160,12 @@ describe('BotApiClient', () => {
             ['no result', { ok: true }],
             ['ok false with status 200', { ok: false, description: 'odd' }],
             ['not an envelope', [1, 2, 3]],
-        ])('rejects %s as a permanent error', async (_case, body) => {
+        ])('rejects %s as a rejected request', async (_case, body) => {
             stub.respond('sendMessage', { status: 200, body });
 
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
-            expect(error).toBeInstanceOf(PermanentDeliveryError);
+            expect(error).toBeInstanceOf(BotApiRejectedError);
         });
     });
 
@@ -257,21 +263,25 @@ describe('BotApiClient', () => {
 
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
-            expect(error).toBeInstanceOf(RetryLaterDeliveryError);
+            expect(error).toBeInstanceOf(BotApiRateLimitedError);
             expect(error).toMatchObject({ retryAfterMs: 7_000 });
         });
 
-        it('treats 429 without retry_after as transient', async () => {
+        it('reports 429 without retry_after as rate limited without a pause', async () => {
             stub.respond('sendMessage', failure(429, 'Too Many Requests'));
 
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
-            expect(error).toBeInstanceOf(TransientDeliveryError);
+            expect(error).toBeInstanceOf(BotApiRateLimitedError);
+            expect(error).toMatchObject({ retryAfterMs: null });
         });
 
         it.each([
             [403, 'Forbidden: bot was blocked by the user'],
             [403, 'Forbidden: user is deactivated'],
+            [403, 'Forbidden: bot was kicked from the group chat'],
+            [403, "Forbidden: bot can't initiate conversation with a user"],
+            [403, 'Forbidden: bot is not a member of the channel chat'],
             [400, 'Bad Request: chat not found'],
         ])('reports status %i "%s" as an unavailable chat', async (status, description) => {
             stub.respond('sendMessage', failure(status, description));
@@ -279,21 +289,19 @@ describe('BotApiClient', () => {
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
             expect(error).toBeInstanceOf(ChatUnavailableError);
-            expect(error).not.toBeInstanceOf(PermanentDeliveryError);
         });
 
         it.each([
             [400, "Bad Request: can't parse entities: Unsupported start tag"],
             [400, 'Bad Request: message is too long'],
             [401, 'Unauthorized'],
-            [403, 'Forbidden: bot is not a member of the channel chat'],
             [404, 'Not Found'],
-        ])('treats status %i "%s" as permanent', async (status, description) => {
+        ])('treats status %i "%s" as a rejected request', async (status, description) => {
             stub.respond('sendMessage', failure(status, description));
 
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
-            expect(error).toBeInstanceOf(PermanentDeliveryError);
+            expect(error).toBeInstanceOf(BotApiRejectedError);
             expect(error).not.toBeInstanceOf(ChatUnavailableError);
             expect(error).not.toBeInstanceOf(BotApiConflictError);
         });
@@ -309,7 +317,7 @@ describe('BotApiClient', () => {
             );
 
             expect(error).toBeInstanceOf(BotApiConflictError);
-            expect(error).toBeInstanceOf(PermanentDeliveryError);
+            expect(error).not.toBeInstanceOf(BotApiRejectedError);
         });
 
         it('fails permanently without a request when the bot token is missing', async () => {
@@ -319,8 +327,23 @@ describe('BotApiClient', () => {
 
             const error = await rejectionOf(unconfigured.sendMessage(CHAT_ID, HTML));
 
-            expect(error).toBeInstanceOf(PermanentDeliveryError);
+            expect(error).toBeInstanceOf(BotApiRejectedError);
             expect(stub.requests).toHaveLength(0);
+        });
+
+        it.each([
+            ['transient', failure(500, 'Internal Server Error')],
+            ['rate limited', failure(429, 'Too Many Requests', { retry_after: 1 })],
+            ['unavailable chat', failure(403, 'Forbidden: bot was blocked by the user')],
+            ['rejected', failure(400, 'Bad Request: message is too long')],
+            ['invalid response', { status: 200, body: { ok: true } }],
+        ])('raises its own %s error, not an outbox error', async (_kind, reply) => {
+            stub.respond('sendMessage', reply);
+
+            const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
+
+            expect(error).not.toBeInstanceOf(PermanentDeliveryError);
+            expect(error).not.toBeInstanceOf(RetryLaterDeliveryError);
         });
     });
 
@@ -348,6 +371,27 @@ describe('BotApiClient', () => {
             const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
 
             expect(JSON.stringify(error)).not.toContain('Проверить договор');
+        });
+
+        it('keeps the Telegram description out of the error and its log form', async () => {
+            stub.respond(
+                'sendMessage',
+                failure(
+                    400,
+                    "Bad Request: can't parse entities: Проверить договор at byte offset 7",
+                ),
+            );
+
+            const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
+
+            if (!(error instanceof Error)) throw new Error('Expected an Error');
+            const logForm = JSON.stringify(stdSerializers.err(error));
+            expect(logForm).not.toContain('Проверить договор');
+            expect(logForm).not.toContain("can't parse");
+            expect(JSON.stringify(error)).not.toContain('Проверить договор');
+            expect(error).toMatchObject({
+                metadata: { method: 'sendMessage', status: 400, reason: 'rejected' },
+            });
         });
     });
 });

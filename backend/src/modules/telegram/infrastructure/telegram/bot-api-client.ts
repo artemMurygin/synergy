@@ -2,10 +2,12 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { z } from 'zod';
 import type { BaseError } from '../../../../shared/errors';
 import {
-    PermanentDeliveryError,
-    RetryLaterDeliveryError,
-} from '../../../../shared/outbox/domain/delivery-errors';
-import { ChatUnavailableError, TransientDeliveryError } from '../../application/errors';
+    BotApiConflictError,
+    BotApiRateLimitedError,
+    BotApiRejectedError,
+    ChatUnavailableError,
+    TransientDeliveryError,
+} from '../../application/errors';
 import type { SentBotMessage } from '../../application/ports/bot-messenger.port';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
 import { MS_IN_SECOND } from '../../domain/time-units';
@@ -44,19 +46,14 @@ export interface UpdatesRequest {
     readonly signal?: AbortSignal;
 }
 
-export class BotApiConflictError extends PermanentDeliveryError {}
-
 const HTTP_STATUS_BAD_REQUEST = 400;
 const HTTP_STATUS_FORBIDDEN = 403;
 const HTTP_STATUS_CONFLICT = 409;
 const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 const HTTP_STATUS_SERVER_ERROR_MIN = 500;
-const REDACTED = '[redacted]';
-const NO_DESCRIPTION = 'no description';
-const UNAVAILABLE_CHAT_BY_STATUS = new Map<number, RegExp>([
-    [HTTP_STATUS_FORBIDDEN, /bot was blocked by the user|user is deactivated/i],
-    [HTTP_STATUS_BAD_REQUEST, /chat not found/i],
-]);
+const CHAT_NOT_FOUND = /chat not found/i;
+
+type FailureReason = 'server_error' | 'rate_limited' | 'chat_unavailable' | 'conflict' | 'rejected';
 
 const envelopeSchema = z.object({
     ok: z.boolean(),
@@ -131,14 +128,15 @@ export class BotApiClient {
     ): Promise<TResult> {
         const token = this.settings.botToken;
         if (token === null) {
-            throw new PermanentDeliveryError('Telegram bot token is not configured', undefined, {
+            throw new BotApiRejectedError('Telegram bot token is not configured', undefined, {
                 method,
+                reason: 'not_configured',
             });
         }
         const response = await this.post(token, method, params, options);
         const envelope = envelopeSchema.safeParse(await readJson(response));
         if (!response.ok) {
-            throw classifyFailure(method, response.status, envelope.data ?? null, token);
+            throw classifyFailure(method, response.status, envelope.data ?? null);
         }
         if (!envelope.success || !envelope.data.ok) throw invalidResponse(method);
         const parsed = schema.safeParse(envelope.data.result);
@@ -189,42 +187,42 @@ async function readJson(response: Response): Promise<unknown> {
     }
 }
 
-function invalidResponse(method: BotMethod): PermanentDeliveryError {
-    return new PermanentDeliveryError(
-        `Bot API ${method} returned an unexpected response`,
-        undefined,
-        {
-            method,
-        },
-    );
+function invalidResponse(method: BotMethod): BotApiRejectedError {
+    return new BotApiRejectedError(`Bot API ${method} returned an unexpected response`, undefined, {
+        method,
+        reason: 'invalid_response',
+    });
 }
 
-function classifyFailure(
-    method: BotMethod,
-    status: number,
-    envelope: Envelope | null,
-    token: string,
-): BaseError {
-    const description = (envelope?.description ?? NO_DESCRIPTION).replaceAll(token, REDACTED);
-    const message = `Bot API ${method} responded with ${String(status)}: ${description}`;
-    const metadata = { method, status, description };
-    const retryAfterSeconds = envelope?.parameters?.retry_after;
-    if (status === HTTP_STATUS_TOO_MANY_REQUESTS && retryAfterSeconds !== undefined) {
-        return new RetryLaterDeliveryError(
-            message,
-            retryAfterSeconds * MS_IN_SECOND,
-            undefined,
-            metadata,
-        );
+function failureReasonOf(status: number, envelope: Envelope | null): FailureReason {
+    if (status === HTTP_STATUS_TOO_MANY_REQUESTS) return 'rate_limited';
+    if (status >= HTTP_STATUS_SERVER_ERROR_MIN) return 'server_error';
+    if (status === HTTP_STATUS_FORBIDDEN) return 'chat_unavailable';
+    if (status === HTTP_STATUS_BAD_REQUEST && CHAT_NOT_FOUND.test(envelope?.description ?? '')) {
+        return 'chat_unavailable';
     }
-    if (status === HTTP_STATUS_TOO_MANY_REQUESTS || status >= HTTP_STATUS_SERVER_ERROR_MIN) {
-        return new TransientDeliveryError(message, undefined, metadata);
+    if (status === HTTP_STATUS_CONFLICT) return 'conflict';
+    return 'rejected';
+}
+
+function classifyFailure(method: BotMethod, status: number, envelope: Envelope | null): BaseError {
+    const reason = failureReasonOf(status, envelope);
+    const message = `Bot API ${method} responded with ${String(status)} (${reason})`;
+    const metadata = { method, status, reason };
+    switch (reason) {
+        case 'rate_limited': {
+            const retryAfterSeconds = envelope?.parameters?.retry_after;
+            const retryAfterMs =
+                retryAfterSeconds === undefined ? null : retryAfterSeconds * MS_IN_SECOND;
+            return new BotApiRateLimitedError(message, retryAfterMs, undefined, metadata);
+        }
+        case 'server_error':
+            return new TransientDeliveryError(message, undefined, metadata);
+        case 'chat_unavailable':
+            return new ChatUnavailableError(message, undefined, metadata);
+        case 'conflict':
+            return new BotApiConflictError(message, undefined, metadata);
+        case 'rejected':
+            return new BotApiRejectedError(message, undefined, metadata);
     }
-    if (UNAVAILABLE_CHAT_BY_STATUS.get(status)?.test(description) === true) {
-        return new ChatUnavailableError(message, undefined, metadata);
-    }
-    if (status === HTTP_STATUS_CONFLICT) {
-        return new BotApiConflictError(message, undefined, metadata);
-    }
-    return new PermanentDeliveryError(message, undefined, metadata);
 }

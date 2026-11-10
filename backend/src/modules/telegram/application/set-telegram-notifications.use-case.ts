@@ -13,13 +13,18 @@ export class SetTelegramNotificationsUseCase {
         private readonly clock: ClockPort,
     ) {}
 
-    async execute(userId: string, isEnabled: boolean): Promise<TelegramLinkStatusView> {
-        const link = await this.links.findByUserId(userId);
+    async execute(
+        userId: string,
+        isEnabled: boolean,
+        telegramUserId?: bigint,
+    ): Promise<TelegramLinkStatusView> {
+        const link = await this.links.setNotificationsEnabled({
+            userId,
+            isEnabled,
+            now: this.clock.now(),
+            telegramUserId,
+        });
         if (link === null) throw new TelegramNotLinkedError();
-        const now = this.clock.now();
-        if (isEnabled) link.enableNotifications(now);
-        else link.disableNotifications(now);
-        await this.links.save(link);
         return toTelegramLinkStatusView(this.settings.isConfigured(), link);
     }
 }

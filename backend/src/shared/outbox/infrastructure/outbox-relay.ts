@@ -227,7 +227,10 @@ export class OutboxRelay
             return;
         }
         try {
-            await this.withHandlerTimeout(this.runSubscriber(subscriber, delivery, event));
+            await this.withHandlerTimeout(
+                delivery,
+                this.runSubscriber(subscriber, delivery, event),
+            );
         } catch (error: unknown) {
             if (error instanceof DeliveryLeaseLostError) {
                 this.reportLeaseLost(delivery);
@@ -260,7 +263,10 @@ export class OutboxRelay
         return subscriber.isTransactional === false ? work() : this.transactions.run(work);
     }
 
-    private async withHandlerTimeout(work: Promise<void>): Promise<void> {
+    private async withHandlerTimeout(
+        delivery: ClaimedDelivery,
+        work: Promise<void>,
+    ): Promise<void> {
         const timeoutMs = this.settings.handlerTimeoutMs;
         let timer: NodeJS.Timeout | undefined;
         let isTimedOut = false;
@@ -271,7 +277,11 @@ export class OutboxRelay
             }, timeoutMs);
         });
         work.catch((error: unknown) => {
-            if (!isTimedOut || error instanceof DeliveryLeaseLostError) return;
+            if (!isTimedOut) return;
+            if (error instanceof DeliveryLeaseLostError) {
+                this.reportLeaseLost(delivery);
+                return;
+            }
             this.logger.warn({ err: error }, 'Timed out outbox handler finished with an error');
         });
         try {

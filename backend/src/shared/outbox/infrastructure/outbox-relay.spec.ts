@@ -438,6 +438,41 @@ describe('OutboxRelay (unit)', () => {
             }
         });
 
+        it('reports the lost lease when a timed out subscriber outside the transaction finishes late', async () => {
+            vi.useFakeTimers();
+            try {
+                let finish: () => void = () => undefined;
+                const late: EventSubscriber = {
+                    ...recordingSubscriber(
+                        FIRST,
+                        () =>
+                            new Promise<void>((resolve) => {
+                                finish = resolve;
+                            }),
+                    ),
+                    isTransactional: false,
+                };
+                const relay = createRelay(createRegistry([late]));
+                const event = addThing('aggregate-1', [FIRST]);
+                const warn = vi.spyOn(logger, 'warn');
+
+                const processing = relay.processBatch();
+                await vi.advanceTimersByTimeAsync(HANDLER_TIMEOUT_MS);
+                await processing;
+                warn.mockClear();
+                finish();
+                await vi.advanceTimersByTimeAsync(0);
+
+                expect(store.delivery(event.id, FIRST)).toMatchObject({ status: 'pending' });
+                expect(warn).toHaveBeenCalledWith(
+                    expect.objectContaining({ eventId: event.id, subscriber: FIRST }),
+                    'Outbox delivery lease was lost, result discarded',
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it('does not write the result of a delivery whose lease was taken over', async () => {
             const subscriber = recordingSubscriber(FIRST, () => {
                 store.takeOverLease(event.id, FIRST);

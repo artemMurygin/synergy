@@ -7,7 +7,10 @@ import {
     type DeliveryReservationRequest,
     type SentDelivery,
 } from '../domain/ports/telegram-delivery-log.port';
-import { TelegramLinkRepositoryPort } from '../domain/ports/telegram-link-repository.port';
+import {
+    TelegramLinkRepositoryPort,
+    type NotificationsSwitch,
+} from '../domain/ports/telegram-link-repository.port';
 import type { TelegramLink } from '../domain/telegram-link';
 import { BotMessengerPort, type SentBotMessage } from './ports/bot-messenger.port';
 import {
@@ -65,6 +68,17 @@ export class InMemoryTelegramLinkRepository extends TelegramLinkRepositoryPort {
     save(link: TelegramLink): Promise<void> {
         this.linksByUserId.set(link.userId, link);
         return Promise.resolve();
+    }
+
+    setNotificationsEnabled(change: NotificationsSwitch): Promise<TelegramLink | null> {
+        const link = this.linksByUserId.get(change.userId);
+        if (link === undefined) return Promise.resolve(null);
+        if (change.telegramUserId !== undefined && link.telegramUserId !== change.telegramUserId) {
+            return Promise.resolve(null);
+        }
+        if (change.isEnabled) link.enableNotifications(change.now);
+        else link.disableNotifications(change.now);
+        return Promise.resolve(link);
     }
 
     deleteByUserId(userId: string): Promise<TelegramLink | null> {

@@ -138,7 +138,11 @@ export class BotUpdateDispatcher {
         isEnabled: boolean,
     ): Promise<string> {
         try {
-            await this.setNotifications.execute(sender.userId, isEnabled);
+            await this.setNotifications.execute(
+                sender.userId,
+                isEnabled,
+                sender.link.telegramUserId,
+            );
         } catch (error: unknown) {
             if (error instanceof TelegramNotLinkedError) return BotReplies.notLinked();
             throw error;

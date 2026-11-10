@@ -183,6 +183,65 @@ describe.skipIf(adminUrl === undefined)('TelegramLinkRepository', () => {
         });
     });
 
+    describe('setNotificationsEnabled', () => {
+        it('switches only the notification flag and returns the updated link', async () => {
+            await repository.save(TelegramLink.link(anna, identity(1001n, 2001n, 'anna_tg'), T0));
+
+            const updated = await repository.setNotificationsEnabled({
+                userId: anna,
+                isEnabled: false,
+                now: T1,
+            });
+
+            expect(updated?.notificationsEnabled).toBe(false);
+            expect(updated?.updatedAt).toEqual(T1);
+            const stored = await repository.findByUserId(anna);
+            expect(stored?.notificationsEnabled).toBe(false);
+            expect(stored?.chatId).toBe(2001n);
+            expect(stored?.username).toBe('anna_tg');
+            expect(stored?.linkedAt).toEqual(T0);
+            expect(stored?.updatedAt).toEqual(T1);
+        });
+
+        it('does not create a link that is missing', async () => {
+            const updated = await repository.setNotificationsEnabled({
+                userId: anna,
+                isEnabled: true,
+                now: T1,
+            });
+
+            expect(updated).toBeNull();
+            expect(await countLinks()).toBe(0);
+        });
+
+        it('does not switch a link of another telegram account', async () => {
+            await repository.save(TelegramLink.link(anna, identity(1001n, 2001n), T0));
+
+            const updated = await repository.setNotificationsEnabled({
+                userId: anna,
+                telegramUserId: 3003n,
+                isEnabled: false,
+                now: T1,
+            });
+
+            expect(updated).toBeNull();
+            expect((await repository.findByUserId(anna))?.notificationsEnabled).toBe(true);
+        });
+
+        it('switches the link of the expected telegram account', async () => {
+            await repository.save(TelegramLink.link(anna, identity(1001n, 2001n), T0));
+
+            const updated = await repository.setNotificationsEnabled({
+                userId: anna,
+                telegramUserId: 1001n,
+                isEnabled: false,
+                now: T1,
+            });
+
+            expect(updated?.notificationsEnabled).toBe(false);
+        });
+    });
+
     describe('deleteByUserId', () => {
         it('deletes the link and returns what was deleted', async () => {
             await repository.save(TelegramLink.link(anna, identity(1001n, 2001n, 'anna_tg'), T0));

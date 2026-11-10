@@ -2,10 +2,10 @@ import { Inject, Injectable, type OnModuleDestroy, Optional } from '@nestjs/comm
 import { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
 import { BotUpdateDispatcher } from '../../application/bot-update-dispatcher';
-import { TransientDeliveryError } from '../../application/errors';
+import { BotApiConflictError, TransientDeliveryError } from '../../application/errors';
 import { TelegramUpdateMetricsPort } from '../../application/ports/telegram-update-metrics.port';
 import { PollerLock } from '../cache/poller-lock';
-import { BotApiClient, BotApiConflictError } from './bot-api-client';
+import { BotApiClient } from './bot-api-client';
 
 export const TELEGRAM_POLLER_TIMINGS = Symbol('TELEGRAM_POLLER_TIMINGS');
 
@@ -15,6 +15,7 @@ export interface PollerTimings {
     readonly lockRetryMs: number;
     readonly pollTimeoutSeconds: number;
     readonly errorBackoffMs: number;
+    readonly maxErrorBackoffMs: number;
 }
 
 export const DEFAULT_POLLER_TIMINGS: PollerTimings = {
@@ -23,6 +24,7 @@ export const DEFAULT_POLLER_TIMINGS: PollerTimings = {
     lockRetryMs: 10_000,
     pollTimeoutSeconds: 25,
     errorBackoffMs: 5_000,
+    maxErrorBackoffMs: 300_000,
 };
 
 const updateIdSchema = z.object({ update_id: z.number().int().nonnegative() });
@@ -51,6 +53,7 @@ export class TelegramUpdatesPoller implements OnModuleDestroy {
     private readonly stopController = new AbortController();
     private loop: Promise<void> | null = null;
     private offset = 0;
+    private consecutiveFailures = 0;
 
     constructor(
         private readonly lock: PollerLock,
@@ -129,14 +132,21 @@ export class TelegramUpdatesPoller implements OnModuleDestroy {
             } else {
                 this.logger.error({ err: error }, 'Telegram getUpdates failed');
             }
-            await sleep(this.timings.errorBackoffMs, signal);
+            await sleep(this.nextErrorBackoffMs(), signal);
             return 'continue';
         }
+        this.consecutiveFailures = 0;
         for (const update of updates) {
             if (this.stopController.signal.aborted) break;
             await this.handle(update);
         }
         return 'continue';
+    }
+
+    private nextErrorBackoffMs(): number {
+        const backoffMs = this.timings.errorBackoffMs * 2 ** this.consecutiveFailures;
+        this.consecutiveFailures += 1;
+        return Math.min(backoffMs, this.timings.maxErrorBackoffMs);
     }
 
     private async handle(update: unknown): Promise<void> {

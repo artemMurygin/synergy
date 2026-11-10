@@ -31,6 +31,7 @@ const FAST_TIMINGS: PollerTimings = {
     lockRetryMs: 100,
     pollTimeoutSeconds: 1,
     errorBackoffMs: 100,
+    maxErrorBackoffMs: 100,
 };
 const SLOW_RETRY_MS = 10_000;
 const EMPTY_POLL: BotApiStubReply = { status: 200, body: { ok: true, result: [] }, delayMs: 30 };
@@ -232,6 +233,25 @@ describe('TelegramUpdatesPoller (real Redis)', () => {
 
         expect(first.polls()).toBe(1);
         expect(warn).toHaveBeenCalledWith({}, 'Telegram polling conflict, waiting for the lock');
+    });
+
+    it('backs off exponentially while getUpdates keeps failing and resets after a success', async () => {
+        const instance = await createInstance({ errorBackoffMs: 50, maxErrorBackoffMs: 400 });
+        const errorLog = vi.spyOn(instance.logger, 'error');
+        instance.stub.respond('getUpdates', {
+            status: 401,
+            body: { ok: false, error_code: 401, description: 'Unauthorized' },
+        });
+        instance.poller.start();
+
+        await delay(1_000);
+
+        expect(instance.polls()).toBeGreaterThanOrEqual(3);
+        expect(instance.polls()).toBeLessThanOrEqual(6);
+        expect(errorLog.mock.calls.length).toBe(instance.polls());
+
+        instance.stub.respond('getUpdates', EMPTY_POLL);
+        await waitFor(() => instance.dispatch.mock.calls.length === 0 && instance.polls() > 8);
     });
 
     it('aborts the long poll and releases the lock on onModuleDestroy', async () => {

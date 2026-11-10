@@ -56,7 +56,7 @@
 | `TelegramDeliveryLogPort` / `TelegramDeliveryLog` | port: domain; adapter: `infrastructure/persistence` | Журнал отправки `telegram_deliveries`: бронь, фиксация отправки, пропуск, снятие брони. Каждая запись коммитится сразу; внутри открытой транзакции адаптер бросает `DeliveryLogInsideTransactionError` (design, решение 7) |
 | `LinkTokenStorePort` / `LinkTokenStore` | port: domain; adapter: `infrastructure/cache` (Redis) | `SET EX` по хешу токена, атомарное погашение через `GETDEL` |
 | `UpdateDeduplicatorPort` / `UpdateDeduplicator` | port: application; adapter: `infrastructure/cache` (Redis) | `SET NX EX 86400` по `update_id` |
-| `BotMessengerPort` / `BotMessenger` | port: application; adapter: `infrastructure/telegram` | Отправка сообщения в чат. Ошибки классифицированы (`TransientDeliveryError`, `RetryLaterDeliveryError`, `ChatUnavailableError`, `PermanentDeliveryError`) |
+| `BotMessengerPort` / `BotMessenger` | port: application; adapter: `infrastructure/telegram` | Отправка сообщения в чат. Ошибки классифицированы ошибками модуля (`TransientDeliveryError`, `BotApiRateLimitedError`, `ChatUnavailableError`, `BotApiRejectedError`, `BotApiConflictError`) |
 | `UserDirectoryPort` / `UserDirectory` | port: application; adapter: `infrastructure/users` (через публичный контракт `auth`: `FindActiveUserUseCase`, экспортируется из `AuthModule`) | `findActiveById(userId)` → `{ id, login }` или `null` |
 | `TelegramSettingsPort` / `TelegramSettings` | port: application; adapter: `infrastructure/config` | Токен, имя бота, режим обновлений, webhook, TTL токена, `isConfigured()` |
 | `FreeTextHandlerPort` / `NotSupportedFreeTextHandler` | port: application; adapter: application | Точка расширения для будущего агента. Сейчас отвечает «пока не поддерживается» |
@@ -67,12 +67,12 @@
 | `GetTelegramLinkStatusUseCase` | application | Статус привязки текущего пользователя |
 | `LinkAccountUseCase` | application | Привязка по токену в одной транзакции (design, решение 3). Ответы в чат отправляются после commit |
 | `UnlinkAccountUseCase` | application | Отвязка из приложения или бота, сообщение в прежний чат после commit. Идемпотентна |
-| `SetTelegramNotificationsUseCase` | application | Включает и выключает уведомления. Без привязки — `TelegramNotLinkedError` |
+| `SetTelegramNotificationsUseCase` | application | Включает и выключает уведомления одним атомарным `UPDATE` флага (без чтения и перезаписи привязки). Без привязки — `TelegramNotLinkedError` |
 | `BotUpdateDispatcher` | application | Дедупликация, разбор, распознавание отправителя, маршрутизация команд, перехват ошибок одного update |
 | `IdentityResolver` | application | Строит `BotSender` по `TelegramIdentity`: привязка плюс активность пользователя |
 | `BotReplies` | application | Тексты ответов на русском и HTML-экранирование |
 | **Infrastructure / interface** | | |
-| `BotApiClient` | `infrastructure/telegram` | Тонкий клиент Bot API на `fetch`: `sendMessage`, `setWebhook`, `deleteWebhook`, `getUpdates`. Ответы проходят zod-валидацию, токен не попадает в логи и ошибки |
+| `BotApiClient` | `infrastructure/telegram` | Тонкий клиент Bot API на `fetch`: `sendMessage`, `setWebhook`, `deleteWebhook`, `getUpdates`. Ответы проходят zod-валидацию, токен и `description` Telegram не попадают в логи и ошибки. Бросает только ошибки модуля, не ошибки outbox |
 | `TelegramUpdatesBootstrap` | `infrastructure/telegram` | На `onApplicationBootstrap` по режиму вызывает `setWebhook`, запускает poller или ничего не делает |
 | `TelegramUpdatesPoller` | `infrastructure/telegram` | Цикл `getUpdates` под Redis-lock `telegram:poller:lock`, передаёт update в диспетчер |
 | `MessengerChannel` | `infrastructure/telegram` | Адаптер `NotificationChannelPort`, где `channel = 'telegram'` (design, решение 7) |
@@ -96,12 +96,13 @@
 | `TelegramLinkRepositoryPort.findByUserId` | `userId: string` | `Promise<TelegramLink \| null>` | — |
 | `TelegramLinkRepositoryPort.findByTelegramUserId` | `telegramUserId: bigint` | `Promise<TelegramLink \| null>` | — |
 | `TelegramLinkRepositoryPort.save` | `link: TelegramLink` | `Promise<void>` | Upsert по `user_id`. Нарушение `unique(telegram_user_id)` — `TelegramAccountTakenError` |
+| `TelegramLinkRepositoryPort.setNotificationsEnabled` | `change: { userId, isEnabled, now, telegramUserId? }` | `Promise<TelegramLink \| null>` | `UPDATE … SET notifications_enabled, updated_at WHERE user_id [AND telegram_user_id] RETURNING`. Нет строки (отвязано или перепривязано к другому аккаунту) — `null`; строку не создаёт |
 | `TelegramLinkRepositoryPort.deleteByUserId` | `userId: string` | `Promise<TelegramLink \| null>` | Возвращает удалённую привязку (для сообщения в прежний чат) |
 | `TelegramLinkRepositoryPort.deleteByUserIdAndChatId` | `userId: string, chatId: bigint` | `Promise<TelegramLink \| null>` | Удаляет привязку, только если она ведёт в этот чат (недоступный чат при доставке) |
 | `TelegramDeliveryLogPort.reserve` | `{ notificationId, userId, now, reservationMs }` | `Promise<'reserved' \| 'done' \| { inProgressUntil: Date }>` | Один `INSERT … ON CONFLICT DO UPDATE … WHERE status = 'sending' AND reserved_at < now - reservation RETURNING` |
 | `TelegramDeliveryLogPort.markSent` | `{ notificationId, messageId, sentAt }` | `Promise<void>` | `status = 'sent'` |
 | `TelegramDeliveryLogPort.markSkipped` | `notificationId: string` | `Promise<void>` | Нет привязки, выключено или пользователь отключён |
-| `TelegramDeliveryLogPort.release` | `notificationId: string` | `Promise<void>` | Снять бронь после ошибки отправки |
+| `TelegramDeliveryLogPort.release` | `notificationId: string` | `Promise<void>` | Снять бронь после ошибки, при которой Telegram точно не принял сообщение (429, 4xx). При неизвестном исходе (сеть, таймаут, 5xx) бронь не снимается |
 | `LinkTokenStorePort.save` | `digest: string, userId: string, ttlSeconds: number` | `Promise<void>` | Ключ `telegram:link-token:<digest>` |
 | `LinkTokenStorePort.consume` | `digest: string` | `Promise<string \| null>` | `GETDEL` → `userId` |
 | `UpdateDeduplicatorPort.markProcessed` | `updateId: number` | `Promise<boolean>` | `false`, если уже обработан |
@@ -112,10 +113,10 @@
 | `GetTelegramLinkStatusUseCase.execute` | `actor: Actor` | `Promise<TelegramLinkStatusView>` | — |
 | `LinkAccountUseCase.execute` | `{ token: string; identity: TelegramIdentity }` | `Promise<LinkResult>` | Ошибки `InvalidLinkTokenError`, `TelegramAccountTakenError` |
 | `UnlinkAccountUseCase.execute` | `userId: string` | `Promise<void>` | Идемпотентна |
-| `SetTelegramNotificationsUseCase.execute` | `userId: string, isEnabled: boolean` | `Promise<TelegramLinkStatusView>` | `TelegramNotLinkedError` |
+| `SetTelegramNotificationsUseCase.execute` | `userId: string, isEnabled: boolean, telegramUserId?: bigint` | `Promise<TelegramLinkStatusView>` | `TelegramNotLinkedError`. `telegramUserId` передаёт бот (`/mute`, `/unmute`): переключается только привязка этого Telegram-аккаунта |
 | `BotUpdateDispatcher.dispatch` | `update: unknown` | `Promise<void>` | Никогда не бросает: ошибки логируются |
 | `IdentityResolver.resolve` | `identity: TelegramIdentity` | `Promise<BotSender>` | — |
-| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Вызывается вне транзакции relay (`ChannelDeliverySubscriber.isTransactional = false`). Свежая чужая бронь → `ChannelDeliveryInProgressError` (не считается сбоем канала). Ошибка записи `sent` после отправки бронь не снимает. При заблокированном боте снимает привязку к этому чату |
+| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Вызывается вне транзакции relay (`ChannelDeliverySubscriber.isTransactional = false`). Свежая чужая бронь → `ChannelDeliveryInProgressError` (не считается сбоем канала). Ошибка записи `sent` после отправки бронь не снимает. Неизвестный исход отправки (сеть, таймаут, 5xx) бронь не снимает и даёт `RetryLaterDeliveryError` до её истечения. Переводит ошибки `BotApiClient` в ошибки outbox. При недоступном чате снимает привязку к этому чату |
 | `BotApiClient.sendMessage` / `setWebhook` / `deleteWebhook` / `getUpdates` | типизированные параметры метода | результат метода | Общий вызов `call` закрытый (private): классификация ошибок и проверка ответа zod |
 | `FindActiveUserUseCase.execute` (`auth`) | `userId: string` | `Promise<{ id: string; login: string } \| null>` | Публичный контракт `auth` для других модулей |
 | `EventSubscriber.isTransactional` (`shared/outbox`) | — | `boolean \| undefined` | `false` — relay вызывает подписчика вне своей транзакции и пишет `done` отдельно |
@@ -218,6 +219,10 @@ Miro link: https://miro.com/app/board/uXjVEP6UhAI=/?moveToWidget=345876469002913
 - **Канал вне транзакции outbox.** Подписчики `notifications.channel.*` объявляют `isTransactional = false`: relay вызывает их без своей транзакции и пишет `done` отдельно. Журнал `telegram_deliveries` коммитит каждую запись сразу и отказывается работать внутри транзакции. Вызов Bot API не держит соединение пула и блокировку строки (design, решение 7).
 - **Каталог пользователей** читается через `FindActiveUserUseCase` из `AuthModule`, а не SQL по `auth_users`.
 - **Redis-клиент модуля** логирует ошибки через `PinoLogger` (`{ err }`, постоянное сообщение).
+- **Переключатель уведомлений** — атомарный `TelegramLinkRepositoryPort.setNotificationsEnabled` вместо чтения и upsert всей привязки: параллельная отвязка, удаление привязки при заблокированном боте или перепривязка не перезаписываются.
+- **Неизвестный исход `sendMessage`** (сеть, таймаут, 5xx) бронь не снимает; повтор ждёт её истечения (design, решение 7).
+- **Ошибки Bot API** — собственные классы модуля (`TransientDeliveryError`, `BotApiRateLimitedError`, `ChatUnavailableError`, `BotApiRejectedError`, `BotApiConflictError`); в `PermanentDeliveryError` / `RetryLaterDeliveryError` их переводит `MessengerChannel`. Любой 403 считается недоступным чатом. `description` Telegram не логируется.
+- **Poller** удваивает паузу при подряд идущих ошибках `getUpdates` (до `maxErrorBackoffMs`, 5 мин).
 
 ## Confirmation Checklist
 - [x] Названия entity/aggregate/VO согласованы

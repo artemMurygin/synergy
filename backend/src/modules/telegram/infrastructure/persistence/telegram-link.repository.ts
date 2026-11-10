@@ -3,7 +3,10 @@ import { sql, UniqueIntegrityConstraintViolationError, type FragmentSqlToken } f
 import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../../database/postgres/transaction-runner.port';
 import { TelegramAccountTakenError } from '../../domain/errors';
-import { TelegramLinkRepositoryPort } from '../../domain/ports/telegram-link-repository.port';
+import {
+    TelegramLinkRepositoryPort,
+    type NotificationsSwitch,
+} from '../../domain/ports/telegram-link-repository.port';
 import { TelegramIdentity } from '../../domain/telegram-identity';
 import { TelegramLink } from '../../domain/telegram-link';
 import { bigintColumn, millisColumn } from './sql-columns';
@@ -91,6 +94,20 @@ export class TelegramLinkRepository extends TelegramLinkRepositoryPort {
             if (isTelegramUserIdTaken(error)) throw new TelegramAccountTakenError(error);
             throw error;
         }
+    }
+
+    async setNotificationsEnabled(change: NotificationsSwitch): Promise<TelegramLink | null> {
+        const sameAccount =
+            change.telegramUserId === undefined
+                ? sql.fragment`TRUE`
+                : sql.fragment`telegram_user_id = ${change.telegramUserId.toString()}::bigint`;
+        const row = await this.transactions.executor().maybeOne(sql.unsafe`
+            UPDATE telegram_links
+            SET notifications_enabled = ${change.isEnabled},
+                updated_at = ${sql.timestamp(change.now)}
+            WHERE user_id = ${change.userId} AND ${sameAccount}
+            RETURNING ${COLUMNS}`);
+        return row === null ? null : toLink(row);
     }
 
     async deleteByUserId(userId: string): Promise<TelegramLink | null> {
