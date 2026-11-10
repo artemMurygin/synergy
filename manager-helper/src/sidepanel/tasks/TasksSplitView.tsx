@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { TaskStatus } from '@/shared/tasks-api'
 import { isWidePanel } from '../panel-layout'
 import { CloseIcon } from '../icons'
 import { PanelHeader } from '../PanelHeader'
 import { useViewportSize } from '../use-viewport-size'
-import { QuickCreate } from './QuickCreate'
+import { TaskCreateSheet } from './TaskCreateSheet'
 import { TaskDetails } from './TaskDetails'
 import { TaskList } from './TaskList'
 import { TasksToolbar } from './TasksToolbar'
@@ -35,6 +35,14 @@ export function TasksSplitView({
   // Details are re-read after the list changed the selected task.
   const [detailsVersion, setDetailsVersion] = useState(0)
   const panes = tasksPaneVisibility(widthPx, selectedId)
+  const createButton = useRef<HTMLButtonElement>(null)
+
+  // Focus goes back to "+" once the create sheet is closed.
+  const wasCreating = useRef(false)
+  useEffect(() => {
+    if (wasCreating.current && !creating) createButton.current?.focus()
+    wasCreating.current = creating
+  }, [creating])
 
   const setStatus = async (taskId: string, status: TaskStatus) => {
     await tasks.setStatus(taskId, status)
@@ -57,108 +65,111 @@ export function TasksSplitView({
 
   return (
     <section aria-label="Задачи" className="flex min-h-0 flex-1 flex-col">
-      <PanelHeader
-        switcher={switcher}
-        actionLabel="Новая задача"
-        actionExpanded={creating}
-        onAction={() => {
-          setCreating((open) => !open)
-        }}
-        onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-      />
-      <div className="flex min-h-0 flex-1">
-        <div
-          hidden={!panes.list}
-          className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-            isWidePanel(widthPx) ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
-          }`}
-        >
-          <TasksToolbar
-            view={tasks.view}
-            search={tasks.search}
-            onViewChange={tasks.setView}
-            onSearchChange={tasks.setSearch}
-          />
-          {creating && (
-            <QuickCreate
-              me={{ id: userId, login }}
-              onCreated={() => {
-                setCreating(false)
-                void reload()
-              }}
-              onCancel={() => {
-                setCreating(false)
-              }}
-            />
-          )}
-          {notice !== null && (
-            <div
-              role="status"
-              aria-label="Сообщение"
-              className="flex items-start gap-2 border-b border-line bg-brand-red-soft px-4 py-2 text-xs text-ink"
-            >
-              <span className="min-w-0 flex-1 break-words">{notice}</span>
-              <button
-                type="button"
-                aria-label="Закрыть сообщение"
-                className="shrink-0 text-ink-60"
-                onClick={() => {
-                  tasks.dismissNotice()
-                  setMessage(null)
-                }}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-          )}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <TaskList
-              items={tasks.items}
-              loading={tasks.loading}
-              loadingMore={tasks.loadingMore}
-              error={tasks.error}
-              hasMore={tasks.hasMore}
-              remaining={tasks.remaining}
-              selectedId={selectedId}
+      <div inert={creating} className="flex min-h-0 flex-1 flex-col">
+        <PanelHeader
+          actionRef={createButton}
+          switcher={switcher}
+          actionLabel="Новая задача"
+          actionExpanded={creating}
+          onAction={() => {
+            setCreating((open) => !open)
+          }}
+          onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+        />
+        <div className="flex min-h-0 flex-1">
+          <div
+            hidden={!panes.list}
+            className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
+              isWidePanel(widthPx) ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
+            }`}
+          >
+            <TasksToolbar
               view={tasks.view}
-              searching={tasks.search.trim() !== ''}
-              total={tasks.items.length + tasks.remaining}
-              onOpen={setSelectedId}
-              onSetStatus={(taskId, status) => void setStatus(taskId, status)}
-              onLoadMore={() => void tasks.loadMore()}
-              onRetry={() => void reload()}
-              onCreate={() => {
-                setCreating(true)
-              }}
+              search={tasks.search}
+              onViewChange={tasks.setView}
+              onSearchChange={tasks.setSearch}
             />
+            {notice !== null && (
+              <div
+                role="status"
+                aria-label="Сообщение"
+                className="flex items-start gap-2 border-b border-line bg-brand-red-soft px-4 py-2 text-xs text-ink"
+              >
+                <span className="min-w-0 flex-1 break-words">{notice}</span>
+                <button
+                  type="button"
+                  aria-label="Закрыть сообщение"
+                  className="shrink-0 text-ink-60"
+                  onClick={() => {
+                    tasks.dismissNotice()
+                    setMessage(null)
+                  }}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+            )}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              <TaskList
+                items={tasks.items}
+                loading={tasks.loading}
+                loadingMore={tasks.loadingMore}
+                error={tasks.error}
+                hasMore={tasks.hasMore}
+                remaining={tasks.remaining}
+                selectedId={selectedId}
+                view={tasks.view}
+                searching={tasks.search.trim() !== ''}
+                total={tasks.items.length + tasks.remaining}
+                onOpen={setSelectedId}
+                onSetStatus={(taskId, status) => void setStatus(taskId, status)}
+                onLoadMore={() => void tasks.loadMore()}
+                onRetry={() => void reload()}
+                onCreate={() => {
+                  setCreating(true)
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            hidden={!panes.details}
+            className={`${panes.details ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}
+          >
+            {selectedId === null ? (
+              <p className="m-auto px-4 text-center font-heading text-base font-semibold text-ink-60">
+                Выберите задачу
+              </p>
+            ) : (
+              <TaskDetails
+                key={`${selectedId}:${String(detailsVersion)}`}
+                taskId={selectedId}
+                onBack={
+                  panes.backToList
+                    ? () => {
+                        setSelectedId(null)
+                      }
+                    : undefined
+                }
+                onChanged={changed}
+                onMissing={missing}
+              />
+            )}
           </div>
         </div>
-
-        <div
-          hidden={!panes.details}
-          className={`${panes.details ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}
-        >
-          {selectedId === null ? (
-            <p className="m-auto px-4 text-center font-heading text-base font-semibold text-ink-60">
-              Выберите задачу
-            </p>
-          ) : (
-            <TaskDetails
-              key={`${selectedId}:${String(detailsVersion)}`}
-              taskId={selectedId}
-              onBack={
-                panes.backToList
-                  ? () => {
-                      setSelectedId(null)
-                    }
-                  : undefined
-              }
-              onChanged={changed}
-              onMissing={missing}
-            />
-          )}
-        </div>
       </div>
+      {creating && (
+        <TaskCreateSheet
+          me={{ id: userId, login }}
+          onCreated={() => {
+            setCreating(false)
+            void reload()
+          }}
+          onCancel={() => {
+            setCreating(false)
+          }}
+        />
+      )}
     </section>
   )
 }

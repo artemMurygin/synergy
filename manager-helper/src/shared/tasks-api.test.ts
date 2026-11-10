@@ -152,7 +152,8 @@ describe('getTask', () => {
 
 describe('createTask', () => {
   it('posts the JSON body', async () => {
-    fetchMock.mockResolvedValue(json({ ...task, attachments: [] }, 201))
+    // Форма реального ответа backend: без attachments, с attachmentCount.
+    fetchMock.mockResolvedValue(json({ ...task, attachmentCount: 0 }, 201))
     const created = await createTask({ title: 'КП', assigneeId: 'u1', deadline: null })
     const { url, init } = lastCall()
     expect(url).toBe('http://api.test/tasks')
@@ -174,7 +175,7 @@ describe('createTask', () => {
 
 describe('updateTask', () => {
   it('patches only the given fields', async () => {
-    fetchMock.mockResolvedValue(json({ ...task, status: 'done', attachments: [] }))
+    fetchMock.mockResolvedValue(json({ ...task, status: 'done', attachmentCount: 2 }))
     const updated = await updateTask('t1', { status: 'done' })
     const { url, init } = lastCall()
     expect(url).toBe('http://api.test/tasks/t1')

@@ -234,14 +234,15 @@ export async function getTask(taskId: string): Promise<TaskDetails> {
   return parseTaskDetails(await response.json())
 }
 
-export async function createTask(input: CreateTaskInput): Promise<TaskDetails> {
+// POST и PATCH отдают задачу без списка вложений (только attachmentCount), полную карточку даёт GET /tasks/:id.
+export async function createTask(input: CreateTaskInput): Promise<Task> {
   const response = await request('/tasks', jsonInit('POST', input))
-  return parseTaskDetails(await response.json())
+  return parseTask(await response.json())
 }
 
-export async function updateTask(taskId: string, patch: UpdateTaskInput): Promise<TaskDetails> {
+export async function updateTask(taskId: string, patch: UpdateTaskInput): Promise<Task> {
   const response = await request(`/tasks/${encodeURIComponent(taskId)}`, jsonInit('PATCH', patch))
-  return parseTaskDetails(await response.json())
+  return parseTask(await response.json())
 }
 
 function fileNameOf(disposition: string | null): string {

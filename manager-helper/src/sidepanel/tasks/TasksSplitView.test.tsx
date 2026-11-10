@@ -112,12 +112,31 @@ describe('TasksSplitView wide panel (>= 640)', () => {
     expect(screen.getByRole('button', { name: 'КП' }).closest('[hidden]')).toBeNull()
   })
 
-  it('opens the quick create form in the list column', async () => {
+  it('opens the create sheet over both columns and keeps them in the DOM', async () => {
+    setup()
+    const row = await screen.findByRole('button', { name: 'Отчёт' })
+    const plus = screen.getByRole('button', { name: 'Новая задача' })
+    expect(plus.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(plus)
+    expect(plus.getAttribute('aria-expanded')).toBe('true')
+    const dialog = screen.getByRole('dialog', { name: 'Новая задача' })
+    expect(row.closest('ul')?.contains(dialog)).toBe(false)
+    expect(document.body.contains(row)).toBe(true)
+    expect(screen.getByText('Выберите задачу')).toBeTruthy()
+    // The columns under the backdrop are inert.
+    expect(row.closest('[inert]')).not.toBeNull()
+    expect(dialog.closest('[inert]')).toBeNull()
+  })
+
+  it('closes the sheet with Esc and returns focus to "+"', async () => {
     setup()
     await screen.findByRole('button', { name: 'Отчёт' })
-    fireEvent.click(screen.getByRole('button', { name: 'Новая задача' }))
-    expect(screen.getByRole('textbox', { name: 'Название задачи' })).toBeTruthy()
-    expect(screen.getByText('Выберите задачу')).toBeTruthy()
+    const plus = screen.getByRole('button', { name: 'Новая задача' })
+    fireEvent.click(plus)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Название задачи' }), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(plus.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(plus)
   })
 })
 

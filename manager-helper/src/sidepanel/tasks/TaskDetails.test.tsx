@@ -44,19 +44,38 @@ const FULL = makeDetails('t1', {
   ],
 })
 
+function withoutAttachments(details: TasksApi.TaskDetails): TasksApi.Task {
+  const { id, title, description, status, deadline, creator, assignee, watchers } = details
+  const { createdAt, updatedAt, completedAt } = details
+  return {
+    id,
+    title,
+    description,
+    status,
+    deadline,
+    creator,
+    assignee,
+    watchers,
+    createdAt,
+    updatedAt,
+    completedAt,
+  }
+}
+
 beforeEach(() => {
   vi.mocked(getTask).mockReset()
   vi.mocked(updateTask).mockReset()
   vi.mocked(downloadAttachment).mockReset()
   vi.mocked(searchUsers).mockReset()
   vi.mocked(getTask).mockResolvedValue(FULL)
-  vi.mocked(updateTask).mockImplementation((_id, patch) =>
-    Promise.resolve({
-      ...FULL,
+  // Как настоящий PATCH /tasks/:id: задача без списка вложений.
+  vi.mocked(updateTask).mockImplementation((_id, patch) => {
+    return Promise.resolve({
+      ...withoutAttachments(FULL),
       status: patch.status ?? FULL.status,
       title: patch.title ?? FULL.title,
-    }),
-  )
+    })
+  })
   vi.mocked(searchUsers).mockResolvedValue({
     items: [{ id: 'u2', login: 'ivan' }],
     total: 1,
@@ -163,6 +182,19 @@ describe('TaskDetails actions', () => {
       deadline: new Date('2099-12-20T09:30').toISOString(),
     })
     expect(screen.queryByLabelText('Название')).toBeNull()
+  })
+
+  it('keeps the loaded attachments after saving', async () => {
+    const { onChanged } = setup()
+    await screen.findByRole('heading', { name: 'Подготовить КП' })
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать' }))
+    fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Новое название' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(onChanged).toHaveBeenCalled()
+    })
+    expect(await screen.findByRole('heading', { name: 'Новое название' })).toBeTruthy()
+    expect(screen.getByText('Предложение.pdf')).toBeTruthy()
   })
 
   it('does not save an empty title', async () => {

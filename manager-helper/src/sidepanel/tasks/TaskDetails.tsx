@@ -199,7 +199,8 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
     setActionError(null)
     try {
       const updated = await updateTask(taskId, patch)
-      setTask(updated)
+      // В ответе PATCH нет вложений: оставляем уже загруженные.
+      setTask((current) => ({ ...updated, attachments: current?.attachments ?? [] }))
       onChanged()
       return true
     } catch (failure) {

@@ -8,10 +8,20 @@ interface Props {
   onChange: (user: UserSummary) => void
   /** Фокус в поле поиска сразу после появления (выпадающий список ответственного). */
   autoFocus?: boolean
+  /** Accessible name of the search field. */
+  label?: string
+  /** Multiple choice: these users are marked as selected and the field keeps its placeholder. */
+  selectedIds?: string[]
 }
 
 /** Assignee search over `GET /users`; the latest query wins. */
-export function UserSearchSelect({ value, onChange, autoFocus = false }: Props) {
+export function UserSearchSelect({
+  value,
+  onChange,
+  autoFocus = false,
+  label = 'Ответственный',
+  selectedIds,
+}: Props) {
   const listId = useId()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<UserSummary[]>([])
@@ -39,7 +49,8 @@ export function UserSearchSelect({ value, onChange, autoFocus = false }: Props) 
       <input
         type="text"
         role="combobox"
-        aria-label="Ответственный"
+        aria-label={label}
+        aria-multiselectable={selectedIds === undefined ? undefined : true}
         aria-expanded="true"
         aria-controls={listId}
         aria-autocomplete="list"
@@ -68,7 +79,7 @@ export function UserSearchSelect({ value, onChange, autoFocus = false }: Props) 
             <button
               type="button"
               role="option"
-              aria-selected={value?.id === user.id}
+              aria-selected={selectedIds?.includes(user.id) ?? value?.id === user.id}
               className="block w-full px-3 py-2 text-left text-sm break-words text-ink hover:bg-surface-alt aria-selected:font-semibold"
               onClick={() => {
                 onChange(user)

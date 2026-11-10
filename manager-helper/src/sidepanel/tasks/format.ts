@@ -50,3 +50,41 @@ export function formatSize(bytes: number): string {
 export function messageOf(error: unknown): string {
   return error instanceof Error && error.message !== '' ? error.message : 'Неизвестная ошибка'
 }
+
+export interface QuickDeadlines {
+  /** Today, 18:00. */
+  today: string
+  /** Tomorrow, 10:00. */
+  tomorrow: string
+  /** The nearest Monday after today, 10:00. */
+  nextMonday: string
+}
+
+function localInputAt(base: Date, addDays: number, hours: number): string {
+  const date = new Date(base.getFullYear(), base.getMonth(), base.getDate() + addDays, hours, 0)
+  return toLocalInput(date.toISOString())
+}
+
+/** Quick deadline options as `datetime-local` values in the local time zone. */
+export function quickDeadlines(now: Date): QuickDeadlines {
+  // Monday is 1; on a Monday the next one is a week away.
+  const untilMonday = (8 - now.getDay()) % 7 || 7
+  return {
+    today: localInputAt(now, 0, 18),
+    tomorrow: localInputAt(now, 1, 10),
+    nextMonday: localInputAt(now, untilMonday, 10),
+  }
+}
+
+/** "Сегодня, 18:00", "Завтра, 10:00" or "16 ноя, 10:00" for a `datetime-local` value. */
+export function formatLocalDeadline(value: string, now: Date): string {
+  const iso = fromLocalInput(value)
+  if (iso === null) return ''
+  const date = new Date(iso)
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const day = (offset: number) =>
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset).toDateString()
+  if (date.toDateString() === day(0)) return `Сегодня, ${time}`
+  if (date.toDateString() === day(1)) return `Завтра, ${time}`
+  return formatDeadline(iso)
+}

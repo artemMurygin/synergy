@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { PlusIcon, SettingsIcon } from './icons'
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
   /** Set when the action opens an inline form (quick task create). */
   actionExpanded?: boolean
   onOpenSettings: () => void
+  /** The create button, to return focus to it after a modal create form closes. */
+  actionRef?: Ref<HTMLButtonElement>
 }
 
 const iconButton =
@@ -24,12 +26,14 @@ export function PanelHeader({
   actionDisabled,
   actionExpanded,
   onOpenSettings,
+  actionRef,
 }: Props) {
   return (
     <header className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-2.5">
       {switcher}
       <span className="flex-1" />
       <button
+        ref={actionRef}
         type="button"
         aria-label={actionLabel}
         aria-expanded={actionExpanded}
