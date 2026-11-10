@@ -99,7 +99,7 @@
 | `DomainEventRegistry.restore` | `record: OutboxEventRecord` | `DomainEvent` или ошибка `UnknownEventError` / `InvalidEventPayloadError` | Для relay |
 | `OutboxRelay.wake` | — | `void` | Внеочередной цикл обработки (дебаунс) |
 | `OutboxRelay.processBatch` | — | `Promise<number>` | Один цикл: забрать, обработать, зафиксировать. Возвращает число обработанных доставок. Публичный для тестов |
-| `OutboxStorePort.claimDueDeliveries` | `limit: number, now: Date` | `Promise<ClaimedDelivery[]>` | `FOR UPDATE SKIP LOCKED`, только первые необработанные в своём агрегате для своего подписчика. Выдаёт новый `claimToken` аренды |
+| `OutboxStorePort.claimDueDeliveries` | `limit: number, now: Date, subscribers: readonly string[]` | `Promise<ClaimedDelivery[]>` | `FOR UPDATE SKIP LOCKED`, только первые необработанные в своём агрегате для своего подписчика и только подписчики, зарегистрированные на этом экземпляре (при поэтапном выкате старый экземпляр не трогает доставки новых подписчиков). Выдаёт новый `claimToken` аренды |
 | `OutboxStorePort.markDone` | `lease: DeliveryLease, processedAt: Date` | `Promise<boolean>` | Пишет, только если аренда ещё принадлежит этому `claimToken`; `false` — аренду перехватили |
 | `OutboxStorePort.scheduleRetry` | `lease: DeliveryLease, attempt: number, nextAttemptAt: Date, error: string` | `Promise<boolean>` | Ретрай, с той же проверкой аренды |
 | `OutboxStorePort.markFailed` | `lease: DeliveryLease, attempts: number, error: string, processedAt: Date` | `Promise<boolean>` | Исчерпаны попытки или ядовитое событие, с той же проверкой аренды |
