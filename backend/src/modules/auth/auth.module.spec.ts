@@ -16,7 +16,8 @@ import { SeedUsersUseCase } from './application/seed-users.use-case';
 import { AuthModule } from './auth.module';
 import { AUTH_REDIS } from './auth.tokens';
 import { InMemoryLoginAttemptStore } from './interface/http/testing/in-memory-login-attempt-store';
-import { TransactionRunner } from './domain/ports/transaction-runner.port';
+import { InMemoryTransactionRunner } from '../../database/postgres/testing/in-memory-transaction-runner';
+import { TransactionRunnerPort } from '../../database/postgres/transaction-runner.port';
 
 const ORIGIN = 'chrome-extension://abc';
 const values: Record<string, unknown> = {
@@ -79,8 +80,8 @@ describe('AuthModule', () => {
             .useValue(users)
             .overrideProvider(AuthSessionRepository)
             .useValue(new FakeSessions())
-            .overrideProvider(TransactionRunner)
-            .useValue({ run: <T>(work: () => Promise<T>): Promise<T> => work() })
+            .overrideProvider(TransactionRunnerPort)
+            .useValue(new InMemoryTransactionRunner())
             .compile();
         app = moduleRef.createNestApplication();
         app.use(new RequestContextMiddleware().use.bind(new RequestContextMiddleware()));

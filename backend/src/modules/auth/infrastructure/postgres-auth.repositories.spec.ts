@@ -1,15 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import { PinoLogger } from 'nestjs-pino';
 import { Client } from 'pg';
 import { createPool, type DatabasePool } from 'slonik';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../database/postgres/migrator';
+import { TransactionRunner } from '../../../database/postgres/transaction-runner';
 import { AuthSession } from '../domain/auth-session';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { User } from '../domain/user';
 import { UserSearch } from '../domain/user-search';
 import { SlonikAuthSessionRepository } from './slonik-auth-session.repository';
-import { SlonikTransactionRunner } from './slonik-transaction-runner';
 import { SlonikUserRepository } from './slonik-user.repository';
 
 // Интеграционный тест: нужна PostgreSQL. Без PROGRAMS_ETL_TEST_ADMIN_URL тест пропускается.
@@ -51,7 +52,7 @@ describe.skipIf(adminUrl === undefined)('Slonik auth repositories', () => {
     const dbName = `auth_repo_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     let client: Client;
     let pool: DatabasePool;
-    let tx: SlonikTransactionRunner;
+    let tx: TransactionRunner;
     let users: SlonikUserRepository;
     let sessions: SlonikAuthSessionRepository;
 
@@ -65,7 +66,7 @@ describe.skipIf(adminUrl === undefined)('Slonik auth repositories', () => {
         client = new Client({ connectionString: dbUrl });
         await client.connect();
         pool = await createPool(dbUrl);
-        tx = new SlonikTransactionRunner(pool);
+        tx = new TransactionRunner(pool, new PinoLogger({ pinoHttp: { level: 'silent' } }));
         users = new SlonikUserRepository(pool, tx);
         sessions = new SlonikAuthSessionRepository(pool, tx);
     }, 60_000);

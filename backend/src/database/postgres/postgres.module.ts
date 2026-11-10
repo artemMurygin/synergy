@@ -4,6 +4,8 @@ import { createPool, DatabasePool } from 'slonik';
 import type { Env } from '../../shared/config/env.schema';
 import { PG_POOL } from './database.constants';
 import { migrate, seed } from './migrator';
+import { TransactionRunner } from './transaction-runner';
+import { TransactionRunnerPort } from './transaction-runner.port';
 
 @Injectable()
 class PoolLifecycle implements OnApplicationShutdown {
@@ -29,7 +31,8 @@ class PoolLifecycle implements OnApplicationShutdown {
             },
         },
         PoolLifecycle,
+        { provide: TransactionRunnerPort, useClass: TransactionRunner },
     ],
-    exports: [PG_POOL],
+    exports: [PG_POOL, TransactionRunnerPort],
 })
 export class PostgresModule {}

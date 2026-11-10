@@ -2,9 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type DatabasePool } from 'slonik';
 import { z } from 'zod';
 import { PG_POOL } from '../../../database/postgres/database.constants';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { AuthSession } from '../domain/auth-session';
 import { AuthSessionRepository } from '../domain/ports/auth-session-repository.port';
-import { SlonikTransactionRunner } from './slonik-transaction-runner';
 
 const sessionRow = z.object({
     id: z.string(),
@@ -32,7 +32,7 @@ const toDate = (ms: number | null): Date | null => (ms === null ? null : new Dat
 export class SlonikAuthSessionRepository extends AuthSessionRepository {
     constructor(
         @Inject(PG_POOL) _pool: DatabasePool,
-        private readonly tx: SlonikTransactionRunner,
+        private readonly tx: TransactionRunnerPort,
     ) {
         super();
     }

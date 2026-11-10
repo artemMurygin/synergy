@@ -5,7 +5,7 @@ import { AuthSessionRepository } from '../domain/ports/auth-session-repository.p
 import { AuthSettings } from '../domain/ports/auth-settings.port';
 import { Clock } from '../domain/ports/clock.port';
 import { RefreshTokenFactory } from '../domain/ports/refresh-token-factory.port';
-import { TransactionRunner } from '../domain/ports/transaction-runner.port';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { UserRepository } from '../domain/ports/user-repository.port';
 import type { TokenPair } from '../domain/token-pair';
 
@@ -20,7 +20,7 @@ export class RefreshSessionUseCase {
         private readonly refreshTokens: RefreshTokenFactory,
         private readonly clock: Clock,
         private readonly settings: AuthSettings,
-        private readonly tx: TransactionRunner,
+        private readonly tx: TransactionRunnerPort,
     ) {}
 
     async execute(refreshSecret: string): Promise<TokenPair> {

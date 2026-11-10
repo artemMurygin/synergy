@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuthSessionRepository } from '../domain/ports/auth-session-repository.port';
 import { Clock } from '../domain/ports/clock.port';
 import { RefreshTokenFactory } from '../domain/ports/refresh-token-factory.port';
-import { TransactionRunner } from '../domain/ports/transaction-runner.port';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 
 @Injectable()
 export class LogoutUseCase {
@@ -10,7 +10,7 @@ export class LogoutUseCase {
         private readonly sessions: AuthSessionRepository,
         private readonly refreshTokens: RefreshTokenFactory,
         private readonly clock: Clock,
-        private readonly tx: TransactionRunner,
+        private readonly tx: TransactionRunnerPort,
     ) {}
 
     async execute(refreshSecret?: string): Promise<void> {

@@ -2,13 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type DatabasePool } from 'slonik';
 import { z } from 'zod';
 import { PG_POOL } from '../../../database/postgres/database.constants';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { UserRepository } from '../domain/ports/user-repository.port';
 import { User } from '../domain/user';
 import type { UserSearch } from '../domain/user-search';
 import type { UserSummary } from '../domain/user-summary';
-import { SlonikTransactionRunner } from './slonik-transaction-runner';
 
 const userRow = z.object({
     id: z.string(),
@@ -46,7 +46,7 @@ function toUser(raw: unknown): User {
 export class SlonikUserRepository extends UserRepository {
     constructor(
         @Inject(PG_POOL) _pool: DatabasePool,
-        private readonly tx: SlonikTransactionRunner,
+        private readonly tx: TransactionRunnerPort,
     ) {
         super();
     }

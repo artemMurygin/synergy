@@ -28,7 +28,6 @@ import { LoginAttemptStore } from './domain/ports/login-attempt-store.port';
 import { PasswordGenerator } from './domain/ports/password-generator.port';
 import { PasswordHasher } from './domain/ports/password-hasher.port';
 import { RefreshTokenFactory } from './domain/ports/refresh-token-factory.port';
-import { TransactionRunner } from './domain/ports/transaction-runner.port';
 import { UserRepository } from './domain/ports/user-repository.port';
 import { Argon2PasswordHasher } from './infrastructure/argon2-password-hasher';
 import { CryptoRefreshTokenFactory } from './infrastructure/crypto-refresh-token.factory';
@@ -41,7 +40,6 @@ import { JwtAccessTokenService } from './infrastructure/jwt-access-token.service
 import { RandomPasswordGenerator } from './infrastructure/random-password-generator';
 import { RedisLoginAttemptStore } from './infrastructure/redis-login-attempt-store';
 import { SlonikAuthSessionRepository } from './infrastructure/slonik-auth-session.repository';
-import { SlonikTransactionRunner } from './infrastructure/slonik-transaction-runner';
 import { SlonikUserRepository } from './infrastructure/slonik-user.repository';
 import { SystemClock } from './infrastructure/system-clock';
 import { registerAuthErrorStatuses } from './interface/auth-error-status';
@@ -79,8 +77,6 @@ class RedisLifecycle implements OnApplicationShutdown {
         LoginThrottlerGuard,
         OriginGuard,
         RefreshCookieService,
-        SlonikTransactionRunner,
-        { provide: TransactionRunner, useExisting: SlonikTransactionRunner },
         { provide: UserRepository, useClass: SlonikUserRepository },
         { provide: AuthSessionRepository, useClass: SlonikAuthSessionRepository },
         { provide: PasswordHasher, useClass: Argon2PasswordHasher },

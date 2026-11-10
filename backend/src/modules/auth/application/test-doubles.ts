@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { InMemoryTransactionRunner } from '../../../database/postgres/testing/in-memory-transaction-runner';
 import type { AuthSession } from '../domain/auth-session';
 import type { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
@@ -92,6 +93,6 @@ export function fakeTokens(): {
     };
 }
 
-export const fakeTx = { run: <T>(work: () => Promise<T>): Promise<T> => work() };
+export const fakeTx = new InMemoryTransactionRunner();
 export const fakeClock = { now: (): Date => NOW };
 export const fakeSettings = { refreshTtlMs: REFRESH_TTL_MS, refreshGraceMs: GRACE_MS };
