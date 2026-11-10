@@ -227,6 +227,25 @@ describe('notification read use-cases', () => {
             ]);
         });
 
+        it('returns and sends the actual unread count when a notification arrives meanwhile', async () => {
+            await store(makeNotification());
+            const markAllRead = notifications.markAllRead.bind(notifications);
+            notifications.markAllRead = async (recipientId, now) => {
+                await markAllRead(recipientId, now);
+                await store(makeNotification());
+            };
+
+            const result = await useCase.execute(BORIS);
+
+            expect(result).toEqual({ unreadCount: 1 });
+            expect(emitter.emitted).toEqual([
+                {
+                    userId: 'boris',
+                    event: { name: 'notification.read', payload: { all: true, unreadCount: 1 } },
+                },
+            ]);
+        });
+
         it('still answers when the realtime emitter fails', async () => {
             emitter.failure = new Error('redis is down');
 

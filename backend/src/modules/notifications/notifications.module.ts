@@ -2,6 +2,8 @@ import { Module, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
+import { RealtimeBrokerStatus } from '../../shared/realtime/realtime-broker-status';
+import { RealtimeBrokerStatusPort } from '../../shared/realtime/realtime-broker-status.port';
 import { RealtimeSettings } from '../../shared/realtime/realtime-settings';
 import { AuthModule } from '../auth/auth.module';
 import { CreateNotificationsUseCase } from './application/create-notifications.use-case';
@@ -14,6 +16,7 @@ import { NOTIFICATION_CHANNELS } from './application/notification-channels.token
 import { NotificationEventSubscriptions } from './application/notification-event-subscriptions';
 import { ConnectionAuthenticatorPort } from './application/ports/connection-authenticator.port';
 import { NotificationChannelMetricsPort } from './application/ports/notification-channel-metrics.port';
+import { NotificationCreationMetricsPort } from './application/ports/notification-creation-metrics.port';
 import { RealtimeConnectionMetricsPort } from './application/ports/realtime-connection-metrics.port';
 import { UserRealtimeEmitterPort } from './application/ports/user-realtime-emitter.port';
 import { TaskCreatedSubscriber } from './application/task-created.subscriber';
@@ -27,6 +30,10 @@ import {
     notificationChannelFailuresMetricProvider,
 } from './infrastructure/notification-channel-metrics';
 import { NotificationClock } from './infrastructure/notification-clock';
+import {
+    NotificationCreationMetrics,
+    notificationsCreatedMetricProvider,
+} from './infrastructure/notification-creation-metrics';
 import { NotificationRepository } from './infrastructure/notification.repository';
 import { RealtimeChannel } from './infrastructure/realtime-channel';
 import {
@@ -53,6 +60,8 @@ import { UserRealtimeEmitter } from './interface/ws/user-realtime-emitter';
         NotificationChannelSubscriptions,
         NotificationsGateway,
         UserRealtimeEmitter,
+        RealtimeBrokerStatus,
+        { provide: RealtimeBrokerStatusPort, useExisting: RealtimeBrokerStatus },
         { provide: UserRealtimeEmitterPort, useExisting: UserRealtimeEmitter },
         RealtimeChannel,
         {
@@ -74,6 +83,8 @@ import { UserRealtimeEmitter } from './interface/ws/user-realtime-emitter';
         { provide: RealtimeConnectionMetricsPort, useClass: RealtimeConnectionMetrics },
         notificationChannelFailuresMetricProvider,
         { provide: NotificationChannelMetricsPort, useClass: NotificationChannelMetrics },
+        notificationsCreatedMetricProvider,
+        { provide: NotificationCreationMetricsPort, useClass: NotificationCreationMetrics },
     ],
 })
 export class NotificationsModule implements OnModuleInit {

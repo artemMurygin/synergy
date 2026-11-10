@@ -4,7 +4,8 @@ import { Client } from 'pg';
 import { createPool, sql, type DatabasePool } from 'slonik';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { TransactionRunner } from './transaction-runner';
+import { BaseError } from '../../shared/errors';
+import { AfterCommitOutsideTransactionError, TransactionRunner } from './transaction-runner';
 import { TransactionRunnerPort } from './transaction-runner.port';
 
 const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
@@ -203,10 +204,15 @@ describe.skipIf(adminUrl === undefined)('TransactionRunner', () => {
             expect(callback).toHaveBeenCalledTimes(1);
         });
 
-        it('throws outside a transaction', () => {
+        it('throws a coded error outside a transaction', () => {
             expect(() => {
                 runner.afterCommit(() => undefined);
             }).toThrow(/outside a transaction/);
+            const error = new AfterCommitOutsideTransactionError(
+                'afterCommit was called outside a transaction',
+            );
+            expect(error).toBeInstanceOf(BaseError);
+            expect(error.code).toBe('DATABASE.AFTER_COMMIT_OUTSIDE_TRANSACTION');
         });
     });
 

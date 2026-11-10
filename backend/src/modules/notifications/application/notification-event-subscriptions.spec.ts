@@ -20,6 +20,7 @@ import {
     FakeUserDirectory,
     FixedClock,
     InMemoryNotificationRepository,
+    RecordingCreationMetrics,
     RecordingEventPublisher,
     SnapshotTransactionRunner,
 } from './test-doubles';
@@ -34,6 +35,7 @@ function subscriber(): TaskCreatedSubscriber {
             new FixedClock(),
             transactions,
             new RecordingEventPublisher(transactions),
+            new RecordingCreationMetrics(),
         ),
     );
 }

@@ -6,6 +6,7 @@ import { Notification } from '../domain/notification';
 import type { NotificationDraft } from '../domain/notification-draft';
 import { NotificationClockPort } from '../domain/ports/notification-clock.port';
 import { NotificationRepositoryPort } from '../domain/ports/notification-repository.port';
+import { NotificationCreationMetricsPort } from './ports/notification-creation-metrics.port';
 
 @Injectable()
 export class CreateNotificationsUseCase {
@@ -14,6 +15,7 @@ export class CreateNotificationsUseCase {
         private readonly clock: NotificationClockPort,
         private readonly transactions: TransactionRunnerPort,
         private readonly events: DomainEventPublisherPort,
+        private readonly metrics: NotificationCreationMetricsPort,
     ) {}
 
     async execute(
@@ -30,6 +32,9 @@ export class CreateNotificationsUseCase {
             await this.events.publish(
                 inserted.flatMap((notification) => notification.pullDomainEvents()),
             );
+            this.transactions.afterCommit(() => {
+                for (const notification of inserted) this.metrics.recordCreated(notification.type);
+            });
             return inserted;
         });
     }

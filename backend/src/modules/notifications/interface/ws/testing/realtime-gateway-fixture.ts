@@ -3,6 +3,8 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Test } from '@nestjs/testing';
 import { PinoLogger } from 'nestjs-pino';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
+import { RealtimeBrokerStatus } from '../../../../../shared/realtime/realtime-broker-status';
+import { RealtimeBrokerStatusPort } from '../../../../../shared/realtime/realtime-broker-status.port';
 import { RealtimeSettings } from '../../../../../shared/realtime/realtime-settings';
 import { JwtAccessTokenService } from '../../../../auth/infrastructure/jwt-access-token.service';
 import { ConnectionAuthenticatorPort } from '../../../application/ports/connection-authenticator.port';
@@ -87,6 +89,7 @@ export interface RealtimeGatewayFixture {
     readonly app: INestApplication;
     readonly metrics: RecordingConnectionMetrics;
     readonly emitter: UserRealtimeEmitter;
+    readonly brokerStatus: RealtimeBrokerStatus;
     token(userId: string, options?: TokenOptions): string;
     connect(options?: ConnectOptions): Promise<TestClient>;
     close(): Promise<void>;
@@ -109,6 +112,7 @@ export function signToken(userId: string, options: TokenOptions = {}): string {
 
 export async function startRealtimeGatewayFixture(): Promise<RealtimeGatewayFixture> {
     const metrics = new RecordingConnectionMetrics();
+    const brokerStatus = new RealtimeBrokerStatus();
     const verifier = new JwtAccessTokenService({
         secret: TOKEN_SECRET,
         ttlSeconds: ACCESS_TTL_SECONDS,
@@ -131,6 +135,7 @@ export async function startRealtimeGatewayFixture(): Promise<RealtimeGatewayFixt
             },
             { provide: NotificationClockPort, useClass: NotificationClock },
             { provide: RealtimeConnectionMetricsPort, useValue: metrics },
+            { provide: RealtimeBrokerStatusPort, useValue: brokerStatus },
             { provide: PinoLogger, useValue: new PinoLogger({ pinoHttp: { level: 'silent' } }) },
         ],
     }).compile();
@@ -144,6 +149,7 @@ export async function startRealtimeGatewayFixture(): Promise<RealtimeGatewayFixt
         app,
         metrics,
         emitter: app.get(UserRealtimeEmitter),
+        brokerStatus,
         token: signToken,
         connect: (options = {}) =>
             new Promise((resolve, reject) => {

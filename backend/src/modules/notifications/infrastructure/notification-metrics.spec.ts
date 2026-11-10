@@ -5,6 +5,10 @@ import {
     NotificationChannelMetrics,
 } from './notification-channel-metrics';
 import {
+    NOTIFICATIONS_CREATED_METRIC,
+    NotificationCreationMetrics,
+} from './notification-creation-metrics';
+import {
     NOTIFICATIONS_WS_CONNECTIONS_METRIC,
     RealtimeConnectionMetrics,
 } from './realtime-connection-metrics';
@@ -46,5 +50,26 @@ describe('RealtimeConnectionMetrics', () => {
         expect(NOTIFICATIONS_WS_CONNECTIONS_METRIC).toBe('notifications_ws_connections');
         const { values } = await connections.get();
         expect(values).toEqual([expect.objectContaining({ value: 1 })]);
+    });
+});
+
+describe('NotificationCreationMetrics', () => {
+    it('counts created notifications by type under the design name', async () => {
+        const created = new Counter({
+            name: NOTIFICATIONS_CREATED_METRIC,
+            help: 'test',
+            labelNames: ['type'],
+            registers: [],
+        });
+        const metrics = new NotificationCreationMetrics(created);
+
+        metrics.recordCreated('task.assigned');
+        metrics.recordCreated('task.assigned');
+
+        expect(NOTIFICATIONS_CREATED_METRIC).toBe('notifications_created_total');
+        const { values } = await created.get();
+        expect(values).toEqual([
+            expect.objectContaining({ labels: { type: 'task.assigned' }, value: 2 }),
+        ]);
     });
 });

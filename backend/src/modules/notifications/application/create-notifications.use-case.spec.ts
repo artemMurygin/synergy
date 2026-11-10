@@ -6,6 +6,7 @@ import {
     InMemoryNotificationRepository,
     makeDraft,
     NOW,
+    RecordingCreationMetrics,
     RecordingEventPublisher,
     SnapshotTransactionRunner,
 } from './test-doubles';
@@ -16,17 +17,20 @@ describe('CreateNotificationsUseCase', () => {
     let notifications: InMemoryNotificationRepository;
     let transactions: SnapshotTransactionRunner;
     let events: RecordingEventPublisher;
+    let metrics: RecordingCreationMetrics;
     let useCase: CreateNotificationsUseCase;
 
     beforeEach(() => {
         notifications = new InMemoryNotificationRepository();
         transactions = new SnapshotTransactionRunner([notifications]);
         events = new RecordingEventPublisher(transactions);
+        metrics = new RecordingCreationMetrics(transactions);
         useCase = new CreateNotificationsUseCase(
             notifications,
             new FixedClock(),
             transactions,
             events,
+            metrics,
         );
     });
 
@@ -104,6 +108,28 @@ describe('CreateNotificationsUseCase', () => {
 
         expect(transactions.rollbacks).toBe(1);
         expect(notifications.byId.size).toBe(0);
+    });
+
+    it('counts only the notifications actually inserted, by type, after the commit', async () => {
+        await useCase.execute(SOURCE_EVENT_ID, [makeDraft({ recipientId: 'boris' })]);
+
+        await useCase.execute(SOURCE_EVENT_ID, [
+            makeDraft({ recipientId: 'boris' }),
+            makeDraft({ recipientId: 'carol' }),
+        ]);
+
+        expect(metrics.created).toEqual(['task.assigned', 'task.assigned']);
+        expect(metrics.recordedInTransaction).toEqual([false, false]);
+    });
+
+    it('counts nothing when the transaction rolls back', async () => {
+        events.failure = new Error('outbox is down');
+
+        await expect(
+            useCase.execute(SOURCE_EVENT_ID, [makeDraft({ recipientId: 'boris' })]),
+        ).rejects.toThrow('outbox is down');
+
+        expect(metrics.created).toEqual([]);
     });
 
     it('does nothing for an empty list of drafts', async () => {

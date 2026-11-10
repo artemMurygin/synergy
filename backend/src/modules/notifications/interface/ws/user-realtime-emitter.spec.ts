@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RealtimeEvent } from '../../application/ports/user-realtime-emitter.port';
+import { RealtimeBrokerUnavailableError } from './notifications.gateway';
 import {
     type RealtimeGatewayFixture,
     startRealtimeGatewayFixture,
@@ -68,5 +69,20 @@ describe('UserRealtimeEmitter', () => {
             notificationIds: ['n-1'],
             unreadCount: 4,
         });
+    });
+
+    it('rejects while the broker that spreads events to other instances is unavailable', async () => {
+        const boris = await fixture.connect({ auth: { token: fixture.token(BORIS) } });
+        await vi.waitFor(() => {
+            expect(fixture.metrics.openConnections).toBe(1);
+        });
+        fixture.brokerStatus.attachPublisher({ status: 'reconnecting' });
+
+        await expect(fixture.emitter.emitToUser(BORIS, created)).rejects.toBeInstanceOf(
+            RealtimeBrokerUnavailableError,
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+        expect(boris.events).toEqual([]);
     });
 });

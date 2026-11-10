@@ -3,6 +3,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
 import { BaseError } from '../../../../shared/errors';
 import { isOriginAllowed } from '../../../../shared/http/origin-matcher';
+import { RealtimeBrokerStatusPort } from '../../../../shared/realtime/realtime-broker-status.port';
 import { RealtimeSettings } from '../../../../shared/realtime/realtime-settings';
 import {
     type AuthenticatedConnection,
@@ -33,6 +34,10 @@ export class RealtimeServerNotReadyError extends BaseError {
     readonly code = 'NOTIFICATIONS.REALTIME_SERVER_NOT_READY';
 }
 
+export class RealtimeBrokerUnavailableError extends BaseError {
+    readonly code = 'NOTIFICATIONS.REALTIME_BROKER_UNAVAILABLE';
+}
+
 interface OpenConnection {
     readonly userId: string;
     readonly expiryTimer: NodeJS.Timeout;
@@ -50,6 +55,7 @@ export class NotificationsGateway implements OnGatewayConnection<NotificationsSo
         private readonly settings: RealtimeSettings,
         private readonly clock: NotificationClockPort,
         private readonly metrics: RealtimeConnectionMetricsPort,
+        private readonly brokerStatus: RealtimeBrokerStatusPort,
         private readonly logger: PinoLogger,
     ) {
         this.logger.setContext(NotificationsGateway.name);
@@ -60,8 +66,12 @@ export class NotificationsGateway implements OnGatewayConnection<NotificationsSo
         try {
             connection = this.authenticate(client);
         } catch (error: unknown) {
-            if (!(error instanceof ConnectionRejectedError)) throw error;
-            this.reject(client, error);
+            if (error instanceof ConnectionRejectedError) {
+                this.reject(client, error);
+                return;
+            }
+            this.logger.error({ err: error }, 'Realtime connection failed unexpectedly');
+            this.reject(client, new ConnectionRejectedError('token_invalid'));
             return;
         }
         await client.join(userRoom(connection.userId));
@@ -72,15 +82,17 @@ export class NotificationsGateway implements OnGatewayConnection<NotificationsSo
         if (this.namespace === undefined) {
             throw new RealtimeServerNotReadyError('Realtime server is not initialized');
         }
-        const room = this.namespace.to(userRoom(userId));
-        switch (event.name) {
-            case NOTIFICATION_CREATED_REALTIME_EVENT:
-                room.emit(NOTIFICATION_CREATED_REALTIME_EVENT, event.payload);
-                return;
-            case NOTIFICATION_READ_REALTIME_EVENT:
-                room.emit(NOTIFICATION_READ_REALTIME_EVENT, event.payload);
-                return;
+        if (!this.brokerStatus.isAvailable()) {
+            throw new RealtimeBrokerUnavailableError(
+                'Realtime broker is unavailable, the event would not reach other instances',
+            );
         }
+        const room = this.namespace.to(userRoom(userId));
+        if (event.name === NOTIFICATION_CREATED_REALTIME_EVENT) {
+            room.emit(NOTIFICATION_CREATED_REALTIME_EVENT, event.payload);
+            return;
+        }
+        room.emit(NOTIFICATION_READ_REALTIME_EVENT, event.payload);
     }
 
     private authenticate(client: NotificationsSocket): AuthenticatedConnection {

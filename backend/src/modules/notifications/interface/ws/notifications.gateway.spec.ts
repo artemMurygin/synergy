@@ -1,4 +1,6 @@
+import { PinoLogger } from 'nestjs-pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConnectionAuthenticatorPort } from '../../application/ports/connection-authenticator.port';
 import {
     ALLOWED_ORIGIN,
     type RealtimeGatewayFixture,
@@ -47,6 +49,26 @@ describe('NotificationsGateway', () => {
 
         expect(await client.nextEvent('connection_error')).toEqual({ code: 'token_invalid' });
         expect(await client.disconnected).toBe('io server disconnect');
+        expect(fixture.metrics.openConnections).toBe(0);
+    });
+
+    it('logs an unexpected authentication failure and closes the connection with token_invalid', async () => {
+        const failure = new Error('verifier crashed');
+        vi.spyOn(fixture.app.get(ConnectionAuthenticatorPort), 'authenticate').mockImplementation(
+            () => {
+                throw failure;
+            },
+        );
+        const error = vi.spyOn(fixture.app.get(PinoLogger), 'error');
+
+        const client = await fixture.connect({ auth: { token: fixture.token(ANNA) } });
+
+        expect(await client.nextEvent('connection_error')).toEqual({ code: 'token_invalid' });
+        expect(await client.disconnected).toBe('io server disconnect');
+        expect(error).toHaveBeenCalledWith(
+            expect.objectContaining({ err: failure }),
+            'Realtime connection failed unexpectedly',
+        );
         expect(fixture.metrics.openConnections).toBe(0);
     });
 

@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { Inject, Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import type { CommonQueryMethods, DatabasePool } from 'slonik';
+import { BaseError } from '../../shared/errors';
 import { PG_POOL } from './database.constants';
 import { TransactionRunnerPort } from './transaction-runner.port';
 
@@ -10,11 +11,8 @@ interface TransactionScope {
     readonly afterCommitCallbacks: (() => void)[];
 }
 
-export class AfterCommitOutsideTransactionError extends Error {
-    constructor() {
-        super('afterCommit was called outside a transaction');
-        this.name = 'AfterCommitOutsideTransactionError';
-    }
+export class AfterCommitOutsideTransactionError extends BaseError {
+    readonly code = 'DATABASE.AFTER_COMMIT_OUTSIDE_TRANSACTION';
 }
 
 @Injectable()
@@ -45,7 +43,11 @@ export class TransactionRunner extends TransactionRunnerPort {
 
     afterCommit(callback: () => void): void {
         const scope = this.storage.getStore();
-        if (scope === undefined) throw new AfterCommitOutsideTransactionError();
+        if (scope === undefined) {
+            throw new AfterCommitOutsideTransactionError(
+                'afterCommit was called outside a transaction',
+            );
+        }
         scope.afterCommitCallbacks.push(callback);
     }
 

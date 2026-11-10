@@ -10,7 +10,8 @@ import { AppModule } from './app.module';
 import type { Env } from './shared/config/env.schema';
 import { configureHttp } from './shared/http/configure-http';
 import { RealtimeSettings, realtimeRedisOptions } from './shared/realtime/realtime-settings';
-import { RedisIoAdapter } from './shared/realtime/redis-io-adapter';
+import { ClusteredIoAdapter } from './shared/realtime/clustered-io-adapter';
+import { RealtimeBrokerStatus } from './shared/realtime/realtime-broker-status';
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -23,12 +24,13 @@ async function bootstrap(): Promise<void> {
         allowedOrigins: config.get('AUTH_ALLOWED_ORIGINS', { infer: true }),
         trustProxy: config.get('TRUST_PROXY', { infer: true }),
     });
-    const realtimeAdapter = RedisIoAdapter.forApplication(
+    const realtimeAdapter = ClusteredIoAdapter.forApplication(
         app,
         RealtimeSettings.fromConfig(config),
         {
             redis: realtimeRedisOptions(config),
             logger: await app.resolve(PinoLogger),
+            brokerStatus: app.get(RealtimeBrokerStatus),
         },
     );
     await realtimeAdapter.connectToRedis();

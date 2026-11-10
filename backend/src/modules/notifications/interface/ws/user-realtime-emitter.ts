@@ -12,7 +12,9 @@ export class UserRealtimeEmitter extends UserRealtimeEmitterPort {
     }
 
     emitToUser(userId: string, event: RealtimeEvent): Promise<void> {
-        this.gateway.emitToUser(userId, event);
-        return Promise.resolve();
+        return new Promise((resolve) => {
+            this.gateway.emitToUser(userId, event);
+            resolve();
+        });
     }
 }

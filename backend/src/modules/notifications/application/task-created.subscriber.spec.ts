@@ -12,6 +12,7 @@ import {
     FakeUserDirectory,
     FixedClock,
     InMemoryNotificationRepository,
+    RecordingCreationMetrics,
     RecordingEventPublisher,
     SnapshotTransactionRunner,
 } from './test-doubles';
@@ -44,7 +45,13 @@ describe('TaskCreatedSubscriber', () => {
         events = new RecordingEventPublisher(transactions);
         subscriber = new TaskCreatedSubscriber(
             users,
-            new CreateNotificationsUseCase(notifications, new FixedClock(), transactions, events),
+            new CreateNotificationsUseCase(
+                notifications,
+                new FixedClock(),
+                transactions,
+                events,
+                new RecordingCreationMetrics(),
+            ),
         );
     });
 

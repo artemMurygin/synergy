@@ -7,6 +7,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { Server, type ServerOptions } from 'socket.io';
 import { BaseError } from '../errors';
 import { isOriginAllowed } from '../http/origin-matcher';
+import type { RealtimeBrokerStatus } from './realtime-broker-status';
 import type { RealtimeSettings } from './realtime-settings';
 
 const DEFAULT_CHANNEL_KEY = 'audit-agent:socket.io';
@@ -15,9 +16,10 @@ export class RealtimeRedisNotConnectedError extends BaseError {
     readonly code = 'REALTIME.REDIS_NOT_CONNECTED';
 }
 
-export interface RedisIoAdapterOptions {
+export interface ClusteredIoAdapterOptions {
     readonly redis: RedisOptions;
     readonly logger: PinoLogger;
+    readonly brokerStatus: RealtimeBrokerStatus;
     readonly channelKey?: string;
 }
 
@@ -27,7 +29,7 @@ function isHttpServer(value: unknown): value is HttpServer {
     return value instanceof HttpServer;
 }
 
-export class RedisIoAdapter extends IoAdapter {
+export class ClusteredIoAdapter extends IoAdapter {
     private adapterConstructor: AdapterConstructor | undefined;
 
     private readonly redisClients: Redis[] = [];
@@ -35,22 +37,22 @@ export class RedisIoAdapter extends IoAdapter {
     constructor(
         private readonly attachedServer: HttpServer,
         private readonly settings: RealtimeSettings,
-        private readonly options: RedisIoAdapterOptions,
+        private readonly options: ClusteredIoAdapterOptions,
     ) {
         super(attachedServer);
-        this.options.logger.setContext(RedisIoAdapter.name);
+        this.options.logger.setContext(ClusteredIoAdapter.name);
     }
 
     static forApplication(
         app: INestApplication,
         settings: RealtimeSettings,
-        options: RedisIoAdapterOptions,
-    ): RedisIoAdapter {
+        options: ClusteredIoAdapterOptions,
+    ): ClusteredIoAdapter {
         const httpServer: unknown = app.getHttpServer();
         if (!isHttpServer(httpServer)) {
             throw new TypeError('The application must run on a node:http server');
         }
-        return new RedisIoAdapter(httpServer, settings, options);
+        return new ClusteredIoAdapter(httpServer, settings, options);
     }
 
     async connectToRedis(): Promise<void> {
@@ -63,6 +65,7 @@ export class RedisIoAdapter extends IoAdapter {
             this.redisClients.push(client);
         }
         await Promise.all([publisher.connect(), subscriber.connect()]);
+        this.options.brokerStatus.attachPublisher(publisher);
         this.adapterConstructor = createAdapter(publisher, subscriber, {
             key: this.options.channelKey ?? DEFAULT_CHANNEL_KEY,
         });

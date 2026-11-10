@@ -6,7 +6,8 @@ import type { Server } from 'socket.io';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RealtimeSettings } from './realtime-settings';
-import { RedisIoAdapter } from './redis-io-adapter';
+import { ClusteredIoAdapter } from './clustered-io-adapter';
+import { RealtimeBrokerStatus } from './realtime-broker-status';
 
 const redisOptions = {
     host: process.env.REDIS_HOST ?? 'localhost',
@@ -43,24 +44,25 @@ async function isRedisAvailable(): Promise<boolean> {
 }
 
 interface Instance {
-    readonly adapter: RedisIoAdapter;
+    readonly adapter: ClusteredIoAdapter;
     readonly httpServer: HttpServer;
     readonly server: Server;
     readonly url: string;
 }
 
-describe('RedisIoAdapter', () => {
+describe('ClusteredIoAdapter', () => {
     let isAvailable = false;
     const instances: Instance[] = [];
     const clients: ClientSocket[] = [];
     const channelKey = `test-socket.io-${randomUUID()}`;
 
-    async function startInstance(): Promise<Instance> {
+    async function startInstance(brokerStatus = new RealtimeBrokerStatus()): Promise<Instance> {
         const httpServer = createServer();
-        const adapter = new RedisIoAdapter(httpServer, settings, {
+        const adapter = new ClusteredIoAdapter(httpServer, settings, {
             redis: redisOptions,
             channelKey,
             logger: silentLogger(),
+            brokerStatus,
         });
         await adapter.connectToRedis();
         const server = adapter.createIOServer(0);
@@ -133,11 +135,25 @@ describe('RedisIoAdapter', () => {
         expect(instance.server.engine.opts.transports).toEqual(['websocket']);
     });
 
+    it('reports the broker unavailable once the publishing connection is lost', async (ctx) => {
+        if (!isAvailable) return ctx.skip();
+        const brokerStatus = new RealtimeBrokerStatus();
+        const instance = await startInstance(brokerStatus);
+        expect(brokerStatus.isAvailable()).toBe(true);
+
+        instances.splice(instances.indexOf(instance), 1);
+        await instance.adapter.close(instance.server);
+        await new Promise((resolve) => instance.httpServer.close(resolve));
+
+        await expect.poll(() => brokerStatus.isAvailable()).toBe(false);
+    });
+
     it('refuses to create a server before Redis is connected', () => {
-        const adapter = new RedisIoAdapter(createServer(), settings, {
+        const adapter = new ClusteredIoAdapter(createServer(), settings, {
             redis: redisOptions,
             channelKey,
             logger: silentLogger(),
+            brokerStatus: new RealtimeBrokerStatus(),
         });
 
         expect(() => adapter.createIOServer(0)).toThrow('Redis is not connected');

@@ -6,6 +6,7 @@ import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd'
 import { Notification } from '../domain/notification';
 import { NotificationContent } from '../domain/notification-content';
 import type { NotificationDraft } from '../domain/notification-draft';
+import type { NotificationType } from '../domain/notification-type';
 import { NotificationTarget } from '../domain/notification-target';
 import { NotificationClockPort } from '../domain/ports/notification-clock.port';
 import {
@@ -15,6 +16,7 @@ import {
     type NotificationPageQuery,
 } from '../domain/ports/notification-repository.port';
 import { UserDirectoryPort } from '../domain/ports/user-directory.port';
+import { NotificationCreationMetricsPort } from './ports/notification-creation-metrics.port';
 import { UserRealtimeEmitterPort, type RealtimeEvent } from './ports/user-realtime-emitter.port';
 
 export const NOW = new Date('2026-03-01T12:00:00.000Z');
@@ -32,7 +34,7 @@ export class FixedClock extends NotificationClockPort {
 }
 
 export class SnapshotTransactionRunner extends TransactionRunnerPort {
-    private readonly storage = new AsyncLocalStorage<true>();
+    private readonly storage = new AsyncLocalStorage<(() => void)[]>();
 
     commits = 0;
 
@@ -45,27 +47,47 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
     async run<T>(work: () => Promise<T>): Promise<T> {
         if (this.storage.getStore() !== undefined) return work();
         const restores = this.participants.map((participant) => participant.snapshot());
+        const afterCommitCallbacks: (() => void)[] = [];
+        let result: T;
         try {
-            const result = await this.storage.run(true, work);
-            this.commits += 1;
-            return result;
+            result = await this.storage.run(afterCommitCallbacks, work);
         } catch (error: unknown) {
             this.rollbacks += 1;
             for (const restore of restores) restore();
             throw error;
         }
+        this.commits += 1;
+        for (const callback of afterCommitCallbacks) callback();
+        return result;
     }
 
     executor(): CommonQueryMethods {
         throw new Error('SnapshotTransactionRunner has no database connection');
     }
 
-    afterCommit(): void {
-        throw new Error('afterCommit is not used by notification use-cases');
+    afterCommit(callback: () => void): void {
+        const scope = this.storage.getStore();
+        if (scope === undefined) throw new Error('afterCommit was called outside a transaction');
+        scope.push(callback);
     }
 
     isInTransaction(): boolean {
         return this.storage.getStore() !== undefined;
+    }
+}
+
+export class RecordingCreationMetrics extends NotificationCreationMetricsPort {
+    readonly created: NotificationType[] = [];
+
+    readonly recordedInTransaction: boolean[] = [];
+
+    constructor(private readonly transactions?: TransactionRunnerPort) {
+        super();
+    }
+
+    recordCreated(type: NotificationType): void {
+        this.created.push(type);
+        this.recordedInTransaction.push(this.transactions?.isInTransaction() ?? false);
     }
 }
 

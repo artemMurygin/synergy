@@ -3,6 +3,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { NotificationClockPort } from '../domain/ports/notification-clock.port';
 import { NotificationRepositoryPort } from '../domain/ports/notification-repository.port';
 import type { NotificationActor } from './notification-actor';
+import type { UnreadCountView } from './notification-view';
 import { UserRealtimeEmitterPort } from './ports/user-realtime-emitter.port';
 import { emitNotificationRead } from './read-sync-emitter';
 
@@ -17,12 +18,13 @@ export class MarkAllNotificationsReadUseCase {
         this.logger.setContext(MarkAllNotificationsReadUseCase.name);
     }
 
-    async execute(actor: NotificationActor): Promise<{ unreadCount: 0 }> {
+    async execute(actor: NotificationActor): Promise<UnreadCountView> {
         await this.notifications.markAllRead(actor.userId, this.clock.now());
+        const unreadCount = await this.notifications.countUnread(actor.userId);
         await emitNotificationRead(this.emitter, this.logger, actor.userId, {
             all: true,
-            unreadCount: 0,
+            unreadCount,
         });
-        return { unreadCount: 0 };
+        return { unreadCount };
     }
 }

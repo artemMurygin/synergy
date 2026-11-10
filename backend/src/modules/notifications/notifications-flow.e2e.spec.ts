@@ -13,6 +13,7 @@ import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { RequestContextMiddleware } from '../../shared/context/request-context.middleware';
+import { RealtimeBrokerStatus } from '../../shared/realtime/realtime-broker-status';
 import { HttpExceptionFilter } from '../../shared/http/http-exception.filter';
 import { OutboxModule } from '../../shared/outbox/outbox.module';
 import { AuthModule } from '../auth/auth.module';
@@ -22,8 +23,9 @@ import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { PasswordChangeGuard } from '../auth/interface/http/password-change.guard';
 import { TasksModule } from '../tasks/tasks.module';
+import { channelSubscriberName } from './application/channel-delivery.subscriber';
 import { TASK_ASSIGNED_ON_CREATE_SUBSCRIBER } from './application/task-created.subscriber';
-import { RealtimeChannel } from './infrastructure/realtime-channel';
+import { REALTIME_CHANNEL, RealtimeChannel } from './infrastructure/realtime-channel';
 import { TestClient } from './interface/ws/testing/realtime-gateway-fixture';
 import { NotificationsModule } from './notifications.module';
 
@@ -317,4 +319,42 @@ describe.skipIf(adminUrl === undefined)('notifications flow (modules wired end t
         expect(deliver).toHaveBeenCalledTimes(2);
         deliver.mockRestore();
     }, 10_000);
+
+    it('retries the realtime delivery through the outbox while the broker is unavailable', async () => {
+        const borisConnection = await connect(boris);
+        const publisher = { status: 'reconnecting' };
+        app.get(RealtimeBrokerStatus).attachPublisher(publisher);
+
+        const taskId = await createTask(anna, { title: 'Брокер недоступен', assigneeId: boris });
+        const deadline = Date.now() + RETRY_DEADLINE_MS;
+        let retried: { status: string; attempts: number; last_error: string | null } | undefined;
+        while (Date.now() < deadline && retried === undefined) {
+            const result = await client.query<{
+                status: string;
+                attempts: number;
+                last_error: string | null;
+            }>(
+                `SELECT d.status, d.attempts, d.last_error FROM outbox_deliveries d
+                 JOIN outbox_events e ON e.id = d.event_id
+                 JOIN notifications n ON n.id::text = e.aggregate_id
+                 WHERE n.target_id = $1 AND d.subscriber = $2 AND d.attempts >= 1
+                   AND d.last_error IS NOT NULL`,
+                [taskId, channelSubscriberName(REALTIME_CHANNEL)],
+            );
+            retried = result.rows.at(0);
+            if (retried === undefined) await pause(50);
+        }
+        expect(retried).toMatchObject({ status: 'pending' });
+        expect(borisConnection.received('notification.created')).toEqual([]);
+
+        publisher.status = 'ready';
+        const payload = notificationCreatedSchema.parse(
+            await within(
+                borisConnection.nextEvent('notification.created'),
+                RETRY_DEADLINE_MS,
+                'notification.created after the broker recovered',
+            ),
+        );
+        expect(payload.notification.body).toBe('От anna: Брокер недоступен');
+    }, 15_000);
 });
