@@ -6,7 +6,13 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
     {
-        ignores: ['dist/**', 'node_modules/**', 'src/database/mssql/generated/**', 'eslint.config.mjs'],
+        ignores: [
+            'dist/**',
+            'node_modules/**',
+            'src/database/mssql/generated/**',
+            'src/modules/transcription-module/transcribe-bench.mjs',
+            'eslint.config.mjs',
+        ],
     },
     eslint.configs.recommended,
     // Строгие правила на основе информации о типах (+ стилистические, тоже типизированные)
