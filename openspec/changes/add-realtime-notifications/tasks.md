@@ -327,7 +327,7 @@
   - `App`: клик по уведомлению переключает на «Задачи» с открытой задачей, для удалённой задачи показывает «Задача не найдена».
 - [x] 24.2 Прогнать тесты из 24.1 и зафиксировать, что они падают (red).
 - [x] 24.3 Сверстать кнопку уведомлений в `PanelHeader` (новый слот `notifications`) по фрейму `B5t6NG` (без счётчика `Jo5VH`, 3 `YacY1`, 99+ `phRRF`, список открыт `nOUv0`; `ekWsX`) (design/synergy-design-kit.pen, читать через `mcp__pencil__execute`/Get).
-- [ ] 24.4 Сверстать `NotificationsOverlay` и `NotificationItem` по фрейму `E2vBTN` (список `G52zs`, загрузка `OH9Ku`, пусто `Ydcje`, ошибка `g5D1OF`, подгрузка `XCxqJ`; планшет 860 px — `I6dze`; строка `MaZJj`) и сверить со скриншотом.
+- [x] 24.4 Сверстать `NotificationsOverlay` и `NotificationItem` по фрейму `E2vBTN` (список `G52zs`, загрузка `OH9Ku`, пусто `Ydcje`, ошибка `g5D1OF`, подгрузка `XCxqJ`; планшет 860 px — `I6dze`; строка `MaZJj`) и сверить со скриншотом.
 - [x] 24.5 Сверстать `NotificationToast` по фрейму `ACXNU` (`yYFpn`) и подключить уведомления в `sidepanel/App.tsx`; детали задачи после клика — `vZhDc`, «Задача не найдена» — `LA1Op`. Системные уведомления и бейдж сверять с мокапами `iautc` (`z1MkjO`, `E36w9`, `aAxZU`, `mkmjh`).
 - [x] 24.6 Прогнать тесты из 24.1 и весь `npm test` manager-helper и зафиксировать, что они зелёные (green). `npm run typecheck` и `npm run lint` без ошибок.
 - [x] 24.7 Проверить UI по `.claude/rules/frontend-ui-verification.md` через MCP `extension` (окно 400×800, после `npx vite build`):
