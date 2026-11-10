@@ -235,3 +235,131 @@ describe('validateEnv outbox and notifications settings', () => {
         expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
     });
 });
+
+describe('validateEnv telegram settings', () => {
+    const BOT_TOKEN = '123456:telegram-bot-token-secret-value';
+    const WEBHOOK_SECRET = 's'.repeat(32);
+    const WEBHOOK_ENV = {
+        ...REQUIRED_ENV,
+        TELEGRAM_BOT_TOKEN: BOT_TOKEN,
+        TELEGRAM_BOT_USERNAME: 'synergy_helper_bot',
+        TELEGRAM_UPDATES_MODE: 'webhook',
+        TELEGRAM_WEBHOOK_URL: 'https://api.example.com/telegram/webhook',
+        TELEGRAM_WEBHOOK_SECRET: WEBHOOK_SECRET,
+    };
+
+    const errorText = (raw: Record<string, unknown>): string => {
+        try {
+            validateEnv(raw);
+        } catch (error: unknown) {
+            return error instanceof Error ? error.message : String(error);
+        }
+        throw new Error('validateEnv was expected to throw');
+    };
+
+    it('applies defaults', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.TELEGRAM_BOT_TOKEN).toBeUndefined();
+        expect(env.TELEGRAM_BOT_USERNAME).toBeUndefined();
+        expect(env.TELEGRAM_UPDATES_MODE).toBe('off');
+        expect(env.TELEGRAM_WEBHOOK_URL).toBeUndefined();
+        expect(env.TELEGRAM_WEBHOOK_SECRET).toBeUndefined();
+        expect(env.TELEGRAM_LINK_TOKEN_TTL_SECONDS).toBe(600);
+        expect(env.TELEGRAM_DELIVERY_RESERVATION_MS).toBe(120000);
+        expect(env.TELEGRAM_API_BASE_URL).toBe('https://api.telegram.org');
+    });
+
+    it('treats empty telegram values from .env as missing', () => {
+        const env = validateEnv({
+            ...REQUIRED_ENV,
+            TELEGRAM_BOT_TOKEN: '',
+            TELEGRAM_BOT_USERNAME: '',
+            TELEGRAM_UPDATES_MODE: '',
+            TELEGRAM_WEBHOOK_URL: '',
+            TELEGRAM_WEBHOOK_SECRET: '',
+        });
+
+        expect(env.TELEGRAM_BOT_TOKEN).toBeUndefined();
+        expect(env.TELEGRAM_UPDATES_MODE).toBe('off');
+    });
+
+    it('accepts a full webhook configuration and numeric overrides', () => {
+        const env = validateEnv({
+            ...WEBHOOK_ENV,
+            TELEGRAM_LINK_TOKEN_TTL_SECONDS: '300',
+            TELEGRAM_DELIVERY_RESERVATION_MS: '90000',
+            TELEGRAM_API_BASE_URL: 'http://127.0.0.1:8081',
+        });
+
+        expect(env.TELEGRAM_UPDATES_MODE).toBe('webhook');
+        expect(env.TELEGRAM_WEBHOOK_URL).toBe('https://api.example.com/telegram/webhook');
+        expect(env.TELEGRAM_WEBHOOK_SECRET).toBe(WEBHOOK_SECRET);
+        expect(env.TELEGRAM_LINK_TOKEN_TTL_SECONDS).toBe(300);
+        expect(env.TELEGRAM_DELIVERY_RESERVATION_MS).toBe(90000);
+        expect(env.TELEGRAM_API_BASE_URL).toBe('http://127.0.0.1:8081');
+    });
+
+    it('accepts polling without webhook settings', () => {
+        const env = validateEnv({ ...REQUIRED_ENV, TELEGRAM_UPDATES_MODE: 'polling' });
+
+        expect(env.TELEGRAM_UPDATES_MODE).toBe('polling');
+    });
+
+    it('requires the webhook url in webhook mode', () => {
+        const { TELEGRAM_WEBHOOK_URL: _omit, ...withoutUrl } = WEBHOOK_ENV;
+
+        expect(() => validateEnv(withoutUrl)).toThrow('TELEGRAM_WEBHOOK_URL');
+    });
+
+    it('requires the webhook secret in webhook mode', () => {
+        const { TELEGRAM_WEBHOOK_SECRET: _omit, ...withoutSecret } = WEBHOOK_ENV;
+
+        expect(() => validateEnv(withoutSecret)).toThrow('TELEGRAM_WEBHOOK_SECRET');
+    });
+
+    it('rejects a webhook secret shorter than 32 characters', () => {
+        expect(() =>
+            validateEnv({ ...WEBHOOK_ENV, TELEGRAM_WEBHOOK_SECRET: 's'.repeat(31) }),
+        ).toThrow('TELEGRAM_WEBHOOK_SECRET');
+    });
+
+    it('rejects a webhook secret with characters Telegram does not allow', () => {
+        expect(() =>
+            validateEnv({ ...WEBHOOK_ENV, TELEGRAM_WEBHOOK_SECRET: `${'s'.repeat(32)}!` }),
+        ).toThrow('TELEGRAM_WEBHOOK_SECRET');
+    });
+
+    it('rejects a webhook url that is not https', () => {
+        expect(() =>
+            validateEnv({ ...WEBHOOK_ENV, TELEGRAM_WEBHOOK_URL: 'http://api.example.com/hook' }),
+        ).toThrow('TELEGRAM_WEBHOOK_URL');
+    });
+
+    it.each([
+        ['TELEGRAM_UPDATES_MODE', 'push'],
+        ['TELEGRAM_LINK_TOKEN_TTL_SECONDS', '0'],
+        ['TELEGRAM_LINK_TOKEN_TTL_SECONDS', 'long'],
+        ['TELEGRAM_DELIVERY_RESERVATION_MS', '-1'],
+        ['TELEGRAM_DELIVERY_RESERVATION_MS', '1.5'],
+        ['TELEGRAM_API_BASE_URL', 'not a url'],
+        ['TELEGRAM_BOT_USERNAME', 'bad name'],
+    ])('rejects %s=%s', (name, value) => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
+    });
+
+    it('does not put the bot token into validation errors', () => {
+        const { TELEGRAM_WEBHOOK_SECRET: _omit, ...withoutSecret } = WEBHOOK_ENV;
+
+        const missingSecret = errorText(withoutSecret);
+        const invalidFields = errorText({
+            ...WEBHOOK_ENV,
+            TELEGRAM_WEBHOOK_URL: 'not a url',
+            TELEGRAM_DELIVERY_RESERVATION_MS: 'soon',
+        });
+
+        expect(missingSecret).toContain('TELEGRAM_WEBHOOK_SECRET');
+        expect(invalidFields).toContain('TELEGRAM_DELIVERY_RESERVATION_MS');
+        expect(`${missingSecret}\n${invalidFields}`).not.toContain(BOT_TOKEN);
+    });
+});

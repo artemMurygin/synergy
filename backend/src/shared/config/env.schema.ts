@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 const MAX_WS_PING_INTERVAL_MS = 25_000;
+const TELEGRAM_WEBHOOK_SECRET_PATTERN = /^[A-Za-z0-9_-]{32,256}$/;
+const TELEGRAM_BOT_USERNAME_PATTERN = /^@?[A-Za-z0-9_]{5,32}$/;
 
 const ttl = (fallback: string): z.ZodDefault<z.ZodString> =>
     z
@@ -35,6 +37,19 @@ export const envSchema = z
         DEAL_SYNC_DEFAULT_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
         CRM_DRIVER: z.enum(['mock']).default('mock'),
         TELEGRAM_BOT_TOKEN: z.string().optional(),
+        TELEGRAM_BOT_USERNAME: z.string().regex(TELEGRAM_BOT_USERNAME_PATTERN).optional(),
+        TELEGRAM_UPDATES_MODE: z.enum(['webhook', 'polling', 'off']).default('off'),
+        TELEGRAM_WEBHOOK_URL: z.url({ protocol: /^https$/ }).optional(),
+        TELEGRAM_WEBHOOK_SECRET: z
+            .string()
+            .regex(TELEGRAM_WEBHOOK_SECRET_PATTERN, {
+                message:
+                    'TELEGRAM_WEBHOOK_SECRET must be 32-256 characters of A-Z, a-z, 0-9, _ or -',
+            })
+            .optional(),
+        TELEGRAM_LINK_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(600),
+        TELEGRAM_DELIVERY_RESERVATION_MS: z.coerce.number().int().positive().default(120000),
+        TELEGRAM_API_BASE_URL: z.url().default('https://api.telegram.org'),
 
         DEAL_SYNC_ATTEMPTS: z.coerce.number().int().positive().default(3),
         DEAL_SYNC_BACKOFF_MS: z.coerce.number().int().nonnegative().default(5000),
@@ -117,6 +132,23 @@ export const envSchema = z
     .refine((env) => !env.LANGSMITH_TRACING || env.LANGSMITH_API_KEY !== undefined, {
         path: ['LANGSMITH_API_KEY'],
         message: 'LANGSMITH_API_KEY is required when LANGSMITH_TRACING=true',
+    })
+    .superRefine((env, ctx) => {
+        if (env.TELEGRAM_UPDATES_MODE !== 'webhook') return;
+        if (env.TELEGRAM_WEBHOOK_URL === undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['TELEGRAM_WEBHOOK_URL'],
+                message: 'TELEGRAM_WEBHOOK_URL is required when TELEGRAM_UPDATES_MODE=webhook',
+            });
+        }
+        if (env.TELEGRAM_WEBHOOK_SECRET === undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['TELEGRAM_WEBHOOK_SECRET'],
+                message: 'TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_UPDATES_MODE=webhook',
+            });
+        }
     });
 
 export type Env = z.infer<typeof envSchema>;
