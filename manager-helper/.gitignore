@@ -3,3 +3,5 @@ dist/
 *.tsbuildinfo
 *.log
 .DS_Store
+.agent-profile/
+.playwright-mcp/

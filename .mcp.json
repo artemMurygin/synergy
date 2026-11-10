@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "extension": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.85", "--config", "manager-helper/playwright-mcp.config.json"]
+    },
+    "electron-stagewright": {
+      "command": "electron-stagewright",
+      "args": ["--app-root", "control-center", "--plugin", "storage", "--plugin", "native-ui"]
+    }
+  }
+}

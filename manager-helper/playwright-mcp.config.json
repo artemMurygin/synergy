@@ -1,0 +1,18 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "userDataDir": ".agent-profile",
+    "launchOptions": {
+      "channel": "chromium",
+      "headless": false,
+      "args": [
+        "--disable-extensions-except=manager-helper/dist",
+        "--load-extension=manager-helper/dist"
+      ]
+    },
+    "contextOptions": {
+      "viewport": { "width": 400, "height": 800 }
+    }
+  },
+  "outputDir": ".playwright-mcp"
+}
