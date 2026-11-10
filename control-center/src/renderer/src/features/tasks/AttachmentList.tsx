@@ -154,12 +154,12 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={cn(
-        'flex min-h-[96px] flex-col gap-3 rounded-xl border border-transparent p-1',
+        '-m-1 flex min-h-[96px] flex-col gap-3 rounded-md border border-transparent p-1',
         dragging && 'border-dashed border-brand-red bg-brand-red-soft'
       )}
     >
       <div className="flex items-center gap-3">
-        <h3 className="flex-1 text-xs font-semibold tracking-wide text-ink-60 uppercase">
+        <h3 className="flex-1 text-[11px] font-bold tracking-wide text-ink-40 uppercase">
           Вложения · {attachments.length}
         </h3>
         <input ref={input} type="file" multiple tabIndex={-1} aria-label="Выбрать файлы" className="sr-only" onChange={onPick} />
@@ -172,7 +172,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
       {dragging && <p className="text-center text-sm font-semibold text-brand-red">Отпустите файлы, чтобы прикрепить</p>}
 
       {problems.map((problem) => (
-        <div key={problem.key} role="alert" className="flex items-start gap-2.5 rounded-xl bg-brand-red-soft px-3.5 py-3">
+        <div key={problem.key} role="alert" className="flex items-start gap-2.5 rounded-md bg-brand-red-soft px-3.5 py-3">
           <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-red" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-brand-red">{problem.text}</p>
@@ -191,7 +191,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
 
       <ul className="flex flex-col gap-2">
         {attachments.map((attachment) => (
-          <li key={attachment.id} className="flex items-center gap-3 rounded-xl bg-surface-alt px-3.5 py-2.5">
+          <li key={attachment.id} className="flex min-h-[52px] items-center gap-3 rounded-md bg-surface-alt py-2 pr-2 pl-3.5">
             <FileText aria-hidden className="size-5 shrink-0 text-ink-60" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{attachment.originalName}</p>
@@ -216,7 +216,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
           </li>
         ))}
         {uploads.map((item) => (
-          <li key={item.key} className="flex flex-col gap-2 rounded-xl bg-surface-alt px-3.5 py-2.5">
+          <li key={item.key} className="flex flex-col gap-2 rounded-md bg-surface-alt px-3.5 py-2.5">
             <div className="flex items-center gap-3">
               <FileText aria-hidden className="size-5 shrink-0 text-ink-60" />
               <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</p>

@@ -7,7 +7,7 @@ import { BackendError } from '@/lib/backend/errors'
 import * as tasksApi from '@/lib/backend/tasks.api'
 import type { Task, TaskPage } from '@/lib/backend/tasks.schema'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
-import { TaskList } from './TaskList'
+import { pageRange, TaskList } from './TaskList'
 import { mkTask } from './test-utils'
 
 vi.mock('@/lib/backend/tasks.api')
@@ -122,7 +122,7 @@ describe('TaskList', () => {
   it('paginates', async () => {
     vi.mocked(tasksApi.listTasks).mockResolvedValue(page([mkTask('a')], { total: 45 }))
     const { user } = setup()
-    await screen.findByText('Страница 1 из 3')
+    await screen.findByText('1–20 из 45')
     expect((screen.getByRole('button', { name: 'Предыдущая страница' }) as HTMLButtonElement).disabled).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Следующая страница' }))
     expect(useTasksStore.getState().page).toBe(2)
@@ -157,5 +157,13 @@ describe('TaskList', () => {
     await screen.findByText('Задача a')
     expect(useTasksStore.getState().page).toBe(1)
     expect(screen.queryByText('Задач пока нет')).toBeNull()
+  })
+})
+
+describe('pageRange', () => {
+  it('shows the range of the current page', () => {
+    expect(pageRange(1, 20, 128)).toBe('1–20 из 128')
+    expect(pageRange(7, 20, 128)).toBe('121–128 из 128')
+    expect(pageRange(1, 20, 5)).toBe('1–5 из 5')
   })
 })

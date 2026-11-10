@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,6 +83,66 @@ function Field({ label, htmlFor, labelId, error, errorId, children, extra }: Fie
   )
 }
 
+interface DeadlineInputProps {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  className?: string
+  'aria-invalid'?: true
+  'aria-describedby'?: string
+}
+
+/** datetime-local with a single leading calendar icon and a "Дата и время" placeholder while empty. */
+function DeadlineInput({ value, onChange, className, ...rest }: DeadlineInputProps) {
+  const [focused, setFocused] = useState(false)
+  // a half-typed datetime-local reports value '' but must stay visible
+  const [partial, setPartial] = useState(false)
+  const showPlaceholder = value === '' && !focused && !partial
+
+  const openPicker = (input: HTMLInputElement) => {
+    try {
+      input.showPicker()
+    } catch {
+      // not supported or not allowed: native editing still works
+    }
+  }
+
+  return (
+    <div className="relative">
+      <Calendar aria-hidden className="pointer-events-none absolute top-[15px] left-4 size-[18px] text-ink-40" />
+      <Input
+        type="datetime-local"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onClick={(event) => openPicker(event.currentTarget)}
+        onFocus={() => setFocused(true)}
+        onBlur={(event) => {
+          setFocused(false)
+          setPartial(event.currentTarget.validity.badInput)
+        }}
+        onKeyDown={(event) => {
+          // the native calendar button is hidden, so open the picker from the keyboard
+          if (event.key === 'Enter' || (event.altKey && event.key === 'ArrowDown')) {
+            event.preventDefault()
+            openPicker(event.currentTarget)
+          }
+        }}
+        className={cn(
+          'h-12 cursor-pointer rounded-md border-border-strong pl-11 text-[15px] [&::-webkit-calendar-picker-indicator]:hidden',
+          showPlaceholder && 'text-transparent',
+          className
+        )}
+        {...rest}
+      />
+      {showPlaceholder && (
+        <span aria-hidden className="pointer-events-none absolute top-1/2 left-11 -translate-y-1/2 text-[15px] text-ink-40">
+          Дата и время
+        </span>
+      )}
+    </div>
+  )
+}
+
 /** Shared create/edit form: title, description, deadline, assignee and watchers. */
 export function TaskForm({ initial, onSubmit, onCancel, submitting, fieldErrors, submitLabel = 'Создать задачу' }: TaskFormProps) {
   const me = useSessionStore((s) => s.snapshot.user)
@@ -138,7 +198,7 @@ export function TaskForm({ initial, onSubmit, onCancel, submitting, fieldErrors,
             placeholder="Что нужно сделать"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className={cn('h-12 rounded-md border-border-strong', errors.title && invalidClass)}
+            className={cn('h-12 rounded-md border-border-strong px-4 text-[15px] placeholder:text-ink-40', errors.title && invalidClass)}
             {...fieldProps('title')}
           />
         </Field>
@@ -148,23 +208,19 @@ export function TaskForm({ initial, onSubmit, onCancel, submitting, fieldErrors,
             placeholder="Подробности, ссылки, контекст"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            className={cn('border-border-strong', errors.description && invalidClass)}
+            className={cn('border-border-strong px-4 text-[15px] placeholder:text-ink-40', errors.description && invalidClass)}
             {...fieldProps('description')}
           />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Дедлайн" htmlFor={ids.deadline} error={errors.deadline} errorId={errorId('deadline')}>
-            <div className="relative">
-              <CalendarDays aria-hidden className="pointer-events-none absolute top-3.5 left-3.5 size-4 text-ink-60" />
-              <Input
-                id={ids.deadline}
-                type="datetime-local"
-                value={deadline}
-                onChange={(event) => setDeadline(event.target.value)}
-                className={cn('h-12 rounded-md border-border-strong pl-10', errors.deadline && invalidClass)}
-                {...fieldProps('deadline')}
-              />
-            </div>
+            <DeadlineInput
+              id={ids.deadline}
+              value={deadline}
+              onChange={setDeadline}
+              className={cn(errors.deadline && invalidClass)}
+              {...fieldProps('deadline')}
+            />
           </Field>
           <Field
             label="Ответственный"
@@ -210,10 +266,14 @@ export function TaskForm({ initial, onSubmit, onCancel, submitting, fieldErrors,
         </Field>
       </div>
       <div className="flex justify-end gap-3 px-6 py-5">
-        <Button type="button" variant="outline" className="h-11 rounded-full px-6" onClick={onCancel}>
+        <Button type="button" variant="outline" className="h-11 rounded-full border-border-strong px-6" onClick={onCancel}>
           Отмена
         </Button>
-        <Button type="submit" className="h-11 rounded-full px-6" disabled={!canSubmit} aria-busy={submitting}>
+        <Button
+          type="submit"
+          // gray when inactive, as in the mock (not the faded primary)
+          className="h-11 rounded-full px-6 disabled:bg-surface-sunken disabled:text-ink-40 disabled:opacity-100"
+          disabled={!canSubmit} aria-busy={submitting}>
           {submitLabel}
         </Button>
       </div>

@@ -1,8 +1,18 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, cleanup, fireEvent, render as rtlRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as tasksApi from '@/lib/backend/tasks.api'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { TaskToolbar } from './TaskToolbar'
+
+vi.mock('@/lib/backend/tasks.api')
+
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 afterEach(() => {
   cleanup()
@@ -10,17 +20,38 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  vi.resetAllMocks()
   useTasksStore.setState(INITIAL_TASKS_STATE)
+  vi.mocked(tasksApi.listTasks).mockResolvedValue({ items: [], total: 0, limit: 1, page: 1 })
 })
 
 describe('TaskToolbar', () => {
   it('offers the five quick views and marks the current one', () => {
     render(<TaskToolbar />)
-    for (const name of ['Все', 'Мои', 'Я наблюдаю', 'Созданные мной', 'Просроченные']) {
+    for (const name of ['Все', 'Мои', 'Я наблюдаю', 'Созданные мной', 'Просрочено']) {
       expect(screen.getByRole('button', { name })).toBeTruthy()
     }
     expect(screen.getByRole('button', { name: 'Все' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: 'Мои' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('shows the overdue count on the overdue chip', async () => {
+    vi.mocked(tasksApi.listTasks).mockResolvedValue({ items: [], total: 3, limit: 1, page: 1 })
+    render(<TaskToolbar />)
+    expect(await screen.findByRole('button', { name: /^Просрочено\s*·\s*3$/ })).toBeTruthy()
+    expect(tasksApi.listTasks).toHaveBeenCalledWith({ overdue: true, limit: 1 })
+  })
+
+  it('hides the count when nothing is overdue', async () => {
+    render(<TaskToolbar />)
+    await vi.waitFor(() => expect(tasksApi.listTasks).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: 'Просрочено' })).toBeTruthy()
+  })
+
+  it('selects the overdue view', async () => {
+    render(<TaskToolbar />)
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Просрочено/ }))
+    expect(useTasksStore.getState().view).toBe('overdue')
   })
 
   it('switches the view and returns to the first page', async () => {

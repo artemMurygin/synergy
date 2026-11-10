@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TaskRow } from './TaskRow'
+import { attachmentsLabel, TaskRow } from './TaskRow'
 import { mkTask, NOW } from './test-utils'
 
 afterEach(cleanup)
@@ -25,15 +25,39 @@ describe('TaskRow', () => {
     expect(screen.getByText('К выполнению')).toBeTruthy()
   })
 
-  it('shows the attachment count when there are attachments', () => {
+  it('shows the creator and the attachment count under the title', () => {
     setup(mkTask('t1', { attachmentCount: 3 }))
-    const badge = screen.getByLabelText('Вложений: 3')
-    expect(badge.textContent).toBe('3')
+    expect(screen.getByText('Создал admin · 3 вложения')).toBeTruthy()
   })
 
-  it('hides the attachment count when there are none', () => {
+  it('shows only the creator when there are no attachments', () => {
     setup(mkTask('t1', { attachmentCount: 0 }))
-    expect(screen.queryByLabelText(/Вложений/)).toBeNull()
+    expect(screen.getByText('Создал admin')).toBeTruthy()
+    expect(screen.queryByText(/вложени/)).toBeNull()
+  })
+
+  it('shows an avatar and "Не назначен" without an assignee', () => {
+    const { container } = render(
+      <ul>
+        <TaskRow task={mkTask('t2', { assignee: null })} selected={false} now={NOW} onSelect={vi.fn()} onStatusChange={vi.fn()} />
+      </ul>
+    )
+    expect(screen.getByText('Не назначен')).toBeTruthy()
+    expect(container.querySelector('[data-slot="user-avatar"]')?.textContent).toBe('—')
+  })
+
+  it('shows the assignee initials next to the login', () => {
+    const { container } = render(
+      <ul>
+        <TaskRow task={mkTask('t2')} selected={false} now={NOW} onSelect={vi.fn()} onStatusChange={vi.fn()} />
+      </ul>
+    )
+    expect(container.querySelector('[data-slot="user-avatar"]')?.textContent).toBe('AN')
+  })
+
+  it('shows the closing date of a done task', () => {
+    setup(mkTask('t1', { status: 'done', completedAt: '2026-03-07T12:00:00Z' }))
+    expect(screen.getByText('Закрыто 7 мар')).toBeTruthy()
   })
 
   it('selects the task by its accessible name', async () => {
@@ -68,5 +92,21 @@ describe('TaskRow', () => {
     const { onSelect, user } = setup(mkTask('t1', { title: 'A' }))
     await user.click(screen.getByRole('button', { name: 'Отметить выполненной: A' }))
     expect(onSelect).not.toHaveBeenCalled()
+  })
+})
+
+describe('attachmentsLabel', () => {
+  it.each([
+    [1, '1 вложение'],
+    [2, '2 вложения'],
+    [4, '4 вложения'],
+    [5, '5 вложений'],
+    [11, '11 вложений'],
+    [12, '12 вложений'],
+    [21, '21 вложение'],
+    [22, '22 вложения'],
+    [111, '111 вложений']
+  ])('%i → %s', (n, label) => {
+    expect(attachmentsLabel(n)).toBe(label)
   })
 })

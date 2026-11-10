@@ -92,7 +92,33 @@ describe('TaskDrawer', () => {
     expect(within(panel).getByText('anna')).toBeTruthy()
     expect(within(panel).getByText('maria')).toBeTruthy()
     expect(within(panel).getByText('admin')).toBeTruthy()
-    expect(within(panel).getByRole('combobox', { name: 'Статус' })).toHaveProperty('value', 'todo')
+    expect(within(panel).getByText('К выполнению')).toBeTruthy()
+    expect(within(panel).getByText('12 декабря 2099', { exact: false })).toBeTruthy()
+    // the status select appears only on demand
+    expect(within(panel).queryByRole('combobox', { name: 'Статус' })).toBeNull()
+  })
+
+  it('shows an unassigned task with an empty avatar', async () => {
+    setup(mkDetails({ assignee: null }))
+    const panel = await drawer()
+    expect(within(panel).getByText('Не назначен')).toBeTruthy()
+    expect(within(panel).getByText('—')).toBeTruthy()
+  })
+
+  it('shows the last change time in the footer', async () => {
+    const updatedAt = new Date()
+    updatedAt.setHours(14, 20, 0, 0)
+    setup(mkDetails({ updatedAt: updatedAt.toISOString() }))
+    const panel = await drawer()
+    expect(within(panel).getByText('Изменена сегодня, 14:20')).toBeTruthy()
+    expect(within(panel).queryByText(/Создана/)).toBeNull()
+  })
+
+  it('renders as a column, not an overlay', async () => {
+    setup()
+    const panel = await drawer()
+    expect(panel.className).not.toContain('absolute')
+    expect(panel.className).toContain('w-[480px]')
   })
 
   it('shows the closing time only for a done task', async () => {
@@ -142,8 +168,23 @@ describe('TaskDrawer', () => {
   it('changes the status from the panel', async () => {
     const { user } = setup()
     const panel = await drawer()
+    await user.click(within(panel).getByRole('button', { name: 'Изменить статус' }))
     await user.selectOptions(within(panel).getByRole('combobox', { name: 'Статус' }), 'done')
     expect(tasksApi.updateTask).toHaveBeenCalledWith('t1', { status: 'done' })
+    await waitFor(() => expect(within(panel).queryByRole('combobox', { name: 'Статус' })).toBeNull())
+    expect(document.activeElement).toBe(within(panel).getByRole('button', { name: 'Изменить статус' }))
+  })
+
+  it('closes the status picker on Escape and keeps the panel open', async () => {
+    const { user } = setup()
+    const panel = await drawer()
+    await user.click(within(panel).getByRole('button', { name: 'Изменить статус' }))
+    expect(document.activeElement).toBe(within(panel).getByRole('combobox', { name: 'Статус' }))
+    await user.keyboard('{Escape}')
+    expect(within(panel).queryByRole('combobox', { name: 'Статус' })).toBeNull()
+    expect(document.activeElement).toBe(within(panel).getByRole('button', { name: 'Изменить статус' }))
+    expect(useTasksStore.getState().selectedTaskId).toBe('t1')
+    expect(tasksApi.updateTask).not.toHaveBeenCalled()
   })
 
   it('sends only the changed fields', async () => {

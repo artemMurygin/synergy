@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Users, X } from 'lucide-react'
+import { Check, ChevronDown, Search, User, Users, X } from 'lucide-react'
 import { useId, useState, type KeyboardEvent } from 'react'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -6,6 +6,7 @@ import { useSessionStore } from '@/features/auth/session.store'
 import { useUsersSearch } from '@/lib/backend/tasks.queries'
 import type { UserSummary } from '@/lib/backend/tasks.schema'
 import { cn } from '@/lib/utils'
+import { UserAvatar } from './UserAvatar'
 
 export const WATCHERS_LIMIT = 50
 
@@ -36,19 +37,6 @@ interface MultipleProps extends CommonProps {
 }
 
 export type UserPickerProps = SingleProps | MultipleProps
-
-const initials = (login: string): string => login.slice(0, 2).toUpperCase()
-
-function Avatar({ login }: { login: string }) {
-  return (
-    <span
-      aria-hidden
-      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-[11px] font-semibold"
-    >
-      {initials(login)}
-    </span>
-  )
-}
 
 interface UserListProps {
   selected: UserSummary[]
@@ -91,7 +79,8 @@ function UserList({ selected, multiple, max, itemsLabel, onPick }: UserListProps
 
   return (
     <div>
-      <div className="p-3">
+      <div className="relative border-b p-3">
+        <Search aria-hidden className="pointer-events-none absolute top-[23px] left-7 size-[18px] text-ink-40" />
         <Input
           autoFocus
           role="combobox"
@@ -101,7 +90,7 @@ function UserList({ selected, multiple, max, itemsLabel, onPick }: UserListProps
           aria-autocomplete="list"
           aria-label="Поиск по логину"
           placeholder="Поиск по логину"
-          className="h-10 rounded-full"
+          className="h-10 rounded-md border-border-strong pl-11 text-[15px] placeholder:text-ink-40"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value)
@@ -110,7 +99,7 @@ function UserList({ selected, multiple, max, itemsLabel, onPick }: UserListProps
           onKeyDown={onKeyDown}
         />
       </div>
-      <div className="max-h-[220px] overflow-y-auto border-t">
+      <div className="max-h-[220px] overflow-y-auto">
         {query.isError && (
           <div role="alert" className="flex items-center gap-2 px-4 py-3 text-[13px] text-brand-red">
             <span className="flex-1">Не удалось загрузить пользователей</span>
@@ -145,12 +134,12 @@ function UserList({ selected, multiple, max, itemsLabel, onPick }: UserListProps
               onClick={() => pick(user)}
               className={cn(
                 'flex h-11 cursor-pointer items-center gap-2.5 px-4 text-sm',
-                index === activeIndex && 'bg-surface-alt',
+                index === activeIndex && !isSelected(user) && 'bg-surface-alt',
                 isSelected(user) && 'bg-brand-red-soft',
                 isBlocked(user) && 'cursor-not-allowed opacity-50'
               )}
             >
-              <Avatar login={user.login} />
+              <UserAvatar login={user.login} />
               <span className="flex-1 truncate font-medium">{user.login}</span>
               {user.id === meId && <span className="text-xs text-ink-60">это вы</span>}
               {isSelected(user) && <Check aria-hidden className="size-4 text-brand-red" />}
@@ -159,7 +148,7 @@ function UserList({ selected, multiple, max, itemsLabel, onPick }: UserListProps
         </ul>
       </div>
       {multiple && (
-        <div className="border-t bg-surface-alt px-4 py-2.5 text-xs text-ink-60">
+        <div className="flex min-h-9 flex-col justify-center border-t bg-surface-alt px-4 py-2 text-xs text-ink-60">
           <p>
             Выбрано {selected.length} из {max}
           </p>
@@ -209,16 +198,20 @@ export function UserPicker(props: UserPickerProps) {
             aria-invalid={invalid || undefined}
             aria-describedby={describedBy}
             className={cn(
-              'flex h-12 w-full items-center gap-2.5 rounded-md border bg-background px-3.5 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex h-12 w-full items-center gap-2.5 rounded-md border bg-background px-4 text-left text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
               invalid ? 'border-brand-red' : 'border-border-strong'
             )}
           >
-            {multiple ? <Users aria-hidden className="size-4 shrink-0 text-ink-60" /> : current && <Avatar login={current.login} />}
-            <span className={cn('flex-1 truncate', !current && 'text-muted-foreground')}>{current ? current.login : text}</span>
+            {multiple ? (
+              <Users aria-hidden className="size-[18px] shrink-0 text-ink-40" />
+            ) : (
+              <User aria-hidden className="size-[18px] shrink-0 text-ink-40" />
+            )}
+            <span className={cn('flex-1 truncate', current ? 'text-ink' : 'text-ink-40')}>{current ? current.login : text}</span>
             <ChevronDown aria-hidden className="size-4 shrink-0 text-ink-60" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-80">
+        <PopoverContent className="w-80 rounded-lg">
           <UserList selected={selected} multiple={multiple} max={max} itemsLabel={itemsLabel} onPick={pick} />
         </PopoverContent>
       </Popover>

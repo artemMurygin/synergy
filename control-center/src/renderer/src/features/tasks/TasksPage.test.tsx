@@ -30,6 +30,24 @@ function setup() {
   return userEvent.setup()
 }
 
+describe('TasksPage · header', () => {
+  it('shows the task count once the list total is known', async () => {
+    vi.mocked(tasksApi.listTasks).mockResolvedValue({ items: [], total: 128, limit: 20, page: 1 })
+    setup()
+    expect(screen.queryByText(/^\d+ задач/)).toBeNull()
+    expect(await screen.findByText('128 задач')).toBeTruthy()
+    // one request: the header reuses the list query
+    const listCalls = vi.mocked(tasksApi.listTasks).mock.calls.filter(([filters]) => !filters?.overdue)
+    expect(listCalls).toHaveLength(1)
+  })
+
+  it('declines the count', async () => {
+    vi.mocked(tasksApi.listTasks).mockResolvedValue({ items: [], total: 1, limit: 20, page: 1 })
+    setup()
+    expect(await screen.findByText('1 задача')).toBeTruthy()
+  })
+})
+
 describe('TasksPage · create dialog', () => {
   it('opens from the header button and returns focus to it on close', async () => {
     const user = setup()

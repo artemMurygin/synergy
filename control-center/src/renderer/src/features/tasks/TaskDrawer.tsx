@@ -1,5 +1,6 @@
-import { X } from 'lucide-react'
+import { Calendar, FileX, Pencil, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BackendError, TaskNotFoundError, TaskUserNotFoundError } from '@/lib/backend/errors'
@@ -12,33 +13,75 @@ import { fieldErrorsFromError } from './field-errors'
 import { AttachmentList } from './AttachmentList'
 import { USER_NOT_FOUND_TEXT } from './CreateTaskDialog'
 import { ConfirmDialog } from './ConfirmDialog'
-import { StatusBadge } from './StatusBadge'
 import { STATUS_META, isOverdue } from './status'
 import { TaskForm, type TaskFormErrors, type TaskFormInitial } from './TaskForm'
 import { diffTask } from './task-diff'
+import { formatFullDateTime, formatRelativeDateTime } from './task-dates'
+import { UserAvatar } from './UserAvatar'
 
 const GONE_NOTICE_MS = 5000
+// a column beside the list (not an overlay): the list narrows while the panel is open
 const PANEL_CLASS =
-  'absolute top-0 right-0 bottom-0 z-30 flex w-[440px] max-w-full flex-col border-l bg-background shadow-xl outline-none'
-
-const dateTime = (iso: string): string =>
-  new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(
-    new Date(iso)
-  )
+  'flex h-full w-[480px] shrink-0 flex-col border-l bg-background shadow-[-8px_0_24px_rgba(0,0,0,0.06)] outline-none'
+const ICON_BUTTON_CLASS =
+  'flex size-9 items-center justify-center rounded-md text-ink outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-ring'
+const SECTION_LABEL_CLASS = 'text-[11px] font-bold tracking-wide text-ink-40 uppercase'
 
 const loginOf = (user: TaskUser): string => user.login ?? 'Неактивный пользователь'
 
+function PanelHeader({ children }: { children?: ReactNode }) {
+  return (
+    <header className="flex h-16 shrink-0 items-center gap-1 border-b pr-4 pl-6">
+      <h2 className="flex-1 text-[13px] font-semibold text-ink-60">Задача</h2>
+      {children}
+    </header>
+  )
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 text-sm">
-      <dt className="w-[110px] shrink-0 pt-0.5 text-[13px] text-ink-60">{label}</dt>
-      <dd className="min-w-0 flex-1">{children}</dd>
+    <div className="flex min-h-8 items-center gap-3">
+      <dt className="w-[116px] shrink-0 text-[13px] text-ink-60">{label}</dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</dd>
     </div>
   )
 }
 
+function Person({ user }: { user: TaskUser | null }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <UserAvatar login={user?.login ?? null} />
+      {user ? (
+        <span className="truncate text-sm font-medium">{loginOf(user)}</span>
+      ) : (
+        <span className="text-sm text-ink-40">Не назначен</span>
+      )}
+    </span>
+  )
+}
+
 function Chip({ children }: { children: ReactNode }) {
-  return <span className="inline-flex h-7 items-center rounded-full bg-surface-sunken px-3 text-[13px] font-medium">{children}</span>
+  return (
+    <span className="inline-flex h-8 items-center rounded-full border border-border-strong bg-background px-2.5 text-[13px] font-medium">
+      {children}
+    </span>
+  )
+}
+
+// larger variant of StatusBadge used in the panel (padding 8×14, 13px)
+function PanelStatusBadge({ status }: { status: TaskStatus }) {
+  const meta = STATUS_META[status]
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-[7px] rounded-full px-3.5 py-2 text-[13px] leading-none font-semibold whitespace-nowrap',
+        meta.badgeClass
+      )}
+    >
+      <span aria-hidden className={cn('size-[7px] rounded-full', meta.dotClass)} />
+      {meta.label}
+    </span>
+  )
 }
 
 function toInitial(task: TaskDetails): TaskFormInitial {
@@ -59,10 +102,18 @@ function GoneNotice({ onClose }: { onClose: () => void }) {
   }, [onClose])
   return (
     <aside role="complementary" aria-label="Детали задачи" className={PANEL_CLASS}>
+      <PanelHeader>
+        <button type="button" aria-label="Закрыть панель" onClick={onClose} className={ICON_BUTTON_CLASS}>
+          <X aria-hidden className="size-5" />
+        </button>
+      </PanelHeader>
       <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <h2 className="text-base font-semibold">Задача удалена</h2>
-        <p className="max-w-[300px] text-[13px] text-muted-foreground">Её удалил другой пользователь. Список обновлён.</p>
-        <Button type="button" variant="outline" className="h-10 rounded-full px-5" onClick={onClose}>
+        <span className="mb-1 flex size-16 items-center justify-center rounded-full bg-surface-sunken text-ink-60">
+          <FileX aria-hidden className="size-7" />
+        </span>
+        <h3 className="font-display text-lg font-semibold">Задача удалена</h3>
+        <p className="max-w-[300px] text-[13px] text-ink-60">Её удалил другой пользователь. Список обновлён.</p>
+        <Button type="button" variant="outline" className="mt-1 h-10 rounded-full px-5" onClick={onClose}>
           Закрыть
         </Button>
       </div>
@@ -83,6 +134,9 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
   const selectTask = useTasksStore((s) => s.selectTask)
   const panel = useRef<HTMLElement>(null)
   const [editing, setEditing] = useState(false)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const statusButton = useRef<HTMLButtonElement>(null)
+  const refocusStatus = useRef(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<TaskFormErrors>({})
@@ -122,7 +176,19 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
     else setMessage(error instanceof BackendError ? error.message : fallback)
   }
 
+  // after a pick or Escape focus goes back to «Изменить» instead of falling to <body>
+  const closeStatus = () => {
+    refocusStatus.current = true
+    setStatusOpen(false)
+  }
+  useEffect(() => {
+    if (statusOpen || !refocusStatus.current) return
+    refocusStatus.current = false
+    statusButton.current?.focus()
+  }, [statusOpen])
+
   const changeStatus = (status: TaskStatus) => {
+    closeStatus()
     setMessage(null)
     update.mutateAsync({ id, patch: { status } }).catch((error: unknown) => {
       handleFailure(error, 'Не удалось изменить статус. Он возвращён к прежнему.')
@@ -160,24 +226,26 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
 
   return (
     <aside ref={panel} tabIndex={-1} role="complementary" aria-label="Детали задачи" className={PANEL_CLASS}>
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-6">
-        <h2 className="flex-1 text-[13px] font-semibold text-ink-60">Задача</h2>
-        <button
-          type="button"
-          aria-label="Закрыть панель"
-          onClick={close}
-          className="flex size-9 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-ring"
-        >
+      <PanelHeader>
+        {task && !editing && (
+          <button type="button" aria-label="Редактировать" title="Редактировать" onClick={() => setEditing(true)} className={ICON_BUTTON_CLASS}>
+            <Pencil aria-hidden className="size-[18px]" />
+          </button>
+        )}
+        <button type="button" aria-label="Закрыть панель" onClick={close} className={ICON_BUTTON_CLASS}>
           <X aria-hidden className="size-5" />
         </button>
-      </header>
+      </PanelHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
         {query.isPending && (
           <div role="status" aria-label="Загрузка задачи" className="flex flex-col gap-4">
-            <Skeleton className="h-7 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-3.5 w-2/3" />
+            <Skeleton className="h-3.5 w-7/12" />
+            <Skeleton className="h-3.5 w-3/5" />
+            <Skeleton className="h-3.5 w-5/12" />
             <Skeleton className="h-24 w-full" />
           </div>
         )}
@@ -215,20 +283,33 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
 
         {task && !editing && (
           <>
-            <div className="flex items-start gap-3">
-              <h2 className="flex-1 text-xl leading-snug font-semibold [overflow-wrap:anywhere]">{task.title}</h2>
-              <Button type="button" variant="outline" className="h-9 rounded-full px-4" onClick={() => setEditing(true)}>
-                Редактировать
-              </Button>
-            </div>
-            <dl className="flex flex-col gap-3">
+            <h2 title={task.title} className="line-clamp-2 font-display text-[22px] leading-tight font-bold [overflow-wrap:anywhere]">
+              {task.title}
+            </h2>
+            <dl className="flex flex-col gap-4">
               <Row label="Статус">
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={task.status} />
+                {statusOpen ? (
                   <select
                     aria-label="Статус"
+                    autoFocus
+                    // open the list right away: arrow keys on a closed select would change the status at once
+                    ref={(select) => {
+                      try {
+                        select?.showPicker()
+                      } catch {
+                        // showPicker is unavailable or not allowed here
+                      }
+                    }}
                     value={task.status}
                     onChange={(event) => changeStatus(event.target.value as TaskStatus)}
+                    onBlur={() => setStatusOpen(false)}
+                    onKeyDown={(event) => {
+                      // close the picker, not the panel
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        closeStatus()
+                      }
+                    }}
                     className="h-8 rounded-md border border-border-strong bg-background px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {TASK_STATUSES.map((status) => (
@@ -237,9 +318,24 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
                       </option>
                     ))}
                   </select>
-                </div>
+                ) : (
+                  <>
+                    <PanelStatusBadge status={task.status} />
+                    <button
+                      type="button"
+                      ref={statusButton}
+                      aria-label="Изменить статус"
+                      onClick={() => setStatusOpen(true)}
+                      className="rounded text-[13px] font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Изменить
+                    </button>
+                  </>
+                )}
               </Row>
-              <Row label="Ответственный">{task.assignee ? <Chip>{loginOf(task.assignee)}</Chip> : <span className="text-ink-60">Не назначен</span>}</Row>
+              <Row label="Ответственный">
+                <Person user={task.assignee} />
+              </Row>
               <Row label="Наблюдатели">
                 {task.watchers.length > 0 ? (
                   <ul className="flex flex-wrap gap-1.5">
@@ -250,24 +346,37 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
                     ))}
                   </ul>
                 ) : (
-                  <span className="text-ink-60">Нет</span>
+                  <span className="text-sm text-ink-40">Нет</span>
                 )}
               </Row>
               <Row label="Дедлайн">
+                <Calendar aria-hidden className="size-4 shrink-0 text-ink-60" />
                 {task.deadline ? (
-                  <span>
-                    {dateTime(task.deadline)}
-                    {isOverdue(task.status, task.deadline) && <span className="ml-2 font-semibold text-brand-red">Просрочено</span>}
-                  </span>
+                  <>
+                    <span className="text-sm font-medium">{formatFullDateTime(task.deadline)}</span>
+                    {isOverdue(task.status, task.deadline) && <span className="text-[13px] text-brand-red">Просрочено</span>}
+                  </>
                 ) : (
-                  <span className="text-ink-60">Не задан</span>
+                  <span className="text-sm text-ink-40">Без срока</span>
                 )}
               </Row>
-              <Row label="Создатель">{loginOf(task.creator)}</Row>
+              <Row label="Создатель">
+                <Person user={task.creator} />
+              </Row>
+              {task.status === 'done' && task.completedAt && (
+                <Row label="Закрыта">
+                  <span className="text-sm font-medium">{formatFullDateTime(task.completedAt)}</span>
+                </Row>
+              )}
             </dl>
             <div className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold tracking-wide text-ink-60 uppercase">Описание</h3>
-              <p className="rounded-xl bg-surface-alt px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
+              <h3 className={SECTION_LABEL_CLASS}>Описание</h3>
+              <p
+                className={cn(
+                  'rounded-md bg-surface-alt p-3.5 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap',
+                  task.description === '' && 'text-ink-40'
+                )}
+              >
                 {task.description === '' ? 'Описание не задано' : task.description}
               </p>
             </div>
@@ -277,18 +386,20 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
       </div>
 
       {task && !editing && (
-        <footer className="flex shrink-0 items-center gap-3 border-t px-6 py-3">
+        <footer className="flex h-16 shrink-0 items-center gap-3 border-t px-6">
           <button
             type="button"
             onClick={() => setConfirmOpen(true)}
-            className="rounded text-sm font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            className="-ml-3 flex h-10 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-ring"
           >
+            <Trash2 aria-hidden className="size-[18px]" />
             Удалить задачу
           </button>
-          <p className="flex-1 text-right text-xs leading-snug text-ink-60">
-            <span className="block">Создана {dateTime(task.createdAt)}</span>
-            <span className="block">Изменена {dateTime(task.updatedAt)}</span>
-            {task.status === 'done' && task.completedAt && <span className="block">Закрыта {dateTime(task.completedAt)}</span>}
+          <p
+            className="flex-1 text-right text-xs text-ink-60"
+            title={`Создана ${formatFullDateTime(task.createdAt)}\nИзменена ${formatFullDateTime(task.updatedAt)}`}
+          >
+            Изменена {formatRelativeDateTime(task.updatedAt)}
           </p>
         </footer>
       )}

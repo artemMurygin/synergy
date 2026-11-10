@@ -1,17 +1,22 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, CloudOff, ClipboardList, Plus } from 'lucide-react'
-import { useSessionStore } from '@/features/auth/session.store'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { TaskFilters } from '@/lib/backend/tasks.api'
 import { tasksQuery, useUpdateTask } from '@/lib/backend/tasks.queries'
 import type { TaskStatus } from '@/lib/backend/tasks.schema'
 import { useTasksStore } from '@/stores/tasks.store'
 import { TASK_GRID, TaskRow } from './TaskRow'
-import { viewToFilter } from './view-filter'
+import { useTaskFilters } from './use-task-filters'
 
-export const PAGE_SIZE = 20
+const PAGER_BUTTON = 'size-9 rounded-md border-border-strong bg-background text-ink'
+
+/** "1–20 из 128" for a 1-based page. */
+export function pageRange(page: number, limit: number, total: number): string {
+  const from = Math.min((page - 1) * limit + 1, total)
+  const to = Math.min(page * limit, total)
+  return `${from}–${to} из ${total}`
+}
 
 interface TaskListProps {
   onCreateTask?: () => void
@@ -32,8 +37,8 @@ function ListSkeleton() {
   return (
     <div role="status" aria-label="Загрузка задач" className="flex flex-col">
       {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 border-b px-4 py-3.5">
-          <Skeleton className="size-8 rounded-full" />
+        <div key={i} className="flex h-16 items-center gap-4 border-b px-6">
+          <Skeleton className="size-[22px] rounded-full" />
           <div className="flex flex-1 flex-col gap-2">
             <Skeleton className="h-3 w-2/3" />
             <Skeleton className="h-2.5 w-24" />
@@ -46,31 +51,19 @@ function ListSkeleton() {
 }
 
 export function TaskList({ onCreateTask }: TaskListProps) {
-  const userId = useSessionStore((s) => s.snapshot.user?.id ?? '')
   const view = useTasksStore((s) => s.view)
   const status = useTasksStore((s) => s.status)
   const search = useTasksStore((s) => s.search)
-  const sort = useTasksStore((s) => s.sort)
-  const order = useTasksStore((s) => s.order)
   const page = useTasksStore((s) => s.page)
   const selectedTaskId = useTasksStore((s) => s.selectedTaskId)
   const selectTask = useTasksStore((s) => s.selectTask)
   const setPage = useTasksStore((s) => s.setPage)
   const resetFilters = useTasksStore((s) => s.resetFilters)
 
-  const trimmed = search.trim()
-  const filters: TaskFilters = {
-    ...viewToFilter(view, userId),
-    ...(status ? { status } : {}),
-    ...(trimmed ? { search: trimmed } : {}),
-    sort,
-    order,
-    limit: PAGE_SIZE,
-    page
-  }
+  const filters = useTaskFilters()
   const query = useQuery(tasksQuery(filters))
   const update = useUpdateTask()
-  const hasFilters = view !== 'all' || status !== null || trimmed !== ''
+  const hasFilters = view !== 'all' || status !== null || search.trim() !== ''
   const changeStatus = (id: string, next: TaskStatus) => update.mutate({ id, patch: { status: next } })
 
   const data = query.data
@@ -141,12 +134,16 @@ export function TaskList({ onCreateTask }: TaskListProps) {
         <>
           <div
             aria-hidden
-            className={`${TASK_GRID} border-b bg-surface-alt py-2 pr-4 pl-[60px] text-[11px] font-semibold tracking-wide text-ink-60 uppercase`}
+            className="flex h-9 shrink-0 items-center gap-4 border-y bg-surface-alt px-6 text-[11px] font-bold tracking-wide text-ink-40 uppercase"
           >
-            <span>Название</span>
-            <span>Ответственный</span>
-            <span>Дедлайн</span>
-            <span>Статус</span>
+            {/* room for the status toggle */}
+            <span className="w-[22px] shrink-0" />
+            <div className={`${TASK_GRID} flex-1`}>
+              <span>Название</span>
+              <span>Ответственный</span>
+              <span>Дедлайн</span>
+              <span>Статус</span>
+            </div>
           </div>
           <ul aria-label="Задачи" className="min-h-0 flex-1 overflow-y-auto">
             {data.items.map((task) => (
@@ -159,27 +156,24 @@ export function TaskList({ onCreateTask }: TaskListProps) {
               />
             ))}
           </ul>
-          <footer className="flex h-12 shrink-0 items-center gap-2 border-t px-4 text-[13px] text-ink-60">
-            <span className="flex-1">Всего: {data.total}</span>
+          <footer className="flex h-14 shrink-0 items-center gap-2 border-t px-8 text-[13px] text-ink-60">
+            <span className="flex-1">{pageRange(page, data.limit, data.total)}</span>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="size-8"
+              className={PAGER_BUTTON}
               aria-label="Предыдущая страница"
               disabled={page <= 1}
               onClick={() => setPage(page - 1)}
             >
               <ChevronLeft aria-hidden className="size-4" />
             </Button>
-            <span>
-              Страница {page} из {pages}
-            </span>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="size-8"
+              className={PAGER_BUTTON}
               aria-label="Следующая страница"
               disabled={page >= pages}
               onClick={() => setPage(page + 1)}

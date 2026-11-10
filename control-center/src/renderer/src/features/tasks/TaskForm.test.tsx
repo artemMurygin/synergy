@@ -149,4 +149,33 @@ describe('TaskForm', () => {
     expect(onSubmit).not.toHaveBeenCalled()
     expect(screen.getByText('Описание не длиннее 10000 символов')).toBeTruthy()
   })
+
+  it('shows the "Дата и время" placeholder only while the deadline is empty', () => {
+    setup()
+    const deadline = screen.getByLabelText('Дедлайн')
+    expect(screen.getByText('Дата и время')).toBeTruthy()
+    expect(deadline.className).toContain('text-transparent')
+    fireEvent.change(deadline, { target: { value: '2026-12-12T18:00' } })
+    expect(screen.queryByText('Дата и время')).toBeNull()
+    expect(deadline.className).not.toContain('text-transparent')
+  })
+
+  it('opens the native picker on click', async () => {
+    const { user } = setup()
+    const deadline = screen.getByLabelText('Дедлайн') as HTMLInputElement
+    const showPicker = vi.fn()
+    deadline.showPicker = showPicker
+    await user.click(deadline)
+    expect(showPicker).toHaveBeenCalledOnce()
+  })
+
+  it('shows a user icon in the assignee field', () => {
+    setup()
+    expect(screen.getByRole('button', { name: /Ответственный/ }).querySelector('svg.lucide-user')).not.toBeNull()
+  })
+
+  it('renders the inactive submit button gray', () => {
+    setup()
+    expect(submit().className).toContain('disabled:bg-surface-sunken')
+  })
 })
