@@ -72,6 +72,13 @@ export class InMemoryTelegramLinkRepository extends TelegramLinkRepositoryPort {
         this.linksByUserId.delete(userId);
         return Promise.resolve(removed);
     }
+
+    deleteByUserIdAndChatId(userId: string, chatId: bigint): Promise<TelegramLink | null> {
+        const link = this.linksByUserId.get(userId);
+        if (link?.chatId !== chatId) return Promise.resolve(null);
+        this.linksByUserId.delete(userId);
+        return Promise.resolve(link);
+    }
 }
 
 export class InMemoryUserDirectory extends UserDirectoryPort {

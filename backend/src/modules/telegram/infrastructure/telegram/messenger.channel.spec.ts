@@ -1,9 +1,12 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     PermanentDeliveryError,
     RetryLaterDeliveryError,
 } from '../../../../shared/outbox/domain/delivery-errors';
-import { NotificationChannelPort } from '../../../notifications/domain/ports/notification-channel.port';
+import {
+    ChannelDeliveryInProgressError,
+    NotificationChannelPort,
+} from '../../../notifications/domain/ports/notification-channel.port';
 import { NotificationContent } from '../../../notifications/domain/notification-content';
 import { Notification } from '../../../notifications/domain/notification';
 import { NotificationTarget } from '../../../notifications/domain/notification-target';
@@ -22,6 +25,7 @@ import { TelegramLink } from '../../domain/telegram-link';
 import { BotApiStub } from '../../testing/bot-api-stub';
 import { testTelegramSettings } from '../../testing/telegram-settings.fixture';
 import { BotApiClient } from './bot-api-client';
+import type { PinoLogger } from 'nestjs-pino';
 import { MessengerChannel } from './messenger.channel';
 
 const BORIS_ID = '6f1c1d4e-2b1a-4c55-9a3e-0d1f2a3b4c5d';
@@ -83,6 +87,8 @@ describe('MessengerChannel', () => {
     let metrics: RecordingMessageMetrics;
     let channel: MessengerChannel;
 
+    let logger: PinoLogger;
+
     function channelWith(apiBaseUrl: string, botToken?: string | null): MessengerChannel {
         const settings = testTelegramSettings({
             apiBaseUrl,
@@ -97,7 +103,7 @@ describe('MessengerChannel', () => {
             clock,
             settings,
             metrics,
-            silentLogger(),
+            logger,
         );
     }
 
@@ -122,6 +128,7 @@ describe('MessengerChannel', () => {
         users = new InMemoryUserDirectory();
         users.add({ id: BORIS_ID, login: 'boris' });
         metrics = new RecordingMessageMetrics();
+        logger = silentLogger();
         channel = channelWith(stub.baseUrl);
     });
 
@@ -251,7 +258,7 @@ describe('MessengerChannel', () => {
 
             const error: unknown = await channel.deliver(notification).catch((e: unknown) => e);
 
-            expect(error).toBeInstanceOf(RetryLaterDeliveryError);
+            expect(error).toBeInstanceOf(ChannelDeliveryInProgressError);
             expect(error).toMatchObject({ retryAfterMs: RESERVATION_MS - 30_000 });
             expect(stub.requestsOf('sendMessage')).toHaveLength(0);
 
@@ -261,6 +268,28 @@ describe('MessengerChannel', () => {
 
             expect(stub.requestsOf('sendMessage')).toHaveLength(1);
             expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sent');
+        });
+    });
+
+    describe('recording failure after a successful send', () => {
+        it('keeps the reservation so a retry does not send the message again', async () => {
+            linkBoris();
+            stub.respond('sendMessage', sentOk(507));
+            const notification = notificationFor(BORIS_ID);
+            const databaseDown = new Error('connection terminated');
+            vi.spyOn(deliveries, 'markSent').mockRejectedValueOnce(databaseDown);
+
+            await expect(channel.deliver(notification)).rejects.toBe(databaseDown);
+
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('sending');
+            expect(metrics.sent).toEqual(['notification']);
+            expect(metrics.errors).toEqual([]);
+
+            clock.current = new Date(NOW.getTime() + 1_000);
+            const retry: unknown = await channel.deliver(notification).catch((e: unknown) => e);
+
+            expect(retry).toBeInstanceOf(ChannelDeliveryInProgressError);
+            expect(stub.requestsOf('sendMessage')).toHaveLength(1);
         });
     });
 
@@ -349,10 +378,30 @@ describe('MessengerChannel', () => {
             expect(stub.requestsOf('sendMessage')).toHaveLength(1);
         });
 
+        it('keeps a link to another chat made while the send was failing', async () => {
+            linkBoris();
+            const relinked = TelegramLink.link(
+                BORIS_ID,
+                TelegramIdentity.of({ telegramUserId: 9002n, chatId: 888n, username: 'boris_new' }),
+                NOW,
+            );
+            stub.respond('sendMessage', () => {
+                links.linksByUserId.set(BORIS_ID, relinked);
+                return failure(403, 'Forbidden: bot was blocked by the user');
+            });
+            const notification = notificationFor(BORIS_ID);
+
+            await channel.deliver(notification);
+
+            expect(links.linksByUserId.get(BORIS_ID)).toBe(relinked);
+            expect(deliveries.rowsByNotificationId.get(notification.id)?.status).toBe('skipped');
+        });
+
         it.each([
             [400, "Bad Request: can't parse entities"],
             [401, 'Unauthorized'],
         ])('fails permanently and keeps the link on %i %s', async (status, description) => {
+            const errorLog = vi.spyOn(logger, 'error');
             linkBoris();
             stub.respond('sendMessage', failure(status, description));
             const notification = notificationFor(BORIS_ID);
@@ -364,6 +413,7 @@ describe('MessengerChannel', () => {
             expect(links.linksByUserId.has(BORIS_ID)).toBe(true);
             expect(deliveries.rowsByNotificationId.has(notification.id)).toBe(false);
             expect(metrics.errors).toEqual(['permanent']);
+            expect(errorLog).not.toHaveBeenCalled();
         });
     });
 });

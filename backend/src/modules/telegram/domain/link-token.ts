@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { normalizeBotUsername } from './bot-username';
 import { InvalidLinkTokenSettingsError } from './errors';
 import { MS_IN_SECOND } from './time-units';
 
@@ -37,7 +38,7 @@ export class LinkToken {
     }
 
     deepLink(botUsername: string): string {
-        const normalizedUsername = botUsername.trim().replace(/^@/, '').trim();
+        const normalizedUsername = normalizeBotUsername(botUsername).trim();
         if (normalizedUsername.length === 0) {
             throw new InvalidLinkTokenSettingsError('Bot username must not be empty');
         }

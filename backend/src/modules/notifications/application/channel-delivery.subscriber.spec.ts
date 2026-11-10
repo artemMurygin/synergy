@@ -12,7 +12,10 @@ import {
 import { TaskCreatedEvent } from '../../tasks/contracts/task-created.event';
 import { NotificationCreatedEvent } from '../domain/events/notification-created.event';
 import type { Notification } from '../domain/notification';
-import { NotificationChannelPort } from '../domain/ports/notification-channel.port';
+import {
+    ChannelDeliveryInProgressError,
+    NotificationChannelPort,
+} from '../domain/ports/notification-channel.port';
 import { ChannelDeliverySubscriber, channelSubscriberName } from './channel-delivery.subscriber';
 import { NotificationChannelSubscriptions } from './notification-channel-subscriptions';
 import { NotificationChannelMetricsPort } from './ports/notification-channel-metrics.port';
@@ -123,6 +126,22 @@ describe('ChannelDeliverySubscriber', () => {
             ),
         ).rejects.toThrow('realtime failed');
         expect(metrics.failures).toEqual(['realtime']);
+    });
+
+    it('does not count a delivery that another handler is still performing', async () => {
+        const inProgress = new ChannelDeliveryInProgressError('telegram', 30_000);
+        const channel = new FakeChannel('telegram');
+        channel.deliver = () => Promise.reject(inProgress);
+        const notification = makeNotification();
+        await notifications.insertIgnoringDuplicates([notification]);
+
+        await expect(
+            new ChannelDeliverySubscriber(channel, notifications, metrics).handle(
+                createdEvent(notification),
+            ),
+        ).rejects.toBe(inProgress);
+        expect(inProgress.retryAfterMs).toBe(30_000);
+        expect(metrics.failures).toEqual([]);
     });
 
     it('rejects an event of another type', async () => {

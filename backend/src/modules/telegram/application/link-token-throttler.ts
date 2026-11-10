@@ -8,6 +8,7 @@ export const LINK_TOKEN_REQUESTS_PER_WINDOW = 10;
 export const LINK_TOKEN_WINDOW_MS = 60_000;
 
 const MIN_RETRY_AFTER_SECONDS = 1;
+const RATE_KEY_ENTITY = 'link-token-rate';
 
 @Injectable()
 export class LinkTokenThrottler {
@@ -28,7 +29,10 @@ export class LinkTokenThrottler {
 
     private async countRequest(userId: string): Promise<RequestRate | null> {
         try {
-            return await this.counter.increment(`link-token:${userId}`, LINK_TOKEN_WINDOW_MS);
+            return await this.counter.increment(
+                `${RATE_KEY_ENTITY}:${userId}`,
+                LINK_TOKEN_WINDOW_MS,
+            );
         } catch (error: unknown) {
             this.logger.error(
                 { err: error },

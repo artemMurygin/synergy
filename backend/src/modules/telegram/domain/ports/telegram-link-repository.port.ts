@@ -8,4 +8,6 @@ export abstract class TelegramLinkRepositoryPort {
     abstract save(link: TelegramLink): Promise<void>;
 
     abstract deleteByUserId(userId: string): Promise<TelegramLink | null>;
+
+    abstract deleteByUserIdAndChatId(userId: string, chatId: bigint): Promise<TelegramLink | null>;
 }

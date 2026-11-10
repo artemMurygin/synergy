@@ -148,8 +148,8 @@ describe.skipIf(adminUrl === undefined)('telegram link REST API (real storage)',
         await pool.end();
         await client.end();
         await disconnectTestRedis(redis, [
-            `telegram:rate:link-token:${anna}`,
-            `telegram:rate:link-token:${boris}`,
+            `telegram:link-token-rate:${anna}`,
+            `telegram:link-token-rate:${boris}`,
         ]);
         const admin = new Client({ connectionString: adminUrl });
         await admin.connect();
@@ -236,7 +236,7 @@ describe.skipIf(adminUrl === undefined)('telegram link REST API (real storage)',
     });
 
     it('POST /telegram/link-token answers 429 after 10 requests a minute, per user', async () => {
-        await redis?.del(`telegram:rate:link-token:${anna}`);
+        await redis?.del(`telegram:link-token-rate:${anna}`);
         for (let attempt = 0; attempt < RATE_LIMIT; attempt += 1) {
             const allowed = await configured.call('POST', '/telegram/link-token', {
                 headers: configured.bearer(anna),

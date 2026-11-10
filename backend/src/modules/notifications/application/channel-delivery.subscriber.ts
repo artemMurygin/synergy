@@ -1,7 +1,10 @@
 import type { DomainEvent } from '../../../shared/ddd';
 import type { EventSubscriber } from '../../../shared/outbox/application/domain-event-registry';
 import { NotificationCreatedEvent } from '../domain/events/notification-created.event';
-import type { NotificationChannelPort } from '../domain/ports/notification-channel.port';
+import {
+    ChannelDeliveryInProgressError,
+    type NotificationChannelPort,
+} from '../domain/ports/notification-channel.port';
 import type { NotificationRepositoryPort } from '../domain/ports/notification-repository.port';
 import type { NotificationChannelMetricsPort } from './ports/notification-channel-metrics.port';
 import { UnexpectedSourceEventError } from './task-created.subscriber';
@@ -39,7 +42,9 @@ export class ChannelDeliverySubscriber implements EventSubscriber {
         try {
             await this.channel.deliver(notification, unreadCount);
         } catch (error: unknown) {
-            this.metrics.recordFailure(this.channel.channel);
+            if (!(error instanceof ChannelDeliveryInProgressError)) {
+                this.metrics.recordFailure(this.channel.channel);
+            }
             throw error;
         }
     }

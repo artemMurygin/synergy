@@ -99,4 +99,11 @@ export class TelegramLinkRepository extends TelegramLinkRepositoryPort {
             RETURNING ${COLUMNS}`);
         return row === null ? null : toLink(row);
     }
+
+    async deleteByUserIdAndChatId(userId: string, chatId: bigint): Promise<TelegramLink | null> {
+        const row = await this.transactions.executor().maybeOne(sql.unsafe`
+            DELETE FROM telegram_links WHERE user_id = ${userId} AND chat_id = ${chatId.toString()}::bigint
+            RETURNING ${COLUMNS}`);
+        return row === null ? null : toLink(row);
+    }
 }

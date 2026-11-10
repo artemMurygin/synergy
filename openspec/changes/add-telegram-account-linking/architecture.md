@@ -80,6 +80,7 @@
 | `TelegramLinkController` | `interface/http` | `GET/PATCH/DELETE /telegram/link`, `POST /telegram/link-token`. Zod-схемы, Swagger, карта ошибок → HTTP |
 | **shared/outbox (расширение)** | | |
 | `PermanentDeliveryError`, `RetryLaterDeliveryError` | `shared/outbox/domain` | Контракт подписчика: немедленный `failed` и `next_attempt_at = max(policy, now + retryAfterMs)` |
+| `ChannelDeliveryInProgressError` | `notifications/domain/ports` | Наследник `RetryLaterDeliveryError`: доставку канала прямо сейчас выполняет другой обработчик; `ChannelDeliverySubscriber` не учитывает его в метрике сбоев |
 | `OutboxRelay` | existing (`add-realtime-notifications`, меняется) | Понимает два новых вида ошибок, остальные обрабатывает как раньше. Запись результата по-прежнему защищена `claim_token` |
 
 ### Method Signatures (ключевые, по каждому сервису)
@@ -96,6 +97,7 @@
 | `TelegramLinkRepositoryPort.findByTelegramUserId` | `telegramUserId: bigint` | `Promise<TelegramLink \| null>` | — |
 | `TelegramLinkRepositoryPort.save` | `link: TelegramLink` | `Promise<void>` | Upsert по `user_id`. Нарушение `unique(telegram_user_id)` — `TelegramAccountTakenError` |
 | `TelegramLinkRepositoryPort.deleteByUserId` | `userId: string` | `Promise<TelegramLink \| null>` | Возвращает удалённую привязку (для сообщения в прежний чат) |
+| `TelegramLinkRepositoryPort.deleteByUserIdAndChatId` | `userId: string, chatId: bigint` | `Promise<TelegramLink \| null>` | Удаляет привязку, только если она ведёт в этот чат (недоступный чат при доставке) |
 | `TelegramDeliveryLogPort.reserve` | `{ notificationId, userId, now, reservationMs }` | `Promise<'reserved' \| 'done' \| { inProgressUntil: Date }>` | Один `INSERT … ON CONFLICT DO UPDATE … WHERE status = 'sending' AND reserved_at < now - reservation RETURNING` |
 | `TelegramDeliveryLogPort.markSent` | `{ notificationId, messageId, sentAt }` | `Promise<void>` | `status = 'sent'` |
 | `TelegramDeliveryLogPort.markSkipped` | `notificationId: string` | `Promise<void>` | Нет привязки, выключено или пользователь отключён |
@@ -113,7 +115,7 @@
 | `SetTelegramNotificationsUseCase.execute` | `userId: string, isEnabled: boolean` | `Promise<TelegramLinkStatusView>` | `TelegramNotLinkedError` |
 | `BotUpdateDispatcher.dispatch` | `update: unknown` | `Promise<void>` | Никогда не бросает: ошибки логируются |
 | `IdentityResolver.resolve` | `identity: TelegramIdentity` | `Promise<BotSender>` | — |
-| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Вызывается вне транзакции relay (`ChannelDeliverySubscriber.isTransactional = false`). Свежая чужая бронь → `RetryLaterDeliveryError`. При заблокированном боте снимает привязку |
+| `MessengerChannel.deliver` | `notification: Notification, unreadCount: number` | `Promise<void>` | Бронь → проверка привязки → `sendMessage` (таймаут 10 с) → `sent`. Вызывается вне транзакции relay (`ChannelDeliverySubscriber.isTransactional = false`). Свежая чужая бронь → `ChannelDeliveryInProgressError` (не считается сбоем канала). Ошибка записи `sent` после отправки бронь не снимает. При заблокированном боте снимает привязку к этому чату |
 | `BotApiClient.sendMessage` / `setWebhook` / `deleteWebhook` / `getUpdates` | типизированные параметры метода | результат метода | Общий вызов `call` закрытый (private): классификация ошибок и проверка ответа zod |
 | `FindActiveUserUseCase.execute` (`auth`) | `userId: string` | `Promise<{ id: string; login: string } \| null>` | Публичный контракт `auth` для других модулей |
 | `EventSubscriber.isTransactional` (`shared/outbox`) | — | `boolean \| undefined` | `false` — relay вызывает подписчика вне своей транзакции и пишет `done` отдельно |

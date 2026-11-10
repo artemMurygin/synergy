@@ -200,6 +200,24 @@ describe.skipIf(adminUrl === undefined)('TelegramLinkRepository', () => {
         });
     });
 
+    describe('deleteByUserIdAndChatId', () => {
+        it('deletes the link to that chat', async () => {
+            await repository.save(TelegramLink.link(anna, identity(1001n, 2001n, 'anna_tg'), T0));
+
+            const deleted = await repository.deleteByUserIdAndChatId(anna, 2001n);
+
+            expect(deleted?.chatId).toBe(2001n);
+            expect(await repository.findByUserId(anna)).toBeNull();
+        });
+
+        it('keeps the link when it points to another chat', async () => {
+            await repository.save(TelegramLink.link(anna, identity(1001n, 2002n, 'anna_tg'), T0));
+
+            expect(await repository.deleteByUserIdAndChatId(anna, 2001n)).toBeNull();
+            expect((await repository.findByUserId(anna))?.chatId).toBe(2002n);
+        });
+    });
+
     describe('transactions', () => {
         it('writes through the executor of the current transaction and rolls back with it', async () => {
             await repository.save(TelegramLink.link(boris, identity(5005n, 6006n), T0));

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
-import {
-    PermanentDeliveryError,
-    RetryLaterDeliveryError,
-} from '../../../../shared/outbox/domain/delivery-errors';
 import type { Notification } from '../../../notifications/domain/notification';
-import { NotificationChannelPort } from '../../../notifications/domain/ports/notification-channel.port';
+import {
+    ChannelDeliveryInProgressError,
+    NotificationChannelPort,
+} from '../../../notifications/domain/ports/notification-channel.port';
 import { escapeHtml } from '../../application/bot-replies';
+import type { SentBotMessage } from '../../application/ports/bot-messenger.port';
 import { ChatUnavailableError } from '../../application/errors';
 import { TelegramMessageMetricsPort } from '../../application/ports/telegram-message-metrics.port';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
@@ -55,10 +55,9 @@ export class MessengerChannel extends NotificationChannelPort {
         });
         if (reservation === 'done') return;
         if (reservation !== 'reserved') {
-            throw new RetryLaterDeliveryError(
-                'Telegram delivery is in progress in another handler',
+            throw new ChannelDeliveryInProgressError(
+                TELEGRAM_CHANNEL,
                 Math.max(0, reservation.inProgressUntil.getTime() - now.getTime()),
-                undefined,
                 { notificationId },
             );
         }
@@ -67,16 +66,22 @@ export class MessengerChannel extends NotificationChannelPort {
             await this.deliveries.markSkipped(notificationId);
             return;
         }
+        const sent = await this.send(chatId, notification);
+        if (sent === null) return;
+        this.metrics.recordSent('notification');
+        await this.deliveries.markSent({
+            notificationId,
+            messageId: sent.messageId,
+            sentAt: this.clock.now(),
+        });
+    }
+
+    private async send(chatId: bigint, notification: Notification): Promise<SentBotMessage | null> {
         try {
-            const sent = await this.client.sendMessage(chatId, notificationMessage(notification));
-            this.metrics.recordSent('notification');
-            await this.deliveries.markSent({
-                notificationId,
-                messageId: sent.messageId,
-                sentAt: this.clock.now(),
-            });
+            return await this.client.sendMessage(chatId, notificationMessage(notification));
         } catch (error: unknown) {
-            await this.handleSendFailure(error, notificationId, userId);
+            await this.handleSendFailure(error, notification, chatId);
+            return null;
         }
     }
 
@@ -90,12 +95,14 @@ export class MessengerChannel extends NotificationChannelPort {
 
     private async handleSendFailure(
         error: unknown,
-        notificationId: string,
-        userId: string,
+        notification: Notification,
+        chatId: bigint,
     ): Promise<void> {
+        const notificationId = notification.id;
+        const userId = notification.recipientId;
         this.metrics.recordSendError(sendErrorReasonOf(error));
         if (error instanceof ChatUnavailableError) {
-            await this.links.deleteByUserId(userId);
+            await this.links.deleteByUserIdAndChatId(userId, chatId);
             await this.deliveries.markSkipped(notificationId);
             this.logger.info(
                 { userId, notificationId },
@@ -104,12 +111,6 @@ export class MessengerChannel extends NotificationChannelPort {
             return;
         }
         await this.deliveries.release(notificationId);
-        if (error instanceof PermanentDeliveryError) {
-            this.logger.error(
-                { err: error, userId, notificationId },
-                'Telegram notification was rejected by Bot API',
-            );
-        }
         throw error;
     }
 }

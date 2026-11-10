@@ -10,6 +10,7 @@ import {
 } from '../../application/ports/telegram-settings.port';
 
 const REDACTED = '[redacted]';
+const TRAILING_SLASHES = /\/+$/;
 
 export interface TelegramSettingsValues {
     readonly botToken: string | undefined;
@@ -50,7 +51,7 @@ export class TelegramSettings extends TelegramSettingsPort {
         this.webhook = resolveWebhook(values);
         this.linkTokenTtlSeconds = values.linkTokenTtlSeconds;
         this.deliveryReservationMs = values.deliveryReservationMs;
-        this.apiBaseUrl = values.apiBaseUrl.replace(/\/+$/, '');
+        this.apiBaseUrl = values.apiBaseUrl.replace(TRAILING_SLASHES, '');
     }
 
     get botToken(): string | null {

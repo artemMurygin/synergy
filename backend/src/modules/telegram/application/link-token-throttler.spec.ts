@@ -40,7 +40,7 @@ describe('LinkTokenThrottler', () => {
         expect(LINK_TOKEN_REQUESTS_PER_WINDOW).toBe(10);
         expect(LINK_TOKEN_WINDOW_MS).toBe(60_000);
         expect(new Set(counter.windows)).toEqual(new Set([60_000]));
-        expect([...counter.countsByKey.keys()]).toEqual([`link-token:${USER_ID}`]);
+        expect([...counter.countsByKey.keys()]).toEqual([`link-token-rate:${USER_ID}`]);
     });
 
     it('rejects the 11th request with the wait rounded up to seconds', async () => {

@@ -7,7 +7,7 @@ import {
 } from '../../application/ports/request-rate-counter.port';
 import { TELEGRAM_REDIS } from './telegram-redis.token';
 
-const KEY_PREFIX = 'telegram:rate:';
+const KEY_PREFIX = 'telegram:';
 
 const INCREMENT_SCRIPT = `
 local count = redis.call('INCR', KEYS[1])
