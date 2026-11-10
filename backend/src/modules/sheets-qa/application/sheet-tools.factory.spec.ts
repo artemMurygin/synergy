@@ -71,6 +71,14 @@ describe('createSheetTools', () => {
         expect(JSON.parse(out)).toEqual({ error: 'Unknown sheet "x"' });
     });
 
+    it('searches with the first 12 queries instead of rejecting a longer list', async () => {
+        const searchCells = vi.fn().mockResolvedValue({ hits: [], truncated: false });
+        const tools = setup({ searchCells });
+        const queries = Array.from({ length: 15 }, (_, i) => `q${String(i)}`);
+        await call(tools, 'search_cells', { queries });
+        expect(searchCells).toHaveBeenCalledWith(queries.slice(0, 12), undefined);
+    });
+
     it('asks to narrow the request instead of returning an oversized answer', async () => {
         const tools = setup({ readRows: vi.fn().mockResolvedValue({ big: 'я'.repeat(2000) }) });
         const out = await call(tools, 'read_rows', {

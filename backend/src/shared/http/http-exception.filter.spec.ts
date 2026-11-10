@@ -1,4 +1,12 @@
-import { Controller, Get, HttpException, type INestApplication, Module } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    HttpException,
+    Post,
+    type INestApplication,
+    Module,
+} from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { LoggerModule } from 'nestjs-pino';
@@ -15,6 +23,14 @@ class ProbeController {
     }
 }
 
+@Controller('echo')
+class EchoController {
+    @Post()
+    echo(@Body() body: unknown): unknown {
+        return body;
+    }
+}
+
 @Controller('limited')
 class LimitedController {
     @Get()
@@ -28,7 +44,7 @@ class LimitedController {
 
 @Module({
     imports: [LoggerModule.forRoot({ pinoHttp: { level: 'silent' } })],
-    controllers: [ProbeController, LimitedController],
+    controllers: [ProbeController, LimitedController, EchoController],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
 class ProbeModule {}
@@ -81,5 +97,23 @@ describe('HttpExceptionFilter', () => {
             code: 'GENERIC.NOT_FOUND',
             error: 'GENERIC.NOT_FOUND',
         });
+    });
+
+    const postJson = async (body: string): Promise<Response> =>
+        fetch(`${await app.getUrl()}/echo`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body,
+        });
+
+    it('answers 413 for a body above the parser limit, not 500', async () => {
+        const response = await postJson(JSON.stringify({ text: 'a'.repeat(200_000) }));
+        expect(response.status).toBe(413);
+        expect(await response.json()).toMatchObject({ statusCode: 413, code: 'entity.too.large' });
+    });
+
+    it('answers 400 for malformed JSON, not 500', async () => {
+        const response = await postJson('{"text":');
+        expect(response.status).toBe(400);
     });
 });

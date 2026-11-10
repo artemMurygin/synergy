@@ -25,6 +25,8 @@ function createResponder(maxAnswerChars: number): (run: () => Promise<unknown>) 
     };
 }
 
+const MAX_QUERIES = 12;
+
 const bookSchema = z
     .string()
     .optional()
@@ -70,7 +72,9 @@ export function createSheetTools(library: BookLibraryPort, options: SheetToolsOp
 
     const searchCells = tool(
         ({ book, queries, sheet }) =>
-            respond(() => library.get(book).reader.searchCells(queries, sheet)),
+            respond(() =>
+                library.get(book).reader.searchCells(queries.slice(0, MAX_QUERIES), sheet),
+            ),
         {
             name: 'search_cells',
             description:
@@ -80,9 +84,8 @@ export function createSheetTools(library: BookLibraryPort, options: SheetToolsOp
                 queries: z
                     .array(z.string().min(1))
                     .min(1)
-                    .max(12)
                     .describe(
-                        'Reformulations of the same request, e.g. ["дизайн", "дизайнер", "художник", "54.03.01"]',
+                        `Up to ${String(MAX_QUERIES)} reformulations of the same request (the rest are ignored), e.g. ["дизайн", "дизайнер", "художник", "54.03.01"]`,
                     ),
                 sheet: z.string().optional().describe('Limit the search to one sheet'),
             }),
