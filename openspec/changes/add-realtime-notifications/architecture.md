@@ -30,7 +30,7 @@
 | `TaskCreatedEvent` | new | — (доменное событие, `extends DomainEvent`) | `aggregateId = taskId`, `title`, `creatorId`, `assigneeId \| null` | Факт создания задачи. Публичный контракт модуля `tasks` (`tasks/contracts`) |
 | `NotificationCreatedEvent` | new | — (доменное событие) | `aggregateId = notificationId`, `recipientId` | Факт появления уведомления. Его слушают каналы доставки |
 | `OutboxEvent` (запись) | new | — (модель инфраструктуры `shared`, не доменная) | `id`, `eventType`, `aggregateId`, `payload`, `metadata`, `createdAt` | Сохранённое доменное событие |
-| `OutboxDelivery` (запись) | new | — (модель инфраструктуры `shared`) | `eventId`, `subscriber`, `status: pending \| done \| failed`, `attempts`, `nextAttemptAt`, `lastError`, `processedAt` | Состояние доставки события одному подписчику |
+| `OutboxDelivery` (запись) | new | — (модель инфраструктуры `shared`) | `eventId`, `subscriber`, `status: pending \| done \| failed`, `attempts`, `nextAttemptAt`, `lastError`, `processedAt`, `claimToken` | Состояние доставки события одному подписчику |
 
 ### Aggregates
 
@@ -81,7 +81,8 @@
 | `ConnectionAuthenticatorPort` / `ConnectionAuthenticator` | port: application; adapter: infrastructure (через экспортируемый `AccessTokenService` из `auth`) | `authenticate(token) → { userId, expiresAt }` или доменная ошибка (`token_invalid` / `token_expired` / `password_change_required`) |
 | `UserDirectoryPort` / `UserDirectory` | port: domain; adapter: infrastructure | Логин пользователя по id для текста уведомления |
 | `NotificationsController` | interface/http | `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/:id/read`, `POST /notifications/read-all` |
-| `RedisIoAdapter` | `shared/realtime` | `IoAdapter` с `@socket.io/redis-adapter`; `pingInterval` 20 с, транспорт только `websocket`, CORS по `AUTH_ALLOWED_ORIGINS`. Подключается в `main.ts` |
+| `ClusteredIoAdapter` | `shared/realtime` | `IoAdapter` с `@socket.io/redis-adapter`; `pingInterval` 20 с, транспорт только `websocket`, CORS по `AUTH_ALLOWED_ORIGINS`. Подключается в `main.ts`. Передаёт pub-соединение в `RealtimeBrokerStatus` |
+| `RealtimeBrokerStatusPort` / `RealtimeBrokerStatus` | port и adapter: `shared/realtime` | Готовность брокера рассылки между экземплярами. Gateway не отправляет событие и бросает ошибку, пока pub-соединение не готово, поэтому доставка уходит в ретрай outbox |
 
 ### Method Signatures (ключевые, по каждому сервису)
 
@@ -98,9 +99,11 @@
 | `DomainEventRegistry.restore` | `record: OutboxEventRecord` | `DomainEvent` или ошибка `UnknownEventError` / `InvalidEventPayloadError` | Для relay |
 | `OutboxRelay.wake` | — | `void` | Внеочередной цикл обработки (дебаунс) |
 | `OutboxRelay.processBatch` | — | `Promise<number>` | Один цикл: забрать, обработать, зафиксировать. Возвращает число обработанных доставок. Публичный для тестов |
-| `OutboxStorePort.claimDueDeliveries` | `limit: number, now: Date` | `Promise<ClaimedDelivery[]>` | `FOR UPDATE SKIP LOCKED`, только первые необработанные в своём агрегате для своего подписчика |
-| `OutboxStorePort.scheduleRetry` | `eventId, subscriber, attempt: number, nextAttemptAt: Date, error: string` | `Promise<void>` | Ретрай |
-| `OutboxStorePort.markFailed` | `eventId, subscriber, attempts: number, error: string` | `Promise<void>` | Исчерпаны попытки или ядовитое событие |
+| `OutboxStorePort.claimDueDeliveries` | `limit: number, now: Date` | `Promise<ClaimedDelivery[]>` | `FOR UPDATE SKIP LOCKED`, только первые необработанные в своём агрегате для своего подписчика. Выдаёт новый `claimToken` аренды |
+| `OutboxStorePort.markDone` | `lease: DeliveryLease, processedAt: Date` | `Promise<boolean>` | Пишет, только если аренда ещё принадлежит этому `claimToken`; `false` — аренду перехватили |
+| `OutboxStorePort.scheduleRetry` | `lease: DeliveryLease, attempt: number, nextAttemptAt: Date, error: string` | `Promise<boolean>` | Ретрай, с той же проверкой аренды |
+| `OutboxStorePort.markFailed` | `lease: DeliveryLease, attempts: number, error: string, processedAt: Date` | `Promise<boolean>` | Исчерпаны попытки или ядовитое событие, с той же проверкой аренды |
+| `OutboxStorePort.releaseClaim` | `lease: DeliveryLease` | `Promise<boolean>` | Возвращает необработанную доставку в очередь без траты попытки, когда аренда пачки заканчивается |
 | `RetryPolicy.nextAttemptAt` | `attempt: number, now: Date` | `Date` | Задержки 1 с, 5 с, 30 с, 2 мин, 10 мин, затем 10 мин |
 | `Task.create` | существующие props | `Task` | Плюс `addEvent(TaskCreatedEvent)` |
 | `CreateTaskUseCase.execute` | `actor: Actor, input: CreateTaskInput` | `Promise<TaskView>` | Сохранение задачи и событий атомарно |

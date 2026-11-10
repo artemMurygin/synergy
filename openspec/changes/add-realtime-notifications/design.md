@@ -74,7 +74,7 @@ transactions.run(async () => {
 - `payload jsonb`;
 - `metadata jsonb` (`correlationId`, `userId`, `timestamp`).
 
-Каждый тип события регистрирует в реестре `имя → zod-схема payload → фабрика события`. Это обходится без `as`: обработчик получает уже провалидированный объект. Неизвестный тип или невалидный payload сразу помечают строку как `failed`, без ретраев.
+Каждый тип события регистрирует в реестре `имя → zod-схема payload → фабрика события`. Это обходится без `as`: обработчик получает уже провалидированный объект. Неизвестный тип, невалидный payload или подписчик, не зарегистрированный в реестре, сразу помечают строку как `failed`, без ретраев.
 
 **Обработка (relay).**
 - `OutboxRelay` работает на каждом экземпляре. Пачку строк он забирает запросом `SELECT … WHERE status = 'pending' AND next_attempt_at <= now() ORDER BY created_at LIMIT N FOR UPDATE SKIP LOCKED` в короткой транзакции. Несколько экземпляров разбирают разные строки и не мешают друг другу.
@@ -145,7 +145,7 @@ REST (все эндпоинты требуют access-токен и работа
 
 **`outbox_events`:** `id uuid pk` (= id доменного события), `event_type`, `aggregate_id`, `payload jsonb`, `metadata jsonb`, `created_at`.
 
-**`outbox_deliveries`:** `event_id fk`, `subscriber text`, `status` (`pending | done | failed`), `attempts int`, `next_attempt_at`, `last_error text null`, `processed_at null`; первичный ключ `(event_id, subscriber)`. Индексы:
+**`outbox_deliveries`:** `event_id fk`, `subscriber text`, `status` (`pending | done | failed`), `attempts int`, `next_attempt_at`, `last_error text null`, `processed_at null`, `claim_token uuid null` (токен текущей аренды: результат пишется, только если токен совпадает, а обработчик ограничен таймаутом короче аренды); первичный ключ `(event_id, subscriber)`. Индексы:
 - частичный `(next_attempt_at) where status = 'pending'` — выборка relay;
 - `(subscriber, status)` — метрики и разбор `failed`.
 
