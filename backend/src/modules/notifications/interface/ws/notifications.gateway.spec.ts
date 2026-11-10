@@ -52,7 +52,7 @@ describe('NotificationsGateway', () => {
         expect(fixture.metrics.openConnections).toBe(0);
     });
 
-    it('logs an unexpected authentication failure and closes the connection with token_invalid', async () => {
+    it('logs an unexpected authentication failure and closes the connection with server_error', async () => {
         const failure = new Error('verifier crashed');
         vi.spyOn(fixture.app.get(ConnectionAuthenticatorPort), 'authenticate').mockImplementation(
             () => {
@@ -63,7 +63,7 @@ describe('NotificationsGateway', () => {
 
         const client = await fixture.connect({ auth: { token: fixture.token(ANNA) } });
 
-        expect(await client.nextEvent('connection_error')).toEqual({ code: 'token_invalid' });
+        expect(await client.nextEvent('connection_error')).toEqual({ code: 'server_error' });
         expect(await client.disconnected).toBe('io server disconnect');
         expect(error).toHaveBeenCalledWith(
             expect.objectContaining({ err: failure }),

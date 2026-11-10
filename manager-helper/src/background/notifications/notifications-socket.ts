@@ -11,6 +11,8 @@ import type { ConnectionState } from '@/shared/notifications/panel-protocol'
 import { getBackendUrl } from '@/shared/settings'
 
 const NAMESPACE = '/notifications'
+const SERVER_ERROR_RETRY_DELAY_MS = 5_000
+const MAX_SERVER_ERROR_RETRY_DELAY_MS = 60_000
 
 export interface SocketOptions {
   transports: string[]
@@ -52,6 +54,28 @@ export function createNotificationsSocket(
 ): NotificationsSocket {
   let socket: SocketLike | null = null
   let renewal: Promise<boolean> | null = null
+  let hasServerError = false
+  let serverErrorRetries = 0
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+  function cancelRetry(): void {
+    if (retryTimer !== null) clearTimeout(retryTimer)
+    retryTimer = null
+  }
+
+  function scheduleRetryAfterServerError(current: SocketLike): void {
+    const delayMs = Math.min(
+      SERVER_ERROR_RETRY_DELAY_MS * 2 ** serverErrorRetries,
+      MAX_SERVER_ERROR_RETRY_DELAY_MS,
+    )
+    serverErrorRetries += 1
+    handlers.onStateChange('connecting')
+    cancelRetry()
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      if (socket === current && !current.connected && !current.active) current.connect()
+    }, delayMs)
+  }
 
   function startRenewal(): void {
     renewal ??= refreshAccessToken().then(
@@ -81,10 +105,17 @@ export function createNotificationsSocket(
 
   function listen(current: SocketLike): void {
     current.on('connect', () => {
+      serverErrorRetries = 0
       handlers.onStateChange('online')
       handlers.onConnected()
     })
     current.on('disconnect', () => {
+      if (hasServerError && socket === current && !current.active) {
+        hasServerError = false
+        scheduleRetryAfterServerError(current)
+        return
+      }
+      hasServerError = false
       reportDisconnected(current)
       if (renewal !== null && !current.active) void reconnectAfterRenewal(current)
     })
@@ -92,7 +123,12 @@ export function createNotificationsSocket(
       reportDisconnected(current)
     })
     current.on('connection_error', (payload: unknown) => {
-      if (parseConnectionErrorCode(payload) !== 'token_expired') return
+      const code = parseConnectionErrorCode(payload)
+      if (code === 'server_error') {
+        hasServerError = true
+        return
+      }
+      if (code !== 'token_expired') return
       startRenewal()
       if (!current.connected && !current.active) void reconnectAfterRenewal(current)
     })
@@ -156,6 +192,9 @@ export function createNotificationsSocket(
       const current = socket
       socket = null
       renewal = null
+      hasServerError = false
+      serverErrorRetries = 0
+      cancelRetry()
       if (current !== null) {
         current.off()
         current.disconnect()

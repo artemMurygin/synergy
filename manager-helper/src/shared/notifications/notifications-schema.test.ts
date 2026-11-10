@@ -96,6 +96,7 @@ describe('parseConnectionErrorCode', () => {
     expect(parseConnectionErrorCode({ code: 'password_change_required' })).toBe(
       'password_change_required',
     )
+    expect(parseConnectionErrorCode({ code: 'server_error' })).toBe('server_error')
   })
 
   it('returns null for an unknown payload', () => {

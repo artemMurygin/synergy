@@ -20,9 +20,11 @@ import { NotificationClockPort } from '../../domain/ports/notification-clock.por
 import {
     AUTH_EXPIRED_EVENT,
     CONNECTION_ERROR_EVENT,
+    type ConnectionErrorCode,
     NOTIFICATIONS_NAMESPACE,
     type NotificationsNamespace,
     type NotificationsSocket,
+    SERVER_ERROR_CODE,
     userRoom,
 } from './realtime-protocol';
 
@@ -67,11 +69,12 @@ export class NotificationsGateway implements OnGatewayConnection<NotificationsSo
             connection = this.authenticate(client);
         } catch (error: unknown) {
             if (error instanceof ConnectionRejectedError) {
-                this.reject(client, error);
+                this.logger.info({ reason: error.reason }, 'Realtime connection rejected');
+                this.refuse(client, error.reason);
                 return;
             }
             this.logger.error({ err: error }, 'Realtime connection failed unexpectedly');
-            this.reject(client, new ConnectionRejectedError('token_invalid'));
+            this.refuse(client, SERVER_ERROR_CODE);
             return;
         }
         await client.join(userRoom(connection.userId));
@@ -104,9 +107,8 @@ export class NotificationsGateway implements OnGatewayConnection<NotificationsSo
         return this.authenticator.authenticate(auth.success ? auth.data.token : '');
     }
 
-    private reject(client: NotificationsSocket, error: ConnectionRejectedError): void {
-        this.logger.info({ reason: error.reason }, 'Realtime connection rejected');
-        client.emit(CONNECTION_ERROR_EVENT, { code: error.reason });
+    private refuse(client: NotificationsSocket, code: ConnectionErrorCode): void {
+        client.emit(CONNECTION_ERROR_EVENT, { code });
         client.disconnect(true);
     }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseNotificationEvent } from './notifications-events'
+import { ConnectionErrorSchema, parseNotificationEvent } from './notifications-events'
 
 const notification = {
   id: 'n1',
@@ -57,5 +57,18 @@ describe('parseNotificationEvent', () => {
     ['read with all false', 'notification.read', { all: false, unreadCount: 1 }]
   ])('rejects %s', (_name, eventName, payload) => {
     expect(parseNotificationEvent(eventName, payload)).toBeNull()
+  })
+})
+
+describe('ConnectionErrorSchema', () => {
+  it.each(['token_invalid', 'token_expired', 'password_change_required', 'origin_not_allowed', 'server_error'])(
+    'accepts %s',
+    (code) => {
+      expect(ConnectionErrorSchema.safeParse({ code }).success).toBe(true)
+    }
+  )
+
+  it('rejects an unknown code', () => {
+    expect(ConnectionErrorSchema.safeParse({ code: 'boom' }).success).toBe(false)
   })
 })

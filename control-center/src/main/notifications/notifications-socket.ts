@@ -4,6 +4,7 @@ import { ConnectionErrorSchema, NOTIFICATION_EVENT_NAMES, parseNotificationEvent
 
 const NAMESPACE = '/notifications'
 const DEFAULT_RETRY_DELAY_MS = 5_000
+const MAX_SERVER_ERROR_RETRY_DELAY_MS = 60_000
 const SERVER_DISCONNECT = 'io server disconnect'
 const TERMINAL_CODES: readonly ConnectionErrorCode[] = ['token_invalid', 'password_change_required', 'origin_not_allowed']
 
@@ -56,6 +57,7 @@ interface Connection {
   lastErrorCode: ConnectionErrorCode | null
   isTokenUnavailable: boolean
   mustRefreshToken: boolean
+  serverErrorRetries: number
   retryTimer: ReturnType<typeof setTimeout> | null
 }
 
@@ -75,17 +77,27 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
 
   const isCurrent = (candidate: Connection): boolean => connection === candidate
 
+  const scheduleReconnect = (current: Connection, delayMs: number): void => {
+    setState('connecting')
+    current.retryTimer = setTimeout(() => {
+      current.retryTimer = null
+      if (isCurrent(current)) current.client.connect()
+    }, delayMs)
+  }
+
   const handleServerDisconnect = (current: Connection): void => {
     const code = current.lastErrorCode
     current.lastErrorCode = null
+    if (code === 'server_error') {
+      const delayMs = Math.min(retryDelayMs * 2 ** current.serverErrorRetries, MAX_SERVER_ERROR_RETRY_DELAY_MS)
+      current.serverErrorRetries += 1
+      scheduleReconnect(current, delayMs)
+      return
+    }
     if (code !== null && TERMINAL_CODES.includes(code)) {
       if (current.isTokenUnavailable) {
         current.isTokenUnavailable = false
-        setState('connecting')
-        current.retryTimer = setTimeout(() => {
-          current.retryTimer = null
-          if (isCurrent(current)) current.client.connect()
-        }, retryDelayMs)
+        scheduleReconnect(current, retryDelayMs)
         return
       }
       setState('offline')
@@ -120,13 +132,16 @@ export function createNotificationsSocket(dependencies: NotificationsSocketDepen
       lastErrorCode: null,
       isTokenUnavailable: false,
       mustRefreshToken: false,
+      serverErrorRetries: 0,
       retryTimer: null
     }
     connection = current
     const { client } = current
 
     client.on('connect', () => {
-      if (isCurrent(current)) setState('online')
+      if (!isCurrent(current)) return
+      current.serverErrorRetries = 0
+      setState('online')
     })
     client.on('connect_error', () => {
       if (isCurrent(current)) setState('connecting')

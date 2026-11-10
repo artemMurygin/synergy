@@ -8,11 +8,14 @@ import type {
 export const NOTIFICATIONS_NAMESPACE = '/notifications';
 export const CONNECTION_ERROR_EVENT = 'connection_error';
 export const AUTH_EXPIRED_EVENT = 'auth_expired';
+export const SERVER_ERROR_CODE = 'server_error';
+
+export type ConnectionErrorCode = ConnectionRejectionReason | typeof SERVER_ERROR_CODE;
 
 export interface ServerToClientEvents {
     'notification.created': (payload: NotificationCreatedRealtimeEvent['payload']) => void;
     'notification.read': (payload: NotificationReadRealtimeEvent['payload']) => void;
-    connection_error: (payload: { code: ConnectionRejectionReason }) => void;
+    connection_error: (payload: { code: ConnectionErrorCode }) => void;
     auth_expired: () => void;
 }
 

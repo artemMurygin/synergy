@@ -131,7 +131,7 @@
 **Контракт событий WebSocket** (namespace `/notifications`, сервер → клиент):
 - `notification.created` — `{ notification: NotificationDto, unreadCount }`;
 - `notification.read` — `{ notificationIds: string[] } | { all: true }` плюс `unreadCount`;
-- `connection_error` — `{ code: 'token_invalid' | 'token_expired' | 'password_change_required' | 'origin_not_allowed' }`;
+- `connection_error` — `{ code: 'token_invalid' | 'token_expired' | 'password_change_required' | 'origin_not_allowed' | 'server_error' }`; `server_error` — внутренняя ошибка сервера при установке соединения, временная: клиент переподключается с backoff, сессию не завершает. Остальные коды, кроме `token_expired`, клиент считает терминальными;
 - `auth_expired`.
 
 `NotificationDto`: `{ id, type, title, body, target: { type, id }, actorId, createdAt, readAt }`, даты в ISO 8601.

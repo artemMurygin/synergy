@@ -41,6 +41,7 @@ beforeEach(() => {
   })
 })
 afterEach(() => {
+  vi.useRealTimers()
   clearAccessToken()
 })
 
@@ -145,6 +146,60 @@ describe('notifications-socket', () => {
     expect(refreshAccessToken).not.toHaveBeenCalled()
     expect(onStateChange).toHaveBeenLastCalledWith('offline')
     expect(socket.isAlive()).toBe(false)
+  })
+
+  it('stays offline after a token_invalid rejection', async () => {
+    vi.useFakeTimers()
+    setAccessToken('tok')
+    const { socket, onStateChange } = setup()
+    await socket.connect()
+    const current = lastSocket()
+    current.emit('connection_error', { code: 'token_invalid' })
+    current.simulateServerDisconnect()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(current.connectCalls).toBe(0)
+    expect(onStateChange).toHaveBeenLastCalledWith('offline')
+  })
+
+  it('reconnects with a growing delay after server_error and resets it once connected', async () => {
+    vi.useFakeTimers()
+    setAccessToken('tok')
+    const { socket, onStateChange } = setup()
+    await socket.connect()
+    const current = lastSocket()
+    const rejectWithServerError = (): void => {
+      current.emit('connection_error', { code: 'server_error' })
+      current.simulateServerDisconnect()
+    }
+    rejectWithServerError()
+    expect(onStateChange).toHaveBeenLastCalledWith('connecting')
+    await vi.advanceTimersByTimeAsync(4_999)
+    expect(current.connectCalls).toBe(0)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(current.connectCalls).toBe(1)
+    rejectWithServerError()
+    await vi.advanceTimersByTimeAsync(9_999)
+    expect(current.connectCalls).toBe(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(current.connectCalls).toBe(2)
+    current.simulateConnect()
+    rejectWithServerError()
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(current.connectCalls).toBe(3)
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+  })
+
+  it('does not reconnect after server_error once disconnected', async () => {
+    vi.useFakeTimers()
+    setAccessToken('tok')
+    const { socket } = setup()
+    await socket.connect()
+    const current = lastSocket()
+    current.emit('connection_error', { code: 'server_error' })
+    current.simulateServerDisconnect()
+    socket.disconnect()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(current.connectCalls).toBe(0)
   })
 
   it('does not reconnect when the token refresh fails', async () => {

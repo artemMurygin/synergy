@@ -300,6 +300,45 @@ describe('createNotificationsSocket', () => {
     }
   )
 
+  it('reconnects with a growing delay after server_error and resets it once connected', () => {
+    vi.useFakeTimers()
+    const { session, latest, socket, logger } = setup()
+    session.setSnapshot(AUTHENTICATED)
+    const rejectWithServerError = (): void => {
+      latest().emit('connection_error', { code: 'server_error' })
+      latest().emit('disconnect', 'io server disconnect')
+    }
+    rejectWithServerError()
+    expect(socket.getConnectionState()).toBe('connecting')
+    expect(JSON.stringify(logger.warn.mock.calls)).toContain('server_error')
+    vi.advanceTimersByTime(4_999)
+    expect(latest().client.connect).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    expect(latest().client.connect).toHaveBeenCalledTimes(2)
+    rejectWithServerError()
+    vi.advanceTimersByTime(9_999)
+    expect(latest().client.connect).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(1)
+    expect(latest().client.connect).toHaveBeenCalledTimes(3)
+    latest().emit('connect')
+    rejectWithServerError()
+    vi.advanceTimersByTime(5_000)
+    expect(latest().client.connect).toHaveBeenCalledTimes(4)
+    expect(session.auth.refresh).not.toHaveBeenCalled()
+  })
+
+  it('does not reconnect after server_error once the session ends', () => {
+    vi.useFakeTimers()
+    const { session, latest, socket } = setup()
+    session.setSnapshot(AUTHENTICATED)
+    latest().emit('connection_error', { code: 'server_error' })
+    latest().emit('disconnect', 'io server disconnect')
+    session.setSnapshot(UNAUTHENTICATED)
+    vi.advanceTimersByTime(60_000)
+    expect(latest().client.connect).toHaveBeenCalledTimes(1)
+    expect(socket.getConnectionState()).toBe('offline')
+  })
+
   it('retries later when the token could not be obtained', async () => {
     vi.useFakeTimers()
     const { session, latest, options } = setup()

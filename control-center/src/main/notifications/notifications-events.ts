@@ -29,7 +29,7 @@ const ReadPayloadSchema = z.union([
 ])
 
 export const ConnectionErrorSchema = z.object({
-  code: z.enum(['token_invalid', 'token_expired', 'password_change_required', 'origin_not_allowed'])
+  code: z.enum(['token_invalid', 'token_expired', 'password_change_required', 'origin_not_allowed', 'server_error'])
 })
 
 export type ConnectionErrorCode = z.infer<typeof ConnectionErrorSchema>['code']

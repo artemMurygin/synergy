@@ -49,6 +49,7 @@ export const CONNECTION_ERROR_CODES = [
   'token_expired',
   'password_change_required',
   'origin_not_allowed',
+  'server_error',
 ] as const
 
 const connectionErrorPayloadSchema = z.object({ code: z.enum(CONNECTION_ERROR_CODES) })
