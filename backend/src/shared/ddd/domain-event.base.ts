@@ -3,7 +3,7 @@ import { RequestContext } from '../context/request-context';
 import { ArgumentNotProvidedError } from '../errors';
 import { Guard } from './guard';
 
-interface DomainEventMetadata {
+export interface DomainEventMetadata {
     readonly timestamp: number;
     readonly correlationId: string;
     readonly causationId?: string;
@@ -11,6 +11,7 @@ interface DomainEventMetadata {
 }
 
 export type DomainEventProps<T> = Omit<T, 'id' | 'metadata'> & {
+    id?: string;
     aggregateId: string;
     metadata?: DomainEventMetadata;
 };
@@ -26,7 +27,7 @@ export abstract class DomainEvent {
         if (Guard.isEmpty(props)) {
             throw new ArgumentNotProvidedError('DomainEvent props should not be empty');
         }
-        this.id = randomUUID();
+        this.id = props.id ?? randomUUID();
         this.aggregateId = props.aggregateId;
         this.metadata = {
             correlationId: props.metadata?.correlationId ?? RequestContext.getCorrelationId(),
