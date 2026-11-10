@@ -50,6 +50,15 @@ afterEach(() => {
 })
 
 describe('NotificationsOverlay: narrow panel', () => {
+  it('keeps the visually hidden row labels inside the scrolling list so the panel does not scroll', () => {
+    setWidth(380)
+    renderOverlay()
+    const list = screen.getByRole('list', { name: 'Список уведомлений' })
+    const scroller = list.closest('.overflow-y-auto')
+    expect(scroller).not.toBeNull()
+    expect(scroller?.classList.contains('relative')).toBe(true)
+  })
+
   it('lists the notifications newest first and shows the unread count', () => {
     setWidth(380)
     renderOverlay({ unreadCount: 3 })
