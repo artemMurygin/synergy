@@ -23,3 +23,5 @@ export class AttachmentTooLargeError extends BackendError {}
 
 /** The task already has the maximum number of attachments (HTTP 422, code TASK_ATTACHMENT_LIMIT). */
 export class AttachmentLimitError extends BackendError {}
+
+export class NotificationNotFoundError extends BackendError {}
