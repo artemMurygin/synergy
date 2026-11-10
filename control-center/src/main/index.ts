@@ -1,5 +1,9 @@
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, safeStorage, shell } from 'electron'
 import { join } from 'path'
+import type { AuthService } from './auth/application/auth-service'
+import { createAuthService } from './auth/auth-composition'
+import { TokenVault } from './auth/infrastructure/token-vault'
+import { registerAuthIpc } from './auth/interface/auth-ipc'
 import { getBackendUrl } from './backend-config'
 import { install as installCcApi, registerScheme as registerCcApiScheme } from './cc-api-protocol'
 
@@ -47,8 +51,16 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  let auth: AuthService
   try {
-    installCcApi(getBackendUrl())
+    const backendUrl = getBackendUrl()
+    auth = createAuthService({
+      backendUrl,
+      fetchFn: (url, init) => net.fetch(url, init),
+      vault: new TokenVault(safeStorage, join(app.getPath('userData'), 'refresh-token.bin'))
+    })
+    registerAuthIpc({ ipcMain, auth, getWindows: () => BrowserWindow.getAllWindows() })
+    installCcApi(backendUrl, auth)
   } catch (error) {
     // A bad CC_BACKEND_URL must not leave a windowless process behind
     dialog.showErrorBox('Control Center', error instanceof Error ? error.message : String(error))
@@ -56,6 +68,7 @@ app.whenReady().then(() => {
     return
   }
   createWindow()
+  auth.restore().catch(() => undefined)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

@@ -6,7 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Thread } from '@/lib/backend/schema'
 import { getThreadHistory, listThreads, deleteThread } from '@/lib/backend/threads.api'
 import { useChatStore } from '@/stores/chat.store'
+import { useUiStore } from '@/stores/ui.store'
 import App from './App'
+import { authenticatedSnapshot, installBridgeMock, unauthenticatedSnapshot } from '@/features/auth/auth-test-utils'
+import { useSessionStore } from '@/features/auth/session.store'
+import { EventType } from '@ag-ui/client'
+import { FakeAgent } from '@/features/chat/fake-agent'
+import { createAgent } from '@/lib/backend/agent'
+import { act } from '@testing-library/react'
 
 vi.mock('@/lib/backend/agent')
 vi.mock('@/lib/backend/threads.api')
@@ -32,8 +39,13 @@ function mount() {
   return userEvent.setup()
 }
 
+let bridge: ReturnType<typeof installBridgeMock>
+
 beforeEach(() => {
+  bridge = installBridgeMock(authenticatedSnapshot)
+  useSessionStore.setState({ snapshot: authenticatedSnapshot })
   useChatStore.setState({ activeThreadId: null })
+  useUiStore.setState({ section: 'chats' })
   vi.mocked(listThreads).mockResolvedValue([mk('a', 'Первый'), mk('b', 'Второй')])
   vi.mocked(deleteThread).mockResolvedValue(undefined)
   vi.mocked(getThreadHistory).mockImplementation(async (id: string) => ({
@@ -43,10 +55,64 @@ beforeEach(() => {
 })
 
 describe('App', () => {
+  it('shows the login form and no chats when unauthenticated', async () => {
+    bridge = installBridgeMock(unauthenticatedSnapshot)
+    useSessionStore.setState({ snapshot: unauthenticatedSnapshot })
+    mount()
+    expect(await screen.findByRole('button', { name: /войти/i })).toBeTruthy()
+    expect(screen.queryByText('Чаты')).toBeNull()
+    expect(screen.queryByRole('navigation')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Задачи' })).toBeNull()
+  })
+
+  it('shows the navigation rail after sign-in and keeps the selected chat when switching sections', async () => {
+    const user = mount()
+    await user.click(await screen.findByText('Второй'))
+    await screen.findByText('Вопрос из b')
+    expect(screen.getByRole('navigation')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Задачи' }))
+    expect(screen.queryByRole('region', { name: 'Чаты' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Чаты' }))
+    expect(await screen.findByText('Вопрос из b')).toBeTruthy()
+    expect(useChatStore.getState().activeThreadId).toBe('b')
+  })
+
+  it('shows the user login and logs out from the sidebar footer', async () => {
+    bridge.logout.mockResolvedValue({ serverRevoked: true })
+    const user = mount()
+    expect(await screen.findByText('admin')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Выйти' }))
+    await waitFor(() => {
+      expect(bridge.logout).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('aborts the running answer and shows the login form when the session is lost', async () => {
+    const agent = new FakeAgent({ url: 'cc-api://backend/agent', threadId: 'a' })
+    vi.mocked(createAgent).mockReturnValue(agent)
+    const abortRun = vi.spyOn(agent, 'abortRun')
+    const user = mount()
+    await user.click(await screen.findByText('Первый'))
+    await screen.findByText('Вопрос из a')
+    await user.type(screen.getByRole('textbox'), 'долгий вопрос{Enter}')
+    await waitFor(() => {
+      expect(agent.inputs.length).toBe(1)
+    })
+    act(() => {
+      agent.stream.next({ type: EventType.RUN_STARTED, threadId: 'a', runId: 'r' })
+    })
+    act(() => bridge.emit(unauthenticatedSnapshot))
+    expect(await screen.findByRole('button', { name: /войти/i })).toBeTruthy()
+    await waitFor(() => {
+      expect(abortRun).toHaveBeenCalled()
+    })
+    expect(screen.queryByText('Вопрос из a')).toBeNull()
+  })
+
   it('renders the chat list in the sidebar and the thread in the main slot', async () => {
     mount()
     expect(await screen.findByText('Первый')).toBeTruthy()
-    expect(screen.getByText('Чаты')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Чаты' })).getByText('Чаты')).toBeTruthy()
     expect(screen.getByText('Выберите чат')).toBeTruthy()
   })
 

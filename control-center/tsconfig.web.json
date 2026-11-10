@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "paths": { "@/*": ["./src/renderer/src/*"] }
   },
-  "include": ["src/renderer/src/**/*", "src/preload/index.d.ts"]
+  "include": ["src/renderer/src/**/*", "src/preload/index.d.ts", "src/preload/auth-bridge.ts", "src/preload/auth-bridge-impl.ts"]
 }

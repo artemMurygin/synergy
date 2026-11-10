@@ -50,6 +50,8 @@
   --input: #e0e1e5;
   --ring: var(--brand-red);
   --radius: 0.75rem;
+  --info-soft: #e9effc;
+  --success-soft: #e6f4ec;
 }
 
 .dark {
@@ -69,6 +71,8 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --info-soft: oklch(0.3 0.06 260);
+  --success-soft: oklch(0.3 0.05 155);
 }
 
 @theme inline {
@@ -101,6 +105,8 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-success-soft: var(--success-soft);
   --font-display: 'Onest', system-ui, sans-serif;
   --font-sans: 'Raleway', system-ui, sans-serif;
   --radius-sm: 8px;
