@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import type { Request } from 'express';
@@ -9,6 +9,11 @@ const ORIGIN = 'chrome-extension://abc';
 
 @Controller('probe')
 class ProbeController {
+    @Post()
+    echo(@Body() body: { text?: string }): { length: number } {
+        return { length: body.text?.length ?? 0 };
+    }
+
     @Get()
     read(@Req() request: Request): { cookies: unknown; ip: string | undefined } {
         return { cookies: request.cookies, ip: request.ip };
@@ -31,6 +36,19 @@ afterEach(async () => {
 });
 
 describe('configureHttp', () => {
+    const post = (base: string, text: string): Promise<Response> =>
+        fetch(`${base}/probe`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ text }),
+        });
+
+    it('accepts a JSON body above the Express default of 100kb', async () => {
+        const base = await start({ allowedOrigins: [] });
+        const response = await post(base, 'a'.repeat(150_000));
+        expect(response.status).toBe(201);
+    });
+
     it('answers the preflight of any extension for a scheme wildcard', async () => {
         const base = await start({ allowedOrigins: ['chrome-extension://*'] });
         const response = await fetch(`${base}/probe`, {

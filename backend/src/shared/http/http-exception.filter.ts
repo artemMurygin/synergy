@@ -75,6 +75,20 @@ function readHttpExceptionCode(exception: HttpException): string | undefined {
         : undefined;
 }
 
+interface ClientHttpError extends Error {
+    status: number;
+    type?: string;
+}
+
+/** 4xx errors of Express middleware (body-parser: too large, malformed JSON) are not HttpException. */
+function asClientHttpError(exception: unknown): ClientHttpError | undefined {
+    if (!(exception instanceof Error)) return undefined;
+    const { status, expose } = exception as { status?: unknown; expose?: unknown };
+    return typeof status === 'number' && status >= 400 && status < 500 && expose === true
+        ? (exception as ClientHttpError)
+        : undefined;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
     constructor(
@@ -126,6 +140,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
                     ? { code: readHttpExceptionCode(exception) }
                     : {}),
                 ...readExtras(exception.getResponse()),
+                correlationId,
+                requestId,
+            });
+        }
+
+        const clientError = asClientHttpError(exception);
+        if (clientError !== undefined) {
+            this.logException(clientError.status, clientError);
+            return new ApiErrorResponse({
+                statusCode: clientError.status,
+                message: clientError.message,
+                error: clientError.name,
+                ...(clientError.type !== undefined ? { code: clientError.type } : {}),
                 correlationId,
                 requestId,
             });
