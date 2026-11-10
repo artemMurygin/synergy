@@ -5,6 +5,7 @@ import { PasswordHash } from '../domain/password-hash';
 import type { AuthSessionRepository } from '../domain/ports/auth-session-repository.port';
 import type { UserRepository } from '../domain/ports/user-repository.port';
 import type { User } from '../domain/user';
+import type { UserSearch } from '../domain/user-search';
 
 export const NOW = new Date('2026-01-01T00:00:00Z');
 export const GRACE_MS = 10_000;
@@ -23,6 +24,17 @@ export class FakeUsers implements UserRepository {
     existsByLogin = vi.fn((login: Login) =>
         Promise.resolve([...this.byId.values()].some((u) => u.login.equals(login))),
     );
+    searchActive = vi.fn((search: UserSearch, limit: number, offset: number) => {
+        const needle = search.text?.toLowerCase() ?? '';
+        const matched = [...this.byId.values()]
+            .filter((u) => u.isActive && u.login.value.includes(needle))
+            .map((u) => ({ id: u.id, login: u.login.value }))
+            .sort((a, b) => (a.login < b.login ? -1 : a.login > b.login ? 1 : 0));
+        return Promise.resolve({
+            items: matched.slice(offset, offset + limit),
+            total: matched.length,
+        });
+    });
 }
 
 export class FakeSessions implements AuthSessionRepository {

@@ -13,6 +13,7 @@ import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
 import { ChangePasswordUseCase } from './application/change-password.use-case';
 import { GetCurrentUserUseCase } from './application/get-current-user.use-case';
+import { ListActiveUsersUseCase } from './application/list-active-users.use-case';
 import { LoginThrottler, LoginThrottlerLimits } from './application/login-throttler';
 import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
@@ -51,6 +52,7 @@ import { LoginThrottlerGuard } from './interface/http/login-throttler.guard';
 import { OriginGuard } from './interface/http/origin.guard';
 import { PasswordChangeGuard } from './interface/http/password-change.guard';
 import { RefreshCookieService } from './interface/http/refresh-cookie.service';
+import { UsersController } from './interface/http/users.controller';
 
 @Injectable()
 class RedisLifecycle implements OnApplicationShutdown {
@@ -64,13 +66,14 @@ class RedisLifecycle implements OnApplicationShutdown {
 
 @Module({
     imports: [PostgresModule],
-    controllers: [AuthController],
+    controllers: [AuthController, UsersController],
     providers: [
         LoginUseCase,
         RefreshSessionUseCase,
         LogoutUseCase,
         ChangePasswordUseCase,
         GetCurrentUserUseCase,
+        ListActiveUsersUseCase,
         SeedUsersUseCase,
         LoginThrottler,
         LoginThrottlerGuard,

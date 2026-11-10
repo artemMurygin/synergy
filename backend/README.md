@@ -11,13 +11,17 @@ npm run prisma:generate
 npm run start:dev
 ```
 
-- API: http://localhost:1234 (`/health`, `/metrics`)
+- API: http://localhost:3000 (`/health`, `/metrics`)
 - Grafana: http://localhost:3001 (datasources Prometheus и Loki уже подключены)
 - Prometheus: http://localhost:9090
 
 ## Авторизация (JWT)
 
 Маршруты: `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/change-password`, `GET /auth/me`. Access-токен передаётся в `Authorization: Bearer <accessToken>`. Refresh-токен по умолчанию лежит только в cookie `mh_refresh` (HttpOnly, SameSite=Strict, Path=/auth); при заголовке `X-Client-Type: desktop` он идёт в теле запроса, cookie не ставится.
+
+### Список пользователей
+
+`GET /users` (Bearer-токен обязателен, Swagger: `/docs`, тег `users`) возвращает страницу активных пользователей для выбора ответственного и наблюдателей задач. Параметры: `search` (подстрока логина без учёта регистра, до 200 символов), `limit` (1..100, по умолчанию 20), `page` (с нуля). Ответ: `{ items: [{ id, login }], total, limit, page }`, сортировка по логину; отключённые пользователи не попадают в список, хэши и служебные поля не возвращаются. Некорректные параметры дают 400, отсутствие токена — 401.
 
 ### Переменные окружения
 | Переменная | По умолчанию | Назначение |

@@ -7,6 +7,7 @@ import { AuthSession } from '../domain/auth-session';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { User } from '../domain/user';
+import { UserSearch } from '../domain/user-search';
 import { SlonikAuthSessionRepository } from './slonik-auth-session.repository';
 import { SlonikTransactionRunner } from './slonik-transaction-runner';
 import { SlonikUserRepository } from './slonik-user.repository';
@@ -120,6 +121,53 @@ describe.skipIf(adminUrl === undefined)('Slonik auth repositories', () => {
             await users.save(newUser());
             expect(await users.existsByLogin(Login.of('Ivanov'))).toBe(true);
             expect(await users.existsByLogin(Login.of('petrov'))).toBe(false);
+        });
+    });
+
+    describe('searchActive', () => {
+        const save = async (login: string, active = true): Promise<User> => {
+            const user = newUser(login);
+            if (!active) user.deactivate();
+            await users.save(user);
+            return user;
+        };
+
+        it('returns only active users sorted by login with the total', async () => {
+            await save('yuri');
+            const anna = await save('anna');
+            await save('anton', false);
+            const result = await users.searchActive(UserSearch.of(undefined), 10, 0);
+            expect(result.total).toBe(2);
+            expect(result.items).toEqual([
+                { id: anna.id, login: 'anna' },
+                { id: result.items[1]?.id, login: 'yuri' },
+            ]);
+            expect(Object.keys(result.items[0] ?? {}).sort()).toEqual(['id', 'login']);
+        });
+
+        it('searches case-insensitively by substring', async () => {
+            await save('anna');
+            await save('ivan');
+            await save('Joanne');
+            const result = await users.searchActive(UserSearch.of('AN'), 10, 0);
+            expect(result.items.map((u) => u.login)).toEqual(['anna', 'ivan', 'joanne']);
+            expect((await users.searchActive(UserSearch.of('zzz'), 10, 0)).total).toBe(0);
+        });
+
+        it('treats % and _ literally', async () => {
+            await save('a_b');
+            await save('axb');
+            await save('50%off');
+            expect((await users.searchActive(UserSearch.of('a_b'), 10, 0)).items).toHaveLength(1);
+            expect((await users.searchActive(UserSearch.of('%'), 10, 0)).items).toHaveLength(1);
+            expect((await users.searchActive(UserSearch.of('_'), 10, 0)).items).toHaveLength(1);
+        });
+
+        it('paginates and keeps the overall total', async () => {
+            for (const login of ['a1', 'a2', 'a3']) await save(login);
+            const page = await users.searchActive(UserSearch.of(undefined), 2, 2);
+            expect(page.items.map((u) => u.login)).toEqual(['a3']);
+            expect(page.total).toBe(3);
         });
     });
 

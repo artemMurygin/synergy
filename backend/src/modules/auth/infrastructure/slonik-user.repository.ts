@@ -6,6 +6,8 @@ import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { UserRepository } from '../domain/ports/user-repository.port';
 import { User } from '../domain/user';
+import type { UserSearch } from '../domain/user-search';
+import type { UserSummary } from '../domain/user-summary';
 import { SlonikTransactionRunner } from './slonik-transaction-runner';
 
 const userRow = z.object({
@@ -17,6 +19,8 @@ const userRow = z.object({
     created_at: z.number(),
     password_changed_at: z.number().nullable(),
 });
+
+const summaryRow = z.object({ id: z.string(), login: z.string() });
 
 const COLUMNS = sql.fragment`
     id, login, password_hash, must_change_password, is_active,
@@ -77,5 +81,27 @@ export class SlonikUserRepository extends UserRepository {
     async existsByLogin(login: Login): Promise<boolean> {
         return this.tx.executor().exists(sql.unsafe`
             SELECT 1 FROM auth_users WHERE lower(login) = ${login.value}`);
+    }
+
+    async searchActive(
+        search: UserSearch,
+        limit: number,
+        offset: number,
+    ): Promise<{ items: UserSummary[]; total: number }> {
+        const pattern = search.likePattern;
+        const where =
+            pattern === null
+                ? sql.fragment`is_active`
+                : sql.fragment`is_active AND login ILIKE ${pattern} ESCAPE '\\'`;
+        const executor = this.tx.executor();
+        const rows = await executor.any(sql.unsafe`
+            SELECT id, login FROM auth_users WHERE ${where}
+            ORDER BY lower(login), id LIMIT ${limit} OFFSET ${offset}`);
+        const count = await executor.oneFirst(sql.unsafe`
+            SELECT count(*)::int FROM auth_users WHERE ${where}`);
+        return {
+            items: rows.map((row) => summaryRow.parse(row)),
+            total: z.number().parse(count),
+        };
     }
 }
