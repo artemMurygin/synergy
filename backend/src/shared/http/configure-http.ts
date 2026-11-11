@@ -30,7 +30,7 @@ export function configureHttp(app: NestExpressApplication, options: HttpOptions)
             callback(null, origin === undefined || isOriginAllowed(origin, options.allowedOrigins));
         },
         credentials: true,
-        allowedHeaders: ['Authorization', 'Content-Type', 'X-Client-Type'],
+        allowedHeaders: ['Authorization', 'Content-Type', 'X-Client-Type', 'X-Client-App'],
         exposedHeaders: ['Retry-After'],
     });
 }

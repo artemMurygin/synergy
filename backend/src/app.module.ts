@@ -11,6 +11,7 @@ import { OutboxModule } from './shared/outbox/outbox.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
@@ -26,6 +27,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
         AuthModule,
         AuditAgentModule,
         SheetsQaModule,
+        AssistantModule,
         TasksModule,
         NotificationsModule,
         TelegramModule,

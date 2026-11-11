@@ -33,6 +33,4 @@ export const BotReplies = {
         `Аккаунт ${escapeHtml(login)} подключён.\n\nДоступные команды:\n${LINKED_COMMANDS}`,
     notificationsDisabled: (): string => 'Уведомления выключены. Включить снова: /unmute',
     notificationsEnabled: (): string => 'Уведомления включены. Выключить: /mute',
-    freeTextNotSupported: (): string =>
-        `Текстовые запросы пока не поддерживаются, они появятся позже.\n\nДоступные команды:\n${LINKED_COMMANDS}`,
 } as const;

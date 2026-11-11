@@ -91,6 +91,21 @@ describe('configureHttp', () => {
         );
     });
 
+    it('allows the X-Client-App header in the preflight', async () => {
+        const base = await start({ allowedOrigins: [ORIGIN] });
+        const response = await fetch(`${base}/probe`, {
+            method: 'OPTIONS',
+            headers: {
+                origin: ORIGIN,
+                'access-control-request-method': 'POST',
+                'access-control-request-headers': 'authorization,content-type,x-client-app',
+            },
+        });
+        expect(response.headers.get('access-control-allow-headers')?.toLowerCase()).toContain(
+            'x-client-app',
+        );
+    });
+
     it('exposes Retry-After and does not allow a foreign origin', async () => {
         const base = await start({ allowedOrigins: [ORIGIN] });
         const allowed = await fetch(`${base}/probe`, { headers: { origin: ORIGIN } });

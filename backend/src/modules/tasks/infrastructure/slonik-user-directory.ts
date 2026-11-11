@@ -20,4 +20,17 @@ export class SlonikUserDirectory extends UserDirectory {
             WHERE id = ANY(${sql.array([...new Set(ids)], 'uuid')}) AND is_active`);
         return rows.map((row) => userRow.parse(row));
     }
+
+    async searchActive(query: string, limit: number): Promise<DirectoryUser[]> {
+        const needle = query.trim();
+        if (needle === '') return [];
+        // LIKE wildcards of the query are escaped so that it is matched literally.
+        const pattern = `%${needle.replace(/[\\%_]/g, '\\$&')}%`;
+        const rows = await this.pool.any(sql.unsafe`
+            SELECT id, login FROM auth_users
+            WHERE is_active AND login ILIKE ${pattern}
+            ORDER BY lower(login), id
+            LIMIT ${limit}`);
+        return rows.map((row) => userRow.parse(row));
+    }
 }

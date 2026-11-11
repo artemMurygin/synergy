@@ -67,13 +67,6 @@ describe('BotReplies', () => {
         expect(BotReplies.notificationsEnabled()).toContain('/mute');
     });
 
-    it('says free text is not supported yet and lists the commands', () => {
-        const text = BotReplies.freeTextNotSupported();
-        expect(text).toContain('Текстовые запросы');
-        expect(text).toContain('позже');
-        for (const command of LINKED_COMMANDS) expect(text).toContain(command);
-    });
-
     it('produces HTML without raw angle brackets outside of tags', () => {
         const texts = [
             BotReplies.linked('ivanov'),
@@ -84,7 +77,6 @@ describe('BotReplies', () => {
             BotReplies.help('ivanov'),
             BotReplies.notificationsDisabled(),
             BotReplies.notificationsEnabled(),
-            BotReplies.freeTextNotSupported(),
         ];
         for (const text of texts) {
             expect(text.replace(/<\/?b>/g, '')).not.toMatch(/[<>]/);

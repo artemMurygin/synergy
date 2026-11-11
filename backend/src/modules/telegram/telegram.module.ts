@@ -4,15 +4,16 @@ import type { Redis } from 'ioredis';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
 import { OutboxSettings } from '../../shared/outbox/infrastructure/outbox-settings';
+import { AssistantModule } from '../assistant/assistant.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AssistantFreeTextHandler } from './application/assistant-free-text-handler';
 import { BotUpdateDispatcher } from './application/bot-update-dispatcher';
 import { GetTelegramLinkStatusUseCase } from './application/get-telegram-link-status.use-case';
 import { IdentityResolver } from './application/identity-resolver';
 import { IssueLinkTokenUseCase } from './application/issue-link-token.use-case';
 import { LinkAccountUseCase } from './application/link-account.use-case';
 import { LinkTokenThrottler } from './application/link-token-throttler';
-import { NotSupportedFreeTextHandler } from './application/not-supported-free-text-handler';
 import { BotMessengerPort } from './application/ports/bot-messenger.port';
 import { FreeTextHandlerPort } from './application/ports/free-text-handler.port';
 import { RequestRateCounterPort } from './application/ports/request-rate-counter.port';
@@ -62,7 +63,7 @@ import { TelegramWebhookController } from './interface/http/telegram-webhook.con
 import { registerTelegramErrorStatuses } from './interface/telegram-error-status';
 
 @Module({
-    imports: [PostgresModule, AuthModule, NotificationsModule],
+    imports: [PostgresModule, AuthModule, NotificationsModule, AssistantModule],
     controllers: [TelegramLinkController, TelegramWebhookController],
     providers: [
         {
@@ -87,7 +88,7 @@ import { registerTelegramErrorStatuses } from './interface/telegram-error-status
         },
         BotApiClient,
         { provide: BotMessengerPort, useClass: BotMessenger },
-        { provide: FreeTextHandlerPort, useClass: NotSupportedFreeTextHandler },
+        { provide: FreeTextHandlerPort, useClass: AssistantFreeTextHandler },
         telegramUpdatesMetricProvider,
         { provide: TelegramUpdateMetricsPort, useClass: TelegramUpdateMetrics },
         telegramMessagesSentMetricProvider,

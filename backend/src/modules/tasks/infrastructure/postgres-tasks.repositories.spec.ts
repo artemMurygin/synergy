@@ -684,5 +684,35 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
         it('findActiveByIds with no ids returns an empty list', async () => {
             expect(await directory.findActiveByIds([])).toEqual([]);
         });
+
+        describe('searchActive', () => {
+            it('finds only active users by a case-insensitive login substring', async () => {
+                await addUser('Alice.Smith');
+                await addUser('gone-alice', false);
+                const result = await directory.searchActive('ALICE', 10);
+                expect(result.map((u) => u.login).sort()).toEqual(['Alice.Smith', 'alice']);
+            });
+
+            it('matches the substring in the middle of a login and ignores other users', async () => {
+                expect((await directory.searchActive('aro', 10)).map((u) => u.login)).toEqual([
+                    'carol',
+                ]);
+                expect(await directory.searchActive('nobody', 10)).toEqual([]);
+            });
+
+            it('treats LIKE wildcards in the query literally', async () => {
+                expect(await directory.searchActive('%', 10)).toEqual([]);
+                expect(await directory.searchActive('_', 10)).toEqual([]);
+            });
+
+            it('respects the limit', async () => {
+                const result = await directory.searchActive('a', 1);
+                expect(result).toHaveLength(1);
+            });
+
+            it('returns nothing for a blank query', async () => {
+                expect(await directory.searchActive('   ', 10)).toEqual([]);
+            });
+        });
     });
 });

@@ -125,6 +125,8 @@ describe('tasks flow (TasksModule wired end to end)', () => {
                             TASKS_STORAGE_DIR: storageDir,
                             TASKS_MAX_FILE_SIZE_MB: 1,
                             TASKS_MAX_FILES_PER_TASK: 2,
+                            // The tasks agent model is built at wiring time; no request is sent.
+                            OPENROUTER_API_KEY: 'test-key',
                         }),
                     ],
                 }),

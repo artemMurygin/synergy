@@ -2,7 +2,6 @@ import { InMemoryTransactionRunner } from '../../../database/postgres/testing/in
 import { BotUpdateDispatcher } from '../application/bot-update-dispatcher';
 import { IdentityResolver } from '../application/identity-resolver';
 import { LinkAccountUseCase } from '../application/link-account.use-case';
-import { NotSupportedFreeTextHandler } from '../application/not-supported-free-text-handler';
 import { SetTelegramNotificationsUseCase } from '../application/set-telegram-notifications.use-case';
 import {
     FixedClock,
@@ -13,8 +12,16 @@ import {
     RecordingBotMessenger,
     silentLogger,
 } from '../application/test-doubles';
+import { FreeTextHandlerPort } from '../application/ports/free-text-handler.port';
 import { UnlinkAccountUseCase } from '../application/unlink-account.use-case';
 import { testTelegramSettings } from './telegram-settings.fixture';
+
+/** Stands in for the agent: free text is answered with a fixed reply. */
+class StubFreeTextHandler extends FreeTextHandlerPort {
+    handle(): Promise<string> {
+        return Promise.resolve('stub agent reply');
+    }
+}
 
 export function testBotUpdateDispatcher(): BotUpdateDispatcher {
     const transactions = new InMemoryTransactionRunner();
@@ -37,7 +44,7 @@ export function testBotUpdateDispatcher(): BotUpdateDispatcher {
         ),
         new UnlinkAccountUseCase(transactions, links, messenger, silentLogger()),
         new SetTelegramNotificationsUseCase(settings, links, clock),
-        new NotSupportedFreeTextHandler(),
+        new StubFreeTextHandler(),
         messenger,
         settings,
         silentLogger(),

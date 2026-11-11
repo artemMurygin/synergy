@@ -120,7 +120,7 @@ for await (const event of stream) {
 
 const out = join(
     dirname(fileURLToPath(import.meta.url)),
-    '../src/modules/sheets-qa/infrastructure/testing/stream-events.fixture.json',
+    '../src/modules/assistant/infrastructure/testing/stream-events.fixture.json',
 );
 await mkdir(dirname(out), { recursive: true });
 await writeFile(out, JSON.stringify(events, null, 2) + '\n');

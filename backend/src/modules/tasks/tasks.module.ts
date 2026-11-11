@@ -2,7 +2,10 @@ import { Module, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { PostgresModule } from '../../database/postgres/postgres.module';
+import { TASKS_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import type { Env } from '../../shared/config/env.schema';
+import { createChatModel } from '../../shared/llm';
+import { TASKS_AGENT_CONFIG } from './tasks-agent.config';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
 import { CreateTaskUseCase } from './application/create-task.use-case';
 import { DeleteAttachmentUseCase } from './application/delete-attachment.use-case';
@@ -27,6 +30,7 @@ import { SlonikTaskAttachmentRepository } from './infrastructure/slonik-task-att
 import { SlonikTaskRepository } from './infrastructure/slonik-task.repository';
 import { SlonikUserDirectory } from './infrastructure/slonik-user-directory';
 import { SystemClock } from './infrastructure/system-clock';
+import { TasksAgentCapability } from './interface/agent/tasks-agent.capability';
 import { TaskAttachmentsController } from './interface/http/task-attachments.controller';
 import { TasksController } from './interface/http/tasks.controller';
 import { registerTaskErrorStatuses } from './interface/tasks-error-status';
@@ -65,7 +69,30 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
             useFactory: (settings: EnvTasksSettings): FileStorage =>
                 new LocalDiskFileStorage(settings.storageDir),
         },
+        {
+            provide: TASKS_AGENT_CAPABILITY,
+            inject: [
+                ConfigService,
+                CreateTaskUseCase,
+                ListTasksUseCase,
+                UpdateTaskUseCase,
+                UserDirectory,
+            ],
+            useFactory: (
+                config: ConfigService<Env, true>,
+                createTask: CreateTaskUseCase,
+                listTasks: ListTasksUseCase,
+                updateTask: UpdateTaskUseCase,
+                users: UserDirectory,
+            ): TasksAgentCapability => {
+                return new TasksAgentCapability(
+                    { createTask, listTasks, updateTask, users },
+                    createChatModel(config, TASKS_AGENT_CONFIG.model),
+                );
+            },
+        },
     ],
+    exports: [TASKS_AGENT_CAPABILITY],
 })
 export class TasksModule implements OnModuleInit {
     constructor(private readonly events: DomainEventRegistry) {}

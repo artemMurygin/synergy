@@ -187,6 +187,16 @@ export class FakeUserDirectory implements UserDirectory {
             }),
         ),
     );
+
+    searchActive = vi.fn((query: string, limit: number) => {
+        const needle = query.trim().toLowerCase();
+        if (needle === '') return Promise.resolve([]);
+        return Promise.resolve(
+            [...this.users.values()]
+                .filter((user) => user.login.toLowerCase().includes(needle))
+                .slice(0, limit),
+        );
+    });
 }
 
 export class FakeAccessPolicy implements TaskAccessPolicy {

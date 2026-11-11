@@ -11,7 +11,6 @@ import { BotReplies } from './bot-replies';
 import { BotUpdateDispatcher } from './bot-update-dispatcher';
 import { IdentityResolver } from './identity-resolver';
 import { LinkAccountUseCase } from './link-account.use-case';
-import { NotSupportedFreeTextHandler } from './not-supported-free-text-handler';
 import { FreeTextHandlerPort } from './ports/free-text-handler.port';
 import { SetTelegramNotificationsUseCase } from './set-telegram-notifications.use-case';
 import {
@@ -144,7 +143,7 @@ describe('BotUpdateDispatcher', () => {
         users = new InMemoryUserDirectory();
         tokens = new InMemoryLinkTokenStore();
         messenger = new RecordingBotMessenger();
-        freeText = new NotSupportedFreeTextHandler();
+        freeText = new RecordingFreeTextHandler();
         logger = silentLogger();
         clock = new FixedClock();
         nextUpdateId = 100;
@@ -328,14 +327,6 @@ describe('BotUpdateDispatcher', () => {
                 expect(repliesToIvanov()).toEqual(['free text reply']);
             },
         );
-
-        it('answers free text as not supported by default', async () => {
-            await linkIvanov();
-
-            await send('Подготовь КП для клиента');
-
-            expect(repliesToIvanov()).toEqual([BotReplies.freeTextNotSupported()]);
-        });
     });
 
     describe('failures', () => {
