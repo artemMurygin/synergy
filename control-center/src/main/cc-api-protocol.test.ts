@@ -195,6 +195,11 @@ describe('forward', () => {
     expect(headersOf(0).get('authorization')).toBe('Bearer access-1')
   })
 
+  it('forwards the x-client-app header from the renderer', async () => {
+    await forward(new Request('cc-api://backend/threads', { headers: { 'x-client-app': 'manager-app' } }), BACKEND, auth)
+    expect(headersOf(0).get('x-client-app')).toBe('manager-app')
+  })
+
   it('drops the x-client-type header from the renderer', async () => {
     await forward(new Request('cc-api://backend/threads', { headers: { 'x-client-type': 'web' } }), BACKEND, auth)
     expect(headersOf(0).has('x-client-type')).toBe(false)

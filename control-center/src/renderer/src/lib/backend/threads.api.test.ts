@@ -111,6 +111,44 @@ describe("threads.api", () => {
   });
 });
 
+describe("X-Client-App header", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const headerOf = (fn: ReturnType<typeof stubFetch>): string | null =>
+    new Headers(fn.mock.calls[0][1]?.headers).get("x-client-app");
+
+  it("is sent by every chat request", async () => {
+    const calls: Array<() => Promise<unknown>> = [
+      () => listThreads(),
+      () => createThread(),
+      () => createThread("Чат"),
+      () => getThreadHistory("t1"),
+      () => renameThread("t1", "Нов"),
+      () => deleteThread("t1"),
+      () => cancelRun("t1"),
+    ];
+    for (const call of calls) {
+      const fn = stubFetch(json([thread]));
+      await call().catch(() => undefined);
+      expect(headerOf(fn)).toBe("manager-app");
+    }
+  });
+
+  it("keeps the content-type header of JSON requests", async () => {
+    const fn = stubFetch(json(thread));
+    await renameThread("t1", "Нов");
+    expect(new Headers(fn.mock.calls[0][1]?.headers).get("content-type")).toBe(
+      "application/json",
+    );
+  });
+
+  it("is sent by the agent", () => {
+    expect(createAgent("t1").headers["x-client-app"]).toBe("manager-app");
+  });
+});
+
 describe("createAgent", () => {
   it("creates an HttpAgent bound to the thread", () => {
     const agent = createAgent("t1");

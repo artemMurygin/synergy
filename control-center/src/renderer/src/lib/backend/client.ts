@@ -2,6 +2,10 @@ import { BackendError, RunConflictError, ThreadNotFoundError } from "./errors";
 
 export const BACKEND_ORIGIN = "cc-api://backend";
 
+/** Tells the backend which application a chat or agent request comes from. */
+export const CLIENT_APP_HEADER = "X-Client-App";
+export const CLIENT_APP = "manager-app";
+
 export async function errorMessage(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json();

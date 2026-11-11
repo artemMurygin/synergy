@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AskError } from './api'
 import { clearAccessToken, setAccessToken } from './auth/access-token-store'
 import { getAuthState, resetAuthState, setAuthState } from './auth/auth-state'
+import { listThreads } from './threads-api'
 import { RunConflictError, cancelRun, createAgent, isRunConflict } from './agent-client'
 
 vi.mock('./settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
@@ -117,5 +118,26 @@ describe('authorization', () => {
     fetchMock.mockResolvedValue(forbidden())
     await expect(cancelRun('t1')).rejects.toThrow('change')
     expect(getAuthState().status).toBe('must-change-password')
+  })
+})
+
+describe('X-Client-App', () => {
+  it('sends employee-app on agent requests', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 200 }))
+    const agent = await createAgent('t1')
+    await agent.fetch('http://api.test/agent', { method: 'POST' })
+    expect(new Headers(firstInit().headers).get('x-client-app')).toBe('employee-app')
+  })
+
+  it('sends employee-app on cancelRun', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+    await cancelRun('t1')
+    expect(new Headers(firstInit().headers).get('x-client-app')).toBe('employee-app')
+  })
+
+  it('sends employee-app on chat requests', async () => {
+    fetchMock.mockResolvedValue(new Response('[]', { status: 200 }))
+    await listThreads()
+    expect(new Headers(firstInit().headers).get('x-client-app')).toBe('employee-app')
   })
 })

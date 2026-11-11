@@ -289,3 +289,20 @@ describe("tasks.api", () => {
     });
   });
 });
+
+describe("X-Client-App header scope", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("is not added to task requests", async () => {
+    const fn = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(new Response("{}", { status: 500 })),
+    );
+    vi.stubGlobal("fetch", fn);
+    await listTasks({}).catch(() => undefined);
+    expect(new Headers(fn.mock.calls[0][1]?.headers).has("x-client-app")).toBe(
+      false,
+    );
+  });
+});

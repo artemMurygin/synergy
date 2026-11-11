@@ -1,6 +1,7 @@
 import type { Message } from '@ag-ui/client'
 import { AskError, errorMessage, isRecord } from './api'
 import { authFetch } from './auth/auth-fetch'
+import { withClientApp } from './client-app'
 import { getBackendUrl } from './settings'
 
 /** The server does not know the thread (HTTP 404). */
@@ -66,7 +67,7 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   const baseUrl = await getBackendUrl()
   let response: Response
   try {
-    response = await authFetch(`${baseUrl}${path}`, init)
+    response = await authFetch(`${baseUrl}${path}`, withClientApp(init))
   } catch {
     throw new AskError(`Не удалось связаться с сервером ${baseUrl}. Он запущен?`)
   }
