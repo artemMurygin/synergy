@@ -31,10 +31,14 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
         );
     }
     async findOrCreateTelegram(ownerId: string): Promise<ChatSession> {
-        const existing = [...this.sessions.values()].find(
+        const existing = await this.findTelegram(ownerId);
+        return existing ?? this.create(ChatSession.create({ ownerId, channel: 'telegram' }));
+    }
+    findTelegram(ownerId: string): Promise<ChatSession | null> {
+        const found = [...this.sessions.values()].find(
             (s) => s.ownerId === ownerId && s.channel === 'telegram',
         );
-        return existing ?? this.create(ChatSession.create({ ownerId, channel: 'telegram' }));
+        return Promise.resolve(found ?? null);
     }
     listMessages(sessionId: string, ownerId: string): Promise<ChatMessage[]> {
         return this.require(sessionId, ownerId, () => this.messages.get(sessionId) ?? []);

@@ -284,4 +284,25 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
         const b = await repo.findOrCreateTelegram(other);
         expect(a.id).not.toBe(b.id);
     });
+
+    it('findTelegram returns null without a dialog and creates nothing', async () => {
+        await repo.create(ChatSession.create(mine));
+        expect(await repo.findTelegram(ownerId)).toBeNull();
+        const rows = await client.query(
+            `SELECT 1 FROM chat_session WHERE owner_id = $1 AND channel = 'telegram'`,
+            [ownerId],
+        );
+        expect(rows.rowCount).toBe(0);
+    });
+
+    it('findTelegram returns the telegram dialog of the owner only', async () => {
+        const other = await createUser();
+        const dialog = await repo.findOrCreateTelegram(ownerId);
+        await repo.findOrCreateTelegram(other);
+        const found = await repo.findTelegram(ownerId);
+        expect(found?.id).toBe(dialog.id);
+        expect(found?.channel).toBe('telegram');
+        expect(found?.ownerId).toBe(ownerId);
+        expect(await repo.findTelegram(await createUser())).toBeNull();
+    });
 });

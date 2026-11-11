@@ -17,6 +17,8 @@ export abstract class ChatSessionRepositoryPort {
     abstract list(ownerId: string): Promise<ChatSession[]>;
     /** The single `telegram` dialog of the owner; created on first use. */
     abstract findOrCreateTelegram(ownerId: string): Promise<ChatSession>;
+    /** The `telegram` dialog of the owner, or null when there is none; never creates one. */
+    abstract findTelegram(ownerId: string): Promise<ChatSession | null>;
     /** Chronological order. */
     abstract listMessages(sessionId: string, ownerId: string): Promise<ChatMessage[]>;
     abstract appendUserMessage(

@@ -22,6 +22,7 @@ import { DeleteChatSessionUseCase } from './application/delete-chat-session.use-
 import { GetChatMessagesUseCase } from './application/get-chat-messages.use-case';
 import { ListChatSessionsUseCase } from './application/list-chat-sessions.use-case';
 import { RenameChatSessionUseCase } from './application/rename-chat-session.use-case';
+import { ResetTelegramDialogUseCase } from './application/reset-telegram-dialog.use-case';
 import { StartAgentRunUseCase } from './application/start-agent-run.use-case';
 import { ActiveRunRegistryPort } from './domain/ports/active-run-registry.port';
 import { AgentRunnerPort } from './domain/ports/agent-runner.port';
@@ -47,6 +48,7 @@ import { ThreadsController } from './interface/http/threads.controller';
     providers: [
         StartAgentRunUseCase,
         AskInTelegramUseCase,
+        ResetTelegramDialogUseCase,
         CreateChatSessionUseCase,
         ListChatSessionsUseCase,
         GetChatMessagesUseCase,
@@ -110,6 +112,6 @@ import { ThreadsController } from './interface/http/threads.controller';
                 }),
         },
     ],
-    exports: [AskInTelegramUseCase],
+    exports: [AskInTelegramUseCase, ResetTelegramDialogUseCase],
 })
 export class AssistantModule {}

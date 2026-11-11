@@ -128,6 +128,14 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
         return toSession(row);
     }
 
+    async findTelegram(ownerId: string): Promise<ChatSession | null> {
+        const row = await this.pool.maybeOne(sql.unsafe`
+            SELECT ${SESSION_COLUMNS} FROM chat_session
+            WHERE owner_id = ${ownerId} AND channel = 'telegram'
+        `);
+        return row === null ? null : toSession(row);
+    }
+
     async listMessages(sessionId: string, ownerId: string): Promise<ChatMessage[]> {
         await this.requireOwned(this.pool, sessionId, ownerId);
         const rows = await this.pool.any(sql.unsafe`

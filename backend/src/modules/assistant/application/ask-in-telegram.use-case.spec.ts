@@ -10,6 +10,7 @@ import type { RunInput } from '../domain/run-input';
 import {
     AskInTelegramUseCase,
     TELEGRAM_BUSY_MESSAGE,
+    TELEGRAM_CANCELLED_MESSAGE,
     TELEGRAM_FAILED_MESSAGE,
     TELEGRAM_TOO_LONG_MESSAGE,
 } from './ask-in-telegram.use-case';
@@ -23,14 +24,15 @@ type StreamMock = (
 ) => AsyncIterable<AgentEvent>;
 
 type Mock = ReturnType<typeof vi.fn>;
+type AsyncMock = ReturnType<typeof vi.fn<() => Promise<unknown>>>;
 
 interface Setup {
     session: ChatSession;
     runs: Map<string, AgentRun>;
     tryStart: Mock;
     release: Mock;
-    findOrCreateTelegram: Mock;
-    appendUserMessage: Mock;
+    findOrCreateTelegram: AsyncMock;
+    appendUserMessage: AsyncMock;
     appendAgentAnswer: Mock;
     list: Mock;
     findOwned: Mock;
@@ -62,8 +64,8 @@ function setup(options: { stream?: StreamFn; failStore?: boolean } = {}): Setup 
     });
     const registry = { tryStart, release } as unknown as ActiveRunRegistryPort;
 
-    const findOrCreateTelegram = vi.fn(() => Promise.resolve(session));
-    const appendUserMessage = vi.fn(() => Promise.resolve({}));
+    const findOrCreateTelegram = vi.fn<() => Promise<unknown>>(() => Promise.resolve(session));
+    const appendUserMessage = vi.fn<() => Promise<unknown>>(() => Promise.resolve({}));
     const appendAgentAnswer = vi.fn(() =>
         options.failStore === true ? Promise.reject(new Error('db down')) : Promise.resolve({}),
     );
@@ -132,6 +134,57 @@ describe('AskInTelegramUseCase', () => {
             toolCalls: [],
             durationMs: 5,
         });
+        expect(s.runs.size).toBe(0);
+    });
+
+    it('stores nothing and does not start the agent when cancelled before the run', async () => {
+        const s = setup();
+        const cancel = new AbortController();
+        s.findOrCreateTelegram.mockImplementationOnce(() => {
+            cancel.abort();
+            return Promise.resolve(s.session);
+        });
+
+        const reply = await s.useCase.execute(OWNER, 'старый вопрос', cancel.signal);
+
+        expect(reply).toBe(TELEGRAM_CANCELLED_MESSAGE);
+        expect(s.tryStart).not.toHaveBeenCalled();
+        expect(s.appendUserMessage).not.toHaveBeenCalled();
+        expect(s.stream).not.toHaveBeenCalled();
+    });
+
+    it('does not start the agent when cancelled while the question is stored', async () => {
+        const s = setup();
+        const cancel = new AbortController();
+        s.appendUserMessage.mockImplementationOnce(() => {
+            cancel.abort();
+            return Promise.resolve({});
+        });
+
+        const reply = await s.useCase.execute(OWNER, 'старый вопрос', cancel.signal);
+
+        expect(reply).toBe(TELEGRAM_CANCELLED_MESSAGE);
+        expect(s.stream).not.toHaveBeenCalled();
+        expect(s.runs.size).toBe(0);
+    });
+
+    it('cancels the running agent when cancelled during the run', async () => {
+        const cancel = new AbortController();
+        let runSignal: AbortSignal | undefined;
+        const s = setup({
+            stream: async function* (_input, signal) {
+                runSignal = signal;
+                await Promise.resolve();
+                cancel.abort();
+                yield signal.aborted ? AgentEvent.runCancelled() : finished('Готово');
+            },
+        });
+
+        const reply = await s.useCase.execute(OWNER, 'старый вопрос', cancel.signal);
+
+        expect(runSignal?.aborted).toBe(true);
+        expect(reply).toBe(TELEGRAM_FAILED_MESSAGE);
+        expect(s.appendAgentAnswer).not.toHaveBeenCalled();
         expect(s.runs.size).toBe(0);
     });
 
