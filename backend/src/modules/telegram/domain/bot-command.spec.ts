@@ -10,6 +10,8 @@ describe('BotCommand.parse', () => {
         { text: '/unlink', name: 'unlink', argument: null },
         { text: '/mute', name: 'mute', argument: null },
         { text: '/unmute', name: 'unmute', argument: null },
+        { text: '/new', name: 'new', argument: null },
+        { text: '/new@synergy_bot', name: 'new', argument: null },
         { text: '  /help  ', name: 'help', argument: null },
     ])('parses "$text"', ({ text, name, argument }) => {
         expect(BotCommand.parse(text, BOT)).toMatchObject({ name, argument });
@@ -45,10 +47,17 @@ describe('BotCommand.parse', () => {
         },
     );
 
-    it.each(['/unknown', '/startnow', '/stop arg', 'hello', 'start', '', '/', ' / start'])(
-        'returns null for "%s"',
-        (text) => {
-            expect(BotCommand.parse(text, BOT)).toBeNull();
-        },
-    );
+    it.each([
+        '/unknown',
+        '/newchat',
+        '/startnow',
+        '/stop arg',
+        'hello',
+        'start',
+        '',
+        '/',
+        ' / start',
+    ])('returns null for "%s"', (text) => {
+        expect(BotCommand.parse(text, BOT)).toBeNull();
+    });
 });

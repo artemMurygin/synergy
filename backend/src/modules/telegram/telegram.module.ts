@@ -7,14 +7,19 @@ import { OutboxSettings } from '../../shared/outbox/infrastructure/outbox-settin
 import { AssistantModule } from '../assistant/assistant.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TranscriptionModule } from '../transcription/transcription.module';
+import { AssistantDialogReset } from './application/assistant-dialog-reset';
 import { AssistantFreeTextHandler } from './application/assistant-free-text-handler';
 import { BotUpdateDispatcher } from './application/bot-update-dispatcher';
+import { ChatWorkQueue } from './application/chat-work-queue';
 import { GetTelegramLinkStatusUseCase } from './application/get-telegram-link-status.use-case';
 import { IdentityResolver } from './application/identity-resolver';
 import { IssueLinkTokenUseCase } from './application/issue-link-token.use-case';
 import { LinkAccountUseCase } from './application/link-account.use-case';
 import { LinkTokenThrottler } from './application/link-token-throttler';
+import { BotFilesPort } from './application/ports/bot-files.port';
 import { BotMessengerPort } from './application/ports/bot-messenger.port';
+import { DialogResetPort } from './application/ports/dialog-reset.port';
 import { FreeTextHandlerPort } from './application/ports/free-text-handler.port';
 import { RequestRateCounterPort } from './application/ports/request-rate-counter.port';
 import { TelegramMessageMetricsPort } from './application/ports/telegram-message-metrics.port';
@@ -24,6 +29,7 @@ import { UpdateDeduplicatorPort } from './application/ports/update-deduplicator.
 import { UserDirectoryPort } from './application/ports/user-directory.port';
 import { SetTelegramNotificationsUseCase } from './application/set-telegram-notifications.use-case';
 import { UnlinkAccountUseCase } from './application/unlink-account.use-case';
+import { VoiceMessageHandler } from './application/voice-message-handler';
 import { ClockPort } from './domain/ports/clock.port';
 import { LinkTokenStorePort } from './domain/ports/link-token-store.port';
 import { TelegramDeliveryLogPort } from './domain/ports/telegram-delivery-log.port';
@@ -41,6 +47,7 @@ import { TelegramSettings } from './infrastructure/config/telegram-settings';
 import { TelegramDeliveryLog } from './infrastructure/persistence/telegram-delivery-log';
 import { TelegramLinkRepository } from './infrastructure/persistence/telegram-link.repository';
 import { BotApiClient } from './infrastructure/telegram/bot-api-client';
+import { BotFiles } from './infrastructure/telegram/bot-files';
 import { BotMessenger } from './infrastructure/telegram/bot-messenger';
 import { MessengerChannelRegistration } from './infrastructure/telegram/messenger-channel-registration';
 import { MessengerChannel } from './infrastructure/telegram/messenger.channel';
@@ -63,7 +70,13 @@ import { TelegramWebhookController } from './interface/http/telegram-webhook.con
 import { registerTelegramErrorStatuses } from './interface/telegram-error-status';
 
 @Module({
-    imports: [PostgresModule, AuthModule, NotificationsModule, AssistantModule],
+    imports: [
+        PostgresModule,
+        AuthModule,
+        NotificationsModule,
+        AssistantModule,
+        TranscriptionModule,
+    ],
     controllers: [TelegramLinkController, TelegramWebhookController],
     providers: [
         {
@@ -88,7 +101,9 @@ import { registerTelegramErrorStatuses } from './interface/telegram-error-status
         },
         BotApiClient,
         { provide: BotMessengerPort, useClass: BotMessenger },
+        { provide: BotFilesPort, useClass: BotFiles },
         { provide: FreeTextHandlerPort, useClass: AssistantFreeTextHandler },
+        { provide: DialogResetPort, useClass: AssistantDialogReset },
         telegramUpdatesMetricProvider,
         { provide: TelegramUpdateMetricsPort, useClass: TelegramUpdateMetrics },
         telegramMessagesSentMetricProvider,
@@ -101,6 +116,8 @@ import { registerTelegramErrorStatuses } from './interface/telegram-error-status
         SetTelegramNotificationsUseCase,
         IdentityResolver,
         BotUpdateDispatcher,
+        ChatWorkQueue,
+        VoiceMessageHandler,
         LinkTokenThrottler,
         LinkTokenThrottlerGuard,
         TelegramUpdatesPoller,

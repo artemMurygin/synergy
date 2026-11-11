@@ -14,7 +14,7 @@ import {
 } from '../../application/errors';
 import { BotApiStub } from '../../testing/bot-api-stub';
 import { TEST_BOT_TOKEN, testTelegramSettings } from '../../testing/telegram-settings.fixture';
-import { BotApiClient } from './bot-api-client';
+import { BotApiClient, UnparsableEntitiesError } from './bot-api-client';
 
 const CHAT_ID = 9_007_199_254_740_993n;
 const HTML = '<b>Новая задача</b>\nПроверить договор';
@@ -97,6 +97,84 @@ describe('BotApiClient', () => {
                     body: { chat_id: CHAT_ID.toString(), text: HTML, parse_mode: 'HTML' },
                 },
             ]);
+        });
+
+        it('sends a message as plain text without parse_mode when asked', async () => {
+            stub.respond('sendMessage', { status: 200, body: sentMessage(43) });
+
+            await expect(
+                client.sendMessage(CHAT_ID, 'a < b', { plainText: true }),
+            ).resolves.toEqual({ messageId: 43n });
+            expect(stub.requestsOf('sendMessage')[0]?.body).toEqual({
+                chat_id: CHAT_ID.toString(),
+                text: 'a < b',
+            });
+        });
+
+        it('gets the path and the size of a file by its id', async () => {
+            stub.respond('getFile', {
+                status: 200,
+                body: {
+                    ok: true,
+                    result: {
+                        file_id: 'voice-1',
+                        file_unique_id: 'u1',
+                        file_size: 52_340,
+                        file_path: 'voice/file_7.oga',
+                    },
+                },
+            });
+
+            await expect(client.getFile('voice-1')).resolves.toEqual({
+                filePath: 'voice/file_7.oga',
+                fileSize: 52_340,
+            });
+            expect(stub.requestsOf('getFile')[0]?.body).toEqual({ file_id: 'voice-1' });
+        });
+
+        it('reports an unknown file size as null', async () => {
+            stub.respond('getFile', {
+                status: 200,
+                body: {
+                    ok: true,
+                    result: { file_id: 'v', file_unique_id: 'u', file_path: 'voice/a.oga' },
+                },
+            });
+
+            await expect(client.getFile('v')).resolves.toEqual({
+                filePath: 'voice/a.oga',
+                fileSize: null,
+            });
+        });
+
+        it('rejects a file without a download path', async () => {
+            stub.respond('getFile', {
+                status: 200,
+                body: { ok: true, result: { file_id: 'v', file_unique_id: 'u' } },
+            });
+
+            expect(await rejectionOf(client.getFile('v'))).toBeInstanceOf(BotApiRejectedError);
+        });
+
+        it('downloads a file from the Bot API file server', async () => {
+            const audio = Buffer.from([0x4f, 0x67, 0x67, 0x53, 0x00, 0x02]);
+            stub.respondFile('voice/file_7.oga', { status: 200, body: audio });
+
+            const downloaded = await client.downloadFile('voice/file_7.oga');
+
+            expect(Buffer.compare(downloaded, audio)).toBe(0);
+            expect(stub.fileRequests).toEqual([
+                { token: TEST_BOT_TOKEN, filePath: 'voice/file_7.oga' },
+            ]);
+        });
+
+        it('sends the typing chat action', async () => {
+            await client.sendChatAction(CHAT_ID, 'typing');
+
+            expect(stub.requestsOf('sendChatAction')[0]?.body).toEqual({
+                chat_id: CHAT_ID.toString(),
+                action: 'typing',
+            });
         });
 
         it('takes the address from TELEGRAM_API_BASE_URL even with a trailing slash', async () => {
@@ -306,6 +384,55 @@ describe('BotApiClient', () => {
             expect(error).not.toBeInstanceOf(BotApiConflictError);
         });
 
+        it('reports 400 "can\'t parse entities" as unparsable entities, a rejected request', async () => {
+            stub.respond(
+                'sendMessage',
+                failure(400, "Bad Request: can't parse entities: Unsupported start tag"),
+            );
+
+            const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
+
+            expect(error).toBeInstanceOf(UnparsableEntitiesError);
+            expect(error).toBeInstanceOf(BotApiRejectedError);
+        });
+
+        it.each([
+            [400, 'Bad Request: message is too long'],
+            [400, 'Bad Request: chat not found'],
+            [401, 'Unauthorized'],
+        ])('does not report status %i "%s" as unparsable entities', async (status, text) => {
+            stub.respond('sendMessage', failure(status, text));
+
+            const error = await rejectionOf(client.sendMessage(CHAT_ID, HTML));
+
+            expect(error).not.toBeInstanceOf(UnparsableEntitiesError);
+        });
+
+        it.each([
+            [404, BotApiRejectedError],
+            [500, TransientDeliveryError],
+        ])('classifies a file download answered with %i', async (status, errorClass) => {
+            stub.respondFile('voice/x.oga', { status, body: Buffer.from('nope') });
+
+            const error = await rejectionOf(client.downloadFile('voice/x.oga'));
+
+            expect(error).toBeInstanceOf(errorClass);
+            expectNoTokenLeak(error);
+        });
+
+        it('treats a network failure of a file download as transient', async () => {
+            const unreachable = new BotApiClient(
+                testTelegramSettings({
+                    apiBaseUrl: `http://127.0.0.1:${String(await closedPort())}`,
+                }),
+            );
+
+            const error = await rejectionOf(unreachable.downloadFile('voice/x.oga'));
+
+            expect(error).toBeInstanceOf(TransientDeliveryError);
+            expectNoTokenLeak(error);
+        });
+
         it('reports 409 from getUpdates as a conflict', async () => {
             stub.respond(
                 'getUpdates',
@@ -390,7 +517,7 @@ describe('BotApiClient', () => {
             expect(logForm).not.toContain("can't parse");
             expect(JSON.stringify(error)).not.toContain('Проверить договор');
             expect(error).toMatchObject({
-                metadata: { method: 'sendMessage', status: 400, reason: 'rejected' },
+                metadata: { method: 'sendMessage', status: 400, reason: 'unparsable_entities' },
             });
         });
     });

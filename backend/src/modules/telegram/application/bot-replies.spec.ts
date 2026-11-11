@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BotReplies, escapeHtml } from './bot-replies';
+import { BotReplies, escapeHtml, unescapeHtml } from './bot-replies';
 
-const LINKED_COMMANDS = ['/help', '/mute', '/unmute', '/unlink'];
+const LINKED_COMMANDS = ['/new', '/help', '/mute', '/unmute', '/unlink'];
 
 describe('escapeHtml', () => {
     it('escapes &, < and >', () => {
@@ -14,6 +14,17 @@ describe('escapeHtml', () => {
 
     it('keeps plain text unchanged', () => {
         expect(escapeHtml('ivanov_tg "quoted"')).toBe('ivanov_tg "quoted"');
+    });
+});
+
+describe('unescapeHtml', () => {
+    it('reverses escapeHtml', () => {
+        const text = 'a & <b>c</b> > d &lt; literal';
+        expect(unescapeHtml(escapeHtml(text))).toBe(text);
+    });
+
+    it('turns the entities back into characters only once', () => {
+        expect(unescapeHtml('&amp;lt; &lt;b&gt;')).toBe('&lt; <b>');
     });
 });
 
@@ -67,6 +78,50 @@ describe('BotReplies', () => {
         expect(BotReplies.notificationsEnabled()).toContain('/mute');
     });
 
+    it('shows the recognized voice text escaped', () => {
+        expect(BotReplies.voiceRecognized('Позвонить <Ивану> & Ко')).toBe(
+            'Распознал: Позвонить &lt;Ивану&gt; &amp; Ко',
+        );
+    });
+
+    it('asks to shorten a voice that is too long or too large', () => {
+        expect(BotReplies.voiceTooLong()).toContain('длиннее 3 минут');
+        expect(BotReplies.voiceTooLong()).toContain('короче');
+        expect(BotReplies.voiceTooLarge()).toContain('больше 5 МБ');
+        expect(BotReplies.voiceTooLarge()).toContain('короче');
+    });
+
+    it('asks to repeat or write when the speech was not recognized', () => {
+        const text = BotReplies.voiceNoSpeech();
+        expect(text).toContain('не удалось разобрать речь');
+        expect(text).toContain('текстом');
+    });
+
+    it('offers to write text when voices are unavailable', () => {
+        const text = BotReplies.voiceUnavailable();
+        expect(text).toContain('Голосовые сейчас не обрабатываются');
+        expect(text).toContain('текстом');
+    });
+
+    it('lists /new as starting a new dialog', () => {
+        expect(BotReplies.help('ivanov')).toContain('/new — начать новый диалог');
+        expect(BotReplies.linked('ivanov')).toContain('/new — начать новый диалог');
+    });
+
+    it('asks to wait while the previous message is still processed', () => {
+        expect(BotReplies.stillProcessing()).toContain('обрабатываю предыдущее сообщение');
+    });
+
+    it('explains that only text and voice messages are understood', () => {
+        const text = BotReplies.unsupportedMessage();
+        expect(text).toContain('текст');
+        expect(text).toContain('голосовые');
+    });
+
+    it('confirms a new dialog', () => {
+        expect(BotReplies.dialogReset()).toContain('новый диалог');
+    });
+
     it('produces HTML without raw angle brackets outside of tags', () => {
         const texts = [
             BotReplies.linked('ivanov'),
@@ -77,6 +132,14 @@ describe('BotReplies', () => {
             BotReplies.help('ivanov'),
             BotReplies.notificationsDisabled(),
             BotReplies.notificationsEnabled(),
+            BotReplies.voiceRecognized('a < b'),
+            BotReplies.voiceTooLong(),
+            BotReplies.voiceTooLarge(),
+            BotReplies.voiceNoSpeech(),
+            BotReplies.voiceUnavailable(),
+            BotReplies.stillProcessing(),
+            BotReplies.unsupportedMessage(),
+            BotReplies.dialogReset(),
         ];
         for (const text of texts) {
             expect(text.replace(/<\/?b>/g, '')).not.toMatch(/[<>]/);

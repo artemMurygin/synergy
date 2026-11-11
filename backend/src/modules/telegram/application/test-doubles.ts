@@ -12,7 +12,12 @@ import {
     type NotificationsSwitch,
 } from '../domain/ports/telegram-link-repository.port';
 import type { TelegramLink } from '../domain/telegram-link';
-import { BotMessengerPort, type SentBotMessage } from './ports/bot-messenger.port';
+import { BotFilesPort, type BotFile } from './ports/bot-files.port';
+import {
+    BotMessengerPort,
+    type BotChatAction,
+    type SentBotMessage,
+} from './ports/bot-messenger.port';
 import {
     TelegramMessageMetricsPort,
     type TelegramMessageKind,
@@ -112,8 +117,15 @@ export interface SentChatMessage {
     readonly html: string;
 }
 
+export interface SentChatAction {
+    readonly chatId: bigint;
+    readonly action: BotChatAction;
+}
+
 export class RecordingBotMessenger extends BotMessengerPort {
     readonly sent: SentChatMessage[] = [];
+    readonly chatActions: SentChatAction[] = [];
+    chatActionFailure: Error | null = null;
     failure: Error | null = null;
     onSend: (message: SentChatMessage) => void = () => undefined;
     private nextMessageId = 1n;
@@ -126,6 +138,12 @@ export class RecordingBotMessenger extends BotMessengerPort {
         const messageId = this.nextMessageId;
         this.nextMessageId += 1n;
         return Promise.resolve({ messageId });
+    }
+
+    sendChatAction(chatId: bigint, action: BotChatAction): Promise<void> {
+        if (this.chatActionFailure !== null) return Promise.reject(this.chatActionFailure);
+        this.chatActions.push({ chatId, action });
+        return Promise.resolve();
     }
 
     textsTo(chatId: bigint): string[] {
@@ -219,5 +237,40 @@ export class RecordingMessageMetrics extends TelegramMessageMetricsPort {
 
     recordSendError(reason: TelegramSendErrorReason): void {
         this.errors.push(reason);
+    }
+}
+
+export interface StoredBotFile {
+    readonly filePath: string;
+    readonly fileSize: number | null;
+    readonly content: Buffer;
+}
+
+/** Files double: serves the added files and records every request. */
+export class InMemoryBotFiles extends BotFilesPort {
+    readonly filesById = new Map<string, StoredBotFile>();
+    readonly getFileCalls: string[] = [];
+    readonly downloadCalls: string[] = [];
+    getFileFailure: Error | null = null;
+    downloadFailure: Error | null = null;
+
+    add(fileId: string, file: StoredBotFile): void {
+        this.filesById.set(fileId, file);
+    }
+
+    getFile(fileId: string): Promise<BotFile> {
+        this.getFileCalls.push(fileId);
+        if (this.getFileFailure !== null) return Promise.reject(this.getFileFailure);
+        const file = this.filesById.get(fileId);
+        if (file === undefined) return Promise.reject(new Error(`Unknown file ${fileId}`));
+        return Promise.resolve({ filePath: file.filePath, fileSize: file.fileSize });
+    }
+
+    downloadFile(filePath: string): Promise<Buffer> {
+        this.downloadCalls.push(filePath);
+        if (this.downloadFailure !== null) return Promise.reject(this.downloadFailure);
+        const file = [...this.filesById.values()].find((stored) => stored.filePath === filePath);
+        if (file === undefined) return Promise.reject(new Error(`Unknown path ${filePath}`));
+        return Promise.resolve(file.content);
     }
 }

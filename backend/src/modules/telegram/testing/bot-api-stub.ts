@@ -15,7 +15,18 @@ export interface BotApiStubReply {
 
 export type BotApiStubResponder = (request: BotApiStubRequest) => BotApiStubReply;
 
+export interface BotApiStubFileRequest {
+    readonly token: string;
+    readonly filePath: string;
+}
+
+export interface BotApiStubFileReply {
+    readonly status: number;
+    readonly body: Buffer;
+}
+
 const PATH_PATTERN = /^\/bot([^/]+)\/([A-Za-z]+)$/;
+const FILE_PATH_PATTERN = /^\/file\/bot([^/]+)\/(.+)$/;
 const DEFAULT_REPLY: BotApiStubReply = { status: 200, body: { ok: true, result: true } };
 
 function readBody(request: IncomingMessage): Promise<string> {
@@ -42,7 +53,11 @@ function parseJson(text: string): unknown {
 export class BotApiStub {
     readonly requests: BotApiStubRequest[] = [];
 
+    readonly fileRequests: BotApiStubFileRequest[] = [];
+
     private readonly responders = new Map<string, BotApiStubResponder>();
+
+    private readonly files = new Map<string, BotApiStubFileReply>();
 
     private readonly pendingTimers = new Set<NodeJS.Timeout>();
 
@@ -69,13 +84,20 @@ export class BotApiStub {
         this.responders.set(method, typeof responder === 'function' ? responder : () => responder);
     }
 
+    /** Serves the file at `/file/bot<token>/<filePath>`, as the Bot API file server does. */
+    respondFile(filePath: string, reply: BotApiStubFileReply): void {
+        this.files.set(filePath, reply);
+    }
+
     requestsOf(method: string): BotApiStubRequest[] {
         return this.requests.filter((request) => request.method === method);
     }
 
     reset(): void {
         this.requests.length = 0;
+        this.fileRequests.length = 0;
         this.responders.clear();
+        this.files.clear();
     }
 
     async stop(): Promise<void> {
@@ -90,6 +112,12 @@ export class BotApiStub {
     }
 
     private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+        const fileMatch = FILE_PATH_PATTERN.exec(request.url ?? '');
+        if (fileMatch !== null) {
+            const [, token, filePath] = fileMatch;
+            this.serveFile(token, filePath, response);
+            return;
+        }
         const match = PATH_PATTERN.exec(request.url ?? '');
         if (match === null) {
             response.writeHead(404, { 'content-type': 'application/json' });
@@ -113,6 +141,18 @@ export class BotApiStub {
             if (!response.destroyed) send();
         }, reply.delayMs);
         this.pendingTimers.add(timer);
+    }
+
+    private serveFile(token: string, filePath: string, response: ServerResponse): void {
+        this.fileRequests.push({ token, filePath });
+        const file = this.files.get(filePath);
+        if (file === undefined) {
+            response.writeHead(404, { 'content-type': 'application/json' });
+            response.end(JSON.stringify({ ok: false, error_code: 404, description: 'Not Found' }));
+            return;
+        }
+        response.writeHead(file.status, { 'content-type': 'application/octet-stream' });
+        response.end(file.body);
     }
 }
 

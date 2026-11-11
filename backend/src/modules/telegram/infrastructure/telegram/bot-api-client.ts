@@ -8,7 +8,8 @@ import {
     ChatUnavailableError,
     TransientDeliveryError,
 } from '../../application/errors';
-import type { SentBotMessage } from '../../application/ports/bot-messenger.port';
+import type { BotFile } from '../../application/ports/bot-files.port';
+import type { BotChatAction, SentBotMessage } from '../../application/ports/bot-messenger.port';
 import { TelegramSettingsPort } from '../../application/ports/telegram-settings.port';
 import { MS_IN_SECOND } from '../../domain/time-units';
 
@@ -17,14 +18,30 @@ export const BOT_API_TIMEOUTS = Symbol('BOT_API_TIMEOUTS');
 export interface BotApiTimeouts {
     readonly requestTimeoutMs: number;
     readonly pollGraceMs: number;
+    readonly downloadTimeoutMs: number;
 }
 
 export const DEFAULT_BOT_API_TIMEOUTS: BotApiTimeouts = {
     requestTimeoutMs: 10_000,
     pollGraceMs: 10_000,
+    downloadTimeoutMs: 30_000,
 };
 
-export type BotMethod = 'sendMessage' | 'setWebhook' | 'deleteWebhook' | 'getUpdates';
+export type BotMethod =
+    'sendMessage' | 'setWebhook' | 'deleteWebhook' | 'getUpdates' | 'getFile' | 'sendChatAction';
+
+/** Name of a file download in errors and metadata; it is not a Bot API method. */
+const DOWNLOAD_FILE = 'downloadFile';
+
+type BotRequestName = BotMethod | typeof DOWNLOAD_FILE;
+
+export interface SendMessageOptions {
+    /** Sends the text as is, without parse_mode. */
+    readonly plainText?: boolean;
+}
+
+/** Telegram rejected the message because its HTML entities cannot be parsed. */
+export class UnparsableEntitiesError extends BotApiRejectedError {}
 
 export type BotUpdateType = 'message';
 
@@ -52,8 +69,15 @@ const HTTP_STATUS_CONFLICT = 409;
 const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 const HTTP_STATUS_SERVER_ERROR_MIN = 500;
 const CHAT_NOT_FOUND = /chat not found/i;
+const CANT_PARSE_ENTITIES = /can't parse entities/i;
 
-type FailureReason = 'server_error' | 'rate_limited' | 'chat_unavailable' | 'conflict' | 'rejected';
+type FailureReason =
+    | 'server_error'
+    | 'rate_limited'
+    | 'chat_unavailable'
+    | 'conflict'
+    | 'unparsable_entities'
+    | 'rejected';
 
 const envelopeSchema = z.object({
     ok: z.boolean(),
@@ -65,6 +89,10 @@ const envelopeSchema = z.object({
 type Envelope = z.infer<typeof envelopeSchema>;
 
 const sentMessageSchema = z.object({ message_id: z.number().int().positive() });
+const fileSchema = z.object({
+    file_path: z.string().min(1),
+    file_size: z.number().int().nonnegative().optional(),
+});
 const trueSchema = z.literal(true);
 const updatesSchema = z.array(z.unknown());
 
@@ -79,13 +107,47 @@ export class BotApiClient {
         this.timeouts = { ...DEFAULT_BOT_API_TIMEOUTS, ...timeouts };
     }
 
-    async sendMessage(chatId: bigint, html: string): Promise<SentBotMessage> {
+    async sendMessage(
+        chatId: bigint,
+        text: string,
+        options: SendMessageOptions = {},
+    ): Promise<SentBotMessage> {
         const sent = await this.call(
             'sendMessage',
-            { chat_id: chatId.toString(), text: html, parse_mode: 'HTML' },
+            {
+                chat_id: chatId.toString(),
+                text,
+                ...(options.plainText === true ? {} : { parse_mode: 'HTML' }),
+            },
             sentMessageSchema,
         );
         return { messageId: BigInt(sent.message_id) };
+    }
+
+    async sendChatAction(chatId: bigint, action: BotChatAction): Promise<void> {
+        await this.call('sendChatAction', { chat_id: chatId.toString(), action }, trueSchema);
+    }
+
+    async getFile(fileId: string): Promise<BotFile> {
+        const file = await this.call('getFile', { file_id: fileId }, fileSchema);
+        return { filePath: file.file_path, fileSize: file.file_size ?? null };
+    }
+
+    /** Downloads a file by the path from getFile; the link with the token is never exposed. */
+    async downloadFile(filePath: string): Promise<Buffer> {
+        const token = this.requireToken(DOWNLOAD_FILE);
+        const response = await this.fetchOrThrow(
+            DOWNLOAD_FILE,
+            `${this.settings.apiBaseUrl}/file/bot${token}/${filePath}`,
+            { method: 'GET' },
+            { timeoutMs: this.timeouts.downloadTimeoutMs },
+        );
+        if (!response.ok) throw classifyFailure(DOWNLOAD_FILE, response.status, null);
+        try {
+            return Buffer.from(await response.arrayBuffer());
+        } catch (error: unknown) {
+            throw transportFailure(DOWNLOAD_FILE, error);
+        }
     }
 
     async setWebhook(registration: WebhookRegistration): Promise<void> {
@@ -126,13 +188,7 @@ export class BotApiClient {
         schema: z.ZodType<TResult>,
         options: BotCallOptions = {},
     ): Promise<TResult> {
-        const token = this.settings.botToken;
-        if (token === null) {
-            throw new BotApiRejectedError('Telegram bot token is not configured', undefined, {
-                method,
-                reason: 'not_configured',
-            });
-        }
+        const token = this.requireToken(method);
         const response = await this.post(token, method, params, options);
         const envelope = envelopeSchema.safeParse(await readJson(response));
         if (!response.ok) {
@@ -144,10 +200,39 @@ export class BotApiClient {
         return parsed.data;
     }
 
-    private async post(
+    private requireToken(method: BotRequestName): string {
+        const token = this.settings.botToken;
+        if (token === null) {
+            throw new BotApiRejectedError('Telegram bot token is not configured', undefined, {
+                method,
+                reason: 'not_configured',
+            });
+        }
+        return token;
+    }
+
+    private post(
         token: string,
         method: BotMethod,
         params: Record<string, unknown>,
+        options: BotCallOptions,
+    ): Promise<Response> {
+        return this.fetchOrThrow(
+            method,
+            `${this.settings.apiBaseUrl}/bot${token}/${method}`,
+            {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(params),
+            },
+            options,
+        );
+    }
+
+    private async fetchOrThrow(
+        method: BotRequestName,
+        url: string,
+        init: RequestInit,
         options: BotCallOptions,
     ): Promise<Response> {
         const timeoutSignal = AbortSignal.timeout(
@@ -158,24 +243,19 @@ export class BotApiClient {
                 ? timeoutSignal
                 : AbortSignal.any([timeoutSignal, options.signal]);
         try {
-            return await fetch(`${this.settings.apiBaseUrl}/bot${token}/${method}`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(params),
-                signal,
-            });
+            return await fetch(url, { ...init, signal });
         } catch (error: unknown) {
-            const reason = error instanceof Error ? error.name : 'unknown';
-            throw new TransientDeliveryError(
-                `Bot API ${method} request failed: ${reason}`,
-                undefined,
-                {
-                    method,
-                    reason,
-                },
-            );
+            throw transportFailure(method, error);
         }
     }
+}
+
+function transportFailure(method: BotRequestName, error: unknown): TransientDeliveryError {
+    const reason = error instanceof Error ? error.name : 'unknown';
+    return new TransientDeliveryError(`Bot API ${method} request failed: ${reason}`, undefined, {
+        method,
+        reason,
+    });
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -187,7 +267,7 @@ async function readJson(response: Response): Promise<unknown> {
     }
 }
 
-function invalidResponse(method: BotMethod): BotApiRejectedError {
+function invalidResponse(method: BotRequestName): BotApiRejectedError {
     return new BotApiRejectedError(`Bot API ${method} returned an unexpected response`, undefined, {
         method,
         reason: 'invalid_response',
@@ -201,11 +281,21 @@ function failureReasonOf(status: number, envelope: Envelope | null): FailureReas
     if (status === HTTP_STATUS_BAD_REQUEST && CHAT_NOT_FOUND.test(envelope?.description ?? '')) {
         return 'chat_unavailable';
     }
+    if (
+        status === HTTP_STATUS_BAD_REQUEST &&
+        CANT_PARSE_ENTITIES.test(envelope?.description ?? '')
+    ) {
+        return 'unparsable_entities';
+    }
     if (status === HTTP_STATUS_CONFLICT) return 'conflict';
     return 'rejected';
 }
 
-function classifyFailure(method: BotMethod, status: number, envelope: Envelope | null): BaseError {
+function classifyFailure(
+    method: BotRequestName,
+    status: number,
+    envelope: Envelope | null,
+): BaseError {
     const reason = failureReasonOf(status, envelope);
     const message = `Bot API ${method} responded with ${String(status)} (${reason})`;
     const metadata = { method, status, reason };
@@ -222,6 +312,8 @@ function classifyFailure(method: BotMethod, status: number, envelope: Envelope |
             return new ChatUnavailableError(message, undefined, metadata);
         case 'conflict':
             return new BotApiConflictError(message, undefined, metadata);
+        case 'unparsable_entities':
+            return new UnparsableEntitiesError(message, undefined, metadata);
         case 'rejected':
             return new BotApiRejectedError(message, undefined, metadata);
     }

@@ -1,6 +1,6 @@
 import { normalizeBotUsername } from './bot-username';
 
-export const BOT_COMMAND_NAMES = ['start', 'help', 'unlink', 'mute', 'unmute'] as const;
+export const BOT_COMMAND_NAMES = ['start', 'help', 'unlink', 'mute', 'unmute', 'new'] as const;
 
 export type BotCommandName = (typeof BOT_COMMAND_NAMES)[number];
 

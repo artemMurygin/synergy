@@ -4,6 +4,7 @@ import type { LinkedBotSender } from '../domain/bot-sender';
 import { TelegramIdentity } from '../domain/telegram-identity';
 import { TelegramLink } from '../domain/telegram-link';
 import { AssistantFreeTextHandler } from './assistant-free-text-handler';
+import { escapeHtml } from './bot-replies';
 import { FreeTextHandlerPort } from './ports/free-text-handler.port';
 import { NOW } from './test-doubles';
 
@@ -39,16 +40,29 @@ describe('AssistantFreeTextHandler', () => {
     it('passes the user id of the sender and the text to the use case and returns the answer', async () => {
         const { handler, execute } = handlerWith('Задача создана');
 
-        await expect(handler.handle(SENDER, 'поставь Пете задачу')).resolves.toBe('Задача создана');
+        await expect(handler.handle(SENDER, 'поставь Пете задачу')).resolves.toEqual([
+            'Задача создана',
+        ]);
 
-        expect(execute).toHaveBeenCalledWith(USER_ID, 'поставь Пете задачу');
+        expect(execute).toHaveBeenCalledWith(USER_ID, 'поставь Пете задачу', undefined);
+    });
+
+    it('passes the cancel signal to the use case', async () => {
+        const { handler, execute } = handlerWith('ответ');
+        const cancel = new AbortController();
+
+        await handler.handle(SENDER, 'вопрос', cancel.signal);
+
+        expect(execute).toHaveBeenCalledWith(USER_ID, 'вопрос', cancel.signal);
     });
 
     it('returns the fixed refusal of the agent for a topic outside tasks as is', async () => {
         const refusal = 'Я работаю только с задачами.';
         const { handler, execute } = handlerWith(refusal);
 
-        await expect(handler.handle(SENDER, 'рассчитай цену по прайсу')).resolves.toBe(refusal);
+        await expect(handler.handle(SENDER, 'рассчитай цену по прайсу')).resolves.toEqual([
+            refusal,
+        ]);
 
         expect(execute).toHaveBeenCalledTimes(1);
     });
@@ -56,15 +70,26 @@ describe('AssistantFreeTextHandler', () => {
     it('escapes HTML of the answer because the bot sends HTML', async () => {
         const { handler } = handlerWith('a < b & c > d');
 
-        await expect(handler.handle(SENDER, 'q')).resolves.toBe('a &lt; b &amp; c &gt; d');
+        await expect(handler.handle(SENDER, 'q')).resolves.toEqual(['a &lt; b &amp; c &gt; d']);
     });
 
-    it('keeps a long answer within the Telegram message limit', async () => {
+    it('splits a long answer into escaped parts within the Telegram limit without losing text', async () => {
+        const answer = `${'Абзац ответа <важно> & детали.\n'.repeat(120)}\n`.repeat(3);
+        const { handler } = handlerWith(answer);
+
+        const parts = await handler.handle(SENDER, 'q');
+
+        expect(parts.length).toBeGreaterThan(1);
+        for (const part of parts) expect(part.length).toBeLessThanOrEqual(4096);
+        expect(parts.join('')).toBe(escapeHtml(answer));
+    });
+
+    it('does not truncate the answer with an ellipsis', async () => {
         const { handler } = handlerWith('<'.repeat(6000));
 
-        const reply = await handler.handle(SENDER, 'q');
+        const parts = await handler.handle(SENDER, 'q');
 
-        expect(reply.length).toBeLessThanOrEqual(4096);
-        expect(reply).toContain('&lt;');
+        expect(parts.join('')).toBe('&lt;'.repeat(6000));
+        expect(parts.join('')).not.toContain('…');
     });
 });
