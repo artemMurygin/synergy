@@ -363,3 +363,21 @@ describe('validateEnv telegram settings', () => {
         expect(`${missingSecret}\n${invalidFields}`).not.toContain(BOT_TOKEN);
     });
 });
+
+describe('validateEnv transcription settings', () => {
+    it('uses gemini-3.1-flash-lite for transcription by default', () => {
+        expect(validateEnv(REQUIRED_ENV).TRANSCRIPTION_MODEL).toBe('google/gemini-3.1-flash-lite');
+    });
+
+    it('treats an empty TRANSCRIPTION_MODEL as missing', () => {
+        expect(validateEnv({ ...REQUIRED_ENV, TRANSCRIPTION_MODEL: '' }).TRANSCRIPTION_MODEL).toBe(
+            'google/gemini-3.1-flash-lite',
+        );
+    });
+
+    it('accepts another transcription model', () => {
+        const env = validateEnv({ ...REQUIRED_ENV, TRANSCRIPTION_MODEL: 'openai/gpt-audio-mini' });
+
+        expect(env.TRANSCRIPTION_MODEL).toBe('openai/gpt-audio-mini');
+    });
+});

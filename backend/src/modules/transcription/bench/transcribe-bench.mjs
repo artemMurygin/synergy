@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Бенчмарк транскрибации голосового через OpenRouter.
-// Запуск:  node transcribe-bench.mjs [файл] [--models=a/b,c/d] [--timeout=180] [--lang=ru] [--raw]
-// Результат: results/<model>-<filename>.md
+// Запуск:  node bench/transcribe-bench.mjs [файл] [--models=a/b,c/d] [--timeout=180] [--lang=ru] [--raw]
+// Результат: bench/results/<model>-<filename>.md
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -10,7 +10,28 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BACKEND_ROOT = resolve(__dirname, '../../..');
+// bench/ → transcription/ → modules/ → src/ → backend/
+const BACKEND_ROOT = resolve(__dirname, '../../../..');
+
+const USAGE = `Бенчмарк транскрибации голосового через OpenRouter.
+
+Использование:
+  node bench/transcribe-bench.mjs [файл] [--models=a/b,c/d] [--timeout=180] [--lang=ru] [--raw]
+
+  файл         аудиозапись (по умолчанию bench/voice-492965.ogg)
+  --models     модели через запятую (по умолчанию — весь список DEFAULT_MODELS)
+  --timeout    таймаут одного запроса в секундах (по умолчанию 180)
+  --lang       язык для STT-эндпоинтов (по умолчанию ru)
+  --raw        сохранить сырой ответ STT-эндпоинта рядом с результатом
+
+Ключ берётся из OPENROUTER_API_KEY (backend/.env или окружение).
+Если формат файла не принят, запрос повторяется с mp3 через ffmpeg.
+Результаты: bench/results/<model>-<файл>.md`;
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
 
 const DEFAULT_MODELS = [
   'google/gemini-2.5-flash',
@@ -57,7 +78,7 @@ if (!API_KEY) {
 // ---------- args ----------
 const args = process.argv.slice(2);
 const opt = (name) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=');
-const filePath = resolve(args.find((a) => !a.startsWith('--')) ?? join(__dirname, 'voice-492937.ogg'));
+const filePath = resolve(args.find((a) => !a.startsWith('--')) ?? join(__dirname, 'voice-492965.ogg'));
 const models = opt('models')?.split(',').map((s) => s.trim()).filter(Boolean) ?? DEFAULT_MODELS;
 const timeoutMs = Number(opt('timeout') ?? 180) * 1000;
 

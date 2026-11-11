@@ -32,6 +32,8 @@ export const envSchema = z
         OPENAI_MODEL: z.string().default('gpt-4o-mini'),
         OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
         OPENAI_MAX_RETRIES: z.coerce.number().int().nonnegative().default(1),
+        // Speech-to-text model on OpenRouter, receives voice messages as input_audio
+        TRANSCRIPTION_MODEL: z.string().min(1).default('google/gemini-3.1-flash-lite'),
 
         DEAL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
         DEAL_SYNC_DEFAULT_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),

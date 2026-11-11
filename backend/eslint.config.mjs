@@ -10,7 +10,7 @@ export default tseslint.config(
             'dist/**',
             'node_modules/**',
             'src/database/mssql/generated/**',
-            'src/modules/transcription-module/transcribe-bench.mjs',
+            'src/modules/transcription/bench/transcribe-bench.mjs',
             'eslint.config.mjs',
         ],
     },
