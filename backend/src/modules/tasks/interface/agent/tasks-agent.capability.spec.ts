@@ -12,6 +12,7 @@ vi.mock('langchain', async (importOriginal) => ({
 }));
 
 import { TASKS_AGENT_OFF_TOPIC_REPLY, buildTasksAgentPrompt } from './tasks-agent-prompt';
+import { TASKS_AGENT_SKILLS_DIR } from './tasks-agent-skills';
 import { TasksAgentCapability } from './tasks-agent.capability';
 
 const model = { name: 'fake-model' } as unknown as BaseChatModel;
@@ -23,14 +24,18 @@ const deps = {
     users: { findActiveByIds: vi.fn(), searchActive: vi.fn() },
 } as unknown as TaskToolsDeps;
 const ctx = AgentRunContext.create({ userId: 'u-1', threadId: 't-1' });
+const NOW = new Date('2026-11-11T09:00:00.000Z');
+const clock = { now: vi.fn(() => NOW) };
 
 beforeEach(() => {
     createAgent.mockReset();
     createAgent.mockReturnValue({ invoke: vi.fn() });
+    clock.now.mockClear();
+    clock.now.mockImplementation(() => NOW);
 });
 
 describe('TasksAgentCapability', () => {
-    const capability = new TasksAgentCapability(deps, model);
+    const capability = new TasksAgentCapability(deps, model, clock, TASKS_AGENT_SKILLS_DIR);
 
     it('is named tasks, forks the caller context and describes when to pick it', () => {
         expect(capability.name).toBe('tasks');
@@ -98,22 +103,58 @@ describe('TasksAgentCapability', () => {
         expect(tools.map((tool) => tool.name).join(' ')).not.toMatch(/delete|attach/i);
     });
 
-    it('uses the tasks prompt as the system prompt', () => {
+    it('uses the tasks prompt built for the current clock time as the system prompt', () => {
         capability.buildAgent(ctx);
 
         expect((createAgent.mock.calls[0][0] as { systemPrompt: string }).systemPrompt).toBe(
-            buildTasksAgentPrompt(),
+            buildTasksAgentPrompt(NOW),
         );
+    });
+
+    it('takes now from the clock on every buildAgent call', () => {
+        const later = new Date('2026-11-13T20:00:00.000Z');
+        clock.now.mockReturnValueOnce(NOW).mockReturnValueOnce(later);
+
+        capability.buildAgent(ctx);
+        capability.buildAgent(ctx);
+
+        expect(clock.now).toHaveBeenCalledTimes(2);
+        const prompts = createAgent.mock.calls.map(
+            (call) => (call[0] as { systemPrompt: string }).systemPrompt,
+        );
+        expect(prompts[0]).toBe(buildTasksAgentPrompt(NOW));
+        expect(prompts[1]).toBe(buildTasksAgentPrompt(later));
+        expect(prompts[1]).toContain('пятница');
+    });
+
+    it('wires the skills read-only: skills middleware plus read_file and no write tools', () => {
+        capability.buildAgent(ctx);
+
+        const { middleware } = createAgent.mock.calls[0][0] as {
+            middleware?: { name: string; tools?: { name: string }[] }[];
+        };
+        expect(middleware?.map((item) => item.name)).toEqual(
+            expect.arrayContaining(['SkillsMiddleware', 'FilesystemMiddleware']),
+        );
+        const middlewareTools = (middleware ?? []).flatMap((item) =>
+            (item.tools ?? []).map((tool) => tool.name),
+        );
+        expect(middlewareTools).toEqual(['read_file']);
     });
 });
 
 describe('tasks agent prompt', () => {
-    const prompt = buildTasksAgentPrompt();
+    const prompt = buildTasksAgentPrompt(NOW);
 
-    it('is in Russian and requires asking for missing required data', () => {
+    it('is in Russian and forbids inventing values', () => {
         expect(prompt).toMatch(/уточн|спроси|запроси/i);
-        expect(prompt).toMatch(/заголовок/i);
         expect(prompt).toMatch(/не придумывай/i);
+    });
+
+    it('sends task creation to the task-creation skill instead of creating right away', () => {
+        expect(prompt).toContain('task-creation');
+        expect(prompt).toMatch(/прежде чем создавать задачу, следуй скиллу task-creation/i);
+        expect(prompt).not.toMatch(/как только есть заголовок/i);
     });
 
     it('requires clarifying ambiguous tasks and users instead of choosing', () => {

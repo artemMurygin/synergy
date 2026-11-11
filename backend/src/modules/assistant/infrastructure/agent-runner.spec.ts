@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type { AgentCapability } from '../../../shared/agent-capability';
 import type { AgentRunContext } from '../../../shared/agent-capability';
+import { TASKS_AGENT_SKILLS_DIR } from '../../tasks/interface/agent/tasks-agent-skills';
 import { TasksAgentCapability } from '../../tasks/interface/agent/tasks-agent.capability';
 import type { TaskToolsDeps } from '../../tasks/interface/agent/task-tools';
 import { ClientProfileRegistry } from '../application/client-profile-registry';
@@ -270,7 +271,12 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
                 }),
             )
             .respond(new AIMessage('Задача создана'));
-        const tasks = new TasksAgentCapability(deps, subagentModel);
+        const tasks = new TasksAgentCapability(
+            deps,
+            subagentModel,
+            { now: () => new Date('2026-11-11T09:00:00.000Z') },
+            TASKS_AGENT_SKILLS_DIR,
+        );
         const sheetsQa: AgentCapability = {
             name: 'sheets_qa',
             description: 'Цены',

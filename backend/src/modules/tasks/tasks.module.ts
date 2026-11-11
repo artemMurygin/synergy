@@ -30,6 +30,10 @@ import { SlonikTaskAttachmentRepository } from './infrastructure/slonik-task-att
 import { SlonikTaskRepository } from './infrastructure/slonik-task.repository';
 import { SlonikUserDirectory } from './infrastructure/slonik-user-directory';
 import { SystemClock } from './infrastructure/system-clock';
+import {
+    TASKS_AGENT_SKILLS_DIR,
+    assertTaskSkillsPresent,
+} from './interface/agent/tasks-agent-skills';
 import { TasksAgentCapability } from './interface/agent/tasks-agent.capability';
 import { TaskAttachmentsController } from './interface/http/task-attachments.controller';
 import { TasksController } from './interface/http/tasks.controller';
@@ -77,6 +81,7 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
                 ListTasksUseCase,
                 UpdateTaskUseCase,
                 UserDirectory,
+                Clock,
             ],
             useFactory: (
                 config: ConfigService<Env, true>,
@@ -84,10 +89,14 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
                 listTasks: ListTasksUseCase,
                 updateTask: UpdateTaskUseCase,
                 users: UserDirectory,
+                clock: Clock,
             ): TasksAgentCapability => {
+                assertTaskSkillsPresent(TASKS_AGENT_SKILLS_DIR);
                 return new TasksAgentCapability(
                     { createTask, listTasks, updateTask, users },
                     createChatModel(config, TASKS_AGENT_CONFIG.model),
+                    clock,
+                    TASKS_AGENT_SKILLS_DIR,
                 );
             },
         },

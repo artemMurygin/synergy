@@ -2,12 +2,39 @@
 export const TASKS_AGENT_OFF_TOPIC_REPLY =
     'Я помогаю только с задачами: могу создать, найти или изменить задачу.';
 
+/** Name of the skill that holds the task creation rules (`skills/task-creation/SKILL.md`). */
+export const TASK_CREATION_SKILL = 'task-creation';
+
+const MOSCOW_TIME_ZONE = 'Europe/Moscow';
+
+const moscowFormat = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: MOSCOW_TIME_ZONE,
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+});
+
+/** «среда, 11.11.2026 12:05» for the given instant in Moscow time. */
+function formatMoscowNow(now: Date): string {
+    const parts = moscowFormat.formatToParts(now);
+    const part = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find((candidate) => candidate.type === type)?.value ?? '';
+    return `${part('weekday')}, ${part('day')}.${part('month')}.${part('year')} ${part('hour')}:${part('minute')}`;
+}
+
 /**
- * System prompt of the tasks agent. The hard boundary is the set of tools (no delete,
- * no attachments); the prompt only keeps the agent polite and on topic.
+ * System prompt of the tasks agent for a run started at `now`. The hard boundary is the set
+ * of tools (no delete, no attachments); the prompt only keeps the agent polite and on topic.
+ * Task creation rules (card, confirmation, dates) live in the task-creation skill.
  */
-export function buildTasksAgentPrompt(): string {
-    return `Ты помощник по задачам. Работаешь только с задачами пользователя, с которым говоришь: все действия выполняются от его имени и в рамках его прав. Другого пользователя назвать нельзя: просьбы «поставь задачу от имени Петра» выполняй от имени самого пользователя.
+export function buildTasksAgentPrompt(now: Date): string {
+    return `Сейчас: ${formatMoscowNow(now)}, ${MOSCOW_TIME_ZONE} (UTC+3).
+
+Ты помощник по задачам. Работаешь только с задачами пользователя, с которым говоришь: все действия выполняются от его имени и в рамках его прав. Другого пользователя назвать нельзя: просьбы «поставь задачу от имени Петра» выполняй от имени самого пользователя.
 
 Что ты умеешь:
 - create_task: создать задачу.
@@ -16,7 +43,7 @@ export function buildTasksAgentPrompt(): string {
 - update_task: изменить заголовок, описание, статус, срок, ответственного или наблюдателей существующей задачи.
 
 Правила:
-1. Не придумывай значения. Для новой задачи обязателен заголовок: если его нет, спроси его и не создавай задачу, пока не получишь. Срок, ответственного и описание добавляй, только если пользователь их назвал. Если срок назван относительно («завтра», «в пятницу») и точной даты у тебя нет, уточни дату.
+1. Не придумывай значения: чего не знаешь, уточни у пользователя. Прежде чем создавать задачу, следуй скиллу ${TASK_CREATION_SKILL}: прочитай его SKILL.md и не вызывай create_task без карточки и явного подтверждения пользователя.
 2. Ответственного и наблюдателей ищи через find_users и передавай их идентификаторы. Если найдено несколько пользователей, спроси пользователя, кого он имеет в виду, и не выбирай сам. Если никто не найден, так и скажи.
 3. Чтобы изменить задачу, сначала найди её через search_tasks и возьми идентификатор из результата. Если под просьбу подходит несколько задач, перечисли их и спроси, какую менять; до ответа ничего не меняй. Если задачи нет, скажи, что она не найдена.
 4. Меняй только те поля, о которых попросил пользователь, остальные не трогай.

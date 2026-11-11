@@ -7,7 +7,9 @@ import type {
     BuildAgentOptions,
     CapabilityAgent,
 } from '../../../../shared/agent-capability';
+import type { Clock } from '../../domain/ports/clock.port';
 import { buildTasksAgentPrompt } from './tasks-agent-prompt';
+import { createTaskSkillsMiddleware } from './tasks-agent-skills';
 import { createTaskTools, type TaskToolsDeps } from './task-tools';
 
 /** Capability "tasks": create, search and update the tasks of the user the agent talks to. */
@@ -22,14 +24,19 @@ export class TasksAgentCapability implements AgentCapability {
     constructor(
         private readonly deps: TaskToolsDeps,
         private readonly model: BaseChatModel,
+        private readonly clock: Clock,
+        /** Folder with the skills (`<name>/SKILL.md`); the agent may only read it. */
+        private readonly skillsDir: string,
     ) {}
 
+    /** Built per run, so the prompt always carries the current date and time. */
     buildAgent(ctx: AgentRunContext, options?: BuildAgentOptions): CapabilityAgent {
         const tools = Object.values(createTaskTools(this.deps, ctx));
         return createAgent({
             model: this.model,
             tools,
-            systemPrompt: buildTasksAgentPrompt(),
+            systemPrompt: buildTasksAgentPrompt(this.clock.now()),
+            middleware: createTaskSkillsMiddleware(this.skillsDir),
             ...(options?.checkpointer === undefined ? {} : { checkpointer: options.checkpointer }),
         });
     }
