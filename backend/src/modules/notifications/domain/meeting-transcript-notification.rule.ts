@@ -1,18 +1,23 @@
 import type { ChatSystemMessagePostedEvent } from '../../assistant/contracts/chat-system-message-posted.event';
-import { NotificationContent } from './notification-content';
+import { MAX_NOTIFICATION_TITLE_LENGTH, NotificationContent } from './notification-content';
 import type { NotificationDraft } from './notification-draft';
 import { NotificationTarget } from './notification-target';
 import type { NotificationType } from './notification-type';
+
+const ELLIPSIS = '…';
 
 const TITLES: Record<ChatSystemMessagePostedEvent['topic'], string> = {
     'meeting-transcript.ready': 'Расшифровка готова',
     'meeting-transcript.failed': 'Не удалось расшифровать запись',
 };
 
-/**
- * The owner of the chat learns that the result of a transcription was posted into it. The text
- * names only the recording: the event carries no message or transcript text by design.
- */
+function titleOf(event: ChatSystemMessagePostedEvent): string {
+    const title = `${TITLES[event.topic]}: ${event.subject.fileName}`;
+    return title.length <= MAX_NOTIFICATION_TITLE_LENGTH
+        ? title
+        : `${title.slice(0, MAX_NOTIFICATION_TITLE_LENGTH - ELLIPSIS.length)}${ELLIPSIS}`;
+}
+
 export class MeetingTranscriptNotificationRule {
     apply(event: ChatSystemMessagePostedEvent): NotificationDraft[] {
         const type: NotificationType = event.topic;
@@ -21,7 +26,7 @@ export class MeetingTranscriptNotificationRule {
                 recipientId: event.ownerId,
                 type,
                 content: NotificationContent.of({
-                    title: TITLES[event.topic],
+                    title: titleOf(event),
                     body: event.subject.fileName,
                 }),
                 target: NotificationTarget.of({ type: 'chat', id: event.sessionId }),

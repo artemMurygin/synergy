@@ -80,7 +80,7 @@ describe('ChatSystemMessagePostedSubscriber', () => {
 
         const [notification] = [...notifications.byId.values()];
         expect(notification.type).toBe('meeting-transcript.failed');
-        expect(notification.content.title).toBe('Не удалось расшифровать запись');
+        expect(notification.content.title).toBe('Не удалось расшифровать запись: встреча.m4a');
     });
 
     it('never puts the transcript text into the notification', async () => {

@@ -22,6 +22,7 @@ import { JwtAccessTokenService } from '../auth/infrastructure/jwt-access-token.s
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { PasswordChangeGuard } from '../auth/interface/http/password-change.guard';
+import { GetFileUseCase } from '../files/application/get-file.use-case';
 import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
 import { FilesModule } from '../files/files.module';
 import { TasksModule } from '../tasks/tasks.module';
@@ -79,11 +80,15 @@ class AuthStubModule {}
 @Module({
     providers: [
         {
+            provide: GetFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
             provide: StoreGeneratedFileUseCase,
             useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
         },
     ],
-    exports: [StoreGeneratedFileUseCase],
+    exports: [StoreGeneratedFileUseCase, GetFileUseCase],
 })
 class NoFilesModule {}
 
