@@ -29,12 +29,12 @@ import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
+import { attachmentDisposition } from '../../../../shared/http/content-disposition';
 import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/http/decorators';
 import { DeleteAttachmentUseCase } from '../../application/delete-attachment.use-case';
 import { DownloadAttachmentUseCase } from '../../application/download-attachment.use-case';
 import { UploadAttachmentUseCase } from '../../application/upload-attachment.use-case';
 import { actorOf } from './actor-of';
-import { attachmentDisposition } from './content-disposition';
 import { AttachmentResponse, AttachmentUploadBody } from './tasks.responses';
 
 /** The part of the multer file object this controller relies on (disk storage). */
