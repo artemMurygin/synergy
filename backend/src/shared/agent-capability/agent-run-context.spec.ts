@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ArgumentInvalidError } from '../errors';
 import { AgentRunContext } from './agent-run-context';
+import { RunAttachments } from './run-attachments';
 
 describe('AgentRunContext', () => {
     it('keeps userId and threadId', () => {
@@ -36,5 +37,19 @@ describe('AgentRunContext', () => {
         props.userId = 'u-2';
 
         expect(ctx.userId).toBe('u-1');
+    });
+
+    it('gives every run its own empty attachments collector by default', () => {
+        const first = AgentRunContext.create({ userId: 'u-1', threadId: 't-1' });
+        const second = AgentRunContext.create({ userId: 'u-1', threadId: 't-1' });
+        expect(first.attachments).toBeInstanceOf(RunAttachments);
+        expect(first.attachments.list()).toEqual([]);
+        expect(first.attachments).not.toBe(second.attachments);
+    });
+
+    it('keeps the given attachments collector', () => {
+        const attachments = RunAttachments.create();
+        const ctx = AgentRunContext.create({ userId: 'u-1', threadId: 't-1', attachments });
+        expect(ctx.attachments).toBe(attachments);
     });
 });
