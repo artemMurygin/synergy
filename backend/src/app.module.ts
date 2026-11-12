@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { FilesModule } from './modules/files/files.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 
 @Module({
@@ -31,6 +32,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
         SheetsQaModule,
         AssistantModule,
         TasksModule,
+        FilesModule,
         NotificationsModule,
         TelegramModule,
     ],
