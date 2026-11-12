@@ -271,6 +271,27 @@ describe('ExtractMeetingTasksUseCase', () => {
         expect(extractor.extractions).toHaveLength(3);
     });
 
+    it('sends no more than three windows to the extractor at the same time', async () => {
+        await seed('completed', LONG);
+        settings = { windowTokens: 50, windowSec: 4 * 60, overlapSec: 60 };
+        const extractor = new FakeTaskExtractor();
+        const extract = extractor.extract.bind(extractor);
+        let inFlight = 0;
+        let maxInFlight = 0;
+        extractor.extract = async (lines, context) => {
+            inFlight += 1;
+            maxInFlight = Math.max(maxInFlight, inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            inFlight -= 1;
+            return extract(lines, context);
+        };
+
+        await useCase(extractor).execute({ ownerId: OWNER_ID, fileId: FILE_ID });
+
+        expect(extractor.extractions.length).toBeGreaterThan(3);
+        expect(maxInFlight).toBe(3);
+    });
+
     it('does not call the merge when the windows found nothing', async () => {
         await seed('completed', LONG);
         settings = { windowTokens: 50, windowSec: 10 * 60, overlapSec: 2 * 60 };

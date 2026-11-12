@@ -30,6 +30,9 @@ export interface ExtractMeetingTasksInput {
 /** Грубая оценка для русского текста: около трёх символов на токен. */
 const CHARS_PER_TOKEN = 3;
 
+/** Сколько окон расшифровки отправляется в модель одновременно, чтобы не упереться в лимиты провайдера. */
+const MAX_PARALLEL_WINDOWS = 3;
+
 /**
  * Извлекает задачи из готовой расшифровки: реплики `[seq] [чч:мм:сс] Имя: текст` уходят в
  * `TaskExtractorPort` целиком или окнами с перекрытием (результаты окон сливаются вторым
@@ -70,9 +73,15 @@ export class ExtractMeetingTasksUseCase {
         };
 
         const windows = this.windowsOf(segments, names);
-        const extracted = await Promise.all(
-            windows.map((lines) => this.extractor.extract(lines, context)),
-        );
+        const extracted: RawExtractedTask[][] = [];
+        for (let i = 0; i < windows.length; i += MAX_PARALLEL_WINDOWS) {
+            const batch = windows.slice(i, i + MAX_PARALLEL_WINDOWS);
+            extracted.push(
+                ...(await Promise.all(
+                    batch.map((lines) => this.extractor.extract(lines, context)),
+                )),
+            );
+        }
         let found = 0;
         let dropped = 0;
         const batches: RawExtractedTask[][] = [];

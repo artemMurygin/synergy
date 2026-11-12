@@ -316,7 +316,7 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
         if (result.rowCount === 0) throw new ChatSessionNotFoundError(sessionId);
     }
 
-    /** Links the files to the stored message in the given order and returns the full message. */
+    /** Remembers this chat as the first one each file was sent to; later chats are ignored. */
     private async rememberFirstSession(
         db: CommonQueryMethods,
         sessionId: string,
@@ -332,6 +332,7 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
         `);
     }
 
+    /** Links the files to the stored message in the given order and returns the full message. */
     private async withAttachments(
         db: CommonQueryMethods,
         row: unknown,
