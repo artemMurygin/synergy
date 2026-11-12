@@ -1,5 +1,7 @@
 FROM node:26-alpine
 WORKDIR /app
+# ffmpeg и ffprobe для нарезки записей встреч
+RUN apk add --no-cache ffmpeg
 COPY package*.json ./
 RUN npm ci
 COPY . .
