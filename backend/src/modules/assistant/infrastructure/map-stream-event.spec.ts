@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AttachmentRef } from '../../../shared/agent-capability';
 import { AgentEvent } from '../domain/agent-event';
 import fixture from './testing/stream-events.fixture.json';
 import { mapStreamEvent, StreamEventMapper } from './map-stream-event';
@@ -102,6 +103,22 @@ describe('StreamEventMapper', () => {
         expect(finished.type === 'run-finished' && finished.answer).toBe(
             'Сейчас проверю. Нашёл программу: Дизайн, 120000 руб.',
         );
+    });
+});
+
+describe('StreamEventMapper: attachments', () => {
+    it('puts the files of the run into run-finished in the given order', () => {
+        const mapper = new StreamEventMapper(() => 0);
+        const doc = AttachmentRef.of({
+            fileId: 'doc-1',
+            name: 'Расшифровка.docx',
+            mediaType: 'application/pdf',
+            kind: 'document',
+            sizeBytes: 10,
+        });
+        const finished = mapper.finish([doc]);
+        expect(finished.type === 'run-finished' && finished.attachments).toEqual([doc]);
+        expect(new StreamEventMapper(() => 0).finish()).toMatchObject({ attachments: [] });
     });
 });
 

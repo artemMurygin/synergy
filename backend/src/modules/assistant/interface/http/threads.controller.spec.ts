@@ -151,6 +151,70 @@ describe('Threads HTTP API', () => {
         });
     });
 
+    it('GET messages returns attachments with the file status and the source of every message', async () => {
+        const created = await createThread();
+        repository.files.set('rec-1', {
+            name: 'встреча.m4a',
+            mediaType: 'audio/mp4',
+            kind: 'recording',
+            sizeBytes: 1024,
+            status: 'active',
+        });
+        repository.files.set('doc-1', {
+            name: 'расшифровка.docx',
+            mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            kind: 'document',
+            sizeBytes: 2048,
+            status: 'deleted',
+        });
+        await repository.appendUserMessage(created.id, TEST_USER, '', ['rec-1']);
+        await repository.appendAgentAnswer(created.id, TEST_USER, {
+            answer: 'Запустил расшифровку',
+            toolCalls: [],
+            durationMs: 5,
+        });
+        await repository.appendSystemMessage(created.id, TEST_USER, {
+            text: 'Расшифровка готова',
+            attachments: ['doc-1'],
+            dedupKey: 'event-1',
+        });
+
+        const { status, json } = await call('GET', `/threads/${created.id}/messages`);
+
+        expect(status).toBe(200);
+        expect(json).toMatchObject({
+            messages: [
+                {
+                    role: 'user',
+                    content: '',
+                    source: 'run',
+                    attachments: [
+                        {
+                            id: 'rec-1',
+                            name: 'встреча.m4a',
+                            mediaType: 'audio/mp4',
+                            kind: 'recording',
+                            sizeBytes: 1024,
+                            status: 'active',
+                        },
+                    ],
+                },
+                {
+                    role: 'assistant',
+                    content: 'Запустил расшифровку',
+                    source: 'run',
+                    attachments: [],
+                },
+                {
+                    role: 'assistant',
+                    content: 'Расшифровка готова',
+                    source: 'system',
+                    attachments: [{ id: 'doc-1', kind: 'document', status: 'deleted' }],
+                },
+            ],
+        });
+    });
+
     it('GET messages reports running while a run is active', async () => {
         const created = await createThread();
         registry.tryStart(created.id, 'run-1');

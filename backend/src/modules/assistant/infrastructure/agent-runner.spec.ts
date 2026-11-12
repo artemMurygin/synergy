@@ -7,7 +7,7 @@ import { createAgent, tool } from 'langchain';
 import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import type { AgentCapability } from '../../../shared/agent-capability';
+import { AttachmentRef, type AgentCapability } from '../../../shared/agent-capability';
 import type { AgentRunContext } from '../../../shared/agent-capability';
 import { TASKS_AGENT_SKILLS_DIR } from '../../tasks/interface/agent/tasks-agent-skills';
 import { TasksAgentCapability } from '../../tasks/interface/agent/tasks-agent.capability';
@@ -233,6 +233,124 @@ describe('AgentRunner.stream', () => {
         if (last?.type !== 'run-finished') return;
         expect(last.toolCalls).toEqual([{ name: 'noop', args: { q: 1 } }]);
         expect(events.map((e) => e.type)).toContain('tool-call-started');
+    });
+});
+
+describe('AgentRunner: attachments of the question', () => {
+    it('puts the [Вложения] block into the HumanMessage stored in the thread', async () => {
+        const checkpointer = new MemorySaver();
+        const agents: AgentFactory = {
+            build: () =>
+                createAgent({
+                    model: new FakeListChatModel({ responses: ['Расшифровка запущена'] }),
+                    tools: [],
+                    checkpointer,
+                }),
+        };
+        const withFile = RunInput.of({
+            threadId: 'thread-files',
+            runId: 'run-1',
+            question: '',
+            attachments: [
+                AttachmentRef.of({
+                    fileId: 'f-1',
+                    name: 'встреча.m4a',
+                    mediaType: 'audio/mp4',
+                    kind: 'recording',
+                    sizeBytes: 84 * 1024 * 1024,
+                }),
+            ],
+        });
+
+        await collect(create(agents).stream(withFile, new AbortController().signal, scope));
+
+        const tuple = await checkpointer.getTuple({
+            configurable: { thread_id: 'thread-files' },
+        });
+        const messages = tuple?.checkpoint.channel_values.messages as {
+            getType(): string;
+            content: unknown;
+        }[];
+        const human = messages.find((m) => m.getType() === 'human');
+        expect(human?.content).toBe('[Вложения]\n1. id=f-1; встреча.m4a; recording; 84 МБ');
+    });
+});
+
+describe('AgentRunner: files attached by the agent', () => {
+    const doc = AttachmentRef.of({
+        fileId: 'doc-1',
+        name: 'Расшифровка.docx',
+        mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        kind: 'document',
+        sizeBytes: 2048,
+    });
+
+    /** An agent whose tool issues a document into the run attachments, then answers. */
+    function issuingAgents(model: ReturnType<typeof fakeModel>): AgentFactory {
+        return {
+            build: (_client, ctx) =>
+                createAgent({
+                    model,
+                    tools: [
+                        tool(
+                            () => {
+                                ctx.attachments.add(doc);
+                                ctx.attachments.add(doc);
+                                return 'документ создан';
+                            },
+                            {
+                                name: 'issue_document',
+                                description: 'Creates a document',
+                                schema: z.object({}).loose(),
+                            },
+                        ),
+                    ],
+                    checkpointer: new MemorySaver(),
+                }),
+        };
+    }
+
+    const callIssue = (): AIMessage =>
+        new AIMessage({
+            content: '',
+            tool_calls: [{ id: 'call-1', name: 'issue_document', args: {} }],
+        });
+
+    it('emits file-attached once, before run-finished, and lists the file in run-finished', async () => {
+        const model = fakeModel().respond(callIssue()).respond(new AIMessage('Готово'));
+        const events = await collect(
+            create(issuingAgents(model)).stream(input(), new AbortController().signal, scope),
+        );
+
+        const attached = events.filter((e) => e.type === 'file-attached');
+        expect(attached).toEqual([AgentEvent.fileAttached(doc)]);
+        const types = events.map((e) => e.type);
+        expect(types.indexOf('file-attached')).toBeLessThan(types.indexOf('run-finished'));
+        const last = events.at(-1);
+        expect(last?.type).toBe('run-finished');
+        if (last?.type !== 'run-finished') return;
+        expect(last.attachments).toEqual([doc]);
+    });
+
+    it('a run without files finishes with no attachments and no file events', async () => {
+        const events = await collect(
+            create(simpleAgents(new FakeListChatModel({ responses: ['ок'] }))).stream(
+                input(),
+                new AbortController().signal,
+                scope,
+            ),
+        );
+        expect(events.some((e) => e.type === 'file-attached')).toBe(false);
+        expect(events.at(-1)).toMatchObject({ type: 'run-finished', attachments: [] });
+    });
+
+    it('ends with run-failed without attachments when the model fails after the file', async () => {
+        const model = fakeModel().respond(callIssue()).respond(new Error('модель упала'));
+        const events = await collect(
+            create(issuingAgents(model)).stream(input(), new AbortController().signal, scope),
+        );
+        expect(events.at(-1)?.type).toBe('run-failed');
+        expect(events.some((e) => e.type === 'run-finished')).toBe(false);
     });
 });
 

@@ -26,6 +26,7 @@ describe('AgentEvent', () => {
             answer: 'ok',
             toolCalls: [{ name: 'x', args: {} }],
             durationMs: 12,
+            attachments: [],
         });
         expect(AgentEvent.runFailed('boom')).toEqual({ type: 'run-failed', message: 'boom' });
         expect(AgentEvent.runCancelled()).toEqual({ type: 'run-cancelled' });

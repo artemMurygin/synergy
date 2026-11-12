@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ChatMessage } from '../../domain/chat-message';
+import { MessageAttachment } from '../../domain/message-attachment';
 import { ThreadMessageMapper } from './thread-message-mapper';
 
 const createdAt = new Date('2026-01-01T10:00:00Z');
@@ -13,7 +14,13 @@ describe('ThreadMessageMapper', () => {
             createdAt,
         });
         expect(ThreadMessageMapper.toAgUi([message])).toEqual([
-            { id: '7', role: 'user', content: 'Сколько стоит МВА?' },
+            {
+                id: '7',
+                role: 'user',
+                content: 'Сколько стоит МВА?',
+                attachments: [],
+                source: 'run',
+            },
         ]);
     });
 
@@ -27,7 +34,7 @@ describe('ThreadMessageMapper', () => {
             createdAt,
         });
         expect(ThreadMessageMapper.toAgUi([message])).toEqual([
-            { id: '8', role: 'assistant', content: 'Ответ' },
+            { id: '8', role: 'assistant', content: 'Ответ', attachments: [], source: 'run' },
         ]);
     });
 
@@ -48,6 +55,8 @@ describe('ThreadMessageMapper', () => {
                 id: '9',
                 role: 'assistant',
                 content: 'Ответ',
+                attachments: [],
+                source: 'run',
                 toolCalls: [
                     {
                         id: '9-tool-0',
@@ -61,8 +70,22 @@ describe('ThreadMessageMapper', () => {
                     },
                 ],
             },
-            { id: '9-tool-0-result', role: 'tool', toolCallId: '9-tool-0', content: '' },
-            { id: '9-tool-1-result', role: 'tool', toolCallId: '9-tool-1', content: '' },
+            {
+                id: '9-tool-0-result',
+                role: 'tool',
+                toolCallId: '9-tool-0',
+                content: '',
+                attachments: [],
+                source: 'run',
+            },
+            {
+                id: '9-tool-1-result',
+                role: 'tool',
+                toolCallId: '9-tool-1',
+                content: '',
+                attachments: [],
+                source: 'run',
+            },
         ]);
     });
 
@@ -81,6 +104,57 @@ describe('ThreadMessageMapper', () => {
         expect(ThreadMessageMapper.toAgUi(messages).map((m) => m.role)).toEqual([
             'user',
             'assistant',
+        ]);
+    });
+
+    it('maps the attachments in order and the system source', () => {
+        const attachment = (
+            fileId: string,
+            position: number,
+            status: 'active' | 'deleted',
+        ): MessageAttachment =>
+            MessageAttachment.of({
+                fileId,
+                position,
+                name: `${fileId}.docx`,
+                mediaType: 'application/pdf',
+                kind: 'document',
+                sizeBytes: 10,
+                status,
+            });
+        const message = ChatMessage.system({
+            id: 11,
+            sessionId: 's',
+            text: 'Готово',
+            dedupKey: 'e',
+            attachments: [attachment('b', 1, 'active'), attachment('a', 0, 'deleted')],
+            createdAt,
+        });
+        expect(ThreadMessageMapper.toAgUi([message])).toEqual([
+            {
+                id: '11',
+                role: 'assistant',
+                content: 'Готово',
+                source: 'system',
+                attachments: [
+                    {
+                        id: 'a',
+                        name: 'a.docx',
+                        mediaType: 'application/pdf',
+                        kind: 'document',
+                        sizeBytes: 10,
+                        status: 'deleted',
+                    },
+                    {
+                        id: 'b',
+                        name: 'b.docx',
+                        mediaType: 'application/pdf',
+                        kind: 'document',
+                        sizeBytes: 10,
+                        status: 'active',
+                    },
+                ],
+            },
         ]);
     });
 });

@@ -2,14 +2,40 @@ import { ChatMessage } from '../../../domain/chat-message';
 import { ChatSession } from '../../../domain/chat-session';
 import { ChatSessionNotFoundError } from '../../../domain/chat-session-not-found.error';
 import type { ChatTitle } from '../../../domain/chat-title';
-import { ChatSessionRepositoryPort } from '../../../domain/ports/chat-session-repository.port';
+import { MessageAttachment, type MessageAttachmentProps } from '../../../domain/message-attachment';
+import {
+    ChatSessionRepositoryPort,
+    type SystemMessageInput,
+} from '../../../domain/ports/chat-session-repository.port';
 import type { AssistantAnswer } from '../../../domain/ports/agent-runner.port';
+
+type FileFacts = Omit<MessageAttachmentProps, 'fileId' | 'position'>;
+
+const UNKNOWN_FILE: FileFacts = {
+    name: 'file',
+    mediaType: 'application/octet-stream',
+    kind: 'document',
+    sizeBytes: 1,
+    status: 'active',
+};
 
 /** Test double of the chat repository shared by the controller specs. */
 export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
     sessions = new Map<string, ChatSession>();
     messages = new Map<string, ChatMessage[]>();
+    /** Facts of stored files by id, as the history would read them from stored_file. */
+    files = new Map<string, FileFacts>();
     private nextId = 1;
+
+    private attach(fileIds: readonly string[] = []): MessageAttachment[] {
+        return fileIds.map((fileId, position) =>
+            MessageAttachment.of({
+                ...(this.files.get(fileId) ?? UNKNOWN_FILE),
+                fileId,
+                position,
+            }),
+        );
+    }
 
     create(session: ChatSession): Promise<ChatSession> {
         this.sessions.set(session.id, session);
@@ -43,13 +69,19 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
     listMessages(sessionId: string, ownerId: string): Promise<ChatMessage[]> {
         return this.require(sessionId, ownerId, () => this.messages.get(sessionId) ?? []);
     }
-    appendUserMessage(sessionId: string, ownerId: string, text: string): Promise<ChatMessage> {
+    appendUserMessage(
+        sessionId: string,
+        ownerId: string,
+        text: string,
+        attachments: readonly string[] = [],
+    ): Promise<ChatMessage> {
         return this.require(sessionId, ownerId, () => {
             const message = ChatMessage.user({
                 id: this.nextId++,
                 sessionId,
                 text,
                 createdAt: new Date(),
+                attachments: this.attach(attachments),
             });
             this.messages.get(sessionId)?.push(message);
             return message;
@@ -69,12 +101,50 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
                 toolCalls: answer.toolCalls,
                 durationMs: answer.durationMs,
                 createdAt: new Date(),
+                attachments: this.attach(answer.attachments),
             });
             this.messages.get(sessionId)?.push(message);
             const session = this.sessions.get(sessionId);
             if (session && autoTitle) this.sessions.set(sessionId, session.rename(autoTitle));
             return message;
         });
+    }
+    appendSystemMessage(
+        sessionId: string,
+        ownerId: string,
+        input: SystemMessageInput,
+    ): Promise<ChatMessage | null> {
+        return this.require(sessionId, ownerId, () => {
+            const all = [...this.messages.values()].flat();
+            if (all.some((m) => m.dedupKey === input.dedupKey)) return null;
+            const message = ChatMessage.system({
+                id: this.nextId++,
+                sessionId,
+                text: input.text,
+                dedupKey: input.dedupKey,
+                createdAt: new Date(),
+                attachments: this.attach(input.attachments),
+            });
+            this.messages.get(sessionId)?.push(message);
+            return message;
+        });
+    }
+    hasDedupKey(dedupKey: string): Promise<boolean> {
+        const all = [...this.messages.values()].flat();
+        return Promise.resolve(all.some((m) => m.dedupKey === dedupKey));
+    }
+    findFirstSessionWithFile(fileId: string, ownerId: string): Promise<string | null> {
+        const found = [...this.messages.values()]
+            .flat()
+            .filter(
+                (m) =>
+                    m.role === 'user' &&
+                    this.sessions.get(m.sessionId)?.ownerId === ownerId &&
+                    m.attachments.some((a) => a.fileId === fileId),
+            )
+            .sort((a, b) => a.id - b.id)
+            .at(0);
+        return Promise.resolve(found?.sessionId ?? null);
     }
     rename(sessionId: string, ownerId: string, title: ChatTitle): Promise<ChatSession> {
         return this.require(sessionId, ownerId, () => {

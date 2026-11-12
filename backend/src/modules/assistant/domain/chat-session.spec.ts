@@ -135,9 +135,12 @@ describe('ChatMessage', () => {
                 id: 1,
                 sessionId: 's',
                 role: 'user',
+                source: 'run',
                 text: 'q',
                 toolCalls: [],
                 durationMs: 5,
+                attachments: [],
+                dedupKey: null,
                 createdAt: NOW,
             }),
         ).toThrow();

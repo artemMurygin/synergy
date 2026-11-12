@@ -1,5 +1,6 @@
 import { EventType } from '@ag-ui/core';
 import { describe, expect, it } from 'vitest';
+import { AttachmentRef } from '../../../../shared/agent-capability';
 import { AgentEvent } from '../../domain/agent-event';
 import { AgUiEventMapper } from './ag-ui-event-mapper';
 
@@ -133,6 +134,55 @@ describe('AgUiEventMapper', () => {
             threadId: 'thread-1',
             runId: 'run-1',
             outcome: { type: 'cancelled' },
+        });
+    });
+
+    describe('file-attached', () => {
+        const doc = AttachmentRef.of({
+            fileId: 'doc-1',
+            name: 'Расшифровка.docx',
+            mediaType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            kind: 'document',
+            sizeBytes: 2048,
+        });
+
+        it('maps a file of the answer to CUSTOM file-attached with the file facts', () => {
+            expect(newMapper().map(AgentEvent.fileAttached(doc))).toEqual([
+                {
+                    type: EventType.CUSTOM,
+                    name: 'file-attached',
+                    value: {
+                        id: 'doc-1',
+                        name: 'Расшифровка.docx',
+                        mediaType:
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        size: 2048,
+                        kind: 'document',
+                    },
+                },
+            ]);
+        });
+
+        it('does not change the text stream for a client that ignores CUSTOM', () => {
+            const script = (withFile: boolean): AgentEvent[] => [
+                AgentEvent.runStarted(),
+                AgentEvent.textDelta('Готовлю '),
+                ...(withFile ? [AgentEvent.fileAttached(doc)] : []),
+                AgentEvent.textDelta('документ'),
+                AgentEvent.runFinished({
+                    answer: 'Готовлю документ',
+                    toolCalls: [],
+                    durationMs: 1,
+                    attachments: withFile ? [doc] : [],
+                }),
+            ];
+            const plain = newMapper();
+            const withFile = newMapper();
+            const expected = script(false).flatMap((e) => plain.map(e));
+            const actual = script(true)
+                .flatMap((e) => withFile.map(e))
+                .filter((e) => e.type !== EventType.CUSTOM);
+            expect(actual).toEqual(expected);
         });
     });
 });

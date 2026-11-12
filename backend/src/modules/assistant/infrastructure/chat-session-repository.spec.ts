@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
+import type { PinoLogger } from 'nestjs-pino';
 import { createPool, type DatabasePool } from 'slonik';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate } from '../../../database/postgres/migrator';
+import { TransactionRunner } from '../../../database/postgres/transaction-runner';
 import { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
 import { ChatTitle } from '../domain/chat-title';
@@ -51,7 +53,8 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
         client = new Client({ connectionString: dbUrl });
         await client.connect();
         pool = await createPool(dbUrl);
-        repo = new ChatSessionRepository(pool);
+        const logger = { setContext: vi.fn(), error: vi.fn() } as unknown as PinoLogger;
+        repo = new ChatSessionRepository(new TransactionRunner(pool, logger));
         ownerId = await createUser();
         mine = { ownerId, channel: 'app' };
     }, 60_000);
@@ -64,6 +67,29 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
         await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
         await admin.end();
     });
+
+    const createFile = async (
+        name: string,
+        options: { owner?: string; status?: 'active' | 'deleted'; kind?: string } = {},
+    ): Promise<string> => {
+        const deleted = options.status === 'deleted';
+        const { rows } = await client.query<{ id: string }>(
+            `INSERT INTO stored_file (owner_id, original_name, media_type, kind, size_bytes,
+                 storage_key, status, expires_at, uploaded_at, deleted_at)
+             VALUES ($1, $2, $3, $4, 2048, $5, $6, now() + interval '7 days', now(), $7)
+             RETURNING id`,
+            [
+                options.owner ?? ownerId,
+                name,
+                options.kind === 'document' ? 'application/pdf' : 'audio/mp4',
+                options.kind ?? 'recording',
+                `key-${randomUUID()}`,
+                deleted ? 'deleted' : 'active',
+                deleted ? new Date() : null,
+            ],
+        );
+        return rows[0]?.id ?? '';
+    };
 
     beforeEach(async () => {
         await client.query('DELETE FROM chat_session');
@@ -304,5 +330,151 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
         expect(found?.channel).toBe('telegram');
         expect(found?.ownerId).toBe(ownerId);
         expect(await repo.findTelegram(await createUser())).toBeNull();
+    });
+
+    describe('attachments and sources', () => {
+        it('stores the attachments of a user message in the order they were sent', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const second = await createFile('b.m4a');
+            const first = await createFile('a.m4a');
+            const stored = await repo.appendUserMessage(s.id, ownerId, '', [second, first]);
+            expect(stored.attachments.map((a) => a.fileId)).toEqual([second, first]);
+
+            const [message] = await repo.listMessages(s.id, ownerId);
+            expect(message.text).toBe('');
+            expect(message.source).toBe('run');
+            expect(message.attachments.map((a) => [a.fileId, a.position, a.name])).toEqual([
+                [second, 0, 'b.m4a'],
+                [first, 1, 'a.m4a'],
+            ]);
+            expect(message.attachments[0]).toMatchObject({
+                mediaType: 'audio/mp4',
+                kind: 'recording',
+                sizeBytes: 2048,
+                status: 'active',
+            });
+        });
+
+        it('reads the current status of the file from stored_file', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const fileId = await createFile('a.docx', { kind: 'document' });
+            await repo.appendAgentAnswer(s.id, ownerId, { ...answer(), attachments: [fileId] });
+            await client.query(
+                `UPDATE stored_file SET status = 'deleted', deleted_at = now() WHERE id = $1`,
+                [fileId],
+            );
+            const [message] = await repo.listMessages(s.id, ownerId);
+            expect(message.attachments).toHaveLength(1);
+            expect(message.attachments[0]).toMatchObject({
+                fileId,
+                name: 'a.docx',
+                kind: 'document',
+                status: 'deleted',
+            });
+        });
+
+        it('stores the attachments of an agent answer in the same transaction', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            await expect(
+                repo.appendAgentAnswer(s.id, ownerId, {
+                    ...answer(),
+                    attachments: [randomUUID()],
+                }),
+            ).rejects.toThrow();
+            expect(await repo.listMessages(s.id, ownerId)).toEqual([]);
+        });
+
+        it('a system message has the system source, no trace, its attachments and bumps the activity', async () => {
+            const s = await repo.create(ChatSession.create(mine, new Date('2026-01-01')));
+            const doc = await createFile('расшифровка.docx', { kind: 'document' });
+            const posted = await repo.appendSystemMessage(s.id, ownerId, {
+                text: 'Расшифровка готова',
+                attachments: [doc],
+                dedupKey: 'event-1',
+            });
+            expect(posted).not.toBeNull();
+            const [message] = await repo.listMessages(s.id, ownerId);
+            expect(message).toMatchObject({
+                role: 'agent',
+                source: 'system',
+                text: 'Расшифровка готова',
+                toolCalls: null,
+                durationMs: null,
+                dedupKey: 'event-1',
+            });
+            expect(message.attachments.map((a) => a.fileId)).toEqual([doc]);
+            const found = await repo.findById(s.id);
+            expect(found?.lastActivityAt.getTime()).toBeGreaterThan(s.lastActivityAt.getTime());
+            expect(found?.title.isDefault()).toBe(true);
+        });
+
+        it('a repeated dedup key gives null and adds nothing', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const input = { text: 'Готово', attachments: [], dedupKey: 'event-2' };
+            expect(await repo.appendSystemMessage(s.id, ownerId, input)).not.toBeNull();
+            expect(await repo.appendSystemMessage(s.id, ownerId, input)).toBeNull();
+            expect(await repo.listMessages(s.id, ownerId)).toHaveLength(1);
+        });
+
+        it('a system message into a missing or foreign chat throws not found', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const stranger = await createUser();
+            const input = { text: 'x', attachments: [], dedupKey: randomUUID() };
+            await expect(
+                repo.appendSystemMessage(randomUUID(), ownerId, input),
+            ).rejects.toBeInstanceOf(ChatSessionNotFoundError);
+            await expect(repo.appendSystemMessage(s.id, stranger, input)).rejects.toBeInstanceOf(
+                ChatSessionNotFoundError,
+            );
+        });
+
+        it('deleting a chat removes the attachment links but not the files', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const fileId = await createFile('a.m4a');
+            await repo.appendUserMessage(s.id, ownerId, '', [fileId]);
+            await repo.delete(s.id, ownerId);
+            const links = await client.query(
+                'SELECT 1 FROM chat_message_attachment WHERE file_id = $1',
+                [fileId],
+            );
+            expect(links.rowCount).toBe(0);
+            const files = await client.query('SELECT 1 FROM stored_file WHERE id = $1', [fileId]);
+            expect(files.rowCount).toBe(1);
+        });
+    });
+
+    describe('system message lookups', () => {
+        it('findFirstSessionWithFile returns the first existing chat of the owner with the file in a question', async () => {
+            const fileId = await createFile('встреча.m4a');
+            const first = await repo.create(ChatSession.create(mine));
+            const second = await repo.create(ChatSession.create(mine));
+            const answerOnly = await repo.create(ChatSession.create(mine));
+            await repo.appendAgentAnswer(answerOnly.id, ownerId, {
+                ...answer(),
+                attachments: [fileId],
+            });
+            await repo.appendUserMessage(first.id, ownerId, '', [fileId]);
+            await repo.appendUserMessage(second.id, ownerId, 'снова', [fileId]);
+
+            expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBe(first.id);
+            expect(await repo.findFirstSessionWithFile(fileId, await createUser())).toBeNull();
+
+            await repo.delete(first.id, ownerId);
+            expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBe(second.id);
+            await repo.delete(second.id, ownerId);
+            expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBeNull();
+        });
+
+        it('hasDedupKey tells whether a system message with the key exists', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const key = `event-${randomUUID()}`;
+            expect(await repo.hasDedupKey(key)).toBe(false);
+            await repo.appendSystemMessage(s.id, ownerId, {
+                text: 'Готово',
+                attachments: [],
+                dedupKey: key,
+            });
+            expect(await repo.hasDedupKey(key)).toBe(true);
+        });
     });
 });

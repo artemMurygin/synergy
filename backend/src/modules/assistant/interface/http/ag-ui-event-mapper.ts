@@ -1,6 +1,8 @@
 import { EventType, type BaseEvent } from '@ag-ui/core';
 import type { AgentEvent } from '../../domain/agent-event';
 
+export const FILE_ATTACHED_EVENT_NAME = 'file-attached';
+
 export interface AgUiRunContext {
     readonly threadId: string;
     readonly runId: string;
@@ -23,6 +25,21 @@ export class AgUiEventMapper {
                 return this.toolCallStarted(event.callId, event.name, event.args);
             case 'tool-call-finished':
                 return this.toolCallFinished(event.callId);
+            case 'file-attached':
+                // Clients that do not know CUSTOM ignore it, so their text stream is unchanged.
+                return [
+                    {
+                        type: EventType.CUSTOM,
+                        name: FILE_ATTACHED_EVENT_NAME,
+                        value: {
+                            id: event.file.fileId,
+                            name: event.file.name,
+                            mediaType: event.file.mediaType,
+                            size: event.file.sizeBytes,
+                            kind: event.file.kind,
+                        },
+                    },
+                ];
             case 'run-finished':
                 return [
                     ...(this.openMessageId === null && event.answer.length > 0

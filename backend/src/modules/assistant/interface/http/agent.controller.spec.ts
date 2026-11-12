@@ -3,10 +3,16 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AttachmentRef } from '../../../../shared/agent-capability';
 import { StartAgentRunUseCase } from '../../application/start-agent-run.use-case';
 import { AgentEvent } from '../../domain/agent-event';
+import {
+    ChatAttachmentExpiredError,
+    ChatAttachmentNotFoundError,
+} from '../../domain/chat-attachment.errors';
 import { ChatSession } from '../../domain/chat-session';
 import { ActiveRunRegistryPort } from '../../domain/ports/active-run-registry.port';
+import { AttachmentFilesPort } from '../../domain/ports/attachment-files.port';
 import { ChatSessionRepositoryPort } from '../../domain/ports/chat-session-repository.port';
 import { ChatThreadPort } from '../../domain/ports/chat-thread.port';
 import { AgentRunnerPort } from '../../domain/ports/agent-runner.port';
@@ -55,6 +61,36 @@ class ScriptedAssistant extends AgentRunnerPort {
 }
 
 const fakeLogger = { setContext: vi.fn(), warn: vi.fn(), error: vi.fn() };
+
+const OWN_FILE = '11111111-1111-4111-8111-111111111111';
+const OWN_FILE_2 = '22222222-2222-4222-8222-222222222222';
+const FOREIGN_FILE = '33333333-3333-4333-8333-333333333333';
+const DELETED_FILE = '44444444-4444-4444-8444-444444444444';
+
+/** Files of TEST_USER: two active and one deleted; anything else is unknown or foreign. */
+class FakeFiles extends AttachmentFilesPort {
+    findOwned(ownerId: string, fileIds: readonly string[]): Promise<AttachmentRef[]> {
+        const refs: AttachmentRef[] = [];
+        for (const fileId of fileIds) {
+            if (fileId === DELETED_FILE && ownerId === TEST_USER) {
+                return Promise.reject(new ChatAttachmentExpiredError(fileId));
+            }
+            if (ownerId !== TEST_USER || (fileId !== OWN_FILE && fileId !== OWN_FILE_2)) {
+                return Promise.reject(new ChatAttachmentNotFoundError(fileId));
+            }
+            refs.push(
+                AttachmentRef.of({
+                    fileId,
+                    name: `${fileId.slice(0, 4)}.m4a`,
+                    mediaType: 'audio/mp4',
+                    kind: 'recording',
+                    sizeBytes: 1024,
+                }),
+            );
+        }
+        return Promise.resolve(refs);
+    }
+}
 
 class FakeThread extends ChatThreadPort {
     deleteThread(): Promise<void> {
@@ -129,6 +165,7 @@ describe('AgentController', () => {
                 { provide: ChatThreadPort, useValue: new FakeThread() },
                 { provide: ActiveRunRegistryPort, useValue: registry },
                 { provide: AgentRunnerPort, useValue: assistant },
+                { provide: AttachmentFilesPort, useValue: new FakeFiles() },
             ],
         }).compile();
         app = moduleRef.createNestApplication();
@@ -328,5 +365,126 @@ describe('AgentController', () => {
         expect((await repository.listMessages(threadId, TEST_USER)).map((m) => m.role)).toEqual([
             'user',
         ]);
+    });
+
+    describe('attachments', () => {
+        const finished = (): AgentEvent[] => [
+            AgentEvent.runStarted(),
+            AgentEvent.runFinished({ answer: 'ok', toolCalls: [], durationMs: 1 }),
+        ];
+
+        it('passes forwardedProps.fileIds to the run and stores them with the question', async () => {
+            assistant.script = finished();
+            const response = await post(
+                body({
+                    forwardedProps: { fileIds: [OWN_FILE_2, OWN_FILE] },
+                    messages: [{ id: 'm', role: 'user', content: '' }],
+                }),
+            );
+            expect(response.status).toBe(200);
+            await response.text();
+            expect(assistant.inputs[0]?.question).toBe('');
+            expect(assistant.inputs[0]?.attachments.map((a) => a.fileId)).toEqual([
+                OWN_FILE_2,
+                OWN_FILE,
+            ]);
+            const [question] = await repository.listMessages(threadId, TEST_USER);
+            expect(question.attachments.map((a) => a.fileId)).toEqual([OWN_FILE_2, OWN_FILE]);
+        });
+
+        it('accepts a run without a user message text when files are attached', async () => {
+            assistant.script = finished();
+            const response = await post(
+                body({ forwardedProps: { fileIds: [OWN_FILE] }, messages: [] }),
+            );
+            expect(response.status).toBe(200);
+            await response.text();
+            expect(assistant.inputs[0]?.attachments).toHaveLength(1);
+        });
+
+        it.each([
+            ['a foreign file', FOREIGN_FILE],
+            ['an unknown file', randomUUID()],
+        ])('answers 404 for %s before the stream and stores nothing', async (_name, fileId) => {
+            const response = await post(body({ forwardedProps: { fileIds: [fileId] } }));
+            expect(response.status).toBe(404);
+            expect(response.headers.get('content-type')).not.toContain('text/event-stream');
+            expect(await response.json()).toMatchObject({ code: 'FILE_NOT_FOUND' });
+            expect(assistant.inputs).toEqual([]);
+            expect(await repository.listMessages(threadId, TEST_USER)).toEqual([]);
+        });
+
+        it('answers 410 with the expired reason for a deleted file and stores nothing', async () => {
+            const response = await post(body({ forwardedProps: { fileIds: [DELETED_FILE] } }));
+            expect(response.status).toBe(410);
+            const json = (await response.json()) as { code: string; message: string };
+            expect(json.code).toBe('FILE_GONE');
+            expect(json.message).toContain('Срок хранения файла истёк');
+            expect(assistant.inputs).toEqual([]);
+            expect(await repository.listMessages(threadId, TEST_USER)).toEqual([]);
+        });
+
+        it('answers 400 for 6 files and stores nothing', async () => {
+            const fileIds = Array.from({ length: 6 }, () => randomUUID());
+            const response = await post(body({ forwardedProps: { fileIds } }));
+            expect(response.status).toBe(400);
+            expect(assistant.inputs).toEqual([]);
+            expect(await repository.listMessages(threadId, TEST_USER)).toEqual([]);
+        });
+
+        it.each([
+            ['not an array', 'abc'],
+            ['not ids', ['not-a-uuid']],
+        ])('answers 400 when fileIds are %s', async (_name, fileIds) => {
+            const response = await post(body({ forwardedProps: { fileIds } }));
+            expect(response.status).toBe(400);
+            expect(assistant.inputs).toEqual([]);
+        });
+
+        it('answers 400 for no text and no files', async () => {
+            const response = await post(
+                body({
+                    forwardedProps: { fileIds: [] },
+                    messages: [{ id: 'm', role: 'user', content: '' }],
+                }),
+            );
+            expect(response.status).toBe(400);
+        });
+    });
+
+    describe('files in the answer', () => {
+        it('streams CUSTOM file-attached before RUN_FINISHED and stores the file with the answer', async () => {
+            const doc = AttachmentRef.of({
+                fileId: OWN_FILE,
+                name: 'Расшифровка.docx',
+                mediaType:
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                kind: 'document',
+                sizeBytes: 2048,
+            });
+            assistant.script = [
+                AgentEvent.runStarted(),
+                AgentEvent.textDelta('Готово'),
+                AgentEvent.fileAttached(doc),
+                AgentEvent.runFinished({
+                    answer: 'Готово',
+                    toolCalls: [],
+                    durationMs: 1,
+                    attachments: [doc],
+                }),
+            ];
+
+            const events = parseSse(await (await post(body())).text());
+
+            const custom = events.findIndex((e) => e.type === 'CUSTOM');
+            expect(custom).toBeGreaterThan(-1);
+            expect(custom).toBeLessThan(events.findIndex((e) => e.type === 'RUN_FINISHED'));
+            expect(events[custom]).toMatchObject({
+                name: 'file-attached',
+                value: { id: OWN_FILE, name: 'Расшифровка.docx', size: 2048, kind: 'document' },
+            });
+            const answer = (await repository.listMessages(threadId, TEST_USER)).at(-1);
+            expect(answer?.attachments.map((a) => a.fileId)).toEqual([OWN_FILE]);
+        });
     });
 });

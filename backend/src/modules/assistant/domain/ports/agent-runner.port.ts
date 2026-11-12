@@ -7,6 +7,8 @@ export interface AssistantAnswer {
     readonly answer: string;
     readonly toolCalls: readonly ToolCallTrace[];
     readonly durationMs: number;
+    /** Ids of the files the agent attached to the answer, in the order of attaching. */
+    readonly attachments?: readonly string[];
 }
 
 /** Who runs the agent and through which client; never taken from the question or the model. */

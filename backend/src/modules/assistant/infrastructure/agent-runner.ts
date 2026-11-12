@@ -1,6 +1,11 @@
 import { GraphRecursionError } from '@langchain/langgraph';
 import type { PinoLogger } from 'nestjs-pino';
-import { AgentRunContext, type CapabilityAgent } from '../../../shared/agent-capability';
+import {
+    AgentRunContext,
+    RunAttachments,
+    type AttachmentRef,
+    type CapabilityAgent,
+} from '../../../shared/agent-capability';
 import { AgentEvent, RUN_FAILED_PUBLIC_MESSAGE } from '../domain/agent-event';
 import type { ClientId } from '../domain/client-id';
 import { AgentRunnerPort, type AgentRunScope } from '../domain/ports/agent-runner.port';
@@ -67,15 +72,28 @@ export class AgentRunner extends AgentRunnerPort {
 
         yield AgentEvent.runStarted();
 
+        // Files issued by tools are streamed right after the event that produced them; the list
+        // reaches run-finished only on success, so a failed or cancelled run attaches nothing.
+        const attachments = RunAttachments.create();
+        const pending: AttachmentRef[] = [];
+        const unsubscribe = attachments.subscribe((file) => pending.push(file));
+        const drain = function* (): Generator<AgentEvent> {
+            while (pending.length > 0) {
+                const file = pending.shift();
+                if (file !== undefined) yield AgentEvent.fileAttached(file);
+            }
+        };
+
         try {
             const ctx = AgentRunContext.create({
                 userId: scope.userId,
                 threadId: input.threadId,
+                attachments,
             });
             // Built per run: capabilities capture the run context, so no state is shared between runs.
             const agent = asStreamingAgent(options.agents.build(scope.client, ctx));
             const events = agent.streamEvents(
-                { messages: [{ role: 'user', content: input.question }] },
+                { messages: [{ role: 'user', content: input.agentText() }] },
                 {
                     version: 'v2',
                     recursionLimit: options.maxSteps,
@@ -86,11 +104,14 @@ export class AgentRunner extends AgentRunnerPort {
             for await (const raw of events) {
                 if (signal.aborted) break;
                 yield* mapper.map(raw);
+                yield* drain();
             }
         } catch (error) {
+            unsubscribe();
             yield this.failureOf(error, signal, timeoutSignal, input);
             return;
         }
+        unsubscribe();
 
         // A model that ignores the signal may end the stream normally after an abort.
         if (signal.aborted) {
@@ -98,7 +119,8 @@ export class AgentRunner extends AgentRunnerPort {
         } else if (timeoutSignal.aborted) {
             yield this.timeoutFailure();
         } else {
-            yield mapper.finish();
+            yield* drain();
+            yield mapper.finish(attachments.list());
         }
     }
 

@@ -1,20 +1,27 @@
 import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
+import { AttachmentRef } from '../../../shared/agent-capability';
 import { AgentEvent } from '../domain/agent-event';
+import {
+    ChatAttachmentExpiredError,
+    ChatAttachmentNotFoundError,
+} from '../domain/chat-attachment.errors';
 import { AgentRun } from '../domain/agent-run';
 import { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
 import { ChatTitle } from '../domain/chat-title';
 import type { ActiveRunRegistryPort } from '../domain/ports/active-run-registry.port';
+import type { AttachmentFilesPort } from '../domain/ports/attachment-files.port';
 import type { ChatSessionRepositoryPort } from '../domain/ports/chat-session-repository.port';
 import type { ChatThreadPort } from '../domain/ports/chat-thread.port';
 import type { AgentRunnerPort } from '../domain/ports/agent-runner.port';
 import { RunConflictError } from '../domain/run-conflict.error';
-import { MAX_QUESTION_LENGTH, type RunInputProps } from '../domain/run-input';
+import { MAX_QUESTION_LENGTH, type RunInput } from '../domain/run-input';
 import {
     InvalidQuestionError,
     StartAgentRunUseCase,
     type RunObserver,
+    type StartAgentRunProps,
 } from './start-agent-run.use-case';
 
 const OWNER = 'user-1';
@@ -58,6 +65,7 @@ interface Setup {
     appendAgentAnswer: Mock;
     stream: Mock;
     deleteThread: Mock;
+    findFiles: Mock;
     events: AgentEvent[];
     observer: RunObserver;
     closed: Promise<void>;
@@ -115,6 +123,12 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
     const deleteThread = vi.fn().mockResolvedValue(undefined);
     const threads = { deleteThread } as unknown as ChatThreadPort;
 
+    const findFiles = vi.fn((_ownerId: string, fileIds: readonly string[]) => {
+        calls.push('findFiles');
+        return Promise.resolve(fileIds.map((fileId) => fileRef(fileId)));
+    });
+    const files = { findOwned: findFiles } as unknown as AttachmentFilesPort;
+
     const events: AgentEvent[] = [];
     let onClose: () => void = () => undefined;
     const closed = new Promise<void>((resolve) => {
@@ -139,6 +153,7 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
             sessions,
             threads,
             registry,
+            files,
             logger as unknown as PinoLogger,
         ),
         logger,
@@ -151,6 +166,7 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         appendAgentAnswer,
         stream,
         deleteThread,
+        findFiles,
         events,
         observer,
         closed,
@@ -158,10 +174,25 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
     };
 }
 
-const input = (question = 'Сколько стоит?', threadId = 's1'): RunInputProps => ({
+function fileRef(fileId: string): AttachmentRef {
+    return AttachmentRef.of({
+        fileId,
+        name: `${fileId}.m4a`,
+        mediaType: 'audio/mp4',
+        kind: 'recording',
+        sizeBytes: 2048,
+    });
+}
+
+const input = (question = 'Сколько стоит?', threadId = 's1'): StartAgentRunProps => ({
     threadId,
     runId: 'r1',
     question,
+});
+
+const withFiles = (fileIds: string[], question = ''): StartAgentRunProps => ({
+    ...input(question),
+    fileIds,
 });
 
 describe('StartAgentRunUseCase', () => {
@@ -240,7 +271,7 @@ describe('StartAgentRunUseCase', () => {
         const { useCase, observer, closed, calls, appendUserMessage, stream } = setup();
         await useCase.execute(OWNER, input('  Сколько стоит?  '), observer);
         await closed;
-        expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, 'Сколько стоит?');
+        expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, 'Сколько стоит?', []);
         expect(calls.indexOf('appendUser')).toBeLessThan(calls.indexOf('stream'));
         const passed = stream.mock.calls[0]?.[0] as { question: string; threadId: string };
         expect(passed).toMatchObject({ question: 'Сколько стоит?', threadId: 's1', runId: 'r1' });
@@ -563,5 +594,117 @@ describe('StartAgentRunUseCase', () => {
         await useCase.execute(OWNER, input(), observer);
         await closed;
         expect(deleteThread).not.toHaveBeenCalled();
+    });
+
+    describe('attachments', () => {
+        it('starts a run for a message without text with an own file and stores it with the file', async () => {
+            const { useCase, observer, closed, appendUserMessage, stream, findFiles, calls } =
+                setup();
+            await useCase.execute(OWNER, withFiles(['f1', 'f2']), observer);
+            await closed;
+            expect(findFiles).toHaveBeenCalledWith(OWNER, ['f1', 'f2']);
+            expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, '', ['f1', 'f2']);
+            expect(calls.indexOf('findFiles')).toBeLessThan(calls.indexOf('tryStart'));
+            const passed = stream.mock.calls[0]?.[0] as RunInput;
+            expect(passed.attachments.map((a) => a.fileId)).toEqual(['f1', 'f2']);
+            expect(passed.agentText()).toContain('[Вложения]');
+            expect(passed.agentText()).toContain('id=f1; f1.m4a; recording');
+        });
+
+        it('does not look files up for a message without them', async () => {
+            const { useCase, observer, closed, findFiles } = setup();
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(findFiles).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['a foreign or unknown file', new ChatAttachmentNotFoundError('f9')],
+            ['a deleted file', new ChatAttachmentExpiredError('f9')],
+        ])('rejects %s before the stream and stores nothing', async (_name, failure) => {
+            const { useCase, observer, findFiles, appendUserMessage, stream, tryStart } = setup();
+            findFiles.mockRejectedValueOnce(failure);
+            await expect(useCase.execute(OWNER, withFiles(['f9'], 'q'), observer)).rejects.toBe(
+                failure,
+            );
+            expect(tryStart).not.toHaveBeenCalled();
+            expect(appendUserMessage).not.toHaveBeenCalled();
+            expect(stream).not.toHaveBeenCalled();
+        });
+
+        it('rejects 6 files as invalid without looking them up or storing anything', async () => {
+            const { useCase, observer, findFiles, appendUserMessage, stream } = setup();
+            await expect(
+                useCase.execute(OWNER, withFiles(['1', '2', '3', '4', '5', '6'], 'q'), observer),
+            ).rejects.toBeInstanceOf(InvalidQuestionError);
+            expect(findFiles).not.toHaveBeenCalled();
+            expect(appendUserMessage).not.toHaveBeenCalled();
+            expect(stream).not.toHaveBeenCalled();
+        });
+
+        it('checks the chat before the files', async () => {
+            const { useCase, observer, findFiles } = setup({ session: null });
+            await expect(
+                useCase.execute(OWNER, withFiles(['f1']), observer),
+            ).rejects.toBeInstanceOf(ChatSessionNotFoundError);
+            expect(findFiles).not.toHaveBeenCalled();
+        });
+
+        it('stores the files the agent attached together with the answer', async () => {
+            const finished = AgentEvent.runFinished({
+                answer: 'Документ готов',
+                toolCalls: [],
+                durationMs: 1,
+                attachments: [fileRef('doc-1')],
+            });
+            const { useCase, observer, closed, appendAgentAnswer } = setup({
+                stream: () => emit(AgentEvent.runStarted(), finished),
+            });
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(appendAgentAnswer.mock.calls[0]?.[2]).toMatchObject({
+                answer: 'Документ готов',
+                attachments: ['doc-1'],
+            });
+        });
+    });
+
+    describe('files attached by the agent', () => {
+        const doc = fileRef('doc-1');
+
+        it('forwards file-attached to the observer before the terminal event', async () => {
+            const { useCase, observer, closed, events } = setup({
+                stream: () =>
+                    emit(
+                        AgentEvent.runStarted(),
+                        AgentEvent.fileAttached(doc),
+                        AgentEvent.runFinished({
+                            answer: 'ok',
+                            toolCalls: [],
+                            durationMs: 1,
+                            attachments: [doc],
+                        }),
+                    ),
+            });
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(events.map((e) => e.type)).toEqual([
+                'run-started',
+                'file-attached',
+                'run-finished',
+            ]);
+        });
+
+        it.each([
+            ['an error', AgentEvent.runFailed('boom')],
+            ['a cancellation', AgentEvent.runCancelled()],
+        ])('does not store the files of the run on %s', async (_name, terminal) => {
+            const { useCase, observer, closed, appendAgentAnswer } = setup({
+                stream: () => emit(AgentEvent.runStarted(), AgentEvent.fileAttached(doc), terminal),
+            });
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(appendAgentAnswer).not.toHaveBeenCalled();
+        });
     });
 });

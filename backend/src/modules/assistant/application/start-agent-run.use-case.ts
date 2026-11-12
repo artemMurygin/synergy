@@ -5,17 +5,26 @@ import type { AgentRun } from '../domain/agent-run';
 import type { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
 import { ActiveRunRegistryPort } from '../domain/ports/active-run-registry.port';
+import { AttachmentFilesPort } from '../domain/ports/attachment-files.port';
 import { ChatSessionRepositoryPort } from '../domain/ports/chat-session-repository.port';
 import { ChatThreadPort } from '../domain/ports/chat-thread.port';
 import type { AppClientId } from '../domain/client-id';
 import { AgentRunnerPort, type AgentRunScope } from '../domain/ports/agent-runner.port';
 import { findAppSession } from './find-app-session';
 import { RunConflictError } from '../domain/run-conflict.error';
-import { InvalidRunInputError, RunInput, type RunInputProps } from '../domain/run-input';
+import { InvalidRunInputError, RunInput } from '../domain/run-input';
 
 export { MAX_QUESTION_LENGTH } from '../domain/run-input';
 
 export class InvalidQuestionError extends Error {}
+
+export interface StartAgentRunProps {
+    readonly threadId: string;
+    readonly runId: string;
+    readonly question: string;
+    /** Ids of the user's uploaded files attached to the message. */
+    readonly fileIds?: readonly string[];
+}
 
 export interface RunObserver {
     next(event: AgentEvent): void;
@@ -29,6 +38,7 @@ export class StartAgentRunUseCase {
         private readonly sessions: ChatSessionRepositoryPort,
         private readonly threads: ChatThreadPort,
         private readonly registry: ActiveRunRegistryPort,
+        private readonly files: AttachmentFilesPort,
         private readonly logger: PinoLogger,
     ) {
         this.logger.setContext(StartAgentRunUseCase.name);
@@ -36,19 +46,35 @@ export class StartAgentRunUseCase {
 
     async execute(
         ownerId: string,
-        props: RunInputProps,
+        props: StartAgentRunProps,
         observer: RunObserver,
         client: AppClientId = 'app',
     ): Promise<AgentRun> {
-        const input = this.normalize(props);
+        const fileIds = props.fileIds ?? [];
+        this.guard(() => {
+            RunInput.assertDraft({
+                threadId: props.threadId,
+                question: props.question,
+                fileCount: fileIds.length,
+            });
+        });
 
-        const session = await findAppSession(this.sessions, ownerId, input.threadId);
+        const session = await findAppSession(this.sessions, ownerId, props.threadId);
+        // Checked before the stream: a foreign, unknown or deleted file stops the run with no writes.
+        const attachments =
+            fileIds.length === 0 ? [] : await this.files.findOwned(ownerId, fileIds);
+        const input = this.guard(() => RunInput.of({ ...props, attachments }));
 
         const run = this.registry.tryStart(input.threadId, input.runId);
         if (run === null) throw new RunConflictError(input.threadId);
 
         try {
-            await this.sessions.appendUserMessage(input.threadId, ownerId, input.question);
+            await this.sessions.appendUserMessage(
+                input.threadId,
+                ownerId,
+                input.question,
+                input.attachments.map((file) => file.fileId),
+            );
         } catch (error) {
             this.registry.release(input.threadId, input.runId);
             if ((await this.sessions.findById(input.threadId)) === null) {
@@ -61,9 +87,9 @@ export class StartAgentRunUseCase {
         return run;
     }
 
-    private normalize(props: RunInputProps): RunInput {
+    private guard<T>(validate: () => T): T {
         try {
-            return RunInput.of(props);
+            return validate();
         } catch (error) {
             if (error instanceof InvalidRunInputError) {
                 throw new InvalidQuestionError(error.message);
@@ -140,6 +166,7 @@ export class StartAgentRunUseCase {
                         answer: terminal.answer,
                         toolCalls: terminal.toolCalls,
                         durationMs: terminal.durationMs,
+                        attachments: terminal.attachments.map((file) => file.fileId),
                     },
                     session.proposeAutoTitle(input.question),
                 );

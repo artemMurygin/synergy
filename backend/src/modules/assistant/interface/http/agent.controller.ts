@@ -3,6 +3,7 @@ import {
     Body,
     ConflictException,
     Controller,
+    GoneException,
     HttpCode,
     HttpStatus,
     NotFoundException,
@@ -18,6 +19,10 @@ import {
     InvalidQuestionError,
     StartAgentRunUseCase,
 } from '../../application/start-agent-run.use-case';
+import {
+    ChatAttachmentExpiredError,
+    ChatAttachmentNotFoundError,
+} from '../../domain/chat-attachment.errors';
 import { ChatSessionNotFoundError } from '../../domain/chat-session-not-found.error';
 import { RunConflictError } from '../../domain/run-conflict.error';
 import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/http/decorators';
@@ -36,11 +41,16 @@ const messageSchema = z
         content: z.union([z.string(), z.array(contentPartSchema)]).optional(),
     })
     .loose();
+const forwardedPropsSchema = z
+    .object({ fileIds: z.array(z.uuid()).optional() })
+    .loose()
+    .optional();
 const runInputSchema = z
     .object({
         threadId: z.string(),
         runId: z.string().min(1),
         messages: z.array(messageSchema),
+        forwardedProps: forwardedPropsSchema,
     })
     .loose();
 
@@ -82,7 +92,12 @@ export class AgentController {
     })
     @ApiResponse({
         status: HttpStatus.NOT_FOUND,
-        description: 'Chat session not found',
+        description: 'Chat session or an attached file not found',
+        type: ApiErrorResponse,
+    })
+    @ApiResponse({
+        status: HttpStatus.GONE,
+        description: 'An attached file is deleted: its retention period is over',
         type: ApiErrorResponse,
     })
     @ApiResponse({
@@ -99,10 +114,14 @@ export class AgentController {
         const ownerId = ownerOf(user);
         const client = this.clients.resolve(req);
         const parsed = runInputSchema.safeParse(body);
-        const question = parsed.success ? lastUserQuestion(parsed.data.messages) : null;
+        const fileIds = parsed.success ? (parsed.data.forwardedProps?.fileIds ?? []) : [];
+        const lastQuestion = parsed.success ? lastUserQuestion(parsed.data.messages) : null;
+        // A message of only files may come without a user message text.
+        const question = lastQuestion ?? (fileIds.length > 0 ? '' : null);
         if (!parsed.success || question === null) {
             throw new BadRequestException(
-                'Body must be AG-UI RunAgentInput with threadId, runId and a user message',
+                'Body must be AG-UI RunAgentInput with threadId, runId and a user message ' +
+                    'or forwardedProps.fileIds',
             );
         }
         const { threadId, runId } = parsed.data;
@@ -110,11 +129,30 @@ export class AgentController {
 
         const observer = new SseRunObserver(res, new AgUiEventMapper({ threadId, runId }));
         try {
-            await this.startRun.execute(ownerId, { threadId, runId, question }, observer, client);
+            await this.startRun.execute(
+                ownerId,
+                { threadId, runId, question, fileIds },
+                observer,
+                client,
+            );
         } catch (error) {
             if (error instanceof InvalidQuestionError) throw new BadRequestException(error.message);
             if (error instanceof ChatSessionNotFoundError) {
                 throw new NotFoundException(error.message);
+            }
+            if (error instanceof ChatAttachmentNotFoundError) {
+                throw new NotFoundException({
+                    message: error.message,
+                    code: 'FILE_NOT_FOUND',
+                    fileId: error.fileId,
+                });
+            }
+            if (error instanceof ChatAttachmentExpiredError) {
+                throw new GoneException({
+                    message: 'Срок хранения файла истёк',
+                    code: 'FILE_GONE',
+                    fileId: error.fileId,
+                });
             }
             if (error instanceof RunConflictError) throw new ConflictException(error.message);
             throw error;

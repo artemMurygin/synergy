@@ -1,3 +1,4 @@
+import type { AttachmentRef } from '../../../shared/agent-capability';
 import { AgentEvent } from '../domain/agent-event';
 import type { ToolCallTrace } from '../domain/tool-call-trace';
 
@@ -89,11 +90,13 @@ export class StreamEventMapper {
         return events;
     }
 
-    finish(): AgentEvent {
+    /** The final event of a successful run with the files the agent attached to the answer. */
+    finish(attachments: readonly AttachmentRef[] = []): AgentEvent {
         return AgentEvent.runFinished({
             answer: this.answer,
             toolCalls: [...this.toolCalls],
             durationMs: Math.round(this.now() - this.startedAt),
+            attachments: [...attachments],
         });
     }
 }
