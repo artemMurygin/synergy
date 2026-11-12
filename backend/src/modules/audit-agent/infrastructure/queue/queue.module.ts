@@ -15,17 +15,6 @@ const FAILED_RETENTION_COUNT = 5000;
 
 @Module({
     imports: [
-        BullModule.forRootAsync({
-            inject: [ConfigService],
-            useFactory: (config: ConfigService<Env, true>) => ({
-                connection: {
-                    host: config.get<string>('REDIS_HOST', { infer: true }),
-                    port: Number(config.get('REDIS_PORT', { infer: true })),
-                    password: config.get<string | undefined>('REDIS_PASSWORD', { infer: true }),
-                    db: Number(config.get('REDIS_DB', { infer: true })),
-                },
-            }),
-        }),
         BullModule.registerQueueAsync(
             {
                 name: QUEUE_NAMES.DEAL_SYNC,

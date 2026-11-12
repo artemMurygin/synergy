@@ -8,6 +8,7 @@ import { MetricsModule } from './shared/metrics/metrics.module';
 import { MssqlModule } from './database/mssql/mssql.module';
 import { HealthModule } from './shared/health/health.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
+import { QueueRootModule } from './shared/queue/queue-root.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -24,6 +25,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
         MetricsModule,
         HealthModule,
         OutboxModule,
+        QueueRootModule,
         AuthModule,
         AuditAgentModule,
         SheetsQaModule,
