@@ -7,7 +7,7 @@ import {
   UnsupportedFileTypeError,
 } from "./errors";
 import { FakeXhr } from "./fake-xhr.test-helper";
-import { createDownloadLink, uploadFile } from "./files.api";
+import { createDownloadLink, downloadFile, uploadFile } from "./files.api";
 
 const ID = "2cdc8ab1-6d50-49cc-ba14-54e4ac7ec231";
 const storedFile = {
@@ -155,6 +155,38 @@ describe("files.api", () => {
       const fn = stubFetch(json({ url: "/files/a/content?token=t", expiresAt: "x" }));
       await createDownloadLink(ID);
       expect(new Headers(fn.mock.calls[0][1]?.headers).has("X-Client-App")).toBe(false);
+    });
+  });
+  describe("downloadFile", () => {
+    it("gets a fresh link and fetches the content as a blob", async () => {
+      const fn = vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith("/download-link")
+            ? json({ url: `/files/${ID}/content?token=t`, expiresAt: "x" })
+            : new Response("docx-bytes", { status: 200 }),
+        ),
+      );
+      vi.stubGlobal("fetch", fn);
+      const blob = await downloadFile(ID);
+      expect(fn.mock.calls[1][0]).toBe(`cc-api://backend/files/${ID}/content?token=t`);
+      expect(await blob.text()).toBe("docx-bytes");
+    });
+
+    it("maps a failed content response by status", async () => {
+      const fn = vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith("/download-link")
+            ? json({ url: `/files/${ID}/content?token=t`, expiresAt: "x" })
+            : json({ message: "gone" }, 410),
+        ),
+      );
+      vi.stubGlobal("fetch", fn);
+      await expect(downloadFile(ID)).rejects.toBeInstanceOf(FileGoneError);
+    });
+
+    it("reports an unreachable server as BackendError", async () => {
+      vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+      await expect(downloadFile(ID)).rejects.toBeInstanceOf(BackendError);
     });
   });
 });

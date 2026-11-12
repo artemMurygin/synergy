@@ -1,4 +1,4 @@
-import { ThreadPrimitive, useAui, useAuiState } from '@assistant-ui/react'
+import { ThreadPrimitive, useAui, useAuiState, useThreadViewport, useThreadViewportStore } from '@assistant-ui/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader, MessageSquare, MessagesSquare } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -10,6 +10,8 @@ import { useChatStore } from '@/stores/chat.store'
 import { AssistantMessage } from './AssistantMessage'
 import { ChatRuntimeProvider } from './ChatRuntimeProvider'
 import { Composer } from './Composer'
+import { DownloadErrorNotice, FileDownloadsProvider } from './file-downloads'
+import { NewMessageButton } from './NewMessageButton'
 import { AttachmentDropZone } from './ComposerAttachments'
 import { RunNotice } from './RunNotice'
 import { goneFileId, isFileGone } from './run-errors'
@@ -201,50 +203,73 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
 
   return (
     <AttachmentDropZone onFiles={attachments.add} disabled={serverRunning}>
-      <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3 px-6 py-6">
-            {messages.length === 0 && !serverRunning && (
-              <div className="m-auto flex flex-col items-center gap-2 text-center">
-                <MessageSquare className="size-8 text-muted-foreground" />
-                <h2 className="text-base font-semibold">Задайте вопрос по таблицам</h2>
-                <p className="max-w-xs text-sm text-muted-foreground">
-                  Агент ответит на основе данных в Google Sheets
-                </p>
-              </div>
-            )}
-            <ThreadPrimitive.Messages>
-              {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
-            </ThreadPrimitive.Messages>
-            {localRunning && (
-              <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                <span className="size-2 animate-pulse rounded-full bg-primary" />
-                Агент отвечает…
-              </p>
-            )}
-            {serverRunning && !localRunning && (
-              <RunNotice
-                tone="info"
-                role="status"
-                icon={<Loader className="size-4" />}
-                title="Агент ещё отвечает"
-                text="Ответ появится в чате, когда будет готов."
-              />
-            )}
+      <FileDownloadsProvider>
+        <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+          <div className="mx-auto w-full max-w-180 px-6 empty:hidden [&:not(:empty)]:pt-4">
+            <DownloadErrorNotice />
           </div>
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-      <div className="mx-auto w-full max-w-180">
-        <Composer
-          running={running}
-          disabled={serverRunning}
-          attachments={attachments}
-          onStop={() => {
-            if (localRunning) aui.thread().cancelRun()
-            else cancel.mutate(undefined, { onSuccess: () => void onStopped() })
-          }}
-        />
-      </div>
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3 px-6 py-6">
+              {messages.length === 0 && !serverRunning && (
+                <div className="m-auto flex flex-col items-center gap-2 text-center">
+                  <MessageSquare className="size-8 text-muted-foreground" />
+                  <h2 className="text-base font-semibold">Задайте вопрос по таблицам</h2>
+                  <p className="max-w-xs text-sm text-muted-foreground">
+                    Агент ответит на основе данных в Google Sheets
+                  </p>
+                </div>
+              )}
+              <ThreadPrimitive.Messages>
+                {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
+              </ThreadPrimitive.Messages>
+              {localRunning && (
+                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <span className="size-2 animate-pulse rounded-full bg-primary" />
+                  Агент отвечает…
+                </p>
+              )}
+              {serverRunning && !localRunning && (
+                <RunNotice
+                  tone="info"
+                  role="status"
+                  icon={<Loader className="size-4" />}
+                  title="Агент ещё отвечает"
+                  text="Ответ появится в чате, когда будет готов."
+                />
+              )}
+            </div>
+            <div className="pointer-events-none sticky bottom-3 flex justify-center empty:hidden [&>*]:pointer-events-auto">
+              <FeedNewMessage count={messages.length} />
+            </div>
+          </ThreadPrimitive.Viewport>
+        </ThreadPrimitive.Root>
+        <div className="mx-auto w-full max-w-180">
+          <Composer
+            running={running}
+            disabled={serverRunning}
+            attachments={attachments}
+            onStop={() => {
+              if (localRunning) aui.thread().cancelRun()
+              else cancel.mutate(undefined, { onSuccess: () => void onStopped() })
+            }}
+          />
+        </div>
+      </FileDownloadsProvider>
     </AttachmentDropZone>
+  )
+}
+
+/** "Новое сообщение" of the feed: a message arrived while the user read the history above. */
+function FeedNewMessage({ count }: { count: number }) {
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom)
+  const viewport = useThreadViewportStore()
+  return (
+    <NewMessageButton
+      messageCount={count}
+      isAtBottom={isAtBottom}
+      onScrollToBottom={() => {
+        viewport.getState().scrollToBottom({ behavior: 'smooth' })
+      }}
+    />
   )
 }

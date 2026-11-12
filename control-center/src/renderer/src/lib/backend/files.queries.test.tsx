@@ -2,11 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { saveBlob } from '@/lib/save-blob'
 import * as filesApi from './files.api'
-import { useCreateDownloadLink, useUploadFile } from './files.queries'
+import { useCreateDownloadLink, useDownloadFile, useUploadFile } from './files.queries'
 import type { StoredFile } from './files.schema'
 
 vi.mock('./files.api')
+vi.mock('@/lib/save-blob')
 
 const stored: StoredFile = {
   id: 'f1',
@@ -48,5 +50,18 @@ describe('useCreateDownloadLink', () => {
       await expect(result.current.mutateAsync('f1')).resolves.toEqual(link)
     })
     expect(filesApi.createDownloadLink).toHaveBeenCalledWith('f1')
+  })
+})
+
+describe('useDownloadFile', () => {
+  it('downloads the content and saves it under the original name', async () => {
+    const blob = new Blob(['docx'])
+    vi.mocked(filesApi.downloadFile).mockResolvedValue(blob)
+    const { result } = renderHook(() => useDownloadFile(), { wrapper })
+    await act(async () => {
+      await result.current.mutateAsync({ id: 'f2', name: 'Расшифровка — встреча.docx' })
+    })
+    expect(filesApi.downloadFile).toHaveBeenCalledWith('f2')
+    expect(saveBlob).toHaveBeenCalledWith(blob, 'Расшифровка — встреча.docx')
   })
 })

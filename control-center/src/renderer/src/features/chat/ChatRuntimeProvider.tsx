@@ -9,17 +9,42 @@ import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createAgent } from '@/lib/backend/agent'
+import type { MessageAttachment, MessageSource } from '@/lib/backend/schema'
 import { cancelRun } from '@/lib/backend/threads.api'
+
+/** An AG-UI message of the history; the server adds its files and source. */
+export type ChatHistoryMessage = Message & {
+  attachments?: readonly MessageAttachment[]
+  source?: MessageSource
+}
 
 interface ChatRuntimeProviderProps {
   /** Chat id: it is the AG-UI `threadId` of every run. Mount with a `key` per chat. */
   threadId: string
-  /** History of the chat in AG-UI format, loaded once when the chat opens. */
-  initialMessages: readonly Message[]
+  /**
+   * History of the chat in AG-UI format, loaded when the chat opens. A later history with
+   * messages the runtime does not hold (a system message posted meanwhile) replaces the feed.
+   */
+  initialMessages: readonly ChatHistoryMessage[]
   children: ReactNode
 }
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
+
+/** Converts the history into runtime messages; files and source go into `metadata.custom`. */
+function toRuntimeMessages(history: readonly ChatHistoryMessage[]) {
+  const extras = new Map(history.map((message) => [message.id, message]))
+  return fromAgUiMessages([...history]).map((like) => {
+    const source = like.id === undefined ? undefined : extras.get(like.id)
+    const metadata = (like.metadata ?? {}) as { custom?: Record<string, unknown> }
+    const custom = {
+      ...metadata.custom,
+      attachments: [...(source?.attachments ?? [])],
+      source: source?.source ?? 'run'
+    }
+    return fromThreadMessageLike({ ...like, metadata: { ...metadata, custom } } as typeof like, generateId(), COMPLETE)
+  })
+}
 
 /**
  * The composer puts the attached file ids into the message run config (`runConfig.custom.fileIds`),
@@ -67,13 +92,20 @@ export function ChatRuntimeProvider({
 
   const runtimeRef = useRef(runtime)
   runtimeRef.current = runtime
-  const initial = useRef(initialMessages)
+  const imported = useRef<readonly ChatHistoryMessage[] | null>(null)
   useLayoutEffect(() => {
-    const messages = fromAgUiMessages([...initial.current]).map((message) =>
-      fromThreadMessageLike(message, generateId(), COMPLETE)
-    )
-    runtimeRef.current.thread.import(ExportedMessageRepository.fromArray(messages))
-  }, [])
+    const thread = runtimeRef.current.thread
+    if (imported.current === initialMessages) return
+    if (imported.current !== null) {
+      // A refetched history: replace the feed only when it brings messages the runtime lacks
+      const state = thread.getState()
+      if (state.isRunning) return
+      const held = new Set(state.messages.map((message) => message.id))
+      if (initialMessages.every((message) => held.has(message.id))) return
+    }
+    imported.current = initialMessages
+    thread.import(ExportedMessageRepository.fromArray(toRuntimeMessages(initialMessages)))
+  }, [initialMessages])
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
 }

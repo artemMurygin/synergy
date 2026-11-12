@@ -77,3 +77,16 @@ export async function createDownloadLink(id: string): Promise<DownloadLink> {
   const link = await parseBody(response, DownloadLinkSchema);
   return { ...link, url: `${BACKEND_ORIGIN}${link.url}` };
 }
+
+/** Downloads the content of a file through a fresh signed link. */
+export async function downloadFile(id: string): Promise<Blob> {
+  const link = await createDownloadLink(id);
+  let response: Response;
+  try {
+    response = await fetch(link.url);
+  } catch {
+    throw new BackendError("Не удалось связаться с сервером. Он запущен?");
+  }
+  if (!response.ok) throw await failure(response);
+  return response.blob();
+}

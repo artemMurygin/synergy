@@ -2,7 +2,7 @@ import './test-env'
 import { EventType } from '@ag-ui/client'
 import type { BaseEvent } from '@ag-ui/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgent } from '@/lib/backend/agent'
@@ -262,7 +262,9 @@ describe('ChatThread', () => {
         )
       })
       expect(await screen.findByText('Срок хранения файла истёк. Загрузите его заново')).toBeTruthy()
-      const card = screen.getByText('встреча.m4a').closest('li')
+      // the sent message keeps its card too; the failed one is in the composer
+      const draft = screen.getByRole('list', { name: 'Прикреплённые файлы' })
+      const card = within(draft).getByText('встреча.m4a').closest('li')
       expect(card?.textContent).toContain('Срок хранения файла истёк')
       expect(screen.queryByRole('button', { name: 'Повторить: встреча.m4a' })).toBeNull()
       expect(screen.getByRole('button', { name: 'Убрать: встреча.m4a' })).toBeTruthy()

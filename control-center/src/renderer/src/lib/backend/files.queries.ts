@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { saveBlob } from '@/lib/save-blob'
 import * as filesApi from './files.api'
 import type { UploadOptions } from './files.api'
 
@@ -18,5 +19,21 @@ export function useUploadFile() {
 export function useCreateDownloadLink() {
   return useMutation({
     mutationFn: (fileId: string) => filesApi.createDownloadLink(fileId)
+  })
+}
+
+export interface DownloadFileVars {
+  id: string
+  /** The original file name the file is saved under. */
+  name: string
+}
+
+/** Downloads a file through a fresh signed link and saves it under its original name. */
+export function useDownloadFile() {
+  return useMutation({
+    mutationFn: async ({ id, name }: DownloadFileVars) => {
+      const blob = await filesApi.downloadFile(id)
+      saveBlob(blob, name)
+    }
   })
 }
