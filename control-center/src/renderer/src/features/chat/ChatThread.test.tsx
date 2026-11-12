@@ -2,10 +2,12 @@ import './test-env'
 import { EventType } from '@ag-ui/client'
 import type { BaseEvent } from '@ag-ui/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgent } from '@/lib/backend/agent'
+import * as filesApi from '@/lib/backend/files.api'
+import type { StoredFile } from '@/lib/backend/files.schema'
 import { cancelRun, getThreadHistory, listThreads } from '@/lib/backend/threads.api'
 import { useChatStore } from '@/stores/chat.store'
 import { ChatThread } from './ChatThread'
@@ -13,6 +15,7 @@ import { FakeAgent } from './fake-agent'
 
 vi.mock('@/lib/backend/agent')
 vi.mock('@/lib/backend/threads.api')
+vi.mock('@/lib/backend/files.api')
 
 afterEach(cleanup)
 
@@ -194,5 +197,75 @@ describe('ChatThread', () => {
     expect(input().disabled).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Остановить' }))
     expect(cancelRun).toHaveBeenCalledWith('t1')
+  })
+
+  describe('attachments', () => {
+    const stored = (id: string, name: string): StoredFile => ({
+      id,
+      name,
+      mediaType: 'audio/mp4',
+      kind: 'recording',
+      sizeBytes: 2048,
+      status: 'active',
+      awaitingProcessing: true,
+      uploadedAt: '2026-11-12T10:00:00.000Z',
+      expiresAt: null,
+      deletedAt: null
+    })
+    const recording = new File([new Uint8Array(2048)], 'встреча.m4a', { type: 'audio/mp4' })
+    const dataTransfer = { types: ['Files'], files: [recording] }
+
+    beforeEach(() => {
+      vi.mocked(filesApi.uploadFile).mockResolvedValue(stored('f1', 'встреча.m4a'))
+    })
+
+    async function dropRecording() {
+      const panel = await screen.findByRole('region', { name: 'Чат' })
+      fireEvent.dragEnter(panel, { dataTransfer })
+      fireEvent.dragOver(panel, { dataTransfer })
+      expect(screen.getByText('Отпустите файлы, чтобы прикрепить')).toBeTruthy()
+      fireEvent.drop(panel, { dataTransfer })
+      expect(screen.queryByText('Отпустите файлы, чтобы прикрепить')).toBeNull()
+      await waitFor(() => {
+        expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(false)
+      })
+    }
+
+    it('attaches a file dropped on the chat panel and sends its id in forwardedProps', async () => {
+      const user = mount()
+      await dropRecording()
+      expect(screen.getByText('встреча.m4a')).toBeTruthy()
+      expect(filesApi.uploadFile).toHaveBeenCalledWith(recording, expect.anything())
+      await user.click(screen.getByRole('button', { name: 'Отправить' }))
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(1)
+      })
+      expect(agent.inputs[0]?.forwardedProps).toMatchObject({ fileIds: ['f1'] })
+    })
+
+    it('does not send fileIds with a message without files', async () => {
+      const user = mount()
+      await ask(user, 'просто вопрос')
+      expect(agent.inputs[0]?.forwardedProps?.fileIds).toBeUndefined()
+    })
+
+    it('puts the expired file back as a failed card when the run is refused with 410', async () => {
+      const user = mount()
+      await dropRecording()
+      await user.type(input(), 'расшифруй{Enter}')
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(1)
+      })
+      act(() => {
+        agent.stream.error(
+          new Error('HTTP 410: {"statusCode":410,"code":"FILE_GONE","message":"File f1 is deleted"}')
+        )
+      })
+      expect(await screen.findByText('Срок хранения файла истёк. Загрузите его заново')).toBeTruthy()
+      const card = screen.getByText('встреча.m4a').closest('li')
+      expect(card?.textContent).toContain('Срок хранения файла истёк')
+      expect(screen.queryByRole('button', { name: 'Повторить: встреча.m4a' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Убрать: встреча.m4a' })).toBeTruthy()
+    })
   })
 })

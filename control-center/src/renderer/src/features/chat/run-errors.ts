@@ -14,3 +14,15 @@ export function isUnreachable(error: string): boolean {
 }
 
 export const UNREACHABLE_MESSAGE = 'Не удалось связаться с сервером. Он запущен?'
+
+const GONE = /\bHTTP 410\b/
+
+/** The run was refused because an attached file is deleted (FILE_GONE). */
+export function isFileGone(error: string): boolean {
+  return GONE.test(error)
+}
+
+/** The id of the expired file named in the refusal (`File <id> is deleted`), if any. */
+export function goneFileId(error: string): string | null {
+  return /File (\S+?) is deleted/.exec(error)?.[1] ?? null
+}

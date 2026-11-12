@@ -1,4 +1,4 @@
-import type { Message } from '@ag-ui/client'
+import type { HttpAgent, Message, RunAgentInput } from '@ag-ui/client'
 import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
@@ -21,13 +21,31 @@ interface ChatRuntimeProviderProps {
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
 
+/**
+ * The composer puts the attached file ids into the message run config (`runConfig.custom.fileIds`),
+ * which the AG-UI runtime forwards as `forwardedProps.runConfig`. The backend reads `forwardedProps.fileIds`.
+ */
+export function liftFileIds(input: RunAgentInput): RunAgentInput {
+  const props = (input.forwardedProps ?? {}) as Record<string, unknown>
+  const runConfig = props.runConfig as Record<string, unknown> | undefined
+  const fileIds = runConfig?.fileIds
+  if (!Array.isArray(fileIds) || fileIds.length === 0) return input
+  return { ...input, forwardedProps: { ...props, fileIds } }
+}
+
+function withFileIds(agent: HttpAgent): HttpAgent {
+  const run = agent.run.bind(agent)
+  agent.run = (input) => run(liftFileIds(input))
+  return agent
+}
+
 /** Connects the assistant-ui runtime to the AG-UI endpoint of the backend. */
 export function ChatRuntimeProvider({
   threadId,
   initialMessages,
   children
 }: ChatRuntimeProviderProps) {
-  const agent = useMemo(() => createAgent(threadId), [threadId])
+  const agent = useMemo(() => withFileIds(createAgent(threadId)), [threadId])
 
   // Closing the chat tears the runtime down, which aborts its run and fires onCancel.
   // Only an explicit stop may cancel on the server: the answer must keep going otherwise.

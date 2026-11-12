@@ -10,9 +10,12 @@ import { useChatStore } from '@/stores/chat.store'
 import { AssistantMessage } from './AssistantMessage'
 import { ChatRuntimeProvider } from './ChatRuntimeProvider'
 import { Composer } from './Composer'
+import { AttachmentDropZone } from './ComposerAttachments'
 import { RunNotice } from './RunNotice'
+import { goneFileId, isFileGone } from './run-errors'
 import { UserMessage } from './UserMessage'
 import { useCancelRun } from './use-cancel-run'
+import { useComposerAttachments } from './use-composer-attachments'
 import { useThreadHistory } from './use-thread-history'
 
 const POLL_MS = 2000
@@ -155,6 +158,16 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
   const last = messages.at(-1)
   const lastStatus = last?.role === 'assistant' ? last.status : undefined
   const failed = lastStatus?.type === 'incomplete' && lastStatus.reason === 'error'
+  const attachments = useComposerAttachments()
+
+  // The run was refused because a sent file expired: its card comes back failed
+  const lastError = failed && typeof lastStatus.error === 'string' ? lastStatus.error : ''
+  const lastId = last?.id
+  const { restoreExpired } = attachments
+  useEffect(() => {
+    if (lastId === undefined || !isFileGone(lastError)) return
+    restoreExpired(goneFileId(lastError))
+  }, [lastId, lastError, restoreExpired])
 
   // The composer empties on send: when the run fails, the question goes back into it
   const restored = useRef('')
@@ -187,7 +200,7 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
   }, [running, queryClient])
 
   return (
-    <>
+    <AttachmentDropZone onFiles={attachments.add} disabled={serverRunning}>
       <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
         <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3 px-6 py-6">
@@ -225,12 +238,13 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
         <Composer
           running={running}
           disabled={serverRunning}
+          attachments={attachments}
           onStop={() => {
             if (localRunning) aui.thread().cancelRun()
             else cancel.mutate(undefined, { onSuccess: () => void onStopped() })
           }}
         />
       </div>
-    </>
+    </AttachmentDropZone>
   )
 }
