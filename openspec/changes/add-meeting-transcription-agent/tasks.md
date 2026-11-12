@@ -19,20 +19,20 @@
 
 ## 3. `shared/documents`: модель документа и генератор `.docx`
 
-- [ ] 3.1 Написать тесты на `DocumentModel` и `DocxDocumentRenderer`:
+- [x] 3.1 Написать тесты на `DocumentModel` и `DocxDocumentRenderer`:
   - заголовок, абзацы и таблица попадают в `word/document.xml` (распаковать буфер);
   - кириллица сохраняется;
   - пустая ячейка рендерится прочерком;
   - результат — валидный zip с `[Content_Types].xml`.
 
   Убедиться, что vitest их видит
-- [ ] 3.2 Прогнать тесты из 3.1 и зафиксировать, что они падают (red): модуля ещё нет
-- [ ] 3.3 Реализовать `shared/documents`: `DocumentModel`, `DocumentRendererPort`, адаптер `DocxDocumentRenderer` на `docx`, Nest-провайдер
-- [ ] 3.4 Прогнать тесты из 3.1 и зафиксировать, что они зелёные (green), регрессий нет
+- [x] 3.2 Прогнать тесты из 3.1 и зафиксировать, что они падают (red): модуля ещё нет
+- [x] 3.3 Реализовать `shared/documents`: `DocumentModel`, `DocumentRendererPort`, адаптер `DocxDocumentRenderer` на `docx`, Nest-провайдер
+- [x] 3.4 Прогнать тесты из 3.1 и зафиксировать, что они зелёные (green), регрессий нет
 
 ## 4. `transcription`: домен спикеров и сегментов
 
-- [ ] 4.1 Написать тесты по спеке `meeting-transcription` и таблицам architecture.md:
+- [x] 4.1 Написать тесты по спеке `meeting-transcription` и таблицам architecture.md:
   - `TranscriptSegment`: `seq ≥ 0`, `speaker ≥ 1`, `start ≤ end`, непустой текст;
   - `SpeakerName`: 1–100 символов после обрезки;
   - `SpeakerNames`: `assign` возвращает новую карту, пустое имя сбрасывает, `labelOf` возвращает имя или `Спикер N`, одно имя у двух спикеров допустимо;
@@ -40,34 +40,34 @@
   - `TranscriptMerger` выдаёт номера спикеров, а не строки.
 
   Убедиться, что vitest видит тесты
-- [ ] 4.2 Прогнать тесты из 4.1 и зафиксировать, что они падают (red) по ожидаемой причине
-- [ ] 4.3 Реализовать VO `SpeakerName`, `SpeakerNames`, `SpeakerAssignment`, изменить `TranscriptSegment` (`seq`, числовой `speaker`) и `MeetingTranscript` (убрать `segments`, добавить `speakerNames`, `assignSpeakers`), обновить `TranscriptMerger` и `DiarizedTranscript`
-- [ ] 4.4 Прогнать тесты из 4.1 и все тесты `transcription/meeting/domain`, зафиксировать, что они зелёные (green)
+- [x] 4.2 Прогнать тесты из 4.1 и зафиксировать, что они падают (red) по ожидаемой причине
+- [x] 4.3 Реализовать VO `SpeakerName`, `SpeakerNames`, `SpeakerAssignment`, изменить `TranscriptSegment` (`seq`, числовой `speaker`) и `MeetingTranscript` (убрать `segments`, добавить `speakerNames`, `assignSpeakers`), обновить `TranscriptMerger` и `DiarizedTranscript`
+- [x] 4.4 Прогнать тесты из 4.1 и все тесты `transcription/meeting/domain`, зафиксировать, что они зелёные (green)
 
 ## 5. `transcription`: хранение сегментов и имён
 
-- [ ] 5.1 Написать интеграционные тесты (Postgres) на `TranscriptSegmentRepository` (`insertAll`, `readAll` по `seq`, `speakerStats`, `samples` из разных третей записи) и `MeetingTranscriptRepository` (сохранение и чтение имён, сброс имени удаляет строку). На `TranscribeMeetingUseCase` — сегменты пишутся в одной транзакции с `complete`, при отброшенном результате (`file-deleted`) сегментов нет. Убедиться, что vitest видит тесты
-- [ ] 5.2 Прогнать тесты из 5.1 и зафиксировать, что они падают (red)
-- [ ] 5.3 Реализовать `TranscriptSegmentRepositoryPort` и `TranscriptSegmentRepository`, изменить `MeetingTranscriptRepository` и `TranscribeMeetingUseCase`
-- [ ] 5.4 Прогнать тесты из 5.1 и все тесты модуля `transcription`, зафиксировать, что они зелёные (green)
+- [x] 5.1 Написать интеграционные тесты (Postgres) на `TranscriptSegmentRepository` (`insertAll`, `readAll` по `seq`, `speakerStats`, `samples` из разных третей записи) и `MeetingTranscriptRepository` (сохранение и чтение имён, сброс имени удаляет строку). На `TranscribeMeetingUseCase` — сегменты пишутся в одной транзакции с `complete`, при отброшенном результате (`file-deleted`) сегментов нет. Убедиться, что vitest видит тесты
+- [x] 5.2 Прогнать тесты из 5.1 и зафиксировать, что они падают (red)
+- [x] 5.3 Реализовать `TranscriptSegmentRepositoryPort` и `TranscriptSegmentRepository`, изменить `MeetingTranscriptRepository` и `TranscribeMeetingUseCase`
+- [x] 5.4 Прогнать тесты из 5.1 и все тесты модуля `transcription`, зафиксировать, что они зелёные (green)
 
 ## 6. `transcription`: имена спикеров через API
 
-- [ ] 6.1 Написать тесты на `RenameSpeakersUseCase` (200, 404 для чужой, 409 не `completed`, 422 атомарно), на изменённый `GetMeetingTranscriptUseCase` (список спикеров с именами и временем речи только при `completed`) и на контроллер `PUT /transcripts/:fileId/speakers` (валидация тела, коды ответов). Убедиться, что vitest видит тесты
-- [ ] 6.2 Прогнать тесты из 6.1 и зафиксировать, что они падают (red)
-- [ ] 6.3 Реализовать `RenameSpeakersUseCase`, изменить `GetMeetingTranscriptUseCase` и `MeetingTranscriptView`, добавить эндпоинт в `MeetingTranscriptsController`
-- [ ] 6.4 Прогнать тесты из 6.1 и зафиксировать, что они зелёные (green), регрессий в тестах контроллера нет
+- [x] 6.1 Написать тесты на `RenameSpeakersUseCase` (200, 404 для чужой, 409 не `completed`, 422 атомарно), на изменённый `GetMeetingTranscriptUseCase` (список спикеров с именами и временем речи только при `completed`) и на контроллер `PUT /transcripts/:fileId/speakers` (валидация тела, коды ответов). Убедиться, что vitest видит тесты
+- [x] 6.2 Прогнать тесты из 6.1 и зафиксировать, что они падают (red)
+- [x] 6.3 Реализовать `RenameSpeakersUseCase`, изменить `GetMeetingTranscriptUseCase` и `MeetingTranscriptView`, добавить эндпоинт в `MeetingTranscriptsController`
+- [x] 6.4 Прогнать тесты из 6.1 и зафиксировать, что они зелёные (green), регрессий в тестах контроллера нет
 
 ## 7. `files`: сохранение созданного файла и проверка вложений
 
-- [ ] 7.1 Написать тесты:
+- [x] 7.1 Написать тесты:
   - `StoreGeneratedFileUseCase`: буфер сохраняется как `document` с обычным сроком хранения, событие `file.uploaded`, компенсация `delete` при сбое транзакции;
   - `FindOwnedFilesUseCase`: порядок как во входе, `FileNotFoundError` для чужого или несуществующего, `FileGoneError` для удалённого.
 
   Убедиться, что vitest видит тесты
-- [ ] 7.2 Прогнать тесты из 7.1 и зафиксировать, что они падают (red)
-- [ ] 7.3 Реализовать оба use case'а и экспортировать их из `FilesModule`
-- [ ] 7.4 Прогнать тесты из 7.1 и все тесты модуля `files`, зафиксировать, что они зелёные (green)
+- [x] 7.2 Прогнать тесты из 7.1 и зафиксировать, что они падают (red)
+- [x] 7.3 Реализовать оба use case'а и экспортировать их из `FilesModule`
+- [x] 7.4 Прогнать тесты из 7.1 и все тесты модуля `files`, зафиксировать, что они зелёные (green)
 
 ## 8. `transcription`: документы встречи
 
@@ -171,7 +171,7 @@
 
 ## 16. `tasks`: инициатор и постановщик
 
-- [ ] 16.1 Написать тесты по спеке `task-management`:
+- [x] 16.1 Написать тесты по спеке `task-management`:
   - `Task.create` с `initiatorId`;
   - `CreateTaskUseCase`: по умолчанию `creatorId` равен инициатору, а заданный `creatorId` проверяется на активность;
   - `TaskCreated` содержит `initiatorId`;
@@ -179,9 +179,9 @@
   - ответ задачи содержит инициатора, у старых задач он равен создателю.
 
   Убедиться, что vitest видит тесты
-- [ ] 16.2 Прогнать тесты из 16.1 и зафиксировать, что они падают (red)
-- [ ] 16.3 Изменить `Task`, `CreateTaskUseCase`, `TaskCreated`, `SlonikTaskRepository`, `TaskView` и ответы HTTP
-- [ ] 16.4 Прогнать тесты из 16.1 и все тесты модуля `tasks`, зафиксировать, что они зелёные (green)
+- [x] 16.2 Прогнать тесты из 16.1 и зафиксировать, что они падают (red)
+- [x] 16.3 Изменить `Task`, `CreateTaskUseCase`, `TaskCreated`, `SlonikTaskRepository`, `TaskView` и ответы HTTP
+- [x] 16.4 Прогнать тесты из 16.1 и все тесты модуля `tasks`, зафиксировать, что они зелёные (green)
 
 ## 17. `tasks`: черновик списка и создание по нему
 
@@ -223,7 +223,7 @@
 
 ## 20. Electron: API файлов и прокси
 
-- [ ] 20.1 Написать тесты:
+- [x] 20.1 Написать тесты:
   - прокси `cc-api-protocol` пропускает `/files`, а `/transcripts` по-прежнему получает 403;
   - `xhr-upload` (вынесенный из `tasks.api.ts`): прогресс, отмена, ошибки 413 и 415;
   - `files.api.ts`: `uploadFile` и `createDownloadLink`;
@@ -231,9 +231,9 @@
   - тесты вложений задач не меняются и остаются зелёными.
 
   Убедиться, что vitest видит тесты
-- [ ] 20.2 Прогнать тесты из 20.1 и зафиксировать, что они падают (red)
-- [ ] 20.3 Добавить `/files` в `ALLOWED_PREFIXES`, вынести XHR-загрузку в `lib/backend/xhr-upload.ts`, создать `files.api.ts` и `files.queries.ts`, обновить `schema.ts`
-- [ ] 20.4 Прогнать тесты из 20.1 и все тесты `control-center`, зафиксировать, что они зелёные (green)
+- [x] 20.2 Прогнать тесты из 20.1 и зафиксировать, что они падают (red)
+- [x] 20.3 Добавить `/files` в `ALLOWED_PREFIXES`, вынести XHR-загрузку в `lib/backend/xhr-upload.ts`, создать `files.api.ts` и `files.queries.ts`, обновить `schema.ts`
+- [x] 20.4 Прогнать тесты из 20.1 и все тесты `control-center`, зафиксировать, что они зелёные (green)
 
 ## 21. Electron: вложения в поле ввода (ui-design.md, раздел 1)
 
