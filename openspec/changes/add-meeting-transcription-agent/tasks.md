@@ -2,7 +2,7 @@
 
 - [x] 1.1 Заархивировать `add-file-storage` (`openspec archive add-file-storage`), чтобы спеки `file-storage` и `meeting-transcription` появились в `openspec/specs/`. Проверка — `openspec validate add-meeting-transcription-agent --strict` проходит, а `openspec/specs/meeting-transcription/spec.md` существует
 - [x] 1.2 Добавить зависимость `docx` в `backend/package.json`. Проверка — `npm ci` и `npm run typecheck` в `backend` проходят
-- [x] 1.3 Добавить env `MEETING_TASKS_EXTRACTION_MODEL`, `MEETING_TASKS_WINDOW_TOKENS` (по умолчанию 60000), `MEETING_TASKS_WINDOW_MIN` (30), `CHAT_SYSTEM_MESSAGE_RETRY_MS` (5000) и `CHAT_SYSTEM_MESSAGE_DEADLINE_MS` (600000) в `env.schema.ts` и `.env.example`, с тестом на значения по умолчанию. Проверка — тест схемы окружения зелёный
+- [x] 1.3 Добавить env `MEETING_TASKS_EXTRACTION_MODEL`, `MEETING_TASKS_WINDOW_TOKENS` (по умолчанию 60000), `MEETING_TASKS_WINDOW_MINUTES` (30), `CHAT_SYSTEM_MESSAGE_RETRY_MS` (5000) и `CHAT_SYSTEM_MESSAGE_DEADLINE_MS` (600000) в `env.schema.ts` и `.env.example`, с тестом на значения по умолчанию. Проверка — тест схемы окружения зелёный
 
 ## 2. Миграции БД
 
@@ -296,5 +296,5 @@
 ## 26. Code review
 
 - [x] 26.1 Запустить code-review (скилл `code-review`) по всем изменениям фичи — от коммита, с которого начат change, до текущего HEAD: соответствие стандартам проекта и specs этого change
-- [ ] 26.2 Исправить замечания ревью (блокирующие и существенные обязательно; остальные — исправить или явно отклонить с обоснованием), результат зафиксировать коммитом — пропущено: код исправлен (все 8 существенных замечаний исправлены или обоснованы, minor исправлены или отклонены с обоснованием), но фиксация коммитом и отметка вынесены в отдельный шаг
-- [ ] 26.3 Повторить code-review по правкам из 26.2 и убедиться, что блокирующих замечаний нет; прогнать тесты и зафиксировать, что они зелёные
+- [x] 26.2 Исправить замечания ревью (блокирующие и существенные обязательно; остальные — исправить или явно отклонить с обоснованием), результат зафиксировать коммитом
+- [x] 26.3 Повторить code-review по правкам из 26.2 и убедиться, что блокирующих замечаний нет; прогнать тесты и зафиксировать, что они зелёные
