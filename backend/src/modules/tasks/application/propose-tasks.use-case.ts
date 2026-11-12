@@ -3,14 +3,16 @@ import { randomUUID } from 'node:crypto';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { ArgumentInvalidError } from '../../../shared/errors';
 import type { Actor } from '../domain/actor';
-import type { DraftOrigin } from '../domain/draft-origin';
+import { DraftOrigin } from '../domain/draft-origin';
 import { DraftTaskItem } from '../domain/draft-task-item';
 import { Clock } from '../domain/ports/clock.port';
-import { TaskBatchDraftRepository } from '../domain/ports/task-batch-draft-repository.port';
+import { MeetingRecordingsPort } from '../domain/ports/meeting-recordings.port';
+import { TaskBatchDraftRepositoryPort } from '../domain/ports/task-batch-draft-repository.port';
 import { UserDirectory } from '../domain/ports/user-directory.port';
 import { TaskBatchDraft } from '../domain/task-batch-draft';
 import {
     InvalidDraftItemError,
+    MeetingRecordingNotFoundError,
     UnknownDraftUserError,
     assertBatchSize,
 } from '../domain/task-batch-errors';
@@ -31,7 +33,7 @@ export interface ProposeTasksInput {
     /** Thread агента (id чата): в нём актуален один черновик. */
     threadId: string;
     items: readonly ProposedItemInput[];
-    origin?: DraftOrigin | null;
+    meetingFileId?: string | null;
 }
 
 /** Карточка задачи черновика для показа пользователю. */
@@ -61,8 +63,9 @@ export interface ProposeTasksResult {
 @Injectable()
 export class ProposeTasksUseCase {
     constructor(
-        private readonly drafts: TaskBatchDraftRepository,
+        private readonly drafts: TaskBatchDraftRepositoryPort,
         private readonly users: UserDirectory,
+        private readonly recordings: MeetingRecordingsPort,
         private readonly clock: Clock,
         private readonly transactions: TransactionRunnerPort,
     ) {}
@@ -73,13 +76,17 @@ export class ProposeTasksUseCase {
         try {
             assertBatchSize(input.items.length);
             const items = input.items.map((item, i) => toDraftItem(actor, item, i + 1));
-            logins = await this.resolveUsers(items);
+            const [resolvedLogins, origin] = await Promise.all([
+                this.resolveUsers(items),
+                this.resolveOrigin(actor, input.meetingFileId ?? null),
+            ]);
+            logins = resolvedLogins;
             draft = TaskBatchDraft.create({
                 id: randomUUID(),
                 ownerId: actor.userId,
                 threadId: input.threadId,
                 items,
-                origin: input.origin ?? null,
+                origin,
                 now: this.clock.now(),
             });
         } catch (error: unknown) {
@@ -107,7 +114,19 @@ export class ProposeTasksUseCase {
         };
     }
 
-    /** Одним запросом проверяет всех пользователей; ошибка называет первую задачу с проблемой. */
+    private async resolveOrigin(
+        actor: Actor,
+        meetingFileId: string | null,
+    ): Promise<DraftOrigin | null> {
+        if (meetingFileId === null) return null;
+        const recordingName = await this.recordings.findOwnedRecordingName(
+            actor.userId,
+            meetingFileId,
+        );
+        if (recordingName === null) throw new MeetingRecordingNotFoundError(meetingFileId);
+        return DraftOrigin.meeting({ fileId: meetingFileId, recordingName });
+    }
+
     private async resolveUsers(items: readonly DraftTaskItem[]): Promise<Map<string, string>> {
         const ids = new Set<string>();
         for (const item of items) {

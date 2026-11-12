@@ -1,7 +1,7 @@
 import type { TaskBatchDraft } from '../task-batch-draft';
 import type { TaskBatchResult } from '../task-batch-result';
 
-export abstract class TaskBatchDraftRepository {
+export abstract class TaskBatchDraftRepositoryPort {
     /** Вставляет новый черновик. У thread может быть только один черновик в статусе `draft`. */
     abstract save(draft: TaskBatchDraft): Promise<void>;
 

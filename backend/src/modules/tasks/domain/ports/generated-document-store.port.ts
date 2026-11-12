@@ -9,6 +9,6 @@ export interface GeneratedDocumentInput {
 }
 
 /** Сохраняет созданный на сервере документ как файл пользователя вида `document`. */
-export abstract class GeneratedDocumentStore {
+export abstract class GeneratedDocumentStorePort {
     abstract store(input: GeneratedDocumentInput): Promise<StoredFileView>;
 }

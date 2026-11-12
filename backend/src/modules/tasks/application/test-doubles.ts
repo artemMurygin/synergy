@@ -16,12 +16,13 @@ import type {
     TaskPageRequest,
 } from '../domain/ports/task-repository.port';
 import type { UserDirectory } from '../domain/ports/user-directory.port';
+import { MeetingRecordingsPort } from '../domain/ports/meeting-recordings.port';
 import { AttachmentTooLargeError } from '../domain/errors';
 import type { FileStorage } from '../domain/ports/file-storage.port';
 import type { TaskAttachmentRepository } from '../domain/ports/task-attachment-repository.port';
 import type { TasksSettings } from '../domain/ports/tasks-settings.port';
 import type { TaskAttachment } from '../domain/task-attachment';
-import type { TaskBatchDraftRepository } from '../domain/ports/task-batch-draft-repository.port';
+import type { TaskBatchDraftRepositoryPort } from '../domain/ports/task-batch-draft-repository.port';
 import { TaskBatchDraft } from '../domain/task-batch-draft';
 import type { TaskBatchResult } from '../domain/task-batch-result';
 
@@ -177,16 +178,30 @@ function sortValue(task: Task, sort: TaskSort): number | null {
 
 export class FakeUserDirectory implements UserDirectory {
     readonly users = new Map<string, DirectoryUser>();
+    private readonly inactiveIds = new Set<string>();
 
     constructor(users: readonly DirectoryUser[] = []) {
         for (const user of users) this.users.set(user.id, user);
     }
 
-    findActiveByIds = vi.fn((ids: readonly string[]) =>
+    deactivate(id: string): void {
+        this.inactiveIds.add(id);
+    }
+
+    findByIds = vi.fn((ids: readonly string[]) =>
         Promise.resolve(
             [...new Set(ids)].flatMap((id) => {
                 const user = this.users.get(id);
                 return user === undefined ? [] : [user];
+            }),
+        ),
+    );
+
+    findActiveByIds = vi.fn((ids: readonly string[]) =>
+        Promise.resolve(
+            [...new Set(ids)].flatMap((id) => {
+                const user = this.users.get(id);
+                return user === undefined || this.inactiveIds.has(id) ? [] : [user];
             }),
         ),
     );
@@ -196,10 +211,30 @@ export class FakeUserDirectory implements UserDirectory {
         if (needle === '') return Promise.resolve([]);
         return Promise.resolve(
             [...this.users.values()]
+                .filter((user) => !this.inactiveIds.has(user.id))
                 .filter((user) => user.login.toLowerCase().includes(needle))
                 .slice(0, limit),
         );
     });
+}
+
+export interface FakeRecording {
+    ownerId: string;
+    fileId: string;
+    name: string;
+}
+
+export class FakeMeetingRecordings extends MeetingRecordingsPort {
+    constructor(private readonly recordings: readonly FakeRecording[] = []) {
+        super();
+    }
+
+    findOwnedRecordingName(ownerId: string, fileId: string): Promise<string | null> {
+        const found = this.recordings.find(
+            (recording) => recording.ownerId === ownerId && recording.fileId === fileId,
+        );
+        return Promise.resolve(found?.name ?? null);
+    }
 }
 
 export class FakeAccessPolicy implements TaskAccessPolicy {
@@ -299,7 +334,7 @@ export class InMemoryAttachmentRepository implements TaskAttachmentRepository {
  * exactly one wins. Stores snapshots of the props, not the live aggregates.
  */
 export class InMemoryTaskBatchDraftRepository
-    implements TaskBatchDraftRepository, TransactionParticipant
+    implements TaskBatchDraftRepositoryPort, TransactionParticipant
 {
     readonly byId = new Map<string, ReturnType<TaskBatchDraft['getProps']>>();
 

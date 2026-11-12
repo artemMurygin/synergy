@@ -10,7 +10,7 @@ import { silentLogger } from '../../files/application/test-doubles';
 import { DraftOrigin } from '../domain/draft-origin';
 import { DraftTaskItem } from '../domain/draft-task-item';
 import {
-    GeneratedDocumentStore,
+    GeneratedDocumentStorePort,
     type GeneratedDocumentInput,
 } from '../domain/ports/generated-document-store.port';
 import { TaskBatchResult } from '../domain/task-batch-result';
@@ -31,7 +31,7 @@ class CapturingRenderer extends DocumentRendererPort {
     }
 }
 
-class CapturingStore extends GeneratedDocumentStore {
+class CapturingStore extends GeneratedDocumentStorePort {
     readonly stored: GeneratedDocumentInput[] = [];
 
     store = vi.fn((input: GeneratedDocumentInput): Promise<StoredFileView> => {
@@ -62,7 +62,9 @@ beforeEach(() => {
     directory = new FakeUserDirectory([
         { id: 'me', login: 'ivanov' },
         { id: 'anna', login: 'anna.petrova' },
+        { id: 'gone', login: 'sidorov' },
     ]);
+    directory.deactivate('gone');
     report = new TasksReportDocument(
         renderer,
         store,
@@ -113,7 +115,7 @@ describe('TasksReportDocument', () => {
                 [
                     '2',
                     'Позвонить клиенту',
-                    null,
+                    'sidorov',
                     'anna.petrova',
                     null,
                     'Не создана: исполнитель отключён',
@@ -164,6 +166,7 @@ describe('TasksReportDocument', () => {
     it('looks the users up with a single directory call', async () => {
         await report.issue({ ownerId: 'me', origin: ORIGIN, result, items });
 
-        expect(directory.findActiveByIds).toHaveBeenCalledTimes(1);
+        expect(directory.findByIds).toHaveBeenCalledTimes(1);
+        expect(directory.findActiveByIds).not.toHaveBeenCalled();
     });
 });

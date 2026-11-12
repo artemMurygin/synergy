@@ -2,8 +2,10 @@ import { tool } from 'langchain';
 import { z } from 'zod';
 import { AttachmentRef, type AgentRunContext } from '../../../../shared/agent-capability';
 import { ArgumentInvalidError, BaseError } from '../../../../shared/errors';
-import type { CreateTasksFromDraftUseCase } from '../../application/create-tasks-from-draft.use-case';
-import type { GetTaskUseCase } from '../../application/get-task.use-case';
+import type {
+    CreateTasksFromDraftUseCase,
+    DraftTaskOutcomeView,
+} from '../../application/create-tasks-from-draft.use-case';
 import type { ListTasksUseCase } from '../../application/list-tasks.use-case';
 import type {
     DraftCardView,
@@ -14,7 +16,6 @@ import type { TaskView } from '../../application/task-view';
 import type { TaskPatch, UpdateTaskUseCase } from '../../application/update-task.use-case';
 import { Actor } from '../../domain/actor';
 import { TASK_ACCESS_DENIED } from '../../domain/access-denied.error';
-import { DraftOrigin } from '../../domain/draft-origin';
 import { TaskErrorCode } from '../../domain/errors';
 import type { UserDirectory } from '../../domain/ports/user-directory.port';
 import {
@@ -23,11 +24,11 @@ import {
     EmptyTaskBatchError,
     InvalidDraftItemError,
     MAX_DRAFT_TASKS,
+    MeetingRecordingNotFoundError,
     TooManyDraftTasksError,
     UnknownDraftUserError,
     type DraftUserField,
 } from '../../domain/task-batch-errors';
-import type { TaskBatchResultItem } from '../../domain/task-batch-result';
 import { TaskFilter } from '../../domain/task-filter';
 import { TaskSort } from '../../domain/task-sort';
 import { TASK_STATUSES } from '../../domain/task-status';
@@ -35,7 +36,6 @@ import { TASK_STATUSES } from '../../domain/task-status';
 export interface TaskToolsDeps {
     readonly proposeTasks: ProposeTasksUseCase;
     readonly createTasksFromDraft: CreateTasksFromDraftUseCase;
-    readonly getTask: GetTaskUseCase;
     readonly listTasks: ListTasksUseCase;
     readonly updateTask: UpdateTaskUseCase;
     readonly users: UserDirectory;
@@ -80,6 +80,9 @@ function explainBatch(error: unknown): string | null {
     }
     if (error instanceof InvalidDraftItemError) {
         return `Некорректное значение: ${error.message}`;
+    }
+    if (error instanceof MeetingRecordingNotFoundError) {
+        return 'Запись встречи не найдена среди записей пользователя: передай в origin идентификатор файла записи от специалиста по встречам или не передавай origin';
     }
     if (error instanceof DraftNotFoundError) {
         return 'Список не найден: покажи список заново через propose_tasks и дождись подтверждения';
@@ -208,12 +211,10 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
         async (input) => {
             try {
                 const items = input.items.map((item, i) => toItem(item, i + 1));
-                const origin =
-                    input.origin === undefined ? null : DraftOrigin.meeting(input.origin);
                 const { draftId, cards } = await deps.proposeTasks.execute(actor, {
                     threadId: ctx.threadId,
                     items,
-                    origin,
+                    meetingFileId: input.origin?.fileId ?? null,
                 });
                 return json({
                     proposed: true,
@@ -236,7 +237,6 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
                 origin: z
                     .object({
                         fileId: z.string().describe('Id of the meeting recording file'),
-                        recordingName: z.string().describe('File name of the recording'),
                     })
                     .optional()
                     .describe('The meeting the list came from; omit for a list the user typed'),
@@ -247,7 +247,7 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
     const createTasks = tool(
         async (input) => {
             try {
-                const { result, report } = await deps.createTasksFromDraft.execute(actor, {
+                const { result, tasks, report } = await deps.createTasksFromDraft.execute(actor, {
                     draftId: input.draftId,
                 });
                 if (report !== null) {
@@ -261,12 +261,11 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
                         }),
                     );
                 }
-                const outcomes = await Promise.all(result.items.map(presentOutcome));
                 return json({
                     created: true,
                     createdCount: result.createdCount,
                     failedCount: result.failedCount,
-                    tasks: outcomes,
+                    tasks: tasks.map(presentOutcome),
                     report: report === null ? null : { name: report.name },
                 });
             } catch (error) {
@@ -283,27 +282,20 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
         },
     );
 
-    /** Outcome of one task for the summary: title, assignee and creator of a created task. */
-    async function presentOutcome(outcome: TaskBatchResultItem): Promise<Record<string, unknown>> {
+    function presentOutcome(view: DraftTaskOutcomeView): Record<string, unknown> {
+        const { outcome } = view;
         if (outcome.status === 'failed') {
             return { number: outcome.index, status: 'failed', reason: outcome.reason };
         }
-        try {
-            const task = await deps.getTask.execute(actor, outcome.taskId);
-            return {
-                number: outcome.index,
-                status: 'created',
-                title: task.title,
-                assignee: task.assignee === null ? null : login(task.assignee),
-                creator: login(task.creator),
-                onBehalf: task.creator.id !== actor.userId,
-                deadline: task.deadline?.toISOString() ?? null,
-            };
-        } catch {
-            // The task is already created: a failed read only shortens its line of the summary
-            // and must not turn the whole answer into a failure.
-            return { number: outcome.index, status: 'created' };
-        }
+        return {
+            number: outcome.index,
+            status: 'created',
+            title: view.title,
+            assignee: view.assignee === null ? null : login(view.assignee),
+            creator: login(view.creator),
+            onBehalf: view.creator.id !== actor.userId,
+            deadline: view.deadline?.toISOString() ?? null,
+        };
     }
 
     const searchTasks = tool(

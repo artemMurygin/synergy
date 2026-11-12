@@ -26,6 +26,7 @@ import { AccessTokenService } from '../auth/domain/ports/access-token-service.po
 import { JwtAccessTokenService } from '../auth/infrastructure/jwt-access-token.service';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
+import { GetFileUseCase } from '../files/application/get-file.use-case';
 import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
 import { FilesModule } from '../files/files.module';
 import {
@@ -93,8 +94,12 @@ class LoggerStubModule {}
             provide: StoreGeneratedFileUseCase,
             useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
         },
+        {
+            provide: GetFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
     ],
-    exports: [StoreGeneratedFileUseCase],
+    exports: [StoreGeneratedFileUseCase, GetFileUseCase],
 })
 class NoFilesModule {}
 

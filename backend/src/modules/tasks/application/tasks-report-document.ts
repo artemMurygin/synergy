@@ -5,7 +5,7 @@ import type { StoredFileView } from '../../files/application/stored-file-view';
 import { DraftOrigin } from '../domain/draft-origin';
 import type { DraftTaskItem } from '../domain/draft-task-item';
 import { Clock } from '../domain/ports/clock.port';
-import { GeneratedDocumentStore } from '../domain/ports/generated-document-store.port';
+import { GeneratedDocumentStorePort } from '../domain/ports/generated-document-store.port';
 import { UserDirectory } from '../domain/ports/user-directory.port';
 import type { TaskBatchResult, TaskBatchResultItem } from '../domain/task-batch-result';
 
@@ -36,7 +36,7 @@ const moscowDate = new Intl.DateTimeFormat('ru-RU', {
 export class TasksReportDocument {
     constructor(
         private readonly renderer: DocumentRendererPort,
-        private readonly store: GeneratedDocumentStore,
+        private readonly store: GeneratedDocumentStorePort,
         private readonly users: UserDirectory,
         private readonly clock: Clock,
         private readonly logger: PinoLogger,
@@ -90,7 +90,7 @@ export class TasksReportDocument {
             if (item.assigneeId !== null) ids.add(item.assigneeId);
         }
         const logins = new Map<string, string>();
-        for (const user of await this.users.findActiveByIds([...ids])) {
+        for (const user of await this.users.findByIds([...ids])) {
             logins.set(user.id, user.login);
         }
         return logins;
@@ -102,7 +102,7 @@ function toRow(
     items: readonly DraftTaskItem[],
     logins: ReadonlyMap<string, string>,
 ): (string | null)[] {
-    const item = items[outcome.index - 1] as DraftTaskItem | undefined;
+    const item = items.at(outcome.index - 1);
     const result = outcome.status === 'created' ? 'Создана' : `Не создана: ${outcome.reason}`;
     if (item === undefined) return [String(outcome.index), null, null, null, null, result];
     return [

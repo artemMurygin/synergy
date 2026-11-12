@@ -11,6 +11,7 @@ export const TaskBatchErrorCode = {
     EmptyBatch: 'TASK_DRAFT_EMPTY',
     UnknownUser: 'TASK_DRAFT_UNKNOWN_USER',
     InvalidItem: 'TASK_DRAFT_INVALID_ITEM',
+    UnknownRecording: 'TASK_DRAFT_UNKNOWN_RECORDING',
 } as const;
 
 export class InvalidTaskBatchError extends ArgumentInvalidError {}
@@ -83,4 +84,12 @@ export class InvalidDraftItemError extends InvalidTaskBatchError {
 export function assertBatchSize(count: number): void {
     if (count === 0) throw new EmptyTaskBatchError();
     if (count > MAX_DRAFT_TASKS) throw new TooManyDraftTasksError(count);
+}
+
+export class MeetingRecordingNotFoundError extends BaseError {
+    readonly code = TaskBatchErrorCode.UnknownRecording;
+
+    constructor(readonly fileId: string) {
+        super(`Meeting recording ${fileId} of the owner not found`);
+    }
 }

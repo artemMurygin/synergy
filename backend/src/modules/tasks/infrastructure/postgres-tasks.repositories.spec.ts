@@ -708,6 +708,12 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
             expect(await directory.findActiveByIds([])).toEqual([]);
         });
 
+        it('findByIds returns existing users, disabled ones too', async () => {
+            const result = await directory.findByIds([alice, inactive, randomUUID()]);
+            expect(result.map((u) => u.id).sort()).toEqual([alice, inactive].sort());
+            expect(await directory.findByIds([])).toEqual([]);
+        });
+
         describe('searchActive', () => {
             it('finds only active users by a case-insensitive login substring', async () => {
                 await addUser('Alice.Smith');

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { DraftOrigin } from '../domain/draft-origin';
 import { DraftTaskItem } from '../domain/draft-task-item';
-import { TaskBatchDraftRepository } from '../domain/ports/task-batch-draft-repository.port';
+import { TaskBatchDraftRepositoryPort } from '../domain/ports/task-batch-draft-repository.port';
 import { TASK_BATCH_DRAFT_STATUSES, TaskBatchDraft } from '../domain/task-batch-draft';
 import { TaskBatchResult } from '../domain/task-batch-result';
 
@@ -73,7 +73,7 @@ function toDraft(raw: unknown): TaskBatchDraft {
 }
 
 @Injectable()
-export class SlonikTaskBatchDraftRepository extends TaskBatchDraftRepository {
+export class TaskBatchDraftRepository extends TaskBatchDraftRepositoryPort {
     constructor(private readonly transactions: TransactionRunnerPort) {
         super();
     }

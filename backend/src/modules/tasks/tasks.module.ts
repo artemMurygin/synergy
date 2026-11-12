@@ -23,19 +23,21 @@ import { UploadAttachmentUseCase } from './application/upload-attachment.use-cas
 import { registerTaskEvents } from './contracts/register-task-events';
 import { Clock } from './domain/ports/clock.port';
 import { FileStorage } from './domain/ports/file-storage.port';
-import { GeneratedDocumentStore } from './domain/ports/generated-document-store.port';
+import { GeneratedDocumentStorePort } from './domain/ports/generated-document-store.port';
+import { MeetingRecordingsPort } from './domain/ports/meeting-recordings.port';
 import { TaskAccessPolicy } from './domain/ports/task-access-policy.port';
 import { TaskAttachmentRepository } from './domain/ports/task-attachment-repository.port';
-import { TaskBatchDraftRepository } from './domain/ports/task-batch-draft-repository.port';
+import { TaskBatchDraftRepositoryPort } from './domain/ports/task-batch-draft-repository.port';
 import { TaskRepository } from './domain/ports/task-repository.port';
 import { TasksSettings } from './domain/ports/tasks-settings.port';
 import { UserDirectory } from './domain/ports/user-directory.port';
 import { AllowAllTaskAccessPolicy } from './infrastructure/allow-all-task-access-policy';
 import { EnvTasksSettings } from './infrastructure/env-tasks-settings';
-import { FilesGeneratedDocumentStore } from './infrastructure/files-generated-document-store';
+import { GeneratedDocumentStore } from './infrastructure/generated-document-store';
 import { LocalDiskFileStorage } from './infrastructure/local-disk-file-storage';
+import { MeetingRecordings } from './infrastructure/meeting-recordings';
 import { SlonikTaskAttachmentRepository } from './infrastructure/slonik-task-attachment.repository';
-import { SlonikTaskBatchDraftRepository } from './infrastructure/slonik-task-batch-draft.repository';
+import { TaskBatchDraftRepository } from './infrastructure/task-batch-draft.repository';
 import { SlonikTaskRepository } from './infrastructure/slonik-task.repository';
 import { SlonikUserDirectory } from './infrastructure/slonik-user-directory';
 import { SystemClock } from './infrastructure/system-clock';
@@ -78,8 +80,9 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
         { provide: TasksSettings, useExisting: EnvTasksSettings },
         { provide: TaskRepository, useClass: SlonikTaskRepository },
         { provide: TaskAttachmentRepository, useClass: SlonikTaskAttachmentRepository },
-        { provide: TaskBatchDraftRepository, useClass: SlonikTaskBatchDraftRepository },
-        { provide: GeneratedDocumentStore, useClass: FilesGeneratedDocumentStore },
+        { provide: TaskBatchDraftRepositoryPort, useClass: TaskBatchDraftRepository },
+        { provide: GeneratedDocumentStorePort, useClass: GeneratedDocumentStore },
+        { provide: MeetingRecordingsPort, useClass: MeetingRecordings },
         { provide: UserDirectory, useClass: SlonikUserDirectory },
         { provide: TaskAccessPolicy, useClass: AllowAllTaskAccessPolicy },
         { provide: Clock, useClass: SystemClock },
@@ -95,7 +98,6 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
                 ConfigService,
                 ProposeTasksUseCase,
                 CreateTasksFromDraftUseCase,
-                GetTaskUseCase,
                 ListTasksUseCase,
                 UpdateTaskUseCase,
                 UserDirectory,
@@ -105,7 +107,6 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
                 config: ConfigService<Env, true>,
                 proposeTasks: ProposeTasksUseCase,
                 createTasksFromDraft: CreateTasksFromDraftUseCase,
-                getTask: GetTaskUseCase,
                 listTasks: ListTasksUseCase,
                 updateTask: UpdateTaskUseCase,
                 users: UserDirectory,
@@ -113,7 +114,7 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
             ): TasksAgentCapability => {
                 assertTaskSkillsPresent(TASKS_AGENT_SKILLS_DIR);
                 return new TasksAgentCapability(
-                    { proposeTasks, createTasksFromDraft, getTask, listTasks, updateTask, users },
+                    { proposeTasks, createTasksFromDraft, listTasks, updateTask, users },
                     createChatModel(config, TASKS_AGENT_CONFIG.model),
                     clock,
                     TASKS_AGENT_SKILLS_DIR,

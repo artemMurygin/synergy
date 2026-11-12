@@ -9,6 +9,7 @@ import { CreateTasksFromDraftUseCase } from './create-tasks-from-draft.use-case'
 import { ProposeTasksUseCase, type ProposedItemInput } from './propose-tasks.use-case';
 import type { TasksReportDocument } from './tasks-report-document';
 import {
+    FakeMeetingRecordings,
     FakeUserDirectory,
     InMemoryTaskBatchDraftRepository,
     InMemoryTaskRepository,
@@ -62,14 +63,24 @@ beforeEach(() => {
     useCase = new CreateTasksFromDraftUseCase(
         drafts,
         createTask,
+        directory,
         { issue } as unknown as TasksReportDocument,
         silentLogger(),
     );
 });
 
 async function propose(items: ProposedItemInput[], origin?: DraftOrigin): Promise<string> {
-    const propose = new ProposeTasksUseCase(drafts, directory, fakeClock, transactions);
-    const { draftId } = await propose.execute(me, { threadId: THREAD, items, origin });
+    const recordings = new FakeMeetingRecordings(
+        origin === undefined
+            ? []
+            : [{ ownerId: 'me', fileId: origin.fileId, name: origin.recordingName }],
+    );
+    const propose = new ProposeTasksUseCase(drafts, directory, recordings, fakeClock, transactions);
+    const { draftId } = await propose.execute(me, {
+        threadId: THREAD,
+        items,
+        meetingFileId: origin?.fileId,
+    });
     return draftId;
 }
 

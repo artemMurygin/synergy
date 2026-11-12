@@ -20,7 +20,6 @@ const proposeTasksExecute = vi.fn();
 const deps = {
     proposeTasks: { execute: proposeTasksExecute },
     createTasksFromDraft: { execute: vi.fn() },
-    getTask: { execute: vi.fn() },
     listTasks: { execute: vi.fn() },
     updateTask: { execute: vi.fn() },
     users: { findActiveByIds: vi.fn(), searchActive: vi.fn() },

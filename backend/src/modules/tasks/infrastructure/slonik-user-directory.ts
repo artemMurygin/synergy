@@ -13,6 +13,14 @@ export class SlonikUserDirectory extends UserDirectory {
         super();
     }
 
+    async findByIds(ids: readonly string[]): Promise<DirectoryUser[]> {
+        if (ids.length === 0) return [];
+        const rows = await this.pool.any(sql.unsafe`
+            SELECT id, login FROM auth_users
+            WHERE id = ANY(${sql.array([...new Set(ids)], 'uuid')})`);
+        return rows.map((row) => userRow.parse(row));
+    }
+
     async findActiveByIds(ids: readonly string[]): Promise<DirectoryUser[]> {
         if (ids.length === 0) return [];
         const rows = await this.pool.any(sql.unsafe`

@@ -9,7 +9,7 @@ import { DraftOrigin } from '../domain/draft-origin';
 import { DraftTaskItem } from '../domain/draft-task-item';
 import { TaskBatchDraft } from '../domain/task-batch-draft';
 import { TaskBatchResult } from '../domain/task-batch-result';
-import { SlonikTaskBatchDraftRepository } from './slonik-task-batch-draft.repository';
+import { TaskBatchDraftRepository } from './task-batch-draft.repository';
 
 // Интеграционный тест: нужна PostgreSQL. Без PROGRAMS_ETL_TEST_ADMIN_URL тест пропускается.
 const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
@@ -22,12 +22,12 @@ function withDatabase(url: string, database: string): string {
 
 const T0 = new Date('2026-03-01T10:00:00.000Z');
 
-describe.skipIf(adminUrl === undefined)('SlonikTaskBatchDraftRepository', () => {
+describe.skipIf(adminUrl === undefined)('TaskBatchDraftRepository', () => {
     const dbName = `task_drafts_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
     let client: Client;
     let pool: DatabasePool;
     let transactions: TransactionRunner;
-    let repository: SlonikTaskBatchDraftRepository;
+    let repository: TaskBatchDraftRepository;
     let owner: string;
     let other: string;
     const thread = randomUUID();
@@ -87,7 +87,7 @@ describe.skipIf(adminUrl === undefined)('SlonikTaskBatchDraftRepository', () => 
             pool,
             new PinoLogger({ pinoHttp: { level: 'silent' } }),
         );
-        repository = new SlonikTaskBatchDraftRepository(transactions);
+        repository = new TaskBatchDraftRepository(transactions);
     }, 60_000);
 
     afterAll(async () => {

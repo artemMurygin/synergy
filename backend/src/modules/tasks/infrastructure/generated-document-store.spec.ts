@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StoreGeneratedFileUseCase } from '../../files/application/store-generated-file.use-case';
-import { FilesGeneratedDocumentStore } from './files-generated-document-store';
+import { GeneratedDocumentStore } from './generated-document-store';
 
-describe('FilesGeneratedDocumentStore', () => {
+describe('GeneratedDocumentStore', () => {
     it('stores the document through the files module and returns its view', async () => {
         const view = { id: 'f1' };
         const execute = vi.fn(() => Promise.resolve(view));
-        const store = new FilesGeneratedDocumentStore({
+        const store = new GeneratedDocumentStore({
             execute,
         } as unknown as StoreGeneratedFileUseCase);
         const input = {

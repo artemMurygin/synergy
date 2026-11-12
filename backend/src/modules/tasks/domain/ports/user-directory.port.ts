@@ -4,6 +4,8 @@ export interface DirectoryUser {
 }
 
 export abstract class UserDirectory {
+    abstract findByIds(ids: readonly string[]): Promise<DirectoryUser[]>;
+
     /** Returns only existing active users among the given ids. */
     abstract findActiveByIds(ids: readonly string[]): Promise<DirectoryUser[]>;
 

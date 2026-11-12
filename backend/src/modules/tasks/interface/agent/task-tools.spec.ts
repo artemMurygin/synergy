@@ -6,12 +6,12 @@ import type { StoredFileView } from '../../../files/application/stored-file-view
 import { silentLogger } from '../../../files/application/test-doubles';
 import { CreateTaskUseCase, type CreateTaskInput } from '../../application/create-task.use-case';
 import { CreateTasksFromDraftUseCase } from '../../application/create-tasks-from-draft.use-case';
-import { GetTaskUseCase } from '../../application/get-task.use-case';
 import { ListTasksUseCase } from '../../application/list-tasks.use-case';
 import { ProposeTasksUseCase } from '../../application/propose-tasks.use-case';
 import type { TasksReportDocument } from '../../application/tasks-report-document';
 import {
     FakeAccessPolicy,
+    FakeMeetingRecordings,
     FakeUserDirectory,
     InMemoryAttachmentRepository,
     InMemoryTaskBatchDraftRepository,
@@ -61,14 +61,20 @@ function build(userId = 'me', threadId = 'thread-1'): TaskTools {
     ctx = AgentRunContext.create({ userId, threadId });
     return createTaskTools(
         {
-            proposeTasks: new ProposeTasksUseCase(drafts, directory, fakeClock, transactions),
+            proposeTasks: new ProposeTasksUseCase(
+                drafts,
+                directory,
+                new FakeMeetingRecordings([{ ownerId: 'me', fileId: 'f-1', name: 'Планёрка.m4a' }]),
+                fakeClock,
+                transactions,
+            ),
             createTasksFromDraft: new CreateTasksFromDraftUseCase(
                 drafts,
                 createTask,
+                directory,
                 { issue: issueReport } as unknown as TasksReportDocument,
                 silentLogger(),
             ),
-            getTask: new GetTaskUseCase(tasks, attachments, directory, policy),
             listTasks: new ListTasksUseCase(tasks, attachments, directory),
             updateTask: new UpdateTaskUseCase(tasks, attachments, directory, policy, fakeClock),
             users: directory,
@@ -222,7 +228,7 @@ describe('propose_tasks', () => {
     it('passes the meeting origin when the list came from a meeting', async () => {
         await call(tools.proposeTasks, {
             items: [{ title: 'Из встречи' }],
-            origin: { fileId: 'f-1', recordingName: 'Планёрка.m4a' },
+            origin: { fileId: 'f-1' },
         });
 
         expect([...drafts.byId.values()][0].origin).toEqual({
@@ -230,6 +236,26 @@ describe('propose_tasks', () => {
             fileId: 'f-1',
             recordingName: 'Планёрка.m4a',
         });
+    });
+
+    it('takes the recording name from the file and ignores a name from the model', async () => {
+        await call(tools.proposeTasks, {
+            items: [{ title: 'Из встречи' }],
+            origin: { fileId: 'f-1', recordingName: 'Выдуманная.m4a' },
+        });
+
+        expect([...drafts.byId.values()][0].origin?.recordingName).toBe('Планёрка.m4a');
+    });
+
+    it('explains an origin that is not a recording of the user', async () => {
+        const result = await call(tools.proposeTasks, {
+            items: [{ title: 'Из встречи' }],
+            origin: { fileId: 'foreign' },
+        });
+
+        expect(result.proposed).toBe(false);
+        expect(String(result.error)).toMatch(/запись/i);
+        expect(drafts.byId.size).toBe(0);
     });
 
     it('stores no origin for a list the user typed', async () => {
@@ -365,17 +391,41 @@ describe('create_tasks', () => {
         expect(tasks.byId.size).toBe(2);
     });
 
-    it('still reports a created task when reading it back for the summary fails', async () => {
+    it('summarises a created task the user cannot read with its title, assignee and creator', async () => {
         policy.canRead.mockReturnValue(false);
 
-        const { created } = await proposeAndCreate([{ title: 'Скрытая' }]);
+        const { created } = await proposeAndCreate([
+            { title: 'Скрытая', assigneeId: 'anna', creatorId: 'petr-1' },
+        ]);
 
         expect(created).toMatchObject({
             created: true,
             createdCount: 1,
-            tasks: [{ number: 1, status: 'created' }],
+            tasks: [
+                {
+                    number: 1,
+                    status: 'created',
+                    title: 'Скрытая',
+                    assignee: 'anna',
+                    creator: 'petr.ivanov',
+                    onBehalf: true,
+                },
+            ],
         });
         expect(tasks.byId.size).toBe(1);
+    });
+
+    it('looks the people of the summary up with one directory call and reads no task back', async () => {
+        const proposed = await call(tools.proposeTasks, {
+            items: [{ title: 'A', assigneeId: 'anna' }, { title: 'B' }, { title: 'C' }],
+        });
+        directory.findByIds.mockClear();
+        const findById = vi.spyOn(tasks, 'findById');
+
+        await call(tools.createTasks, { draftId: proposed.draftId });
+
+        expect(directory.findByIds).toHaveBeenCalledTimes(1);
+        expect(findById).not.toHaveBeenCalled();
     });
 
     it('explains an unknown draft', async () => {
@@ -387,7 +437,7 @@ describe('create_tasks', () => {
 
     it('puts the report document of a meeting list into the run attachments', async () => {
         const { created } = await proposeAndCreate([{ title: 'Из встречи' }], {
-            origin: { fileId: 'f-1', recordingName: 'Планёрка.m4a' },
+            origin: { fileId: 'f-1' },
         });
 
         expect(issueReport).toHaveBeenCalledTimes(1);
