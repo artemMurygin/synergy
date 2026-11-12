@@ -1,12 +1,12 @@
 # assistant
 
-Единый ИИ-ассистент бэкенда. Модуль владеет чатами, запуском агента, стримингом событий AG-UI, отменой и хранением контекста (checkpointer). Предметные умения (цены, задачи) он сам не содержит: их приносят другие модули как возможности (`AgentCapability`).
+Единый ИИ-ассистент бэкенда. Модуль владеет чатами, запуском агента, стримингом событий AG-UI, отменой и хранением контекста (checkpointer). Предметные умения (цены, задачи, встречи) он сам не содержит: их приносят другие модули как возможности (`AgentCapability`).
 
 ## Профили и клиенты
 
 Профиль определяет, какой агент собирается на запуск (`AgentProfileFactory`):
 
-- `app` — оркестратор (Deep Agent на лёгкой быстрой модели, `assistant.config.ts`). Он только маршрутизирует и делегирует подагентам-возможностям: сейчас это `sheets_qa` (цены) и `tasks` (задачи). Промпт строится из имён и описаний возможностей.
+- `app` — оркестратор (Deep Agent на лёгкой быстрой модели, `assistant.config.ts`). Он только маршрутизирует и делегирует подагентам-возможностям: сейчас это `sheets_qa` (цены), `tasks` (задачи) и `meetings` (записи встреч и их расшифровки). Промпт строится из имён и описаний возможностей.
 - `telegram` — один агент задач без подагентов и без ценовых инструментов, со своей историей диалога.
 
 Клиент (`ClientId`): `app` (нейтральный, когда заголовка нет), `manager-app`, `employee-app`, `telegram`. `ClientProfileRegistry` сопоставляет клиента профилю: все клиенты приложений получают `app`, Telegram получает `telegram`. Неизвестный клиент отклоняется до сборки любой возможности.
@@ -15,21 +15,46 @@ HTTP-клиент определяется только заголовком `X-
 
 ## Возможности модулей
 
-Контракт лежит в `shared/agent-capability`: `AgentCapability` (`name`, `description`, `mode`, `buildAgent(ctx, options?)`) и `AgentRunContext` (`userId`, `threadId`). Реализуют контракт доменные модули (`SheetsQaAgentCapability`, `TasksAgentCapability` в `tasks/interface/agent`) и регистрируют под DI-токенами `SHEETS_QA_AGENT_CAPABILITY` и `TASKS_AGENT_CAPABILITY` из `shared/agent-capability`; `assistant` получает их по токену как `AgentCapability` и конкретных классов не импортирует. Общая фабрика моделей — `shared/llm` (`createChatModel`). Возможность видит только контекст запуска: пользователя берёт из `ctx`, а не из вопроса или от модели.
+Контракт лежит в `shared/agent-capability`: `AgentCapability` (`name`, `description`, `mode`, `buildAgent(ctx, options?)`) и `AgentRunContext` (`userId`, `threadId`, `attachments`). Реализуют контракт доменные модули (`SheetsQaAgentCapability`, `TasksAgentCapability` в `tasks/interface/agent`, `MeetingsAgentCapability` в `transcription/meeting/interface/agent`) и регистрируют под DI-токенами `SHEETS_QA_AGENT_CAPABILITY`, `TASKS_AGENT_CAPABILITY` и `MEETINGS_AGENT_CAPABILITY` из `shared/agent-capability`; `assistant` получает их по токену как `AgentCapability` и конкретных классов не импортирует. Общая фабрика моделей — `shared/llm` (`createChatModel`). Возможность видит только контекст запуска: пользователя берёт из `ctx`, а не из вопроса или от модели.
 
 - `mode: 'isolated'` — подагент получает чистый контекст (цены: вопрос одним текстом, без истории).
-- `mode: 'fork'` — подагент видит форк контекста вызывающего (задачи).
+- `mode: 'fork'` — подагент видит форк контекста вызывающего (задачи, встречи): историю чата с блоками `[Вложения]` и сообщениями системы.
 - `options.checkpointer` передаётся, когда возможность выступает агентом верхнего уровня (профиль `telegram`); вложенная возможность его не использует.
 
 ## Чаты
 
 Чат (`ChatSession`) принадлежит владельцу (`ownerId`, id аутентифицированного пользователя) и живёт в канале `app` или `telegram` (`ChatChannel`).
 
-- Чаты приложений: `POST /threads`, `GET /threads`, `GET /threads/:id/messages`, `PATCH /threads/:id`, `DELETE /threads/:id`, `POST /threads/:id/run/cancel`, запуск `POST /agent` (AG-UI, SSE). Статусы: 400 неверное тело или вопрос, 404 неизвестный или чужой чат, 409 в чате уже идёт запуск.
+- Чаты приложений: `POST /threads`, `GET /threads`, `GET /threads/:id/messages`, `PATCH /threads/:id`, `DELETE /threads/:id`, `POST /threads/:id/run/cancel`, запуск `POST /agent` (AG-UI, SSE). Статусы: 400 неверное тело или вопрос, 404 неизвестный или чужой чат, 409 в чате уже идёт запуск. Вложения дают свои 404 и 410 (раздел «Вложения в чате»).
 - Клиентам приложений виден только канал `app`. Чужой чат, несуществующий и диалог Telegram неотличимы: везде 404 (`findAppSession`).
 - Диалог Telegram у владельца один (`findOrCreateTelegram`), создаётся при первом сообщении, в списках приложений не показывается, историю приложений не читает.
-- Запуск живёт независимо от соединения: при обрыве SSE агент дорабатывает, ответ попадает в историю, `running` берётся из реестра активных запусков (в памяти процесса, один запуск на чат). Остановка только явная, через cancel. При graceful shutdown запуски отменяются раньше закрытия checkpointer.
+- Запуск живёт независимо от соединения: при обрыве SSE агент дорабатывает, ответ попадает в историю, `running` берётся из реестра активных запусков (в памяти процесса, один запуск на чат; см. «Ограничение: один экземпляр бэкенда»). Остановка только явная, через cancel. При graceful shutdown запуски отменяются раньше закрытия checkpointer.
 - История для UI (`chat_session`, `chat_message`) лежит в наших миграциях; контекст агента хранит `PostgresSaver` (таблицы создаёт `setup()` библиотеки после `migrate()`, в наши миграции их не добавляйте).
+
+## Вложения в чате
+
+Файлы загружаются заранее через `POST /files` модуля `files`, в запуск передаются только их id.
+
+- Запуск: `POST /agent` принимает `forwardedProps.fileIds` (UUID, по порядку). Сообщение — текст, файлы или и то и другое; без текста и без файлов — 400. Не больше 5 файлов (`MAX_RUN_ATTACHMENTS`), один файл дважды — 400.
+- Файлы проверяются до открытия потока и до любой записи (`AttachmentFilesPort` → адаптер `FilesAttachmentLookup` поверх `FindOwnedFilesUseCase` модуля `files`): чужой или неизвестный файл — 404 `FILE_NOT_FOUND` с `fileId`, удалённый по сроку — 410 `FILE_GONE` с `fileId`. Чужой и несуществующий файл неотличимы.
+- Агент видит не содержимое файлов, а служебный блок после вопроса (`formatAttachmentsBlock`): `[Вложения]` и строки `N. id=…; имя; вид; размер`. По id из этого блока возможности (например, `meetings`) находят запись.
+- Файлы в ответе агента: инструмент добавляет `AttachmentRef` в `ctx.attachments` (`RunAttachments`, один сборщик на запуск). Каждый новый файл сразу уходит в поток событием AG-UI `CUSTOM` с именем `file-attached` и значением `{ id, name, mediaType, size, kind }`, всегда до терминального события; клиенты, не знающие `CUSTOM`, его пропускают. Список файлов сохраняется вместе с ответом.
+- История: `chat_message_attachment` (миграция `023_chat_attachments.sql`) связывает сообщение с файлами по порядку (`position`). `GET /threads/:id/messages` отдаёт у каждого сообщения `attachments` (`[{ id, name, mediaType, kind, sizeBytes, status }]`) и `source`. `status` читается при каждом запросе: файл, удалённый по сроку, остаётся в истории с именем и размером и статусом `deleted`.
+- `FindFirstChatOfFileUseCase` (контракт для других модулей) находит первый существующий чат владельца, куда файл отправили с вопросом. Удалённый чат забирает свои вложения с собой.
+
+## Сообщения системы
+
+Сообщение агента в чат без вопроса пользователя, по доменному событию другого модуля (сейчас — готовая или неудавшаяся расшифровка встречи, см. `../transcription/README.md`). В истории у него `source: 'system'` (у обычных сообщений `run`), роль — агент.
+
+- Контракт: `PostSystemMessagePort.request(command)` (`contracts/`), команда `SystemMessageCommand`: `sessionId`, `ownerId`, `text`, `attachments` (id файлов владельца), `dedupKey`, `topic` (`meeting-transcript.ready` | `meeting-transcript.failed`), `subject` (`{ fileId, fileName }`). Экспортируются `PostSystemMessagePort` и `FindFirstChatOfFileUseCase`.
+- Доставка асинхронная, через BullMQ-очередь `chat-system-message` (`SystemMessageQueue`, `SystemMessageProcessor`). `jobId = dedupKey`, поэтому повторный запрос ничего не добавляет.
+- `PostSystemMessageUseCase` — не запуск: слот запуска он не занимает. Чат не найден, чужой или не канала `app` — сообщение пропускается (удалённый чат не восстанавливается). Если в чате идёт запуск, бросается `RunInProgressError`, и job повторяется каждые `CHAT_SYSTEM_MESSAGE_RETRY_MS` (5 с) до `CHAT_SYSTEM_MESSAGE_DEADLINE_MS` (10 мин) от постановки; после срока сообщение отбрасывается с предупреждением в логе. Так сообщение не попадает внутрь текущего ответа.
+- Порядок записи: сначала контекст агента (`AgentContextWriterPort.appendAssistantMessage`, текст с блоком `[Вложения]`), затем в одной транзакции история (`appendSystemMessage`, уникальный `chat_message.dedup_key`) и событие `chat.system-message-posted` в outbox. Повтор с уже сохранённым `dedupKey` в контекст не пишет. Если сбой случился между записью в контекст и в историю, повтор допишет контекст ещё раз: дубль там допустим, потеря — нет. Если чат удалили между проверкой и записью, записанный контекст удаляется.
+- Событие `chat.system-message-posted` (`ownerId`, `messageId`, `topic`, `subject`, без текста сообщения) слушает модуль `notifications` и строит по теме своё уведомление с объектом `chat`.
+
+## Ограничение: один экземпляр бэкенда
+
+`ActiveRunRegistry` (реестр активных запусков) живёт в памяти процесса. Через него работают запрет второго запуска в чате (409), `running` в истории, отмена и ожидание сообщений системы, пока в чате идёт ответ. При нескольких экземплярах бэкенда каждый видит только свои запуски: второй запуск в том же чате пройдёт на другом экземпляре, cancel может не найти запуск, а сообщение системы может попасть внутрь чужого ответа. Сейчас бэкенд работает одним экземпляром. До горизонтального масштабирования реестр нужно вынести в общее хранилище (Redis) за тем же портом `ActiveRunRegistryPort`.
 
 ## Диалог Telegram
 
@@ -39,9 +64,11 @@ HTTP-клиент определяется только заголовком `X-
 
 ## Направление зависимостей
 
-`telegram → assistant → shared ← tasks, sheets-qa`
+`telegram → assistant → shared ← tasks, sheets-qa, transcription`
 
-- `assistant` импортирует `SheetsQaModule` и `TasksModule` и собирает их возможности в профили; `tasks` и `sheets-qa` про `assistant` не знают и зависят только от `shared/agent-capability`.
+- `assistant` импортирует `SheetsQaModule`, `TasksModule` и `TranscriptionModule` и собирает их возможности в профили; эти модули про `assistant` не знают и зависят только от `shared/agent-capability`.
+- `assistant → files`: проверка вложений (`FindOwnedFilesUseCase`).
+- Сообщение в чат о расшифровке идёт через отдельный `MeetingChatModule` (`transcription/meeting`), который импортирует и `TranscriptionModule`, и `AssistantModule`: так нет цикла `assistant ↔ transcription`.
 - `telegram` зависит от `assistant` через адаптер; обратной зависимости нет.
 
 ## Как добавить новую возможность
