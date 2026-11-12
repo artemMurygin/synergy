@@ -218,14 +218,14 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
                 `Speaker names can be assigned only to a completed transcript, status is ${this.props.status}`,
             );
         }
-        const unknown = [
+        const unknownSpeakers = [
             ...new Set(
                 assignments
                     .map((a) => a.speaker)
                     .filter((n) => !Number.isInteger(n) || n < 1 || n > this.props.speakerCount),
             ),
         ];
-        if (unknown.length > 0) throw new UnknownSpeakerError(unknown);
+        if (unknownSpeakers.length > 0) throw new UnknownSpeakerError(unknownSpeakers);
         const checked = assignments.map((a) => SpeakerAssignment.of(a));
         this.props.speakerNames = this.props.speakerNames.assign(checked);
         this.touch();

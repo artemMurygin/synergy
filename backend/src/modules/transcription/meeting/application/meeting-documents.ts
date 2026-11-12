@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
-import { GetFileUseCase } from '../../../files/application/get-file.use-case';
-import { StoreGeneratedFileUseCase } from '../../../files/application/store-generated-file.use-case';
-import type { StoredFileView } from '../../../files/application/stored-file-view';
 import {
     DocumentModel,
     DocumentRendererPort,
@@ -21,6 +18,7 @@ import {
     formatMoscowDateTime,
     formatTimecode,
 } from '../domain/meeting-time-format';
+import { MeetingFilesPort, type MeetingDocumentFile } from '../domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from '../domain/ports/meeting-transcript-repository.port';
 import { TranscriptSegmentRepositoryPort } from '../domain/ports/transcript-segment-repository.port';
 import type { SpeakerNames } from '../domain/speaker-names';
@@ -67,8 +65,7 @@ export class MeetingDocuments {
         private readonly transcripts: MeetingTranscriptRepositoryPort,
         private readonly segments: TranscriptSegmentRepositoryPort,
         private readonly renderer: DocumentRendererPort,
-        private readonly storeFile: StoreGeneratedFileUseCase,
-        private readonly getFile: GetFileUseCase,
+        private readonly files: MeetingFilesPort,
         private readonly logger: PinoLogger,
     ) {
         this.logger.setContext(MeetingDocuments.name);
@@ -78,10 +75,10 @@ export class MeetingDocuments {
     async issueTranscript({
         ownerId,
         fileId,
-    }: IssueTranscriptDocumentInput): Promise<StoredFileView> {
+    }: IssueTranscriptDocumentInput): Promise<MeetingDocumentFile> {
         const transcript = await this.completedTranscript(ownerId, fileId);
         const [recording, segments] = await Promise.all([
-            describeRecording(this.getFile, transcript),
+            describeRecording(this.files, transcript),
             this.segments.readAll(fileId),
         ]);
         const replicas = mergeReplicas(segments, transcript.speakerNames);
@@ -100,9 +97,13 @@ export class MeetingDocuments {
     }
 
     /** 404 — чужая или нет. */
-    async issueTasks({ ownerId, fileId, tasks }: IssueTasksDocumentInput): Promise<StoredFileView> {
+    async issueTasks({
+        ownerId,
+        fileId,
+        tasks,
+    }: IssueTasksDocumentInput): Promise<MeetingDocumentFile> {
         const transcript = await findOwnedTranscript(this.transcripts, ownerId, fileId);
-        const recording = await describeRecording(this.getFile, transcript);
+        const recording = await describeRecording(this.files, transcript);
         const doc = DocumentModel.of({
             title: meetingDocumentTitle('tasks', recording.name),
             blocks: [
@@ -143,9 +144,9 @@ export class MeetingDocuments {
         recordingName: string,
         doc: DocumentModel,
         count: number,
-    ): Promise<StoredFileView> {
+    ): Promise<MeetingDocumentFile> {
         const buffer = await this.renderer.render(doc);
-        const file = await this.storeFile.execute({
+        const file = await this.files.storeDocument({
             ownerId,
             name: meetingDocumentFileName(kind, recordingName, this.renderer.extension),
             mediaType: this.renderer.mediaType,

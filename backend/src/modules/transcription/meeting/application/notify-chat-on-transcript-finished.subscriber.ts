@@ -3,8 +3,6 @@ import { PinoLogger } from 'nestjs-pino';
 import type { DomainEvent } from '../../../../shared/ddd';
 import { BaseError } from '../../../../shared/errors';
 import type { EventSubscriber } from '../../../../shared/outbox/application/domain-event-registry';
-import { FileNotFoundError } from '../../../files/application/errors';
-import { GetFileUseCase } from '../../../files/application/get-file.use-case';
 import {
     MEETING_TRANSCRIPT_COMPLETED_EVENT_TYPE,
     MeetingTranscriptCompletedEvent,
@@ -14,6 +12,7 @@ import {
     MeetingTranscriptFailedEvent,
 } from '../domain/events/meeting-transcript-failed.event';
 import { MeetingChatPort, type MeetingChatMessage } from '../domain/ports/meeting-chat.port';
+import { MeetingFilesPort } from '../domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from '../domain/ports/meeting-transcript-repository.port';
 import { findOwnedTranscript } from './find-owned-transcript';
 import { MeetingDocuments } from './meeting-documents';
@@ -42,6 +41,7 @@ interface RecordingState {
 }
 
 type FinishedEvent = MeetingTranscriptCompletedEvent | MeetingTranscriptFailedEvent;
+type ReportedFailure = Exclude<MeetingTranscriptFailedEvent['reason'], 'file-deleted'>;
 
 /**
  * Готовая расшифровка приходит в чат, куда отправили запись: для `completed` — документ
@@ -54,7 +54,7 @@ export class NotifyChatOnTranscriptFinished {
     constructor(
         private readonly transcripts: MeetingTranscriptRepositoryPort,
         private readonly documents: MeetingDocuments,
-        private readonly getFile: GetFileUseCase,
+        private readonly files: MeetingFilesPort,
         private readonly chat: MeetingChatPort,
         private readonly settings: NotifyChatOnTranscriptFinishedSettings,
         private readonly logger: PinoLogger,
@@ -93,16 +93,16 @@ export class NotifyChatOnTranscriptFinished {
                 { eventClass: event.constructor.name },
             );
         }
+        const failure = event instanceof MeetingTranscriptFailedEvent ? event.reason : null;
         // Запись удалил сам пользователь: ему не о чем сообщать.
-        if (event instanceof MeetingTranscriptFailedEvent && event.reason === 'file-deleted')
-            return;
+        if (failure === 'file-deleted') return;
 
         const { ownerId, fileId } = event;
         const chatId = await this.chat.findChatOfRecording({ ownerId, fileId });
         if (chatId === null) return;
 
         const recording = await this.recordingState(ownerId, fileId);
-        const message = await this.messageFor(event, chatId, recording);
+        const message = await this.messageFor(event, failure, chatId, recording);
         await this.chat.post(message);
         this.logger.info(
             { fileId, chatId, status: event.status, eventId: event.id },
@@ -112,16 +112,17 @@ export class NotifyChatOnTranscriptFinished {
 
     private async messageFor(
         event: FinishedEvent,
+        failure: ReportedFailure | null,
         chatId: string,
         recording: RecordingState,
     ): Promise<MeetingChatMessage> {
         const { ownerId, fileId } = event;
         let outcome: TranscriptOutcome;
         let attachments: string[] = [];
-        if (event instanceof MeetingTranscriptFailedEvent) {
+        if (failure !== null) {
             outcome = {
                 kind: 'failed',
-                reason: event.reason as Exclude<typeof event.reason, 'file-deleted'>,
+                reason: failure,
                 recordingName: recording.name,
                 recordingStored: recording.stored,
                 maxRecordingSec: this.settings.maxRecordingSec,
@@ -152,14 +153,10 @@ export class NotifyChatOnTranscriptFinished {
         };
     }
 
-    /** Имя записи и хранится ли она ещё: метаданные остаются и после удаления. */
     private async recordingState(ownerId: string, fileId: string): Promise<RecordingState> {
-        try {
-            const file = await this.getFile.execute({ ownerId, fileId });
-            return { name: file.name, stored: file.status === 'active' };
-        } catch (error: unknown) {
-            if (!(error instanceof FileNotFoundError)) throw error;
-            return { name: FALLBACK_RECORDING_NAME, stored: false };
-        }
+        const file = await this.files.findFile(ownerId, fileId);
+        return file === null
+            ? { name: FALLBACK_RECORDING_NAME, stored: false }
+            : { name: file.name, stored: file.isStored };
     }
 }

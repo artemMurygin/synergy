@@ -8,7 +8,12 @@ import { TranscriptSegment } from '../domain/transcript-segment';
 import { FakeTaskExtractor } from '../testing/fake-task-extractor';
 import { InMemoryMeetingTranscriptRepository } from '../testing/in-memory-meeting-transcript.repository';
 import { InMemoryTranscriptSegmentRepository } from '../testing/in-memory-transcript-segment.repository';
-import { recordingFiles, type RecordingFilesFixture } from '../testing/meeting-document-doubles';
+import { MeetingFiles } from '../infrastructure/files/meeting-files';
+import {
+    recordingFiles,
+    storeGeneratedFileDouble,
+    type RecordingFilesFixture,
+} from '../testing/meeting-document-doubles';
 import { MeetingTranscriptNotFoundError } from './errors';
 import {
     type ExtractMeetingTasksSettings,
@@ -86,7 +91,7 @@ describe('ExtractMeetingTasksUseCase', () => {
             transcripts,
             segments,
             extractor,
-            recordings.getFile,
+            new MeetingFiles(recordings.getFile, storeGeneratedFileDouble().store),
             settings,
             log.logger,
         );
@@ -242,6 +247,28 @@ describe('ExtractMeetingTasksUseCase', () => {
         ]);
         // Слияние тоже проходит проверку основания.
         expect(tasks.map((t) => t.title)).toEqual(['Задача 3', 'Задача 11', 'Задача 22']);
+    });
+
+    it('sends the windows to the extractor at once, not one after another', async () => {
+        await seed('completed', LONG);
+        settings = { windowTokens: 50, windowSec: 10 * 60, overlapSec: 2 * 60 };
+        const extractor = new FakeTaskExtractor();
+        let release: () => void = () => undefined;
+        const allCalled = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const extract = extractor.extract.bind(extractor);
+        extractor.extract = async (lines, context) => {
+            const result = extract(lines, context);
+            if (extractor.extractions.length === 3) release();
+            await allCalled;
+            return result;
+        };
+
+        const tasks = await useCase(extractor).execute({ ownerId: OWNER_ID, fileId: FILE_ID });
+
+        expect(tasks).toEqual([]);
+        expect(extractor.extractions).toHaveLength(3);
     });
 
     it('does not call the merge when the windows found nothing', async () => {

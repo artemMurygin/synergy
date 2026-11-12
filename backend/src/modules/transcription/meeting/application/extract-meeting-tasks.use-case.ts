@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
-import { GetFileUseCase } from '../../../files/application/get-file.use-case';
 import { TranscriptNotReadyError } from '../domain/errors';
 import { EvidenceValidator } from '../domain/evidence-validator';
 import type { ExtractedMeetingTask, RawExtractedTask } from '../domain/extracted-meeting-task';
 import { MeetingDueDateResolver } from '../domain/meeting-due-date-resolver';
 import { formatTimecode } from '../domain/meeting-time-format';
+import { MeetingFilesPort } from '../domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from '../domain/ports/meeting-transcript-repository.port';
 import { TaskExtractorPort } from '../domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from '../domain/ports/transcript-segment-repository.port';
@@ -42,7 +42,7 @@ export class ExtractMeetingTasksUseCase {
         private readonly transcripts: MeetingTranscriptRepositoryPort,
         private readonly segments: TranscriptSegmentRepositoryPort,
         private readonly extractor: TaskExtractorPort,
-        private readonly getFile: GetFileUseCase,
+        private readonly files: MeetingFilesPort,
         private readonly settings: ExtractMeetingTasksSettings,
         private readonly logger: PinoLogger,
     ) {
@@ -59,7 +59,7 @@ export class ExtractMeetingTasksUseCase {
         }
         const startedAt = Date.now();
         const [recording, segments] = await Promise.all([
-            describeRecording(this.getFile, transcript),
+            describeRecording(this.files, transcript),
             this.segments.readAll(fileId),
         ]);
         const names = transcript.speakerNames;
@@ -70,11 +70,13 @@ export class ExtractMeetingTasksUseCase {
         };
 
         const windows = this.windowsOf(segments, names);
+        const extracted = await Promise.all(
+            windows.map((lines) => this.extractor.extract(lines, context)),
+        );
         let found = 0;
         let dropped = 0;
         const batches: RawExtractedTask[][] = [];
-        for (const lines of windows) {
-            const raw = await this.extractor.extract(lines, context);
+        for (const raw of extracted) {
             const valid = EvidenceValidator.filter(raw, bySeq);
             found += raw.length;
             dropped += raw.length - valid.length;
@@ -87,7 +89,7 @@ export class ExtractMeetingTasksUseCase {
             dropped += merged.length - tasks.length;
         }
 
-        const result = tasks.map((task) =>
+        const result = tasks.flatMap((task) =>
             toExtractedTask(task, bySeq, names, recording.uploadedAt),
         );
         this.logger.info(
@@ -135,29 +137,29 @@ function participantsOf(speakerCount: number, names: SpeakerNames): string[] {
     return [...new Set(Array.from({ length: speakerCount }, (_, i) => names.labelOf(i + 1)))];
 }
 
-/** Вызывается только для задач, прошедших `EvidenceValidator`: сегмент основания существует. */
+// Tasks reach here after EvidenceValidator, so a task without a segment is only a guard.
 function toExtractedTask(
     task: RawExtractedTask,
     bySeq: ReadonlyMap<number, TranscriptSegment>,
     names: SpeakerNames,
     meetingDate: Date,
-): ExtractedMeetingTask {
+): ExtractedMeetingTask[] {
     const evidence = task.evidence;
     const segment = evidence === null ? undefined : bySeq.get(evidence.seq);
-    if (evidence === null || segment === undefined) {
-        throw new Error('A task without verified evidence must have been dropped');
-    }
+    if (evidence === null || segment === undefined) return [];
     const assignee = task.assigneeMention?.trim() ?? '';
-    return {
-        title: task.title.trim(),
-        description: task.description.trim(),
-        assigneeMention: assignee.length > 0 ? assignee : null,
-        due: MeetingDueDateResolver.resolve(task.dueText, meetingDate),
-        evidence: {
-            seq: segment.seq,
-            startSec: segment.startSec,
-            speakerLabel: names.labelOf(segment.speaker),
-            quote: evidence.quote.trim(),
+    return [
+        {
+            title: task.title.trim(),
+            description: task.description.trim(),
+            assigneeMention: assignee.length > 0 ? assignee : null,
+            due: MeetingDueDateResolver.resolve(task.dueText, meetingDate),
+            evidence: {
+                seq: segment.seq,
+                startSec: segment.startSec,
+                speakerLabel: names.labelOf(segment.speaker),
+                quote: evidence.quote.trim(),
+            },
         },
-    };
+    ];
 }

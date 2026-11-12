@@ -1,7 +1,7 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { BaseMessage } from '@langchain/core/messages';
 import { describe, expect, it } from 'vitest';
-import { EXTRACT_SYSTEM_PROMPT, LlmTaskExtractor, MERGE_SYSTEM_PROMPT } from './llm-task-extractor';
+import { EXTRACT_SYSTEM_PROMPT, TaskExtractor, MERGE_SYSTEM_PROMPT } from './task-extractor';
 
 interface Call {
     options: unknown;
@@ -30,10 +30,10 @@ const TASK = {
     evidence: { seq: 0, quote: 'подготовь смету' },
 };
 
-describe('LlmTaskExtractor', () => {
+describe('TaskExtractor', () => {
     it('sends numbered lines with the meeting date and participants and maps the answer', async () => {
         const { model, calls } = fakeModel([{ tasks: [TASK] }]);
-        const extractor = new LlmTaskExtractor(() => model);
+        const extractor = new TaskExtractor(() => model);
 
         const tasks = await extractor.extract(['[0] [00:00:00] Анна: Олег, подготовь смету'], {
             participants: ['Анна', 'Олег'],
@@ -58,7 +58,7 @@ describe('LlmTaskExtractor', () => {
         const { model } = fakeModel([{ tasks: [{ title: 'Без основания' }] }]);
 
         await expect(
-            new LlmTaskExtractor(() => model).extract(['[0] [00:00:00] Анна: текст'], {
+            new TaskExtractor(() => model).extract(['[0] [00:00:00] Анна: текст'], {
                 participants: ['Анна'],
                 meetingDate: new Date(),
             }),
@@ -67,7 +67,7 @@ describe('LlmTaskExtractor', () => {
 
     it('merges several batches with one call and skips the call for a single batch', async () => {
         const { model, calls } = fakeModel([{ tasks: [TASK] }]);
-        const extractor = new LlmTaskExtractor(() => model);
+        const extractor = new TaskExtractor(() => model);
 
         expect(await extractor.merge([[TASK], []])).toEqual([TASK]);
         expect(calls).toHaveLength(0);

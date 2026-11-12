@@ -1,39 +1,12 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
-import type { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
-import type { Env } from '../../../../../shared/config/env.schema';
-import type { ChatModelSetting } from '../../../../../shared/llm';
-import type { ExtractMeetingTasksSettings } from '../../application/extract-meeting-tasks.use-case';
 import type { RawExtractedTask } from '../../domain/extracted-meeting-task';
 import { formatMoscowDate } from '../../domain/meeting-time-format';
 import {
     TaskExtractorPort,
     type TaskExtractionContext,
 } from '../../domain/ports/task-extractor.port';
-
-/** Модель по умолчанию, если `MEETING_TASKS_EXTRACTION_MODEL` не задан. */
-export const DEFAULT_MEETING_TASKS_MODEL = 'anthropic/claude-haiku-5.5';
-
-/** Перекрытие соседних окон длинной расшифровки. */
-const WINDOW_OVERLAP_SEC = 2 * 60;
-
-export function meetingTasksModelSetting(config: ConfigService<Env, true>): ChatModelSetting {
-    const configured: string | undefined = config.get('MEETING_TASKS_EXTRACTION_MODEL', {
-        infer: true,
-    });
-    return { name: configured ?? DEFAULT_MEETING_TASKS_MODEL, provider: 'openrouter' };
-}
-
-export function meetingTasksExtractionSettingsFromConfig(
-    config: ConfigService<Env, true>,
-): ExtractMeetingTasksSettings {
-    return {
-        windowTokens: config.get('MEETING_TASKS_WINDOW_TOKENS', { infer: true }),
-        windowSec: config.get('MEETING_TASKS_WINDOW_MIN', { infer: true }) * 60,
-        overlapSec: WINDOW_OVERLAP_SEC,
-    };
-}
 
 const taskSchema = z.object({
     title: z.string().describe('Короткое название задачи в повелительном наклонении'),
@@ -90,7 +63,7 @@ export const MERGE_SYSTEM_PROMPT = `Тебе даны списки задач, �
  * Модель создаётся при первом вызове: без ключа OpenRouter модуль поднимается, а падает
  * только извлечение задач.
  */
-export class LlmTaskExtractor extends TaskExtractorPort {
+export class TaskExtractor extends TaskExtractorPort {
     private model: BaseChatModel | null = null;
 
     constructor(private readonly createModel: () => BaseChatModel) {

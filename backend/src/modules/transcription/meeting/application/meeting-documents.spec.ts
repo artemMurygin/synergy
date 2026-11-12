@@ -18,6 +18,7 @@ import {
     type StoreGeneratedFileDouble,
 } from '../testing/meeting-document-doubles';
 import { MeetingTranscriptNotFoundError } from './errors';
+import { MeetingFiles } from '../infrastructure/files/meeting-files';
 import { MeetingDocuments } from './meeting-documents';
 
 const FILE_ID = '0b9f1c2e-7d4a-4f61-9c3b-2a5e8d7f6a10';
@@ -130,8 +131,7 @@ describe('MeetingDocuments', () => {
             transcripts,
             segments,
             renderer,
-            store.store,
-            recordings.getFile,
+            new MeetingFiles(recordings.getFile, store.store),
             log.logger,
         );
     });

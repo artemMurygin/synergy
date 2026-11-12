@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../../shared/config/env.schema';
 import { AssistantModule } from '../../assistant/assistant.module';
-import { FilesModule } from '../../files/files.module';
 import { TranscriptionModule } from '../transcription.module';
 import { MeetingChatEventSubscriptions } from './application/meeting-chat-event-subscriptions';
 import {
@@ -17,7 +16,7 @@ import { AssistantMeetingChat } from './infrastructure/assistant/assistant-meeti
  * зависит от `transcription` (специалист по встречам): так зависимости остаются без цикла.
  */
 @Module({
-    imports: [TranscriptionModule, AssistantModule, FilesModule],
+    imports: [TranscriptionModule, AssistantModule],
     providers: [
         NotifyChatOnTranscriptFinished,
         MeetingChatEventSubscriptions,

@@ -1,9 +1,6 @@
 import { tool } from 'langchain';
 import { z } from 'zod';
 import { type AgentRunContext, AttachmentRef } from '../../../../../shared/agent-capability';
-import { FileNotFoundError } from '../../../../files/application/errors';
-import type { GetFileUseCase } from '../../../../files/application/get-file.use-case';
-import type { StoredFileView } from '../../../../files/application/stored-file-view';
 import { FileGoneError } from '../../../../files/domain/errors';
 import { MeetingTranscriptNotFoundError } from '../../application/errors';
 import type { ExtractMeetingTasksUseCase } from '../../application/extract-meeting-tasks.use-case';
@@ -19,6 +16,7 @@ import {
     UnknownSpeakerError,
 } from '../../domain/errors';
 import type { ExtractedMeetingTask } from '../../domain/extracted-meeting-task';
+import type { MeetingDocumentFile, MeetingFilesPort } from '../../domain/ports/meeting-files.port';
 import { formatMoscowDateTime, formatTimecode } from '../../domain/meeting-time-format';
 import type { SpeakerSummary } from '../../domain/speaker-summary';
 import type { TranscriptSegment } from '../../domain/transcript-segment';
@@ -31,7 +29,7 @@ export interface MeetingToolsDeps {
     readonly extractTasks: Pick<ExtractMeetingTasksUseCase, 'execute'>;
     readonly retryTranscription: Pick<RetryMeetingTranscriptionUseCase, 'execute'>;
     readonly documents: Pick<MeetingDocuments, 'issueTranscript' | 'issueTasks'>;
-    readonly getFile: Pick<GetFileUseCase, 'execute'>;
+    readonly files: Pick<MeetingFilesPort, 'findFile'>;
 }
 
 const NOT_FOUND = 'Расшифровка не найдена';
@@ -60,7 +58,7 @@ function speakerView(s: SpeakerSummary): Record<string, unknown> {
 }
 
 /** Документ из ответа агента: клиент получит его карточкой, ответ сохранит его с сообщением. */
-function attach(ctx: AgentRunContext, file: StoredFileView): void {
+function attach(ctx: AgentRunContext, file: MeetingDocumentFile): void {
     ctx.attachments.add(
         AttachmentRef.of({
             fileId: file.id,
@@ -141,13 +139,8 @@ export function createMeetingTools(deps: MeetingToolsDeps, ctx: AgentRunContext)
 
     /** Расшифровки ещё нет, но запись своя: строка создаётся сразу после загрузки. */
     async function pendingOwnRecording(fileId: string): Promise<boolean> {
-        try {
-            const file = await deps.getFile.execute({ ownerId, fileId });
-            return file.kind === 'recording' && file.status === 'active';
-        } catch (error) {
-            if (error instanceof FileNotFoundError) return false;
-            throw error;
-        }
+        const file = await deps.files.findFile(ownerId, fileId);
+        return file !== null && file.isRecording && file.isStored;
     }
 
     const getMeetingTranscript = tool(

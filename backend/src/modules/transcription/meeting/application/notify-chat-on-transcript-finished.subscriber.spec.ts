@@ -28,6 +28,7 @@ import {
     type RecordingFilesFixture,
     type StoreGeneratedFileDouble,
 } from '../testing/meeting-document-doubles';
+import { MeetingFiles } from '../infrastructure/files/meeting-files';
 import { MeetingDocuments } from './meeting-documents';
 import {
     NOTIFY_CHAT_ON_TRANSCRIPT_SUBSCRIBERS,
@@ -155,15 +156,14 @@ describe('NotifyChatOnTranscriptFinished', () => {
             transcripts,
             segments,
             renderer,
-            store.store,
-            recordings.getFile,
+            new MeetingFiles(recordings.getFile, store.store),
             recordingLogger().logger,
         );
         const settings: NotifyChatOnTranscriptFinishedSettings = { maxRecordingSec: 4 * 3600 };
         subscriber = new NotifyChatOnTranscriptFinished(
             transcripts,
             documents,
-            recordings.getFile,
+            new MeetingFiles(recordings.getFile, store.store),
             chat,
             settings,
             recordingLogger().logger,
@@ -333,14 +333,13 @@ describe('NotifyChatOnTranscriptFinished', () => {
                 transcripts,
                 segments,
                 renderer,
-                store.store,
-                recordings.getFile,
+                new MeetingFiles(recordings.getFile, store.store),
                 recordingLogger().logger,
             );
             const custom = new NotifyChatOnTranscriptFinished(
                 transcripts,
                 documents,
-                recordings.getFile,
+                new MeetingFiles(recordings.getFile, store.store),
                 chat,
                 { maxRecordingSec: 3600 },
                 recordingLogger().logger,

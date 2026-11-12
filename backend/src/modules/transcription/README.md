@@ -72,7 +72,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 ### Документы встречи
 
-`MeetingDocuments` собирает `DocumentModel` (`shared/documents`), рендерит его общим генератором `DocumentRendererPort` (адаптер `DocxDocumentRenderer`, `.docx`) и сохраняет как новый файл владельца через `StoreGeneratedFileUseCase` модуля `files` (вид `document`). Каждый вызов даёт новый файл. Источник данных — расшифровка, поэтому документы собираются и после удаления записи.
+`MeetingDocuments` собирает `DocumentModel` (`shared/documents`), рендерит его общим генератором `DocumentRendererPort` (адаптер `DocumentRenderer`, `.docx`) и сохраняет как новый файл владельца через порт `MeetingFilesPort` (адаптер `MeetingFiles` вызывает `StoreGeneratedFileUseCase` и `GetFileUseCase` модуля `files`; вид `document`). Каждый вызов даёт новый файл. Источник данных — расшифровка, поэтому документы собираются и после удаления записи.
 
 - `issueTranscript` — «Расшифровка — <имя записи без расширения>.docx»: дата загрузки, длительность, участники (подписи без повторов), реплики `[чч:мм:сс] Имя: текст` с текущими именами. Подряд идущие реплики с одной подписью (в том числе разных спикеров с одним именем) склеиваются. Только для `completed` (иначе `TranscriptNotReadyError`).
 - `issueTasks` — «Задачи — <имя записи без расширения>.docx»: дата встречи и таблица «№, Задача, Описание, Исполнитель, Постановщик, Срок, Основание». Постановщик пуст: его выбирают при постановке задач. Основание — `[чч:мм:сс] Спикер: «цитата»`.
@@ -83,8 +83,8 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 `ExtractMeetingTasksUseCase` берёт готовую расшифровку и ничего не сохраняет: задачи в системе создаёт модуль `tasks` по черновику списка (`ProposeTasksUseCase`, `CreateTasksFromDraftUseCase`), когда пользователь согласится. 404 — чужая, 409 — не `completed`, у `no_speech` — пустой список.
 
-- Реплики уходят в `TaskExtractorPort` строками `[seq] [чч:мм:сс] Имя: текст` вместе с датой встречи и участниками. Если оценка длины (около трёх символов на токен) больше `MEETING_TASKS_WINDOW_TOKENS`, расшифровка режется на окна по `MEETING_TASKS_WINDOW_MIN` минут с перекрытием 2 минуты, а результаты окон сливаются вторым вызовом (`merge`).
-- `LlmTaskExtractor` — structured output (zod-схема, `functionCalling`), температура 0, промпт запрещает придумывать задачи. Модель — `MEETING_TASKS_EXTRACTION_MODEL`, по умолчанию `anthropic/claude-haiku-5.5`.
+- Реплики уходят в `TaskExtractorPort` строками `[seq] [чч:мм:сс] Имя: текст` вместе с датой встречи и участниками. Если оценка длины (около трёх символов на токен) больше `MEETING_TASKS_WINDOW_TOKENS`, расшифровка режется на окна по `MEETING_TASKS_WINDOW_MINUTES` минут с перекрытием 2 минуты, а результаты окон сливаются вторым вызовом (`merge`).
+- `TaskExtractor` — structured output (zod-схема, `functionCalling`), температура 0, промпт запрещает придумывать задачи. Модель — `MEETING_TASKS_EXTRACTION_MODEL`, по умолчанию `anthropic/claude-haiku-5.5`.
 - `EvidenceValidator` отбрасывает задачу без названия или без основания: `seq` должен быть в расшифровке, а нормализованная цитата (нижний регистр, «ё» → «е», без внешних кавычек и знаков) — входить в текст этого сегмента. Так выдуманные задачи не доходят до пользователя.
 - `MeetingDueDateResolver` переводит срок из речи («до пятницы», «20 ноября») в момент времени по Москве от даты загрузки записи, без названного времени — 18:00. Непонятный срок — `null`.
 - Исполнитель — упоминание из речи как есть (`assigneeMention`) или `null`; сопоставление с пользователями делает `tasks`.
@@ -109,7 +109,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 `NotifyChatOnTranscriptFinished` — нетранзакционный подписчик outbox на `meeting-transcript.completed` и `meeting-transcript.failed` (имена подписчиков `transcription.notify-chat-on-transcript-completed` и `…-failed`). Живёт в отдельном `MeetingChatModule`, потому что `assistant` сам зависит от `transcription` (специалист по встречам): так зависимости обходятся без цикла.
 
-1. Чат ищется через `MeetingChatPort.findChatOfRecording` — первый существующий чат владельца, куда отправили запись (`FindFirstChatOfFileUseCase` модуля `assistant`). Нет такого чата — сообщения нет.
+1. Чат ищется через `MeetingChatPort.findChatOfRecording` — первый чат владельца, куда отправили запись (`FindFirstChatOfFileUseCase` модуля `assistant`). Нет такого чата или он удалён — сообщения нет, в другие чаты с этой записью оно не уходит.
 2. `completed` — новый документ расшифровки (`issueTranscript`) и текст «Расшифровка готова: N спикеров, чч:мм:сс…» с подсказками про имена и задачи. `no_speech` и `failed` — понятная причина; для `provider-unavailable` и `timeout` — предложение повторить, если запись ещё хранится, иначе просьба загрузить заново. `failed('file-deleted')` (запись удалил владелец) ничего не даёт. Тексты — `transcript-finished-texts.ts`.
 3. Сообщение уходит через `MeetingChatPort.post` (адаптер `AssistantMeetingChat` → `PostSystemMessagePort` модуля `assistant`) с ключом идемпотентности, равным id события, темой `meeting-transcript.ready` или `meeting-transcript.failed` и объектом `{ fileId, fileName }` для уведомлений. Доставка асинхронная: сообщение ждёт окончания текущего ответа в чате (см. `../assistant/README.md`, «Сообщения системы»).
 
@@ -152,7 +152,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 | `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` | `7200000` | Дедлайн одной попытки; по истечении — `failed('timeout')` |
 | `MEETING_TASKS_EXTRACTION_MODEL` | `anthropic/claude-haiku-5.5` | Модель извлечения задач |
 | `MEETING_TASKS_WINDOW_TOKENS` | `60000` | Порог оценки токенов, после которого расшифровка режется на окна |
-| `MEETING_TASKS_WINDOW_MIN` | `30` | Длина окна в минутах (перекрытие 2 минуты) |
+| `MEETING_TASKS_WINDOW_MINUTES` | `30` | Длина окна в минутах (перекрытие 2 минуты) |
 
 ### Требования к окружению
 
@@ -170,7 +170,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 - `domain`: `MeetingTranscript` (агрегат), `planChunks`, `SpeakerRegistry`, `TranscriptMerger`, `DiarizedTranscript`, сегменты, статусы, события, `SpeakerName`, `SpeakerNames`, `SpeakerAssignment`, `SpeakerSummary`, `MeetingDocumentKind`, `EvidenceValidator`, `MeetingDueDateResolver`, `ExtractedMeetingTask`, порты (`AudioChunkerPort`, `ChunkTranscriberPort`, `MeetingTranscriberPort`, `MeetingTranscriptRepositoryPort`, `TranscriptSegmentRepositoryPort`, `MeetingTranscriptionQueuePort`, `TaskExtractorPort`, `MeetingChatPort`).
 - `application`: подписчики на `file.uploaded` и `file.deleted`, `TranscribeMeetingUseCase`, `FailMeetingTranscriptionUseCase`, `GetMeetingTranscriptUseCase`, `RetryMeetingTranscriptionUseCase`, `RenameSpeakersUseCase`, `GetSpeakerSamplesUseCase`, `ExtractMeetingTasksUseCase`, `MeetingDocuments`, подписчик `NotifyChatOnTranscriptFinished`.
-- `infrastructure`: `ChunkedMeetingTranscriber`, `AudioChunker`, `ChunkTranscriber`, `LlmTaskExtractor`, `MeetingTranscriptRepository`, `TranscriptSegmentRepository`, `AssistantMeetingChat`, очередь `meeting-transcription` (`MeetingTranscriptionQueue`, `MeetingTranscriptionProcessor`).
+- `infrastructure`: `ChunkedMeetingTranscriber`, `AudioChunker`, `ChunkTranscriber`, `TaskExtractor`, `MeetingTranscriptRepository`, `TranscriptSegmentRepository`, `AssistantMeetingChat`, очередь `meeting-transcription` (`MeetingTranscriptionQueue`, `MeetingTranscriptionProcessor`).
 - `interface`: `MeetingTranscriptsController`, коды ошибок → HTTP-статусы, `agent/` — специалист по встречам (`MeetingsAgentCapability`, инструменты, промпт, модель).
 - `meeting-chat.module.ts`: `MeetingChatModule` — сообщение в чат о результате.
 - `contracts`: регистрация событий `meeting-transcript.completed` и `meeting-transcript.failed`.

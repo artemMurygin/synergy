@@ -23,7 +23,7 @@ export const DiarizedTranscript = {
                     'Segment seq must go 0, 1, 2… without gaps',
                 );
             }
-            const previous = input.segments[i - 1] as TranscriptSegment | undefined;
+            const previous = i > 0 ? input.segments.at(i - 1) : undefined;
             if (previous !== undefined && segment.startSec < previous.startSec) {
                 throw new InvalidDiarizedTranscriptError('Segments must be ordered by time');
             }

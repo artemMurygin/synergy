@@ -33,11 +33,12 @@ import {
 import { GetSpeakerSamplesUseCase } from './meeting/application/get-speaker-samples.use-case';
 import { MeetingDocuments } from './meeting/application/meeting-documents';
 import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
-import { LlmTaskExtractor } from './meeting/infrastructure/openrouter/llm-task-extractor';
+import { TaskExtractor } from './meeting/infrastructure/openrouter/task-extractor';
 import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-meeting-transcription.use-case';
 import { START_MEETING_TRANSCRIPTION_SUBSCRIBER } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
+import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
 import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
@@ -66,7 +67,7 @@ const values: Record<string, unknown> = {
     MEETING_TRANSCRIPTION_CONCURRENCY: 2,
     MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: 7_200_000,
     MEETING_TASKS_WINDOW_TOKENS: 60_000,
-    MEETING_TASKS_WINDOW_MIN: 30,
+    MEETING_TASKS_WINDOW_MINUTES: 30,
 };
 
 // Новый реестр на каждое приложение: события нельзя зарегистрировать дважды.
@@ -167,6 +168,7 @@ describe('TranscriptionModule', () => {
             TranscribeVoiceUseCase,
             MEETINGS_AGENT_CAPABILITY,
             MeetingDocuments,
+            MeetingFilesPort,
             MeetingTranscriptRepositoryPort,
         ]);
     });
@@ -216,7 +218,7 @@ describe('TranscriptionModule', () => {
         expect(app.get(MeetingDocuments)).toBeInstanceOf(MeetingDocuments);
         expect(app.get(GetSpeakerSamplesUseCase)).toBeInstanceOf(GetSpeakerSamplesUseCase);
         expect(app.get(ExtractMeetingTasksUseCase)).toBeInstanceOf(ExtractMeetingTasksUseCase);
-        expect(app.get(TaskExtractorPort)).toBeInstanceOf(LlmTaskExtractor);
+        expect(app.get(TaskExtractorPort)).toBeInstanceOf(TaskExtractor);
         expect(app.get(ExtractMeetingTasksSettings)).toEqual({
             windowTokens: 60_000,
             windowSec: 1800,

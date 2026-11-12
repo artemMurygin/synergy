@@ -6,7 +6,6 @@ import type { Env } from '../../shared/config/env.schema';
 import { MEETINGS_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import { DocumentsModule } from '../../shared/documents';
 import { createChatModel } from '../../shared/llm';
-import { GetFileUseCase } from '../files/application/get-file.use-case';
 import { FilesModule } from '../files/files.module';
 import { TranscribeVoiceUseCase } from './application/transcribe-voice.use-case';
 import { TranscriberPort } from './domain/ports/transcriber.port';
@@ -27,6 +26,7 @@ import { StartMeetingTranscriptionOnFileUploaded } from './meeting/application/s
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
 import { AudioChunkerPort } from './meeting/domain/ports/audio-chunker.port';
 import { ChunkTranscriberPort } from './meeting/domain/ports/chunk-transcriber.port';
+import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
@@ -34,12 +34,13 @@ import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
 import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
 import { AudioChunker } from './meeting/infrastructure/ffmpeg/audio-chunker';
+import { MeetingFiles } from './meeting/infrastructure/files/meeting-files';
 import { ChunkTranscriber } from './meeting/infrastructure/openrouter/chunk-transcriber';
+import { TaskExtractor } from './meeting/infrastructure/openrouter/task-extractor';
 import {
-    LlmTaskExtractor,
     meetingTasksExtractionSettingsFromConfig,
     meetingTasksModelSetting,
-} from './meeting/infrastructure/openrouter/llm-task-extractor';
+} from './meeting/meeting-tasks-extraction.config';
 import { MeetingTranscriptionQueue } from './meeting/infrastructure/queue/meeting-transcription.queue';
 import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/meeting-transcription-queue.module';
 import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/meeting-transcription.processor';
@@ -80,9 +81,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
             provide: TaskExtractorPort,
             inject: [ConfigService],
             useFactory: (config: ConfigService<Env, true>): TaskExtractorPort =>
-                new LlmTaskExtractor(() =>
-                    createChatModel(config, meetingTasksModelSetting(config)),
-                ),
+                new TaskExtractor(() => createChatModel(config, meetingTasksModelSetting(config))),
         },
         RetryMeetingTranscriptionUseCase,
         {
@@ -95,7 +94,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 ExtractMeetingTasksUseCase,
                 RetryMeetingTranscriptionUseCase,
                 MeetingDocuments,
-                GetFileUseCase,
+                MeetingFilesPort,
             ],
             useFactory: (
                 config: ConfigService<Env, true>,
@@ -105,7 +104,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 extractTasks: ExtractMeetingTasksUseCase,
                 retryTranscription: RetryMeetingTranscriptionUseCase,
                 documents: MeetingDocuments,
-                getFile: GetFileUseCase,
+                files: MeetingFilesPort,
             ): MeetingsAgentCapability =>
                 new MeetingsAgentCapability(
                     {
@@ -115,7 +114,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                         extractTasks,
                         retryTranscription,
                         documents,
-                        getFile,
+                        files,
                     },
                     createChatModel(config, MEETINGS_AGENT_CONFIG.model),
                 ),
@@ -125,6 +124,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         FailMeetingTranscriptionOnFileDeleted,
         MeetingTranscriptionEventSubscriptions,
         MeetingTranscriptionProcessor,
+        { provide: MeetingFilesPort, useClass: MeetingFiles },
         { provide: MeetingTranscriptRepositoryPort, useClass: MeetingTranscriptRepository },
         { provide: TranscriptSegmentRepositoryPort, useClass: TranscriptSegmentRepository },
         { provide: MeetingTranscriptionQueuePort, useClass: MeetingTranscriptionQueue },
@@ -164,6 +164,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         MEETINGS_AGENT_CAPABILITY,
         // Для сообщения в чат по результату расшифровки (MeetingChatModule).
         MeetingDocuments,
+        MeetingFilesPort,
         MeetingTranscriptRepositoryPort,
     ],
 })

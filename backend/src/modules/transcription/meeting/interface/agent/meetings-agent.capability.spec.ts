@@ -2,7 +2,6 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseCheckpointSaver } from '@langchain/langgraph';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentRunContext } from '../../../../../shared/agent-capability';
-import { FileNotFoundError } from '../../../../files/application/errors';
 import type { StoredFileView } from '../../../../files/application/stored-file-view';
 import { FileGoneError } from '../../../../files/domain/errors';
 import { MeetingTranscriptNotFoundError } from '../../application/errors';
@@ -36,7 +35,7 @@ const deps = {
     extractTasks: { execute: vi.fn() },
     retryTranscription: { execute: vi.fn() },
     documents: { issueTranscript: vi.fn(), issueTasks: vi.fn() },
-    getFile: { execute: vi.fn() },
+    files: { findFile: vi.fn() },
 };
 
 interface Tool {
@@ -257,23 +256,25 @@ describe('meeting tools', () => {
             deps.getTranscript.execute.mockRejectedValue(
                 new MeetingTranscriptNotFoundError(FILE_ID),
             );
-            deps.getFile.execute.mockRejectedValue(new FileNotFoundError(FILE_ID));
+            deps.files.findFile.mockResolvedValue(null);
             const { get_meeting_transcript } = toolsOf(ctx);
 
             const result = await call(get_meeting_transcript, { fileId: FILE_ID });
 
             expect(result.found).toBe(false);
             expect(String(result.error)).toMatch(/не найдена/);
-            expect(deps.getFile.execute).toHaveBeenCalledWith({ ownerId: 'u-1', fileId: FILE_ID });
+            expect(deps.files.findFile).toHaveBeenCalledWith('u-1', FILE_ID);
         });
 
         it('treats an own just uploaded recording without a transcript yet as pending', async () => {
             deps.getTranscript.execute.mockRejectedValue(
                 new MeetingTranscriptNotFoundError(FILE_ID),
             );
-            deps.getFile.execute.mockResolvedValue({
-                ...document(FILE_ID, 'встреча.m4a'),
-                kind: 'recording',
+            deps.files.findFile.mockResolvedValue({
+                name: 'встреча.m4a',
+                uploadedAt: new Date('2026-11-12T07:00:00Z'),
+                isRecording: true,
+                isStored: true,
             });
             const { get_meeting_transcript } = toolsOf(ctx);
 
