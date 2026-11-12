@@ -21,6 +21,9 @@ import type { FileStorage } from '../domain/ports/file-storage.port';
 import type { TaskAttachmentRepository } from '../domain/ports/task-attachment-repository.port';
 import type { TasksSettings } from '../domain/ports/tasks-settings.port';
 import type { TaskAttachment } from '../domain/task-attachment';
+import type { TaskBatchDraftRepository } from '../domain/ports/task-batch-draft-repository.port';
+import { TaskBatchDraft } from '../domain/task-batch-draft';
+import type { TaskBatchResult } from '../domain/task-batch-result';
 
 export const NOW = new Date('2026-01-10T12:00:00Z');
 export const fakeClock = { now: (): Date => NOW };
@@ -289,4 +292,68 @@ export class InMemoryAttachmentRepository implements TaskAttachmentRepository {
     );
 
     delete = vi.fn((attachmentId: string) => Promise.resolve(this.byId.delete(attachmentId)));
+}
+
+/**
+ * Mirrors the SQL repository: `consume` flips only a `draft` row, so of two concurrent calls
+ * exactly one wins. Stores snapshots of the props, not the live aggregates.
+ */
+export class InMemoryTaskBatchDraftRepository
+    implements TaskBatchDraftRepository, TransactionParticipant
+{
+    readonly byId = new Map<string, ReturnType<TaskBatchDraft['getProps']>>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, props] of saved) this.byId.set(id, props);
+        };
+    }
+
+    save = vi.fn((draft: TaskBatchDraft) => {
+        const active = [...this.byId.values()].find(
+            (props) =>
+                props.threadId === draft.threadId &&
+                props.status === 'draft' &&
+                props.id !== draft.id,
+        );
+        if (draft.status === 'draft' && active !== undefined) {
+            return Promise.reject(new Error('An active draft of the thread already exists'));
+        }
+        this.byId.set(draft.id, draft.getProps());
+        return Promise.resolve();
+    });
+
+    findById = vi.fn((id: string, ownerId: string) => {
+        const props = this.byId.get(id);
+        if (props?.ownerId !== ownerId) return Promise.resolve(null);
+        return Promise.resolve(TaskBatchDraft.restore({ ...props }));
+    });
+
+    supersedeActive = vi.fn((threadId: string, ownerId: string) => {
+        for (const [id, props] of this.byId) {
+            if (
+                props.threadId === threadId &&
+                props.ownerId === ownerId &&
+                props.status === 'draft'
+            ) {
+                this.byId.set(id, { ...props, status: 'superseded' });
+            }
+        }
+        return Promise.resolve();
+    });
+
+    consume = vi.fn((id: string, ownerId: string) => {
+        const props = this.byId.get(id);
+        if (props?.ownerId !== ownerId || props.status !== 'draft') return Promise.resolve(false);
+        this.byId.set(id, { ...props, status: 'consumed' });
+        return Promise.resolve(true);
+    });
+
+    saveResult = vi.fn((id: string, result: TaskBatchResult) => {
+        const props = this.byId.get(id);
+        if (props !== undefined) this.byId.set(id, { ...props, result });
+        return Promise.resolve();
+    });
 }
