@@ -16,9 +16,11 @@ import { TASKS_AGENT_SKILLS_DIR } from './tasks-agent-skills';
 import { TasksAgentCapability } from './tasks-agent.capability';
 
 const model = { name: 'fake-model' } as unknown as BaseChatModel;
-const createTaskExecute = vi.fn();
+const proposeTasksExecute = vi.fn();
 const deps = {
-    createTask: { execute: createTaskExecute },
+    proposeTasks: { execute: proposeTasksExecute },
+    createTasksFromDraft: { execute: vi.fn() },
+    getTask: { execute: vi.fn() },
     listTasks: { execute: vi.fn() },
     updateTask: { execute: vi.fn() },
     users: { findActiveByIds: vi.fn(), searchActive: vi.fn() },
@@ -44,7 +46,7 @@ describe('TasksAgentCapability', () => {
         expect(capability.description.length).toBeGreaterThan(20);
     });
 
-    it('builds an agent with exactly the four task tools', () => {
+    it('builds an agent with exactly the five task tools', () => {
         capability.buildAgent(ctx);
 
         expect(createAgent).toHaveBeenCalledTimes(1);
@@ -53,8 +55,9 @@ describe('TasksAgentCapability', () => {
             model: unknown;
         };
         expect(options.tools.map((tool) => tool.name).sort()).toEqual([
-            'create_task',
+            'create_tasks',
             'find_users',
+            'propose_tasks',
             'search_tasks',
             'update_task',
         ]);
@@ -81,18 +84,18 @@ describe('TasksAgentCapability', () => {
     });
 
     it('binds the tools to the user of the run context', async () => {
-        createTaskExecute.mockRejectedValue(new Error('stop'));
+        proposeTasksExecute.mockRejectedValue(new Error('stop'));
         capability.buildAgent(ctx);
         const { tools } = createAgent.mock.calls[0][0] as {
             tools: { name: string; invoke(input: unknown): Promise<unknown> }[];
         };
-        const create = tools.find((tool) => tool.name === 'create_task');
+        const propose = tools.find((tool) => tool.name === 'propose_tasks');
 
-        await expect(create?.invoke({ title: 'X' })).rejects.toThrow();
+        await expect(propose?.invoke({ items: [{ title: 'X' }] })).rejects.toThrow();
 
-        expect(createTaskExecute).toHaveBeenCalledWith(
+        expect(proposeTasksExecute).toHaveBeenCalledWith(
             expect.objectContaining({ userId: 'u-1' }),
-            expect.anything(),
+            expect.objectContaining({ threadId: 't-1' }),
         );
     });
 
@@ -155,6 +158,24 @@ describe('tasks agent prompt', () => {
         expect(prompt).toContain('task-creation');
         expect(prompt).toMatch(/прежде чем создавать задачу, следуй скиллу task-creation/i);
         expect(prompt).not.toMatch(/как только есть заголовок/i);
+    });
+
+    it('creates tasks only through propose_tasks and create_tasks, never through create_task', () => {
+        expect(prompt).toContain('propose_tasks');
+        expect(prompt).toContain('create_tasks');
+        expect(prompt).not.toMatch(/\bcreate_task\b/);
+        expect(prompt).toMatch(/без (карточ|списк)[^.]*подтвержден/i);
+    });
+
+    it('allows naming another creator but keeps the run user as the initiator', () => {
+        expect(prompt).toMatch(/постановщик/i);
+        expect(prompt).toMatch(/от имени/i);
+        expect(prompt).toMatch(/инициатор/i);
+    });
+
+    it('passes the meeting origin to propose_tasks for a list from a meeting', () => {
+        expect(prompt).toMatch(/origin/);
+        expect(prompt).toMatch(/встреч/i);
     });
 
     it('requires clarifying ambiguous tasks and users instead of choosing', () => {

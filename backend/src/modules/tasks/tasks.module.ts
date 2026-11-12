@@ -3,30 +3,39 @@ import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import { TASKS_AGENT_CAPABILITY } from '../../shared/agent-capability';
+import { DocumentsModule } from '../../shared/documents';
+import { FilesModule } from '../files/files.module';
 import type { Env } from '../../shared/config/env.schema';
 import { createChatModel } from '../../shared/llm';
 import { TASKS_AGENT_CONFIG } from './tasks-agent.config';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
 import { CreateTaskUseCase } from './application/create-task.use-case';
+import { CreateTasksFromDraftUseCase } from './application/create-tasks-from-draft.use-case';
 import { DeleteAttachmentUseCase } from './application/delete-attachment.use-case';
 import { DeleteTaskUseCase } from './application/delete-task.use-case';
 import { DownloadAttachmentUseCase } from './application/download-attachment.use-case';
 import { GetTaskUseCase } from './application/get-task.use-case';
 import { ListTasksUseCase } from './application/list-tasks.use-case';
+import { ProposeTasksUseCase } from './application/propose-tasks.use-case';
+import { TasksReportDocument } from './application/tasks-report-document';
 import { UpdateTaskUseCase } from './application/update-task.use-case';
 import { UploadAttachmentUseCase } from './application/upload-attachment.use-case';
 import { registerTaskEvents } from './contracts/register-task-events';
 import { Clock } from './domain/ports/clock.port';
 import { FileStorage } from './domain/ports/file-storage.port';
+import { GeneratedDocumentStore } from './domain/ports/generated-document-store.port';
 import { TaskAccessPolicy } from './domain/ports/task-access-policy.port';
 import { TaskAttachmentRepository } from './domain/ports/task-attachment-repository.port';
+import { TaskBatchDraftRepository } from './domain/ports/task-batch-draft-repository.port';
 import { TaskRepository } from './domain/ports/task-repository.port';
 import { TasksSettings } from './domain/ports/tasks-settings.port';
 import { UserDirectory } from './domain/ports/user-directory.port';
 import { AllowAllTaskAccessPolicy } from './infrastructure/allow-all-task-access-policy';
 import { EnvTasksSettings } from './infrastructure/env-tasks-settings';
+import { FilesGeneratedDocumentStore } from './infrastructure/files-generated-document-store';
 import { LocalDiskFileStorage } from './infrastructure/local-disk-file-storage';
 import { SlonikTaskAttachmentRepository } from './infrastructure/slonik-task-attachment.repository';
+import { SlonikTaskBatchDraftRepository } from './infrastructure/slonik-task-batch-draft.repository';
 import { SlonikTaskRepository } from './infrastructure/slonik-task.repository';
 import { SlonikUserDirectory } from './infrastructure/slonik-user-directory';
 import { SystemClock } from './infrastructure/system-clock';
@@ -43,6 +52,8 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
 @Module({
     imports: [
         PostgresModule,
+        FilesModule,
+        DocumentsModule,
         MulterModule.registerAsync({
             inject: [ConfigService],
             useFactory: (config: ConfigService<Env, true>) => ({
@@ -60,10 +71,15 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
         UploadAttachmentUseCase,
         DownloadAttachmentUseCase,
         DeleteAttachmentUseCase,
+        ProposeTasksUseCase,
+        CreateTasksFromDraftUseCase,
+        TasksReportDocument,
         EnvTasksSettings,
         { provide: TasksSettings, useExisting: EnvTasksSettings },
         { provide: TaskRepository, useClass: SlonikTaskRepository },
         { provide: TaskAttachmentRepository, useClass: SlonikTaskAttachmentRepository },
+        { provide: TaskBatchDraftRepository, useClass: SlonikTaskBatchDraftRepository },
+        { provide: GeneratedDocumentStore, useClass: FilesGeneratedDocumentStore },
         { provide: UserDirectory, useClass: SlonikUserDirectory },
         { provide: TaskAccessPolicy, useClass: AllowAllTaskAccessPolicy },
         { provide: Clock, useClass: SystemClock },
@@ -77,7 +93,9 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
             provide: TASKS_AGENT_CAPABILITY,
             inject: [
                 ConfigService,
-                CreateTaskUseCase,
+                ProposeTasksUseCase,
+                CreateTasksFromDraftUseCase,
+                GetTaskUseCase,
                 ListTasksUseCase,
                 UpdateTaskUseCase,
                 UserDirectory,
@@ -85,7 +103,9 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
             ],
             useFactory: (
                 config: ConfigService<Env, true>,
-                createTask: CreateTaskUseCase,
+                proposeTasks: ProposeTasksUseCase,
+                createTasksFromDraft: CreateTasksFromDraftUseCase,
+                getTask: GetTaskUseCase,
                 listTasks: ListTasksUseCase,
                 updateTask: UpdateTaskUseCase,
                 users: UserDirectory,
@@ -93,7 +113,7 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
             ): TasksAgentCapability => {
                 assertTaskSkillsPresent(TASKS_AGENT_SKILLS_DIR);
                 return new TasksAgentCapability(
-                    { createTask, listTasks, updateTask, users },
+                    { proposeTasks, createTasksFromDraft, getTask, listTasks, updateTask, users },
                     createChatModel(config, TASKS_AGENT_CONFIG.model),
                     clock,
                     TASKS_AGENT_SKILLS_DIR,

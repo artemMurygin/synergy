@@ -1,21 +1,41 @@
 import { tool } from 'langchain';
 import { z } from 'zod';
-import type { AgentRunContext } from '../../../../shared/agent-capability';
+import { AttachmentRef, type AgentRunContext } from '../../../../shared/agent-capability';
 import { ArgumentInvalidError, BaseError } from '../../../../shared/errors';
-import type { CreateTaskUseCase } from '../../application/create-task.use-case';
+import type { CreateTasksFromDraftUseCase } from '../../application/create-tasks-from-draft.use-case';
+import type { GetTaskUseCase } from '../../application/get-task.use-case';
 import type { ListTasksUseCase } from '../../application/list-tasks.use-case';
+import type {
+    DraftCardView,
+    ProposeTasksUseCase,
+    ProposedItemInput,
+} from '../../application/propose-tasks.use-case';
 import type { TaskView } from '../../application/task-view';
 import type { TaskPatch, UpdateTaskUseCase } from '../../application/update-task.use-case';
 import { Actor } from '../../domain/actor';
 import { TASK_ACCESS_DENIED } from '../../domain/access-denied.error';
+import { DraftOrigin } from '../../domain/draft-origin';
 import { TaskErrorCode } from '../../domain/errors';
 import type { UserDirectory } from '../../domain/ports/user-directory.port';
+import {
+    DraftAlreadyUsedError,
+    DraftNotFoundError,
+    EmptyTaskBatchError,
+    InvalidDraftItemError,
+    MAX_DRAFT_TASKS,
+    TooManyDraftTasksError,
+    UnknownDraftUserError,
+    type DraftUserField,
+} from '../../domain/task-batch-errors';
+import type { TaskBatchResultItem } from '../../domain/task-batch-result';
 import { TaskFilter } from '../../domain/task-filter';
 import { TaskSort } from '../../domain/task-sort';
 import { TASK_STATUSES } from '../../domain/task-status';
 
 export interface TaskToolsDeps {
-    readonly createTask: CreateTaskUseCase;
+    readonly proposeTasks: ProposeTasksUseCase;
+    readonly createTasksFromDraft: CreateTasksFromDraftUseCase;
+    readonly getTask: GetTaskUseCase;
     readonly listTasks: ListTasksUseCase;
     readonly updateTask: UpdateTaskUseCase;
     readonly users: UserDirectory;
@@ -43,9 +63,40 @@ function parseDeadline(raw: string | null | undefined): Date | null | undefined 
     return date;
 }
 
+const USER_FIELD_LABELS: Record<DraftUserField, string> = {
+    assignee: 'исполнитель',
+    creator: 'постановщик',
+    watcher: 'наблюдатель',
+};
+
+/** Failures of a task list, named by the task number the user sees on the card. */
+function explainBatch(error: unknown): string | null {
+    if (error instanceof TooManyDraftTasksError) {
+        return `В списке ${String(error.count)} задач, а одним подтверждением можно создать не больше ${String(MAX_DRAFT_TASKS)}: предложи пользователю разбить список на части и ничего не создавай`;
+    }
+    if (error instanceof EmptyTaskBatchError) return 'Список задач пуст';
+    if (error instanceof UnknownDraftUserError) {
+        return `Задача ${String(error.index)}: ${USER_FIELD_LABELS[error.field]} не найден или неактивен: проверь через find_users и уточни у пользователя`;
+    }
+    if (error instanceof InvalidDraftItemError) {
+        return `Некорректное значение: ${error.message}`;
+    }
+    if (error instanceof DraftNotFoundError) {
+        return 'Список не найден: покажи список заново через propose_tasks и дождись подтверждения';
+    }
+    if (error instanceof DraftAlreadyUsedError) {
+        return error.status === 'consumed'
+            ? 'Задачи по этому списку уже созданы: повторно ничего не создано'
+            : 'Этот список уже заменён новым: подтверждать можно только последний показанный список';
+    }
+    return null;
+}
+
 /** Turns a domain failure into text the model can relay; unknown failures are not swallowed. */
 function explain(error: unknown): string {
     if (error instanceof ToolInputError) return error.message;
+    const batch = explainBatch(error);
+    if (batch !== null) return batch;
     if (error instanceof BaseError) {
         switch (error.code) {
             case TaskErrorCode.TaskNotFound:
@@ -64,7 +115,6 @@ function explain(error: unknown): string {
 }
 
 function present(task: TaskView): Record<string, unknown> {
-    const login = (ref: { id: string; login: string | null }): string => ref.login ?? ref.id;
     return {
         id: task.id,
         title: task.title,
@@ -77,6 +127,24 @@ function present(task: TaskView): Record<string, unknown> {
     };
 }
 
+function login(ref: { id: string; login: string | null }): string {
+    return ref.login ?? ref.id;
+}
+
+function presentCard(card: DraftCardView): Record<string, unknown> {
+    return {
+        number: card.number,
+        title: card.title,
+        description: card.description,
+        deadline: card.deadline?.toISOString() ?? null,
+        assignee: card.assignee === null ? null : login(card.assignee),
+        creator: login(card.creator),
+        onBehalf: card.onBehalf,
+        watchers: card.watchers.map(login),
+        sourceNote: card.sourceNote,
+    };
+}
+
 const statusSchema = z
     .string()
     .describe(`Task status: ${TASK_STATUSES.join(', ')} (todo - to do, done - completed)`);
@@ -84,48 +152,159 @@ const deadlineSchema = z
     .string()
     .describe('Deadline as ISO 8601 date and time with offset, e.g. 2026-02-01T09:00:00Z');
 
+const proposedItemSchema = z.object({
+    title: z.string().describe('Task title, required'),
+    description: z.string().optional().describe('Task description'),
+    deadline: deadlineSchema.optional(),
+    assigneeId: z.string().optional().describe('Assignee user id from find_users'),
+    creatorId: z
+        .string()
+        .optional()
+        .describe(
+            'Creator (постановщик) user id from find_users, only when the user named another person; by default the creator is the user',
+        ),
+    watcherIds: z.array(z.string()).optional().describe('Watcher user ids from find_users'),
+    sourceNote: z
+        .string()
+        .optional()
+        .describe('Where the task came from, e.g. a quote and a timecode of the meeting'),
+});
+
+type ProposedItemArgs = z.infer<typeof proposedItemSchema>;
+
 /**
  * Tools of the tasks agent over the task use cases.
- * The acting user comes only from the run context: no tool accepts a user argument,
- * so the model cannot act on behalf of anyone else.
+ * The acting user (the initiator) comes only from the run context: no tool accepts it as an
+ * argument. The only person the model may name is the creator of a new task, and the rights
+ * are still checked for the run user.
  */
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- tool() generics are inferred per tool
 export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
     const actor = Actor.of(ctx.userId);
 
-    const createTask = tool(
+    /** Item of propose_tasks; the deadline error names the task by its number. */
+    const toItem = (input: ProposedItemArgs, index: number): ProposedItemInput => {
+        let deadline: Date | null | undefined;
+        try {
+            deadline = parseDeadline(input.deadline);
+        } catch (error) {
+            if (error instanceof ToolInputError) {
+                throw new ToolInputError(`Задача ${String(index)}: ${error.message}`);
+            }
+            throw error;
+        }
+        return {
+            title: input.title,
+            ...(input.description === undefined ? {} : { description: input.description }),
+            ...(deadline === undefined ? {} : { deadline }),
+            ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
+            ...(input.creatorId === undefined ? {} : { creatorId: input.creatorId }),
+            ...(input.watcherIds === undefined ? {} : { watcherIds: input.watcherIds }),
+            ...(input.sourceNote === undefined ? {} : { sourceNote: input.sourceNote }),
+        };
+    };
+
+    const proposeTasks = tool(
         async (input) => {
             try {
-                const view = await deps.createTask.execute(actor, {
-                    title: input.title,
-                    ...(input.description === undefined ? {} : { description: input.description }),
-                    ...(input.deadline === undefined
-                        ? {}
-                        : { deadline: parseDeadline(input.deadline) }),
-                    ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
-                    ...(input.watcherIds === undefined ? {} : { watcherIds: input.watcherIds }),
+                const items = input.items.map((item, i) => toItem(item, i + 1));
+                const origin =
+                    input.origin === undefined ? null : DraftOrigin.meeting(input.origin);
+                const { draftId, cards } = await deps.proposeTasks.execute(actor, {
+                    threadId: ctx.threadId,
+                    items,
+                    origin,
                 });
-                return json({ created: true, task: present(view) });
+                return json({
+                    proposed: true,
+                    draftId,
+                    cards: cards.map(presentCard),
+                    message:
+                        'Покажи пользователю все карточки с номерами и жди явного подтверждения всего списка. Ничего не создано.',
+                });
+            } catch (error) {
+                return json({ proposed: false, error: explain(error) });
+            }
+        },
+        {
+            name: 'propose_tasks',
+            description: `Save the list of tasks to confirm (one task is a list of one) and get numbered cards to show the user. Creates nothing. Every new call replaces the previous list of the dialog. Pass only the fields the user named; people are user ids from find_users. creatorId is the creator (постановщик) only when the user explicitly named another person; omit it otherwise. Pass origin only when the list came from the meetings specialist. At most ${String(MAX_DRAFT_TASKS)} tasks.`,
+            schema: z.object({
+                items: z
+                    .array(proposedItemSchema)
+                    .describe('Tasks in the order of their numbers on the cards'),
+                origin: z
+                    .object({
+                        fileId: z.string().describe('Id of the meeting recording file'),
+                        recordingName: z.string().describe('File name of the recording'),
+                    })
+                    .optional()
+                    .describe('The meeting the list came from; omit for a list the user typed'),
+            }),
+        },
+    );
+
+    const createTasks = tool(
+        async (input) => {
+            try {
+                const { result, report } = await deps.createTasksFromDraft.execute(actor, {
+                    draftId: input.draftId,
+                });
+                if (report !== null) {
+                    ctx.attachments.add(
+                        AttachmentRef.of({
+                            fileId: report.id,
+                            name: report.name,
+                            mediaType: report.mediaType,
+                            kind: 'document',
+                            sizeBytes: report.sizeBytes,
+                        }),
+                    );
+                }
+                const outcomes = await Promise.all(result.items.map(presentOutcome));
+                return json({
+                    created: true,
+                    createdCount: result.createdCount,
+                    failedCount: result.failedCount,
+                    tasks: outcomes,
+                    report: report === null ? null : { name: report.name },
+                });
             } catch (error) {
                 return json({ created: false, error: explain(error) });
             }
         },
         {
-            name: 'create_task',
+            name: 'create_tasks',
             description:
-                'Create a task on behalf of the current user. Pass only the fields the user named; never invent a title, deadline or assignee. The assignee is a user id from find_users. Returns the created task or the reason it was rejected.',
+                'Create the tasks of a list from propose_tasks, only after the user explicitly confirmed the whole last shown list. Each task is created separately; the answer has the outcome of every task by its number. A list is created once: a repeated call creates nothing.',
             schema: z.object({
-                title: z.string().describe('Task title, required'),
-                description: z.string().optional().describe('Task description'),
-                deadline: deadlineSchema.optional(),
-                assigneeId: z.string().optional().describe('Assignee user id from find_users'),
-                watcherIds: z
-                    .array(z.string())
-                    .optional()
-                    .describe('Watcher user ids from find_users'),
+                draftId: z.string().describe('draftId returned by the last propose_tasks'),
             }),
         },
     );
+
+    /** Outcome of one task for the summary: title, assignee and creator of a created task. */
+    async function presentOutcome(outcome: TaskBatchResultItem): Promise<Record<string, unknown>> {
+        if (outcome.status === 'failed') {
+            return { number: outcome.index, status: 'failed', reason: outcome.reason };
+        }
+        try {
+            const task = await deps.getTask.execute(actor, outcome.taskId);
+            return {
+                number: outcome.index,
+                status: 'created',
+                title: task.title,
+                assignee: task.assignee === null ? null : login(task.assignee),
+                creator: login(task.creator),
+                onBehalf: task.creator.id !== actor.userId,
+                deadline: task.deadline?.toISOString() ?? null,
+            };
+        } catch {
+            // The task is already created: a failed read only shortens its line of the summary
+            // and must not turn the whole answer into a failure.
+            return { number: outcome.index, status: 'created' };
+        }
+    }
 
     const searchTasks = tool(
         async (input) => {
@@ -265,7 +444,7 @@ export function createTaskTools(deps: TaskToolsDeps, ctx: AgentRunContext) {
         },
     );
 
-    return { createTask, searchTasks, findUsers, updateTask };
+    return { proposeTasks, createTasks, searchTasks, findUsers, updateTask };
 }
 
 export type TaskTools = ReturnType<typeof createTaskTools>;

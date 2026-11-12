@@ -26,6 +26,8 @@ import { AccessTokenService } from '../auth/domain/ports/access-token-service.po
 import { JwtAccessTokenService } from '../auth/infrastructure/jwt-access-token.service';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
+import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
+import { FilesModule } from '../files/files.module';
 import {
     FakeUserDirectory,
     InMemoryAttachmentRepository,
@@ -46,6 +48,7 @@ const SECRET = 's'.repeat(40);
 
 const fakeLogger = {
     setContext: () => undefined,
+    info: () => undefined,
     warn: () => undefined,
     error: () => undefined,
     debug: () => undefined,
@@ -74,6 +77,26 @@ class NoDatabaseModule {}
     exports: [DomainEventRegistry, DomainEventPublisherPort],
 })
 class OutboxStubModule {}
+
+/** What the global LoggerModule provides: the draft use cases log through PinoLogger. */
+@Global()
+@Module({
+    providers: [{ provide: PinoLogger, useValue: fakeLogger }],
+    exports: [PinoLogger],
+})
+class LoggerStubModule {}
+
+/** Stands in for FilesModule (object storage, queues): the flow does not issue documents. */
+@Module({
+    providers: [
+        {
+            provide: StoreGeneratedFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+    ],
+    exports: [StoreGeneratedFileUseCase],
+})
+class NoFilesModule {}
 
 /** What AuthModule provides to the rest of the app: the global guard and its token service. */
 @Module({
@@ -131,12 +154,15 @@ describe('tasks flow (TasksModule wired end to end)', () => {
                     ],
                 }),
                 AuthStubModule,
+                LoggerStubModule,
                 OutboxStubModule,
                 TasksModule,
             ],
         })
             .overrideModule(PostgresModule)
             .useModule(NoDatabaseModule)
+            .overrideModule(FilesModule)
+            .useModule(NoFilesModule)
             .overrideProvider(TaskRepository)
             .useValue(new InMemoryTaskRepository())
             .overrideProvider(TaskAttachmentRepository)
