@@ -71,7 +71,7 @@
 
 ## 8. `transcription`: документы встречи
 
-- [ ] 8.1 Написать тесты на `MeetingDocuments` по спеке `meeting-documents`:
+- [x] 8.1 Написать тесты на `MeetingDocuments` по спеке `meeting-documents`:
   - расшифровка: шапка с датой, длительностью в формате `чч:мм:сс` и участниками; реплики `[чч:мм:сс] Имя: текст`; склейка подряд идущих реплик одного имени (в том числе двух спикеров с одним именем);
   - задачи встречи: колонки и прочерки;
   - имена файлов по шаблону;
@@ -80,66 +80,66 @@
   - в логе нет текста.
 
   Генератор и `StoreGeneratedFile` подменяются тестовыми двойниками. Убедиться, что vitest видит тесты
-- [ ] 8.2 Прогнать тесты из 8.1 и зафиксировать, что они падают (red)
-- [ ] 8.3 Реализовать `MeetingDocuments` (`issueTranscript`, `issueTasks`) и `MeetingDocumentKind`
-- [ ] 8.4 Прогнать тесты из 8.1 и зафиксировать, что они зелёные (green)
+- [x] 8.2 Прогнать тесты из 8.1 и зафиксировать, что они падают (red)
+- [x] 8.3 Реализовать `MeetingDocuments` (`issueTranscript`, `issueTasks`) и `MeetingDocumentKind`
+- [x] 8.4 Прогнать тесты из 8.1 и зафиксировать, что они зелёные (green)
 
 ## 9. `transcription`: извлечение задач
 
-- [ ] 9.1 Написать тесты:
+- [x] 9.1 Написать тесты:
   - `EvidenceValidator`: отбрасывает задачи без основания, с несуществующим `seq` и с цитатой не из сегмента; нормализует регистр и пробелы;
   - `MeetingDueDateResolver`: «до пятницы» считается от даты загрузки записи, а не от сегодняшней; непонятный срок даёт `null`;
   - `ExtractMeetingTasksUseCase`: короткая расшифровка обрабатывается одним вызовом, длинная — окнами с перекрытием и слиянием; «задач нет» даёт пустой список; 404 для чужой; 409 для неготовой. `TaskExtractorPort` подменяется двойником.
 
   Убедиться, что vitest видит тесты
-- [ ] 9.2 Прогнать тесты из 9.1 и зафиксировать, что они падают (red)
-- [ ] 9.3 Реализовать `EvidenceValidator`, `MeetingDueDateResolver`, `ExtractMeetingTasksUseCase`, `TaskExtractorPort` и `LlmTaskExtractor` (zod-схема structured output, температура 0, промпт с запретом придумывать задачи)
-- [ ] 9.4 Прогнать тесты из 9.1 и зафиксировать, что они зелёные (green)
-- [ ] 9.5 Проверить `LlmTaskExtractor` на реальной обезличенной расшифровке (скрипт в `transcription/bench`, результаты в git не попадают): у каждой задачи есть подтверждённая цитата, выдуманных исполнителей нет. Итог (число задач, отброшенных валидатором, время, стоимость) записать в раздел «Итоги проверки извлечения» в design.md
+- [x] 9.2 Прогнать тесты из 9.1 и зафиксировать, что они падают (red)
+- [x] 9.3 Реализовать `EvidenceValidator`, `MeetingDueDateResolver`, `ExtractMeetingTasksUseCase`, `TaskExtractorPort` и `LlmTaskExtractor` (zod-схема structured output, температура 0, промпт с запретом придумывать задачи)
+- [x] 9.4 Прогнать тесты из 9.1 и зафиксировать, что они зелёные (green)
+- [ ] 9.5 Проверить `LlmTaskExtractor` на реальной обезличенной расшифровке (скрипт в `transcription/bench`, результаты в git не попадают): у каждой задачи есть подтверждённая цитата, выдуманных исполнителей нет. Итог (число задач, отброшенных валидатором, время, стоимость) записать в раздел «Итоги проверки извлечения» в design.md — пропущено: Нет пригодной расшифровки встречи. В локальной БД (POSTGRES_URL из backend/.env, база synergy) таблица meeting_transcript пустая, а meeting_transcript_segment ещё не создана: миграция 022 к этой базе не применена. В bench/results лежат только расшифровки 84-секундного голосового разговора (voice-492965/492937). Это не рабочая встреча, поручений там нет, и запись не обезличена: в ней звучат настоящие имена. Без выборки с реальными задачами нельзя проверить «у каждой задачи подтверждённая цитата, выдуманных исполнителей нет» и посчитать число задач, отброшенных валидатором, время и стоимость. Поэтому вызов OpenRouter не делал, bench-скрипт не писал, раздел «Итоги проверки извлечения» в design.md не заполнял. OPENROUTER_API_KEY в .env есть. Нужна реальная обезличенная запись встречи.
 
 ## 10. `transcription`: примеры реплик спикеров
 
-- [ ] 10.1 Написать тесты на `GetSpeakerSamplesUseCase`: 2–3 реплики на спикера из разных частей записи, доля речи, имена; 404 и 409. Убедиться, что vitest их видит
-- [ ] 10.2 Прогнать тесты из 10.1 и зафиксировать, что они падают (red)
-- [ ] 10.3 Реализовать `GetSpeakerSamplesUseCase`
-- [ ] 10.4 Прогнать тесты из 10.1 и зафиксировать, что они зелёные (green)
+- [x] 10.1 Написать тесты на `GetSpeakerSamplesUseCase`: 2–3 реплики на спикера из разных частей записи, доля речи, имена; 404 и 409. Убедиться, что vitest их видит
+- [x] 10.2 Прогнать тесты из 10.1 и зафиксировать, что они падают (red)
+- [x] 10.3 Реализовать `GetSpeakerSamplesUseCase`
+- [x] 10.4 Прогнать тесты из 10.1 и зафиксировать, что они зелёные (green)
 
 ## 11. `assistant`: вложения в запуске и истории
 
-- [ ] 11.1 Написать тесты по спекам `chat-attachments`, `agent-streaming-protocol` и `chat-sessions`:
+- [x] 11.1 Написать тесты по спекам `chat-attachments`, `agent-streaming-protocol` и `chat-sessions`:
   - `RunInput`: текст или вложение, не больше 5;
   - `StartAgentRunUseCase`: чужой или несуществующий файл даёт «не найдено» до потока, удалённый — причину «срок хранения истёк», в обоих случаях ничего не сохраняется; сообщение пользователя сохраняется с вложениями; блок `[Вложения]` попадает в `HumanMessage`;
   - `ChatSessionRepository`: вложения в порядке отправки, статус файла из `stored_file`, `source`, конфликт `dedup_key` даёт `null`;
   - контроллеры: `forwardedProps.fileIds` и вложения с `source` в истории.
 
   Убедиться, что vitest видит тесты
-- [ ] 11.2 Прогнать тесты из 11.1 и зафиксировать, что они падают (red)
-- [ ] 11.3 Реализовать `AttachmentRef`, `MessageAttachment`, изменить `RunInput`, `ChatMessage`, `StartAgentRunUseCase`, `ChatSessionRepository`, `AgentController`, `ChatSessionsController` и схемы ответов
-- [ ] 11.4 Прогнать тесты из 11.1 и все тесты модуля `assistant`, зафиксировать, что они зелёные (green)
+- [x] 11.2 Прогнать тесты из 11.1 и зафиксировать, что они падают (red)
+- [x] 11.3 Реализовать `AttachmentRef`, `MessageAttachment`, изменить `RunInput`, `ChatMessage`, `StartAgentRunUseCase`, `ChatSessionRepository`, `AgentController`, `ChatSessionsController` и схемы ответов
+- [x] 11.4 Прогнать тесты из 11.1 и все тесты модуля `assistant`, зафиксировать, что они зелёные (green)
 
 ## 12. `assistant`: файлы в ответе агента
 
-- [ ] 12.1 Написать тесты:
+- [x] 12.1 Написать тесты:
   - `RunAttachments`: без дублей, уведомляет подписчика;
   - `AgentRunner`: при добавлении файла в поток уходит `CUSTOM file-attached` до `run-finished`; вложения сохраняются вместе с ответом; при ошибке и отмене не сохраняются; клиент без поддержки `CUSTOM` получает тот же текст.
 
   Убедиться, что vitest видит тесты
-- [ ] 12.2 Прогнать тесты из 12.1 и зафиксировать, что они падают (red)
-- [ ] 12.3 Реализовать `RunAttachments` в `shared/agent-capability`, добавить его в `AgentRunContext`, изменить `AgentRunner` и `map-stream-event`
-- [ ] 12.4 Прогнать тесты из 12.1 и зафиксировать, что они зелёные (green), регрессий в тестах потока нет
+- [x] 12.2 Прогнать тесты из 12.1 и зафиксировать, что они падают (red)
+- [x] 12.3 Реализовать `RunAttachments` в `shared/agent-capability`, добавить его в `AgentRunContext`, изменить `AgentRunner` и `map-stream-event`
+- [x] 12.4 Прогнать тесты из 12.1 и зафиксировать, что они зелёные (green), регрессий в тестах потока нет
 
 ## 13. `assistant`: сообщения системы
 
-- [ ] 13.1 Написать тесты по спеке `chat-sessions` («Сообщения системы в чате»):
+- [x] 13.1 Написать тесты по спеке `chat-sessions` («Сообщения системы в чате»):
   - `PostSystemMessageUseCase`: свободный чат → `posted` (сначала checkpointer, потом строка, обновляется `last_activity_at`, публикуется `ChatSystemMessagePosted`); активный запуск → `RunInProgressError`; повтор `dedupKey` → `duplicate`; удалённый чат → `skipped`;
   - `SystemMessageProcessor`: ретрай с задержкой до предельного срока;
   - `FindFirstChatOfFileUseCase`: первый существующий чат владельца, `null` после удаления чата;
   - `AgentProfileFactory.appendAssistantMessage`: интеграционный тест с Postgres-checkpointer — следующий запуск видит сообщение в истории.
 
   Убедиться, что vitest видит тесты
-- [ ] 13.2 Прогнать тесты из 13.1 и зафиксировать, что они падают (red)
-- [ ] 13.3 Реализовать `PostSystemMessageUseCase`, `SystemMessageQueue` и `SystemMessageProcessor` (BullMQ `chat-system-message`), `FindFirstChatOfFileUseCase`, `appendAssistantMessage`, событие `ChatSystemMessagePosted` с регистрацией в outbox; экспортировать контракты из `AssistantModule`
-- [ ] 13.4 Прогнать тесты из 13.1 и зафиксировать, что они зелёные (green)
+- [x] 13.2 Прогнать тесты из 13.1 и зафиксировать, что они падают (red)
+- [x] 13.3 Реализовать `PostSystemMessageUseCase`, `SystemMessageQueue` и `SystemMessageProcessor` (BullMQ `chat-system-message`), `FindFirstChatOfFileUseCase`, `appendAssistantMessage`, событие `ChatSystemMessagePosted` с регистрацией в outbox; экспортировать контракты из `AssistantModule`
+- [x] 13.4 Прогнать тесты из 13.1 и зафиксировать, что они зелёные (green)
 
 ## 14. `transcription`: сообщение в чат по результату расшифровки
 
@@ -185,7 +185,7 @@
 
 ## 17. `tasks`: черновик списка и создание по нему
 
-- [ ] 17.1 Написать тесты по спеке `task-agent-tools` («Создание задач списком»):
+- [x] 17.1 Написать тесты по спеке `task-agent-tools` («Создание задач списком»):
   - `TaskBatchDraft`: 1–30 задач, повторный `consume` бросает `DraftAlreadyUsedError`;
   - `TaskBatchDraftRepository`: атомарный `consume`, а при двух параллельных вызовах побеждает один;
   - `ProposeTasksUseCase`: неизвестный исполнитель или постановщик даёт ошибку с номером задачи, прежний черновик становится `superseded`;
@@ -193,9 +193,9 @@
   - `TasksReportDocument`: документ «Поставленные задачи» по спеке `meeting-documents` выпускается только при `origin = meeting`, исключённых задач в нём нет, имена пользователей подставлены.
 
   Убедиться, что vitest видит тесты
-- [ ] 17.2 Прогнать тесты из 17.1 и зафиксировать, что они падают (red)
-- [ ] 17.3 Реализовать `TaskBatchDraft`, `DraftTaskItem`, `DraftOrigin`, `TaskBatchResult`, репозиторий, `ProposeTasksUseCase`, `CreateTasksFromDraftUseCase` и `TasksReportDocument`
-- [ ] 17.4 Прогнать тесты из 17.1 и зафиксировать, что они зелёные (green)
+- [x] 17.2 Прогнать тесты из 17.1 и зафиксировать, что они падают (red)
+- [x] 17.3 Реализовать `TaskBatchDraft`, `DraftTaskItem`, `DraftOrigin`, `TaskBatchResult`, репозиторий, `ProposeTasksUseCase`, `CreateTasksFromDraftUseCase` и `TasksReportDocument`
+- [x] 17.4 Прогнать тесты из 17.1 и зафиксировать, что они зелёные (green)
 
 ## 18. `tasks`: инструменты агента
 
@@ -237,7 +237,7 @@
 
 ## 21. Electron: вложения в поле ввода (ui-design.md, раздел 1)
 
-- [ ] 21.1 Написать тесты на `useComposerAttachments` и `Composer`. Макетов Pencil нет, вёрстка и тексты берутся из `ui-design.md`, раздел «1. Поле ввода с вложениями» и «Ключевые состояния экранов». Проверить:
+- [x] 21.1 Написать тесты на `useComposerAttachments` и `Composer`. Макетов Pencil нет, вёрстка и тексты берутся из `ui-design.md`, раздел «1. Поле ввода с вложениями» и «Ключевые состояния экранов». Проверить:
   - добавление выбором и перетаскиванием, лимит 5 с плашкой;
   - прогресс, отмена и повтор;
   - тексты ошибок типа, размера и связи;
@@ -246,9 +246,9 @@
   - отказ запуска из-за удалённого файла переводит карточку в ошибку.
 
   Убедиться, что vitest видит тесты
-- [ ] 21.2 Прогнать тесты из 21.1 и зафиксировать, что они падают (red)
-- [ ] 21.3 Реализовать `use-composer-attachments.ts`, `ComposerAttachments`, кнопку «Прикрепить» и зону перетаскивания в `Composer`, передачу `fileIds` в `ChatRuntimeProvider` (`forwardedProps`)
-- [ ] 21.4 Прогнать тесты из 21.1 и зафиксировать, что они зелёные (green), регрессий в тестах чата нет
+- [x] 21.2 Прогнать тесты из 21.1 и зафиксировать, что они падают (red)
+- [x] 21.3 Реализовать `use-composer-attachments.ts`, `ComposerAttachments`, кнопку «Прикрепить» и зону перетаскивания в `Composer`, передачу `fileIds` в `ChatRuntimeProvider` (`forwardedProps`)
+- [x] 21.4 Прогнать тесты из 21.1 и зафиксировать, что они зелёные (green), регрессий в тестах чата нет
 
 ## 22. Electron: файлы и сообщения системы в ленте (ui-design.md, разделы 2–3)
 
