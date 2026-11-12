@@ -3,8 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
+import { MEETINGS_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import { DocumentsModule } from '../../shared/documents';
 import { createChatModel } from '../../shared/llm';
+import { GetFileUseCase } from '../files/application/get-file.use-case';
 import { FilesModule } from '../files/files.module';
 import { TranscribeVoiceUseCase } from './application/transcribe-voice.use-case';
 import { TranscriberPort } from './domain/ports/transcriber.port';
@@ -43,6 +45,8 @@ import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/
 import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/meeting-transcription.processor';
 import { MeetingTranscriptRepository } from './meeting/infrastructure/persistence/meeting-transcript.repository';
 import { TranscriptSegmentRepository } from './meeting/infrastructure/persistence/transcript-segment.repository';
+import { MeetingsAgentCapability } from './meeting/interface/agent/meetings-agent.capability';
+import { MEETINGS_AGENT_CONFIG } from './meeting/interface/agent/meetings-agent.config';
 import { MeetingTranscriptsController } from './meeting/interface/http/meeting-transcripts.controller';
 import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/meeting-transcription-error-status';
 
@@ -81,6 +85,41 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 ),
         },
         RetryMeetingTranscriptionUseCase,
+        {
+            provide: MEETINGS_AGENT_CAPABILITY,
+            inject: [
+                ConfigService,
+                GetMeetingTranscriptUseCase,
+                GetSpeakerSamplesUseCase,
+                RenameSpeakersUseCase,
+                ExtractMeetingTasksUseCase,
+                RetryMeetingTranscriptionUseCase,
+                MeetingDocuments,
+                GetFileUseCase,
+            ],
+            useFactory: (
+                config: ConfigService<Env, true>,
+                getTranscript: GetMeetingTranscriptUseCase,
+                speakerSamples: GetSpeakerSamplesUseCase,
+                renameSpeakers: RenameSpeakersUseCase,
+                extractTasks: ExtractMeetingTasksUseCase,
+                retryTranscription: RetryMeetingTranscriptionUseCase,
+                documents: MeetingDocuments,
+                getFile: GetFileUseCase,
+            ): MeetingsAgentCapability =>
+                new MeetingsAgentCapability(
+                    {
+                        getTranscript,
+                        speakerSamples,
+                        renameSpeakers,
+                        extractTasks,
+                        retryTranscription,
+                        documents,
+                        getFile,
+                    },
+                    createChatModel(config, MEETINGS_AGENT_CONFIG.model),
+                ),
+        },
         FailMeetingTranscriptionUseCase,
         StartMeetingTranscriptionOnFileUploaded,
         FailMeetingTranscriptionOnFileDeleted,
@@ -119,7 +158,14 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 ),
         },
     ],
-    exports: [TranscribeVoiceUseCase],
+    exports: [
+        TranscribeVoiceUseCase,
+        // Специалист по встречам для профиля «приложение» модуля assistant.
+        MEETINGS_AGENT_CAPABILITY,
+        // Для сообщения в чат по результату расшифровки (MeetingChatModule).
+        MeetingDocuments,
+        MeetingTranscriptRepositoryPort,
+    ],
 })
 export class TranscriptionModule implements OnModuleInit {
     onModuleInit(): void {

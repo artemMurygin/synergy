@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import { InMemoryTransactionRunner } from '../../database/postgres/testing/in-memory-transaction-runner';
 import { TransactionRunnerPort } from '../../database/postgres/transaction-runner.port';
+import { MEETINGS_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import { DomainEventPublisherPort } from '../../shared/ddd';
 import { findErrorStatus } from '../../shared/http/error-status.registry';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
@@ -45,6 +46,7 @@ import { MEETING_TRANSCRIPTION_QUEUE_NAME } from './meeting/infrastructure/queue
 import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/meeting-transcription-queue.module';
 import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/meeting-transcription.processor';
 import { MeetingTranscriptRepository } from './meeting/infrastructure/persistence/meeting-transcript.repository';
+import { MeetingsAgentCapability } from './meeting/interface/agent/meetings-agent.capability';
 import { MeetingTranscriptsController } from './meeting/interface/http/meeting-transcripts.controller';
 import { TranscriptionModule } from './transcription.module';
 
@@ -158,10 +160,15 @@ describe('TranscriptionModule', () => {
         expect(app.get(TranscriberPort)).toBeInstanceOf(Transcriber);
     });
 
-    it('keeps exporting only the voice use case', () => {
+    it('exports the voice use case, the meetings capability and what the chat notifier needs', () => {
         const exported: unknown = Reflect.getMetadata(MODULE_METADATA.EXPORTS, TranscriptionModule);
 
-        expect(exported).toEqual([TranscribeVoiceUseCase]);
+        expect(exported).toEqual([
+            TranscribeVoiceUseCase,
+            MEETINGS_AGENT_CAPABILITY,
+            MeetingDocuments,
+            MeetingTranscriptRepositoryPort,
+        ]);
     });
 
     it('imports FilesModule, the database and the meeting-transcription queue', () => {
@@ -195,6 +202,12 @@ describe('TranscriptionModule', () => {
             MeetingTranscriptRepository,
         );
         expect(app.get(MeetingTranscriptionQueuePort)).toBeInstanceOf(MeetingTranscriptionQueue);
+    });
+
+    it('provides the meetings agent capability for the assistant', async () => {
+        app = await createApp();
+
+        expect(app.get(MEETINGS_AGENT_CAPABILITY)).toBeInstanceOf(MeetingsAgentCapability);
     });
 
     it('wires the meeting documents, speaker samples and task extraction', async () => {

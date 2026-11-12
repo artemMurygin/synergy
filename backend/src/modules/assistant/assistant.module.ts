@@ -5,6 +5,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { PG_POOL } from '../../database/postgres/database.constants';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import {
+    MEETINGS_AGENT_CAPABILITY,
     SHEETS_QA_AGENT_CAPABILITY,
     TASKS_AGENT_CAPABILITY,
     type AgentCapability,
@@ -15,6 +16,7 @@ import { DomainEventRegistry } from '../../shared/outbox/application/domain-even
 import { FilesModule } from '../files/files.module';
 import { SheetsQaModule } from '../sheets-qa/sheets-qa.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { TranscriptionModule } from '../transcription/transcription.module';
 import { ASSISTANT_CONFIG } from './assistant.config';
 import { AskInTelegramUseCase } from './application/ask-in-telegram.use-case';
 import { ClientProfileRegistry } from './application/client-profile-registry';
@@ -55,7 +57,14 @@ import { AgentController } from './interface/http/agent.controller';
 import { ThreadsController } from './interface/http/threads.controller';
 
 @Module({
-    imports: [PostgresModule, FilesModule, SheetsQaModule, TasksModule, SystemMessageQueueModule],
+    imports: [
+        PostgresModule,
+        FilesModule,
+        SheetsQaModule,
+        TasksModule,
+        TranscriptionModule,
+        SystemMessageQueueModule,
+    ],
     controllers: [AgentController, ThreadsController],
     providers: [
         StartAgentRunUseCase,
@@ -100,6 +109,7 @@ import { ThreadsController } from './interface/http/threads.controller';
                 ClientProfileRegistry,
                 SHEETS_QA_AGENT_CAPABILITY,
                 TASKS_AGENT_CAPABILITY,
+                MEETINGS_AGENT_CAPABILITY,
                 AGENT_CHECKPOINTER,
             ],
             useFactory: (
@@ -107,12 +117,14 @@ import { ThreadsController } from './interface/http/threads.controller';
                 registry: ClientProfileRegistry,
                 sheetsQa: AgentCapability,
                 tasks: AgentCapability,
+                meetings: AgentCapability,
                 checkpointer: PostgresSaver,
             ): AgentProfileFactory =>
                 new AgentProfileFactory({
                     registry,
                     sheetsQa,
                     tasks,
+                    meetings,
                     orchestratorModel: createChatModel(config, ASSISTANT_CONFIG.model),
                     checkpointer,
                 }),

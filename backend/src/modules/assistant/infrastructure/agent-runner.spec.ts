@@ -356,20 +356,28 @@ describe('AgentRunner: files attached by the agent', () => {
 
 describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
     it('passes the run user to the tool of a forked subagent and traces nested calls', async () => {
-        const createTask = vi.fn(() =>
+        const proposeTasks = vi.fn(() =>
             Promise.resolve({
-                id: 'task-1',
-                title: 'Позвонить клиенту',
-                description: null,
-                status: 'todo',
-                deadline: null,
-                creator: { id: 'user-7', login: 'ivanov' },
-                assignee: null,
-                watchers: [],
+                draftId: 'draft-1',
+                cards: [
+                    {
+                        number: 1,
+                        title: 'Позвонить клиенту',
+                        description: '',
+                        deadline: null,
+                        assignee: null,
+                        creator: { id: 'user-7', login: 'ivanov' },
+                        onBehalf: false,
+                        watchers: [],
+                        sourceNote: null,
+                    },
+                ],
             }),
         );
         const deps = {
-            createTask: { execute: createTask },
+            proposeTasks: { execute: proposeTasks },
+            createTasksFromDraft: { execute: vi.fn() },
+            getTask: { execute: vi.fn() },
             listTasks: { execute: vi.fn() },
             updateTask: { execute: vi.fn() },
             users: { findActiveByIds: vi.fn(), searchActive: vi.fn() },
@@ -382,13 +390,13 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
                     tool_calls: [
                         {
                             id: 'sub-call-1',
-                            name: 'create_task',
-                            args: { title: 'Позвонить клиенту' },
+                            name: 'propose_tasks',
+                            args: { items: [{ title: 'Позвонить клиенту' }] },
                         },
                     ],
                 }),
             )
-            .respond(new AIMessage('Задача создана'));
+            .respond(new AIMessage('Создать задачу «Позвонить клиенту»?'));
         const tasks = new TasksAgentCapability(
             deps,
             subagentModel,
@@ -399,6 +407,12 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
             name: 'sheets_qa',
             description: 'Цены',
             mode: 'isolated',
+            buildAgent: () => createAgent({ model: fakeModel(), tools: [] }),
+        };
+        const meetings: AgentCapability = {
+            name: 'meetings',
+            description: 'Встречи',
+            mode: 'fork',
             buildAgent: () => createAgent({ model: fakeModel(), tools: [] }),
         };
         const orchestratorModel = fakeModel()
@@ -419,6 +433,7 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
             registry: new ClientProfileRegistry(),
             sheetsQa,
             tasks,
+            meetings,
             orchestratorModel,
             checkpointer: new MemorySaver(),
         });
@@ -427,14 +442,16 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
             create(profiles).stream(input(), new AbortController().signal, scope),
         );
 
-        expect(createTask).toHaveBeenCalledTimes(1);
-        expect(createTask.mock.calls[0] as unknown[]).toEqual([
+        expect(proposeTasks).toHaveBeenCalledTimes(1);
+        expect(proposeTasks.mock.calls[0] as unknown[]).toEqual([
             expect.objectContaining({ userId: 'user-7' }),
-            expect.objectContaining({ title: 'Позвонить клиенту' }),
+            expect.objectContaining({
+                items: [expect.objectContaining({ title: 'Позвонить клиенту' })],
+            }),
         ]);
         const last = events.at(-1);
         expect(last?.type).toBe('run-finished');
         if (last?.type !== 'run-finished') return;
-        expect(last.toolCalls.map((call) => call.name)).toEqual(['task', 'create_task']);
+        expect(last.toolCalls.map((call) => call.name)).toEqual(['task', 'propose_tasks']);
     }, 20_000);
 });

@@ -58,6 +58,7 @@ describe.skipIf(adminUrl === undefined)('AgentProfileFactory.appendAssistantMess
             registry: new ClientProfileRegistry(),
             sheetsQa: capability('sheets_qa'),
             tasks: capability('tasks'),
+            meetings: capability('meetings'),
             orchestratorModel: model,
             checkpointer: saver,
         });

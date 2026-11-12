@@ -17,6 +17,7 @@ import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { FilesModule } from './modules/files/files.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
+import { MeetingChatModule } from './modules/transcription/meeting/meeting-chat.module';
 
 @Module({
     imports: [
@@ -35,6 +36,7 @@ import { TelegramModule } from './modules/telegram/telegram.module';
         FilesModule,
         NotificationsModule,
         TelegramModule,
+        MeetingChatModule,
     ],
     providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

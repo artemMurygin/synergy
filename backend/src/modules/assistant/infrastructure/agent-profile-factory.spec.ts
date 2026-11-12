@@ -51,6 +51,7 @@ function capability(name: string, mode: AgentCapabilityMode): FakeCapability {
 describe('AgentProfileFactory', () => {
     const sheetsQa = capability('sheets_qa', 'isolated');
     const tasks = capability('tasks', 'fork');
+    const meetings = capability('meetings', 'fork');
     const topLevelAgent = { name: 'orchestrator-agent' };
 
     function create(registry = new ClientProfileRegistry()): AgentProfileFactory {
@@ -58,6 +59,7 @@ describe('AgentProfileFactory', () => {
             registry,
             sheetsQa,
             tasks,
+            meetings,
             orchestratorModel,
             checkpointer,
         });
@@ -68,6 +70,7 @@ describe('AgentProfileFactory', () => {
         createDeepAgent.mockReturnValue(topLevelAgent);
         sheetsQa.buildAgent.mockClear();
         tasks.buildAgent.mockClear();
+        meetings.buildAgent.mockClear();
     });
 
     describe.each<ClientId>(['manager-app', 'employee-app'])(
@@ -81,11 +84,13 @@ describe('AgentProfileFactory', () => {
                 const options = createDeepAgent.mock.calls[0][0] as DeepAgentOptions;
                 expect(options.model).toBe(orchestratorModel);
                 expect(options.checkpointer).toBe(checkpointer);
-                expect(options.systemPrompt).toBe(buildOrchestratorPrompt([sheetsQa, tasks]));
+                expect(options.systemPrompt).toBe(
+                    buildOrchestratorPrompt([sheetsQa, tasks, meetings]),
+                );
                 expect(options.tools ?? []).toEqual([]);
             });
 
-            it('wires sheets_qa as isolated and tasks as fork subagents', () => {
+            it('wires sheets_qa as isolated, tasks and meetings as fork subagents', () => {
                 create().build(client, ctx);
 
                 const { subagents } = createDeepAgent.mock.calls[0][0] as DeepAgentOptions;
@@ -102,6 +107,12 @@ describe('AgentProfileFactory', () => {
                         runnable: tasks.built,
                         mode: 'fork',
                     },
+                    {
+                        name: 'meetings',
+                        description: meetings.description,
+                        runnable: meetings.built,
+                        mode: 'fork',
+                    },
                 ]);
             });
 
@@ -110,6 +121,7 @@ describe('AgentProfileFactory', () => {
 
                 expect(sheetsQa.buildAgent).toHaveBeenCalledWith(ctx);
                 expect(tasks.buildAgent).toHaveBeenCalledWith(ctx);
+                expect(meetings.buildAgent).toHaveBeenCalledWith(ctx);
             });
         },
     );
@@ -122,11 +134,12 @@ describe('AgentProfileFactory', () => {
             expect(tasks.buildAgent).toHaveBeenCalledWith(ctx, { checkpointer });
         });
 
-        it('has no subagents and no price tools', () => {
+        it('has no subagents, no price and no meeting tools', () => {
             create().build('telegram', ctx);
 
             expect(createDeepAgent).not.toHaveBeenCalled();
             expect(sheetsQa.buildAgent).not.toHaveBeenCalled();
+            expect(meetings.buildAgent).not.toHaveBeenCalled();
         });
     });
 
@@ -143,6 +156,7 @@ describe('AgentProfileFactory', () => {
         expect(createDeepAgent).not.toHaveBeenCalled();
         expect(sheetsQa.buildAgent).not.toHaveBeenCalled();
         expect(tasks.buildAgent).not.toHaveBeenCalled();
+        expect(meetings.buildAgent).not.toHaveBeenCalled();
     });
 
     it('follows the registry when a client gets its own profile', () => {
@@ -165,5 +179,29 @@ describe('buildOrchestratorPrompt', () => {
         expect(prompt).toContain('Описание sheets_qa');
         expect(prompt).toContain('tasks');
         expect(prompt).toContain('Описание tasks');
+    });
+
+    it('routes recordings and transcripts to meetings and mentions all three topics', () => {
+        const prompt = buildOrchestratorPrompt([
+            capability('sheets_qa', 'isolated'),
+            capability('tasks', 'fork'),
+            capability('meetings', 'fork'),
+        ]);
+
+        expect(prompt).toContain('Описание meetings');
+        expect(prompt).toMatch(/запис\S* встреч/i);
+        expect(prompt).not.toMatch(/только с ценовой политикой и задачами\./);
+    });
+
+    it('hands the meeting task list to tasks by reference, without retelling it', () => {
+        const prompt = buildOrchestratorPrompt([
+            capability('tasks', 'fork'),
+            capability('meetings', 'fork'),
+        ]);
+
+        expect(prompt).toMatch(/список задач/i);
+        expect(prompt).toMatch(/из предыдущего ответа/i);
+        expect(prompt).toMatch(/не пересказывай/i);
+        expect(prompt).toMatch(/основани/i);
     });
 });
