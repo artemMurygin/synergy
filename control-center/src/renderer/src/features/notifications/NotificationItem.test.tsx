@@ -1,5 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { AlertCircle, Bell, FileAudio, ListChecks } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationItem } from './NotificationItem'
 import { makeNotification } from './test-utils'
@@ -43,5 +45,32 @@ describe('NotificationItem', () => {
     render(<NotificationItem notification={notification} onOpen={onOpen} />)
     await userEvent.setup().click(screen.getByRole('button', { name: /Уведомление 1/ }))
     expect(onOpen).toHaveBeenCalledWith(notification)
+  })
+
+  describe('icon by type', () => {
+    const iconClass = (Icon: LucideIcon): string => {
+      const { container, unmount } = render(<Icon />)
+      const value = container.querySelector('svg')?.getAttribute('class') ?? ''
+      unmount()
+      return value.split(' ').find((name) => name.startsWith('lucide-') && name !== 'lucide-icon') ?? ''
+    }
+    const shown = (type: string, target: { type: string; id: string }): string => {
+      const { container } = render(
+        <NotificationItem notification={{ ...makeNotification('1'), type, target }} onOpen={() => {}} />
+      )
+      return container.querySelector('svg')?.getAttribute('class') ?? ''
+    }
+
+    it.each([
+      ['meeting-transcript.ready', { type: 'chat', id: 'c1' }, FileAudio],
+      ['meeting-transcript.failed', { type: 'chat', id: 'c1' }, AlertCircle],
+      ['task.assigned', { type: 'task', id: 't1' }, ListChecks],
+      ['task.created-on-behalf', { type: 'task', id: 't1' }, ListChecks],
+      ['something.else', { type: 'deal', id: 'd1' }, Bell]
+    ])('%s', (type, target, Icon) => {
+      const expected = iconClass(Icon)
+      expect(expected).not.toBe('')
+      expect(shown(type, target).split(' ')).toContain(expected)
+    })
   })
 })

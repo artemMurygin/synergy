@@ -5,6 +5,24 @@ export const NotificationTargetSchema = z.object({
   id: z.string().min(1),
 });
 
+/** Object types a notification can point at. */
+export const NOTIFICATION_TARGET = { task: "task", chat: "chat" } as const;
+
+export const MEETING_TRANSCRIPT_READY = "meeting-transcript.ready";
+export const MEETING_TRANSCRIPT_FAILED = "meeting-transcript.failed";
+
+/** A transcript of a recording is ready or failed; the target is the chat it was sent to. */
+export function isMeetingTranscriptNotification(notification: {
+  type: string;
+  target: { type: string };
+}): boolean {
+  return (
+    (notification.type === MEETING_TRANSCRIPT_READY ||
+      notification.type === MEETING_TRANSCRIPT_FAILED) &&
+    notification.target.type === NOTIFICATION_TARGET.chat
+  );
+}
+
 export const NotificationSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),

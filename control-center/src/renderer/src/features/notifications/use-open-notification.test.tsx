@@ -1,17 +1,20 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { TaskNotFoundError } from '@/lib/backend/errors'
+import { TaskNotFoundError, ThreadNotFoundError } from '@/lib/backend/errors'
 import * as notificationsApi from '@/lib/backend/notifications.api'
 import * as tasksApi from '@/lib/backend/tasks.api'
+import * as threadsApi from '@/lib/backend/threads.api'
+import { useChatStore } from '@/stores/chat.store'
 import type { TaskDetails } from '@/lib/backend/tasks.schema'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
 import { createTestQueryClient, createWrapper, makeNotification } from './test-utils'
-import { TASK_NOT_FOUND_NOTICE, useOpenNotification } from './use-open-notification'
+import { CHAT_NOT_FOUND_NOTICE, TASK_NOT_FOUND_NOTICE, useOpenNotification } from './use-open-notification'
 
 vi.mock('@/lib/backend/notifications.api')
 vi.mock('@/lib/backend/tasks.api')
+vi.mock('@/lib/backend/threads.api')
 
 const task: TaskDetails = {
   id: 'task-a',
@@ -41,6 +44,8 @@ beforeEach(() => {
   vi.mocked(tasksApi.getTask).mockResolvedValue(task)
   useTasksStore.setState(INITIAL_TASKS_STATE)
   useUiStore.setState({ section: 'chats' })
+  useChatStore.setState({ activeThreadId: null })
+  vi.mocked(threadsApi.getThreadHistory).mockResolvedValue({ running: false, messages: [] })
   useNotificationsStore.getState().reset()
 })
 
@@ -100,5 +105,44 @@ describe('useOpenNotification', () => {
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('a'))
     expect(useUiStore.getState().section).toBe('chats')
     expect(useTasksStore.getState().selectedTaskId).toBeNull()
+  })
+
+  describe('meeting transcript', () => {
+    const ready = {
+      ...makeNotification('m'),
+      type: 'meeting-transcript.ready',
+      title: 'Расшифровка готова',
+      body: 'встреча-12-ноя.m4a',
+      target: { type: 'chat', id: 'chat-7' }
+    }
+
+    it('opens the chats section and that chat', async () => {
+      useUiStore.setState({ section: 'tasks' })
+      const { open } = setup()
+      act(() => open(ready))
+      expect(useUiStore.getState().section).toBe('chats')
+      expect(useChatStore.getState().activeThreadId).toBe('chat-7')
+      await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('m'))
+      await waitFor(() => expect(threadsApi.getThreadHistory).toHaveBeenCalledWith('chat-7'))
+      expect(useNotificationsStore.getState().notice).toBeNull()
+      expect(useTasksStore.getState().selectedTaskId).toBeNull()
+    })
+
+    it('reports a deleted chat', async () => {
+      vi.mocked(threadsApi.getThreadHistory).mockRejectedValue(new ThreadNotFoundError('Thread not found'))
+      const { open } = setup()
+      act(() => open(ready))
+      await waitFor(() => expect(useNotificationsStore.getState().notice).toBe(CHAT_NOT_FOUND_NOTICE))
+      expect(CHAT_NOT_FOUND_NOTICE).toBe('Чат не найден')
+    })
+
+    it('stays quiet about other chat loading errors', async () => {
+      vi.mocked(threadsApi.getThreadHistory).mockRejectedValue(new Error('offline'))
+      const { open } = setup()
+      act(() => open(ready))
+      await waitFor(() => expect(threadsApi.getThreadHistory).toHaveBeenCalled())
+      await Promise.resolve()
+      expect(useNotificationsStore.getState().notice).toBeNull()
+    })
   })
 })
