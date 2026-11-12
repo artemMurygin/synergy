@@ -53,6 +53,10 @@ beforeEach(() => {
   useUiStore.setState({ section: 'chats' })
   vi.mocked(listThreads).mockResolvedValue([mk('a', 'Первый'), mk('b', 'Второй')])
   vi.mocked(deleteThread).mockResolvedValue(undefined)
+  // The chat runtime wraps the agent's run to pass the attached file ids: it needs a real agent.
+  vi.mocked(createAgent).mockImplementation(
+    (threadId: string) => new FakeAgent({ url: 'cc-api://backend/agent', threadId })
+  )
   vi.mocked(getThreadHistory).mockImplementation(async (id: string) => ({
     running: false,
     messages: [{ id: `m-${id}`, role: 'user', content: `Вопрос из ${id}`, attachments: [], source: 'run' }]
