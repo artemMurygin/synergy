@@ -15,11 +15,22 @@ describe('NotificationTarget', () => {
         );
     });
 
-    it.each([['deal'], ['Task'], ['']])('accepts only the task type, not %j', (type) => {
-        expect(() => NotificationTarget.of({ type, id: 'x-1' })).toThrow(
-            InvalidNotificationTargetError,
-        );
+    it('points at a chat by id', () => {
+        const target = NotificationTarget.of({ type: 'chat', id: 'chat-1' });
+
+        expect(target.type).toBe('chat');
+        expect(target.id).toBe('chat-1');
+        expect(target.equals(NotificationTarget.of({ type: 'task', id: 'chat-1' }))).toBe(false);
     });
+
+    it.each([['deal'], ['Task'], ['Chat'], ['']])(
+        'accepts only the known types, not %j',
+        (type) => {
+            expect(() => NotificationTarget.of({ type, id: 'x-1' })).toThrow(
+                InvalidNotificationTargetError,
+            );
+        },
+    );
 
     it('compares by value', () => {
         const target = NotificationTarget.of({ type: 'task', id: 'task-1' });

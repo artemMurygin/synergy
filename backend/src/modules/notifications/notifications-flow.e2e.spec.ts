@@ -22,6 +22,8 @@ import { JwtAccessTokenService } from '../auth/infrastructure/jwt-access-token.s
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { PasswordChangeGuard } from '../auth/interface/http/password-change.guard';
+import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
+import { FilesModule } from '../files/files.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { channelSubscriberName } from './application/channel-delivery.subscriber';
 import { TASK_ASSIGNED_ON_CREATE_SUBSCRIBER } from './application/task-created.subscriber';
@@ -72,6 +74,18 @@ const tokens = new JwtAccessTokenService({
     exports: [AccessTokenService],
 })
 class AuthStubModule {}
+
+/** Stands in for FilesModule (object storage, queues): the flow does not issue documents. */
+@Module({
+    providers: [
+        {
+            provide: StoreGeneratedFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+    ],
+    exports: [StoreGeneratedFileUseCase],
+})
+class NoFilesModule {}
 
 function withDatabase(url: string, database: string): string {
     const parsed = new URL(url);
@@ -194,6 +208,8 @@ describe.skipIf(adminUrl === undefined)('notifications flow (modules wired end t
                             OUTBOX_RETENTION_DAYS: 7,
                             AUTH_ALLOWED_ORIGINS: [],
                             NOTIFICATIONS_WS_PING_INTERVAL_MS: 20_000,
+                            // The tasks agent model is built at wiring time; no request is sent.
+                            OPENROUTER_API_KEY: 'test-key',
                         }),
                     ],
                 }),
@@ -206,6 +222,8 @@ describe.skipIf(adminUrl === undefined)('notifications flow (modules wired end t
         })
             .overrideModule(AuthModule)
             .useModule(AuthStubModule)
+            .overrideModule(FilesModule)
+            .useModule(NoFilesModule)
             .compile();
         app = moduleRef.createNestApplication({ logger: false });
         const requestContext = new RequestContextMiddleware();

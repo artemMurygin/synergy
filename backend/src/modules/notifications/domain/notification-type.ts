@@ -1,6 +1,11 @@
 import { ArgumentInvalidError } from '../../../shared/errors';
 
-export const NOTIFICATION_TYPES = ['task.assigned'] as const;
+export const NOTIFICATION_TYPES = [
+    'task.assigned',
+    'task.created-on-behalf',
+    'meeting-transcript.ready',
+    'meeting-transcript.failed',
+] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

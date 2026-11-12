@@ -1,6 +1,6 @@
 import { ArgumentInvalidError } from '../../../shared/errors';
 
-export const NOTIFICATION_TARGET_TYPES = ['task'] as const;
+export const NOTIFICATION_TARGET_TYPES = ['task', 'chat'] as const;
 
 export type NotificationTargetType = (typeof NOTIFICATION_TARGET_TYPES)[number];
 

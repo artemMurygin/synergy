@@ -20,12 +20,17 @@ import {
 const TASK_ID = '5b0e6c1e-7d1f-4f43-9a3e-2b1c0d9e8f7a';
 const EVENT_ID = '0c8d7e6f-5a4b-4c3d-9e2f-1a0b9c8d7e6f';
 
-function taskCreated(assigneeId: string | null, creatorId = 'ivanov-id'): TaskCreatedEvent {
+function taskCreated(
+    assigneeId: string | null,
+    creatorId = 'ivanov-id',
+    initiatorId?: string,
+): TaskCreatedEvent {
     return new TaskCreatedEvent({
         id: EVENT_ID,
         aggregateId: TASK_ID,
         title: 'Подготовить КП',
         creatorId,
+        ...(initiatorId === undefined ? {} : { initiatorId }),
         assigneeId,
         metadata: { timestamp: 1_700_000_000_000, correlationId: 'corr-1', userId: creatorId },
     });
@@ -123,6 +128,68 @@ describe('TaskCreatedSubscriber', () => {
 
         expect(users.requestedIds).toEqual([]);
         expect(notifications.byId.size).toBe(0);
+    });
+
+    describe('a task set on behalf of another creator', () => {
+        beforeEach(() => {
+            users.loginById.set('boris-id', 'boris');
+        });
+
+        it('notifies the creator with task.created-on-behalf and the assignee with task.assigned', async () => {
+            await subscriber.handle(taskCreated('petrova-id', 'boris-id', 'ivanov-id'));
+
+            const stored = [...notifications.byId.values()];
+            expect(
+                stored.map((n) => [n.recipientId, n.type, n.actorId, n.target.id]).sort(),
+            ).toEqual([
+                ['boris-id', 'task.created-on-behalf', 'ivanov-id', TASK_ID],
+                ['petrova-id', 'task.assigned', 'ivanov-id', TASK_ID],
+            ]);
+            const onBehalf = stored.find((n) => n.type === 'task.created-on-behalf');
+            expect(onBehalf?.content.body).toContain('ivanov');
+            expect(onBehalf?.content.body).toContain('Подготовить КП');
+            expect(users.requestedIds).toEqual(['ivanov-id']);
+        });
+
+        it('creates both notifications when the creator is also the assignee', async () => {
+            await subscriber.handle(taskCreated('boris-id', 'boris-id', 'ivanov-id'));
+
+            expect(
+                [...notifications.byId.values()].map((n) => [n.recipientId, n.type]).sort(),
+            ).toEqual([
+                ['boris-id', 'task.assigned'],
+                ['boris-id', 'task.created-on-behalf'],
+            ]);
+        });
+
+        it('creates only task.created-on-behalf for a task without an assignee', async () => {
+            await subscriber.handle(taskCreated(null, 'boris-id', 'ivanov-id'));
+
+            expect([...notifications.byId.values()].map((n) => n.type)).toEqual([
+                'task.created-on-behalf',
+            ]);
+        });
+
+        it('does not duplicate either notification when the event is handled again', async () => {
+            await subscriber.handle(taskCreated('petrova-id', 'boris-id', 'ivanov-id'));
+            await subscriber.handle(taskCreated('petrova-id', 'boris-id', 'ivanov-id'));
+
+            expect(notifications.byId.size).toBe(2);
+            expect(events.published).toHaveLength(2);
+        });
+
+        it('creates no task.created-on-behalf when the initiator is the creator', async () => {
+            await subscriber.handle(taskCreated('petrova-id', 'ivanov-id', 'ivanov-id'));
+
+            expect([...notifications.byId.values()].map((n) => n.type)).toEqual(['task.assigned']);
+        });
+
+        it('fails when the initiator is unknown to the user directory', async () => {
+            await expect(
+                subscriber.handle(taskCreated(null, 'boris-id', 'missing-id')),
+            ).rejects.toBeInstanceOf(NotificationActorNotFoundError);
+            expect(notifications.byId.size).toBe(0);
+        });
     });
 
     it('rejects an event of another type', async () => {

@@ -6,6 +6,7 @@ import { RealtimeBrokerStatus } from '../../shared/realtime/realtime-broker-stat
 import { RealtimeBrokerStatusPort } from '../../shared/realtime/realtime-broker-status.port';
 import { RealtimeSettings } from '../../shared/realtime/realtime-settings';
 import { AuthModule } from '../auth/auth.module';
+import { ChatSystemMessagePostedSubscriber } from './application/chat-system-message-posted.subscriber';
 import { CreateNotificationsUseCase } from './application/create-notifications.use-case';
 import { GetUnreadCountUseCase } from './application/get-unread-count.use-case';
 import { ListNotificationsUseCase } from './application/list-notifications.use-case';
@@ -56,6 +57,7 @@ import { UserRealtimeEmitter } from './interface/ws/user-realtime-emitter';
         MarkAllNotificationsReadUseCase,
         CreateNotificationsUseCase,
         TaskCreatedSubscriber,
+        ChatSystemMessagePostedSubscriber,
         NotificationEventSubscriptions,
         NotificationChannelSubscriptions,
         NotificationsGateway,

@@ -5,13 +5,19 @@ import { NotificationTarget } from './notification-target';
 
 const TASK_ASSIGNED_TITLE = 'Вам назначена задача';
 
+/**
+ * The assignee learns about a new task from the user who actually set it (the initiator). A task
+ * the initiator assigned to themselves needs no notification; the creator set on someone's
+ * behalf is notified as an assignee like anyone else.
+ */
 export class TaskAssignedOnCreateRule {
     appliesTo(event: TaskCreatedEvent): boolean {
-        return event.assigneeId !== null && event.assigneeId !== event.creatorId;
+        return event.assigneeId !== null && event.assigneeId !== event.initiatorId;
     }
 
+    /** `actorLogin` is the login of the initiator. */
     apply(event: TaskCreatedEvent, actorLogin: string): NotificationDraft[] {
-        const { assigneeId, creatorId } = event;
+        const { assigneeId, initiatorId } = event;
         if (assigneeId === null || !this.appliesTo(event)) return [];
         return [
             {
@@ -22,7 +28,7 @@ export class TaskAssignedOnCreateRule {
                     body: `От ${actorLogin}: ${event.title}`,
                 }),
                 target: NotificationTarget.of({ type: 'task', id: event.taskId }),
-                actorId: creatorId,
+                actorId: initiatorId,
             },
         ];
     }

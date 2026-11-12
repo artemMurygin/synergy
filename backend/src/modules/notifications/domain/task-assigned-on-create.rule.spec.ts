@@ -4,11 +4,16 @@ import { TaskAssignedOnCreateRule } from './task-assigned-on-create.rule';
 
 const TASK_ID = '5b0e6c1e-7d1f-4f43-9a3e-2b1c0d9e8f7a';
 
-function taskCreated(assigneeId: string | null, creatorId = 'ivanov-id'): TaskCreatedEvent {
+function taskCreated(
+    assigneeId: string | null,
+    creatorId = 'ivanov-id',
+    initiatorId?: string,
+): TaskCreatedEvent {
     return new TaskCreatedEvent({
         aggregateId: TASK_ID,
         title: 'Подготовить КП для клиента',
         creatorId,
+        ...(initiatorId === undefined ? {} : { initiatorId }),
         assigneeId,
         metadata: { timestamp: 1_700_000_000_000, correlationId: 'corr-1', userId: creatorId },
     });
@@ -43,5 +48,24 @@ describe('TaskAssignedOnCreateRule', () => {
         expect(rule.appliesTo(taskCreated('petrova-id'))).toBe(true);
         expect(rule.appliesTo(taskCreated('ivanov-id'))).toBe(false);
         expect(rule.appliesTo(taskCreated(null))).toBe(false);
+    });
+
+    it('names the initiator, who actually set the task, as the actor of task.assigned', () => {
+        const [draft] = rule.apply(taskCreated('petrova-id', 'boris-id', 'ivanov-id'), 'ivanov');
+
+        expect(draft.recipientId).toBe('petrova-id');
+        expect(draft.actorId).toBe('ivanov-id');
+        expect(draft.content.body).toBe('От ivanov: Подготовить КП для клиента');
+    });
+
+    it('notifies the creator as the assignee when someone else set the task on their behalf', () => {
+        const event = taskCreated('boris-id', 'boris-id', 'ivanov-id');
+
+        expect(rule.appliesTo(event)).toBe(true);
+        expect(rule.apply(event, 'ivanov').map((draft) => draft.recipientId)).toEqual(['boris-id']);
+    });
+
+    it('drafts nothing when the initiator assigned the task to themselves', () => {
+        expect(rule.apply(taskCreated('ivanov-id', 'boris-id', 'ivanov-id'), 'ivanov')).toEqual([]);
     });
 });
