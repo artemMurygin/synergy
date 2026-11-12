@@ -29,6 +29,7 @@ const view: TaskView = {
     status: 'todo',
     deadline: new Date('2026-12-01T09:00:00.000Z'),
     creator: { id: USER_ID, login: 'anna' },
+    initiator: { id: USER_ID, login: 'anna' },
     assignee: { id: OTHER_ID, login: null },
     watchers: [{ id: OTHER_ID, login: null }],
     createdAt: new Date('2026-11-06T10:00:00.000Z'),
@@ -86,7 +87,8 @@ describe('TasksController', () => {
                 deadline: '2026-12-01T12:00:00+03:00',
                 assigneeId: OTHER_ID,
                 watcherIds: [OTHER_ID],
-                creatorId: 'someone-else',
+                creatorId: OTHER_ID,
+                initiatorId: OTHER_ID,
             });
 
             expect(response.status).toBe(201);
@@ -97,6 +99,7 @@ describe('TasksController', () => {
                 status: 'todo',
                 deadline: '2026-12-01T09:00:00.000Z',
                 creator: { id: USER_ID, login: 'anna' },
+                initiator: { id: USER_ID, login: 'anna' },
                 assignee: { id: OTHER_ID, login: null },
                 watchers: [{ id: OTHER_ID, login: null }],
                 createdAt: '2026-11-06T10:00:00.000Z',
@@ -109,6 +112,9 @@ describe('TasksController', () => {
                 Record<string, unknown>,
             ];
             expect(actor.userId).toBe(USER_ID);
+            // Создатель и инициатор из тела игнорируются: оба берутся из токена.
+            expect(input).not.toHaveProperty('creatorId');
+            expect(input).not.toHaveProperty('initiatorId');
             expect(input).toEqual({
                 title: 'Подготовить КП',
                 deadline: new Date('2026-12-01T09:00:00.000Z'),

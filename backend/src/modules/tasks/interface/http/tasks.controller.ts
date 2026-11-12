@@ -86,7 +86,7 @@ export class TasksController {
     ) {}
 
     @Post()
-    @ApiOperation({ summary: 'Create a task; the creator is the token user' })
+    @ApiOperation({ summary: 'Create a task; the creator and the initiator are the token user' })
     @ApiBody({ schema: zodToOpenApi(createTaskRequestSchema) })
     @ApiResponse({ status: HttpStatus.CREATED, description: 'Created task', type: TaskResponse })
     @badRequest

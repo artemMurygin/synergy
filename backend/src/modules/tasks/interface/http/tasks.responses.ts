@@ -40,8 +40,14 @@ export class TaskResponse {
     @ApiProperty({ type: String, nullable: true, example: '2026-12-01T09:00:00.000Z' })
     readonly deadline: string | null;
 
-    @ApiProperty({ type: TaskUserResponse })
+    @ApiProperty({ type: TaskUserResponse, description: 'Постановщик задачи' })
     readonly creator: TaskUserResponse;
+
+    @ApiProperty({
+        type: TaskUserResponse,
+        description: 'Кто фактически создал задачу; у старых задач равен создателю',
+    })
+    readonly initiator: TaskUserResponse;
 
     @ApiProperty({ type: TaskUserResponse, nullable: true })
     readonly assignee: TaskUserResponse | null;
@@ -68,6 +74,7 @@ export class TaskResponse {
         this.status = view.status;
         this.deadline = view.deadline?.toISOString() ?? null;
         this.creator = new TaskUserResponse(view.creator);
+        this.initiator = new TaskUserResponse(view.initiator);
         this.assignee = view.assignee === null ? null : new TaskUserResponse(view.assignee);
         this.watchers = view.watchers.map((watcher) => new TaskUserResponse(watcher));
         this.createdAt = view.createdAt.toISOString();

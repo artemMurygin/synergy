@@ -21,6 +21,7 @@ const taskRow = z.object({
     status: z.string(),
     deadline: z.number().nullable(),
     creator_id: z.string(),
+    initiator_id: z.string(),
     assignee_id: z.string().nullable(),
     created_at: z.number(),
     updated_at: z.number(),
@@ -34,7 +35,7 @@ const millis = (column: string): FragmentSqlToken =>
     sql.fragment`(extract(epoch FROM ${sql.identifier([column])}) * 1000)::float8 AS ${sql.identifier([column])}`;
 
 const COLUMNS = sql.fragment`
-    id, title, description, status, creator_id, assignee_id,
+    id, title, description, status, creator_id, initiator_id, assignee_id,
     ${millis('deadline')}, ${millis('created_at')}, ${millis('updated_at')},
     ${millis('completed_at')}, ${millis('deleted_at')}`;
 
@@ -56,6 +57,7 @@ function toTask(raw: unknown, watcherIds: string[]): Task {
         status: TaskStatus.parse(row.status),
         deadline: toDate(row.deadline),
         creatorId: row.creator_id,
+        initiatorId: row.initiator_id,
         assigneeId: row.assignee_id,
         watcherIds,
         completedAt: toDate(row.completed_at),
@@ -131,10 +133,11 @@ export class SlonikTaskRepository extends TaskRepository {
             }
             await tx.query(sql.unsafe`
                 INSERT INTO task
-                    (id, title, description, status, deadline, creator_id, assignee_id,
+                    (id, title, description, status, deadline, creator_id, initiator_id, assignee_id,
                      created_at, updated_at, completed_at, deleted_at)
                 VALUES (${task.id}, ${task.title.value}, ${task.description}, ${task.status},
-                        ${nullableTimestamp(task.deadline)}, ${task.creatorId}, ${task.assigneeId},
+                        ${nullableTimestamp(task.deadline)}, ${task.creatorId}, ${task.initiatorId},
+                        ${task.assigneeId},
                         ${sql.timestamp(task.createdAt)}, ${sql.timestamp(task.updatedAt)},
                         ${nullableTimestamp(task.completedAt)}, ${nullableTimestamp(task.deletedAt)})
                 ON CONFLICT (id) DO UPDATE SET

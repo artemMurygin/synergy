@@ -16,6 +16,11 @@ export interface CreateTaskInput {
     deadline?: Date | null;
     assigneeId?: string | null;
     watcherIds?: readonly string[];
+    /**
+     * Постановщик, если он не совпадает с инициатором. Задаётся только при создании агентом
+     * по подтверждению пользователя; HTTP его не передаёт. По умолчанию — `actor`.
+     */
+    creatorId?: string;
 }
 
 @Injectable()
@@ -28,15 +33,21 @@ export class CreateTaskUseCase {
         private readonly events: DomainEventPublisherPort,
     ) {}
 
+    /** `actor` — инициатор: аутентифицированный пользователь, который фактически создаёт задачу. */
     async execute(actor: Actor, input: CreateTaskInput): Promise<TaskView> {
         const title = TaskTitle.of(input.title);
-        await assertActiveUsers(this.users, [input.assigneeId, ...(input.watcherIds ?? [])]);
+        await assertActiveUsers(this.users, [
+            input.creatorId,
+            input.assigneeId,
+            ...(input.watcherIds ?? []),
+        ]);
         const task = Task.create({
             id: randomUUID(),
             title,
             description: input.description,
             deadline: input.deadline,
-            creatorId: actor.userId,
+            creatorId: input.creatorId ?? actor.userId,
+            initiatorId: actor.userId,
             assigneeId: input.assigneeId,
             watcherIds: input.watcherIds,
             now: this.clock.now(),

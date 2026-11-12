@@ -74,6 +74,7 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
             description?: string;
             deadline?: Date | null;
             creatorId?: string;
+            initiatorId?: string;
             assigneeId?: string | null;
             watcherIds?: string[];
             createdAt?: Date;
@@ -86,6 +87,7 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
             description: overrides.description,
             deadline: overrides.deadline,
             creatorId: overrides.creatorId ?? alice,
+            initiatorId: overrides.initiatorId,
             assigneeId: overrides.assigneeId,
             watcherIds: overrides.watcherIds,
             now: overrides.createdAt ?? new Date(T0.getTime() + seq * 1000),
@@ -191,7 +193,12 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
                 {
                     event_type: TASK_CREATED_EVENT_TYPE,
                     aggregate_id: task.id,
-                    payload: { title: 'Подготовить КП', creatorId: alice, assigneeId: bob },
+                    payload: {
+                        title: 'Подготовить КП',
+                        creatorId: alice,
+                        initiatorId: alice,
+                        assigneeId: bob,
+                    },
                 },
             ]);
             const deliveries = await client.query<{ subscriber: string; status: string }>(
@@ -258,11 +265,27 @@ describe.skipIf(adminUrl === undefined)('Slonik tasks repositories', () => {
             expect(found?.status).toBe('todo');
             expect(found?.deadline?.getTime()).toBe(deadline.getTime());
             expect(found?.creatorId).toBe(alice);
+            expect(found?.initiatorId).toBe(alice);
             expect(found?.assigneeId).toBe(bob);
             expect([...(found?.watcherIds ?? [])].sort()).toEqual([bob, carol].sort());
             expect(found?.createdAt.getTime()).toBe(task.createdAt.getTime());
             expect(found?.completedAt).toBeNull();
             expect(found?.deletedAt).toBeNull();
+        });
+
+        it('stores an initiator that differs from the creator and keeps it on update', async () => {
+            const task = makeTask({ creatorId: bob, initiatorId: alice });
+            await tasks.save(task);
+
+            const found = await tasks.findById(task.id);
+            expect(found?.creatorId).toBe(bob);
+            expect(found?.initiatorId).toBe(alice);
+
+            found?.rename(TaskTitle.of('Renamed'));
+            if (found !== null) await tasks.save(found);
+            const listed = (await list({ creatorId: bob })).items.find((t) => t.id === task.id);
+            expect(listed?.initiatorId).toBe(alice);
+            expect(listed?.title.value).toBe('Renamed');
         });
 
         it('findById returns null for an unknown id', async () => {

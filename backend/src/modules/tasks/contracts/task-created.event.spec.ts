@@ -8,11 +8,12 @@ import { TASK_CREATED_EVENT_TYPE, TaskCreatedEvent } from './task-created.event'
 
 const metadata = { timestamp: 1_700_000_000_000, correlationId: 'corr-1', userId: 'creator' };
 
-function createdEvent(assigneeId: string | null): TaskCreatedEvent {
+function createdEvent(assigneeId: string | null, initiatorId = 'initiator'): TaskCreatedEvent {
     return new TaskCreatedEvent({
         aggregateId: '5b0e6c1e-7d1f-4f43-9a3e-2b1c0d9e8f7a',
         title: 'Подготовить КП',
         creatorId: 'creator',
+        initiatorId,
         assigneeId,
         metadata,
     });
@@ -42,6 +43,7 @@ describe('TaskCreatedEvent contract', () => {
         expect(serialized.payload).toEqual({
             title: 'Подготовить КП',
             creatorId: 'creator',
+            initiatorId: 'initiator',
             assigneeId: 'assignee',
         });
     });
@@ -75,11 +77,30 @@ describe('TaskCreatedEvent contract', () => {
         expect(restored.taskId).toBe(original.taskId);
         expect(restored.title).toBe('Подготовить КП');
         expect(restored.creatorId).toBe('creator');
+        expect(restored.initiatorId).toBe('initiator');
         expect(restored.assigneeId).toBe(assigneeId);
         expect(restored.metadata).toEqual(original.metadata);
     });
 
+    it('restores an event written before the initiator existed with the creator as initiator', () => {
+        const restored = registry().restore({
+            id: 'e0',
+            eventType: TASK_CREATED_EVENT_TYPE,
+            aggregateId: 't1',
+            payload: { title: 'КП', creatorId: 'creator', assigneeId: null },
+            metadata,
+        });
+
+        expect(restored).toBeInstanceOf(TaskCreatedEvent);
+        if (!(restored instanceof TaskCreatedEvent)) return;
+        expect(restored.initiatorId).toBe('creator');
+    });
+
     it.each([
+        [
+            'an empty initiator',
+            { title: 'КП', creatorId: 'creator', initiatorId: '', assigneeId: null },
+        ],
         ['an empty title', { title: '', creatorId: 'creator', assigneeId: null }],
         ['a missing creator', { title: 'КП', assigneeId: null }],
         ['an undefined assignee', { title: 'КП', creatorId: 'creator' }],

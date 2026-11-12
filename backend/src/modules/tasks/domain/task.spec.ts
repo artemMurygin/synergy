@@ -42,6 +42,23 @@ describe('Task creation', () => {
         expect(task.updatedAt).toEqual(t0);
     });
 
+    it('makes the creator the initiator by default', () => {
+        expect(minimal().initiatorId).toBe('creator');
+    });
+
+    it('keeps an initiator that differs from the creator', () => {
+        const task = Task.create({
+            id: 't1',
+            title: TaskTitle.of('Отчёт'),
+            creatorId: 'creator',
+            initiatorId: 'initiator',
+            now: t0,
+        });
+
+        expect(task.creatorId).toBe('creator');
+        expect(task.initiatorId).toBe('initiator');
+    });
+
     it('keeps all provided fields', () => {
         const deadline = new Date('2026-02-01T00:00:00Z');
         const task = Task.create({
@@ -116,6 +133,7 @@ describe('Task.restore', () => {
             status: 'done',
             deadline: null,
             creatorId: 'creator',
+            initiatorId: 'initiator',
             assigneeId: 'a1',
             watcherIds: ['w1'],
             createdAt: t0,
@@ -124,6 +142,7 @@ describe('Task.restore', () => {
             deletedAt: null,
         });
         expect(task.status).toBe('done');
+        expect(task.initiatorId).toBe('initiator');
         expect(task.completedAt).toEqual(t1);
         expect(task.createdAt).toEqual(t0);
         expect(task.updatedAt).toEqual(t1);
@@ -137,6 +156,7 @@ describe('Task.restore', () => {
             status: 'todo',
             deadline: null,
             creatorId: 'creator',
+            initiatorId: 'creator',
             assigneeId: 'a1',
             watcherIds: [],
             createdAt: t0,
@@ -169,7 +189,26 @@ describe('Task.create domain events', () => {
         expect(created.taskId).toBe('t7');
         expect(created.title).toBe('Подготовить КП');
         expect(created.creatorId).toBe('creator');
+        expect(created.initiatorId).toBe('creator');
         expect(created.assigneeId).toBe('a1');
+    });
+
+    it('carries the initiator and stamps it as the acting user', () => {
+        const task = Task.create({
+            id: 't9',
+            title: TaskTitle.of('КП'),
+            creatorId: 'creator',
+            initiatorId: 'initiator',
+            now: t0,
+        });
+
+        const [created] = task.pullDomainEvents();
+
+        expect(created).toBeInstanceOf(TaskCreatedEvent);
+        if (!(created instanceof TaskCreatedEvent)) return;
+        expect(created.creatorId).toBe('creator');
+        expect(created.initiatorId).toBe('initiator');
+        expect(created.metadata.userId).toBe('initiator');
     });
 
     it('stamps the event with the creation time, creator and request correlation id', () => {
@@ -209,6 +248,7 @@ describe('Task.restore invariants', () => {
         description: '',
         deadline: null,
         creatorId: 'creator',
+        initiatorId: 'creator',
         assigneeId: null,
         watcherIds: [],
         createdAt: t0,

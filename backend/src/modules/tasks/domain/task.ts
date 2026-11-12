@@ -17,7 +17,10 @@ export interface TaskProps {
     description: string;
     status: TaskStatus;
     deadline: Date | null;
+    /** Постановщик: от чьего имени поставлена задача. */
     creatorId: string;
+    /** Кто фактически создал задачу. Обычно совпадает с постановщиком. */
+    initiatorId: string;
     assigneeId: string | null;
     watcherIds: string[];
     completedAt: Date | null;
@@ -30,6 +33,8 @@ export interface CreateTaskInput {
     description?: string;
     deadline?: Date | null;
     creatorId: string;
+    /** По умолчанию — постановщик. */
+    initiatorId?: string;
     assigneeId?: string | null;
     watcherIds?: readonly string[];
     now: Date;
@@ -53,6 +58,7 @@ export class Task extends AggregateRoot<TaskProps> {
                 status: 'todo',
                 deadline: input.deadline ?? null,
                 creatorId: input.creatorId,
+                initiatorId: input.initiatorId ?? input.creatorId,
                 assigneeId: input.assigneeId ?? null,
                 watcherIds: [...new Set(input.watcherIds ?? [])],
                 completedAt: null,
@@ -64,10 +70,11 @@ export class Task extends AggregateRoot<TaskProps> {
                 aggregateId: task.id,
                 title: task.title.value,
                 creatorId: task.creatorId,
+                initiatorId: task.initiatorId,
                 assigneeId: task.assigneeId,
                 metadata: {
                     timestamp: input.now.getTime(),
-                    userId: task.creatorId,
+                    userId: task.initiatorId,
                 },
             }),
         );
@@ -96,6 +103,10 @@ export class Task extends AggregateRoot<TaskProps> {
 
     get creatorId(): string {
         return this.props.creatorId;
+    }
+
+    get initiatorId(): string {
+        return this.props.initiatorId;
     }
 
     get assigneeId(): string | null {

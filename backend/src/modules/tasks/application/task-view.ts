@@ -17,6 +17,8 @@ export interface TaskView {
     status: TaskStatus;
     deadline: Date | null;
     creator: TaskUserRef;
+    /** Кто фактически создал задачу; у задач до появления поля равен создателю. */
+    initiator: TaskUserRef;
     assignee: TaskUserRef | null;
     watchers: TaskUserRef[];
     createdAt: Date;
@@ -56,6 +58,7 @@ export async function toTaskViews(
     const ids = new Set<string>();
     for (const task of tasks) {
         ids.add(task.creatorId);
+        ids.add(task.initiatorId);
         if (task.assigneeId !== null) ids.add(task.assigneeId);
         for (const id of task.watcherIds) ids.add(id);
     }
@@ -73,6 +76,7 @@ export async function toTaskViews(
         status: task.status,
         deadline: task.deadline,
         creator: ref(task.creatorId),
+        initiator: ref(task.initiatorId),
         assignee: task.assigneeId === null ? null : ref(task.assigneeId),
         watchers: task.watcherIds.map(ref),
         createdAt: task.createdAt,

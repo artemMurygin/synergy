@@ -14,6 +14,7 @@ export function registerTaskEvents(registry: DomainEventRegistry): void {
         toPayload: (event): TaskCreatedPayload => ({
             title: event.title,
             creatorId: event.creatorId,
+            initiatorId: event.initiatorId,
             assigneeId: event.assigneeId,
         }),
         fromRecord: ({ id, aggregateId, metadata, payload }) =>

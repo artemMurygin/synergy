@@ -97,13 +97,42 @@ describe('CreateTaskUseCase', () => {
         expect(view.attachmentCount).toBe(0);
     });
 
-    it('ignores a creator passed in the input', async () => {
-        const view = await create().execute(me, {
-            title: 'Отчёт',
-            creatorId: 'anna',
-        } as never);
+    it('makes the actor both the creator and the initiator by default', async () => {
+        const view = await create().execute(me, { title: 'Отчёт' });
 
-        expect(view.creator.id).toBe('me');
+        expect(view.creator).toEqual({ id: 'me', login: 'me' });
+        expect(view.initiator).toEqual({ id: 'me', login: 'me' });
+        expect(tasks.byId.get(view.id)?.initiatorId).toBe('me');
+    });
+
+    it('keeps the actor as the initiator when a creator is given', async () => {
+        const view = await create().execute(me, { title: 'Отчёт', creatorId: 'anna' });
+
+        expect(view.creator).toEqual({ id: 'anna', login: 'anna' });
+        expect(view.initiator).toEqual({ id: 'me', login: 'me' });
+        const saved = tasks.byId.get(view.id);
+        expect(saved?.creatorId).toBe('anna');
+        expect(saved?.initiatorId).toBe('me');
+    });
+
+    it('rejects a creator who is unknown or inactive and does not save', async () => {
+        const error: unknown = await create()
+            .execute(me, { title: 'Отчёт', creatorId: 'ghost' })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(TaskUserNotFoundError);
+        expect(error).toMatchObject({ userIds: ['ghost'] });
+        expect(tasks.save).not.toHaveBeenCalled();
+    });
+
+    it('puts the creator and the initiator into TaskCreatedEvent', async () => {
+        await create().execute(me, { title: 'Отчёт', creatorId: 'anna' });
+
+        const [created] = events.published;
+        expect(created).toBeInstanceOf(TaskCreatedEvent);
+        if (!(created instanceof TaskCreatedEvent)) return;
+        expect(created.creatorId).toBe('anna');
+        expect(created.initiatorId).toBe('me');
     });
 
     it('stores assignee, watchers without duplicates, description and deadline', async () => {
@@ -156,6 +185,7 @@ describe('CreateTaskUseCase', () => {
         expect(created.taskId).toBe(view.id);
         expect(created.title).toBe('Отчёт');
         expect(created.creatorId).toBe('me');
+        expect(created.initiatorId).toBe('me');
         expect(created.assigneeId).toBe('anna');
     });
 
