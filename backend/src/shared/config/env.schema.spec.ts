@@ -505,3 +505,35 @@ describe('validateEnv meeting transcription settings', () => {
         ).toThrow('MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC');
     });
 });
+
+describe('validateEnv meeting tasks and chat system message settings', () => {
+    it('uses defaults from design', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.MEETING_TASKS_EXTRACTION_MODEL).toBeUndefined();
+        expect(env.MEETING_TASKS_WINDOW_TOKENS).toBe(60_000);
+        expect(env.MEETING_TASKS_WINDOW_MIN).toBe(30);
+        expect(env.CHAT_SYSTEM_MESSAGE_RETRY_MS).toBe(5000);
+        expect(env.CHAT_SYSTEM_MESSAGE_DEADLINE_MS).toBe(600_000);
+    });
+
+    it('treats an empty extraction model as missing and accepts a set one', () => {
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TASKS_EXTRACTION_MODEL: '' })
+                .MEETING_TASKS_EXTRACTION_MODEL,
+        ).toBeUndefined();
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TASKS_EXTRACTION_MODEL: 'openai/gpt-4.1' })
+                .MEETING_TASKS_EXTRACTION_MODEL,
+        ).toBe('openai/gpt-4.1');
+    });
+
+    it.each([
+        ['MEETING_TASKS_WINDOW_TOKENS', '0'],
+        ['MEETING_TASKS_WINDOW_MIN', '1.5'],
+        ['CHAT_SYSTEM_MESSAGE_RETRY_MS', '-1'],
+        ['CHAT_SYSTEM_MESSAGE_DEADLINE_MS', 'soon'],
+    ])('rejects %s=%s', (name, value) => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
+    });
+});

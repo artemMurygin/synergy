@@ -159,6 +159,16 @@ export const envSchema = z
         // Общий дедлайн одной попытки расшифровки; по истечении — failed с причиной timeout
         MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: positiveInt(7_200_000),
 
+        // Модель извлечения задач из расшифровки; пусто — модель по умолчанию
+        MEETING_TASKS_EXTRACTION_MODEL: z.string().min(1).optional(),
+        // Порог длины расшифровки, после которого она режется на окна
+        MEETING_TASKS_WINDOW_TOKENS: positiveInt(60_000),
+        MEETING_TASKS_WINDOW_MIN: positiveInt(30),
+
+        // Сообщение системы в чат: пауза перед повтором, пока идёт запуск, и предельный срок
+        CHAT_SYSTEM_MESSAGE_RETRY_MS: positiveInt(5000),
+        CHAT_SYSTEM_MESSAGE_DEADLINE_MS: positiveInt(600_000),
+
         OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
         OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
         OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
