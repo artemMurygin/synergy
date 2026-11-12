@@ -1,4 +1,4 @@
-import { errorCode, errorMessage, fetchBackend, BACKEND_ORIGIN } from "./client";
+import { errorCode, errorMessage, fetchBackend } from "./client";
 import {
   AttachmentLimitError,
   AttachmentTooLargeError,
@@ -7,6 +7,7 @@ import {
   TaskUserNotFoundError,
 } from "./errors";
 import { parseBody } from "./parse";
+import { xhrUpload, type UploadOptions } from "./xhr-upload";
 import {
   AttachmentSchema,
   TaskDetailsSchema,
@@ -153,59 +154,17 @@ export async function downloadAttachment(
   };
 }
 
-export interface UploadOptions {
-  /** Fraction 0..1; called only when the total size is known. */
-  onProgress?: (fraction: number) => void;
-  signal?: AbortSignal;
-}
+export type { UploadOptions } from "./xhr-upload";
 
-function abortError(): DOMException {
-  return new DOMException("Загрузка отменена", "AbortError");
-}
-
-/** XHR instead of fetch: fetch cannot report upload progress. */
 export function uploadAttachment(
   taskId: string,
   file: File,
   options: UploadOptions = {},
 ): Promise<Attachment> {
-  const { onProgress, signal } = options;
-  return new Promise<Attachment>((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(abortError());
-      return;
-    }
-    const xhr = new XMLHttpRequest();
-    const onAbort = (): void => xhr.abort();
-    const cleanup = (): void => signal?.removeEventListener("abort", onAbort);
-
-    xhr.open("POST", `${BACKEND_ORIGIN}${taskPath(taskId)}/attachments`);
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable && event.total > 0) {
-        onProgress?.(event.loaded / event.total);
-      }
-    });
-    xhr.addEventListener("load", () => {
-      cleanup();
-      const response = new Response(xhr.responseText, { status: xhr.status });
-      if (xhr.status >= 200 && xhr.status < 300) {
-        parseBody(response, AttachmentSchema).then(resolve, reject);
-      } else {
-        failure(response).then(reject, reject);
-      }
-    });
-    xhr.addEventListener("error", () => {
-      cleanup();
-      reject(new BackendError("Не удалось связаться с сервером. Он запущен?"));
-    });
-    xhr.addEventListener("abort", () => {
-      cleanup();
-      reject(abortError());
-    });
-    signal?.addEventListener("abort", onAbort);
-
-    const form = new FormData();
-    form.append("file", file);
-    xhr.send(form);
+  return xhrUpload(`${taskPath(taskId)}/attachments`, {
+    file,
+    schema: AttachmentSchema,
+    failure,
+    options,
   });
 }

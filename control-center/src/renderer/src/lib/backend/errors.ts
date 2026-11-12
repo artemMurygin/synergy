@@ -29,3 +29,23 @@ export class NotificationNotFoundError extends BackendError {}
 export class TelegramNotConfiguredError extends BackendError {}
 
 export class TelegramNotLinkedError extends BackendError {}
+
+/** The stored file does not exist or belongs to another user (HTTP 404, code FILE_NOT_FOUND). */
+export class FileNotFoundError extends BackendError {}
+
+/** The stored file is deleted, its retention period is over (HTTP 410, code FILE_GONE). */
+export class FileGoneError extends BackendError {}
+
+/** The server rejected the file content type (HTTP 415, code FILE_UNSUPPORTED_MEDIA_TYPE). */
+export class UnsupportedFileTypeError extends BackendError {}
+
+/** The file is over the server limit for its kind (HTTP 413, code FILE_TOO_LARGE). */
+export class FileTooLargeError extends BackendError {
+  /** The limit in bytes when the server named it; null otherwise. */
+  readonly maxBytes: number | null;
+
+  constructor(message: string, maxBytes: number | null) {
+    super(message);
+    this.maxBytes = maxBytes;
+  }
+}

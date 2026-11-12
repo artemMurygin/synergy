@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.mocked(deleteThread).mockResolvedValue(undefined)
   vi.mocked(getThreadHistory).mockImplementation(async (id: string) => ({
     running: false,
-    messages: [{ id: `m-${id}`, role: 'user', content: `Вопрос из ${id}` }]
+    messages: [{ id: `m-${id}`, role: 'user', content: `Вопрос из ${id}`, attachments: [], source: 'run' }]
   }))
 })
 

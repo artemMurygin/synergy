@@ -58,3 +58,75 @@ describe("ThreadHistorySchema", () => {
     ).toBe(false);
   });
 });
+
+describe("ThreadHistorySchema attachments and source", () => {
+  const recording = {
+    id: "f1",
+    name: "встреча.m4a",
+    mediaType: "audio/mp4",
+    kind: "recording",
+    sizeBytes: 88_080_384,
+    status: "active",
+  };
+  const transcript = {
+    id: "f2",
+    name: "Расшифровка — встреча.docx",
+    mediaType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    kind: "document",
+    sizeBytes: 49_152,
+    status: "deleted",
+  };
+
+  it("keeps attachments in order and the system source", () => {
+    const parsed = ThreadHistorySchema.parse({
+      messages: [
+        { id: "m1", role: "user", content: "", attachments: [recording] },
+        {
+          id: "m2",
+          role: "assistant",
+          content: "Расшифровка готова",
+          source: "system",
+          attachments: [transcript, recording],
+        },
+      ],
+    });
+    expect(parsed.messages[0].attachments).toEqual([recording]);
+    expect(parsed.messages[1].source).toBe("system");
+    expect(parsed.messages[1].attachments.map((a) => a.id)).toEqual(["f2", "f1"]);
+    expect(parsed.messages[1].attachments[0].status).toBe("deleted");
+  });
+
+  it("defaults to no attachments and the run source for old servers", () => {
+    const parsed = ThreadHistorySchema.parse({
+      messages: [{ id: "m1", role: "assistant", content: "ответ" }],
+    });
+    expect(parsed.messages[0].attachments).toEqual([]);
+    expect(parsed.messages[0].source).toBe("run");
+  });
+
+  it("keeps the other AG-UI fields of a message", () => {
+    const toolCalls = [
+      { id: "c1", type: "function", function: { name: "t", arguments: "{}" } },
+    ];
+    const parsed = ThreadHistorySchema.parse({
+      messages: [{ id: "m1", role: "assistant", content: "x", toolCalls }],
+    });
+    expect((parsed.messages[0] as { toolCalls?: unknown }).toolCalls).toEqual(
+      toolCalls,
+    );
+  });
+
+  it.each([
+    ["an unknown source", { source: "cron" }],
+    ["an unknown file status", { attachments: [{ ...recording, status: "lost" }] }],
+    ["an unknown file kind", { attachments: [{ ...recording, kind: "image" }] }],
+    ["an attachment without id", { attachments: [{ ...recording, id: undefined }] }],
+  ])("rejects %s", (_label, extra) => {
+    expect(
+      ThreadHistorySchema.safeParse({
+        messages: [{ id: "m1", role: "assistant", content: "x", ...extra }],
+      }).success,
+    ).toBe(false);
+  });
+});

@@ -143,7 +143,11 @@ describe('forward', () => {
     '/notifications/n1/read',
     '/notifications/read-all',
     '/telegram/link',
-    '/telegram/link-token'
+    '/telegram/link-token',
+    '/files',
+    '/files/f1',
+    '/files/f1/download-link',
+    '/files/f1/content?token=abc'
   ])(
     'allows path %s',
     async (path) => {
@@ -172,7 +176,7 @@ describe('forward', () => {
     expect(res.headers.get('content-disposition')).toContain('a.bin')
   })
 
-  it.each(['/other', '/taskss', '/usersx', '/admin/tasks', '/threadsx', '/admin/threads', '/notificationsx', '/admin/notifications', '/telegramx', '/admin/telegram'])('rejects path %s with 403', async (path) => {
+  it.each(['/other', '/taskss', '/usersx', '/admin/tasks', '/threadsx', '/admin/threads', '/notificationsx', '/admin/notifications', '/telegramx', '/admin/telegram', '/filesx', '/admin/files', '/transcripts', '/transcripts/t1'])('rejects path %s with 403', async (path) => {
     const res = await forward(new Request(`cc-api://backend${path}`), BACKEND, auth)
     expect(res.status).toBe(403)
     expect(fetchMock).not.toHaveBeenCalled()

@@ -57,8 +57,8 @@ beforeEach(() => {
   vi.mocked(getThreadHistory).mockResolvedValue({
     running: false,
     messages: [
-      { id: 'u1', role: 'user', content: 'Сколько стоит MBA?' },
-      { id: 'a1', role: 'assistant', content: 'От 420 000 ₽' }
+      { id: 'u1', role: 'user', content: 'Сколько стоит MBA?', attachments: [], source: 'run' },
+      { id: 'a1', role: 'assistant', content: 'От 420 000 ₽', attachments: [], source: 'run' }
     ]
   })
   useChatStore.setState({ activeThreadId: 't1' })

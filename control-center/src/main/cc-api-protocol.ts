@@ -9,7 +9,7 @@ export type ProxyAuthPort = Pick<
 const SCHEME = 'cc-api'
 const HOST = 'backend'
 const PROACTIVE_REFRESH_TTL_MS = 30_000
-const ALLOWED_PREFIXES = ['/threads', '/agent', '/tasks', '/users', '/notifications', '/telegram']
+const ALLOWED_PREFIXES = ['/threads', '/agent', '/tasks', '/users', '/notifications', '/telegram', '/files']
 const DROPPED_HEADERS = ['authorization', 'cookie', 'host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-authorization', 'x-client-type']
 
 const isAllowedPath = (pathname: string): boolean =>
