@@ -11,6 +11,7 @@ import { FailMeetingTranscriptionOnFileDeleted } from './meeting/application/fai
 import { FailMeetingTranscriptionUseCase } from './meeting/application/fail-meeting-transcription.use-case';
 import { GetMeetingTranscriptUseCase } from './meeting/application/get-meeting-transcript.use-case';
 import { MeetingTranscriptionEventSubscriptions } from './meeting/application/meeting-transcription-event-subscriptions';
+import { RenameSpeakersUseCase } from './meeting/application/rename-speakers.use-case';
 import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-meeting-transcription.use-case';
 import { StartMeetingTranscriptionOnFileUploaded } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
@@ -19,6 +20,7 @@ import { ChunkTranscriberPort } from './meeting/domain/ports/chunk-transcriber.p
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
+import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
 import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
 import { AudioChunker } from './meeting/infrastructure/ffmpeg/audio-chunker';
 import { ChunkTranscriber } from './meeting/infrastructure/openrouter/chunk-transcriber';
@@ -26,6 +28,7 @@ import { MeetingTranscriptionQueue } from './meeting/infrastructure/queue/meetin
 import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/meeting-transcription-queue.module';
 import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/meeting-transcription.processor';
 import { MeetingTranscriptRepository } from './meeting/infrastructure/persistence/meeting-transcript.repository';
+import { TranscriptSegmentRepository } from './meeting/infrastructure/persistence/transcript-segment.repository';
 import { MeetingTranscriptsController } from './meeting/interface/http/meeting-transcripts.controller';
 import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/meeting-transcription-error-status';
 
@@ -45,6 +48,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         // Расшифровка записей встреч.
         TranscribeMeetingUseCase,
         GetMeetingTranscriptUseCase,
+        RenameSpeakersUseCase,
         RetryMeetingTranscriptionUseCase,
         FailMeetingTranscriptionUseCase,
         StartMeetingTranscriptionOnFileUploaded,
@@ -52,6 +56,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         MeetingTranscriptionEventSubscriptions,
         MeetingTranscriptionProcessor,
         { provide: MeetingTranscriptRepositoryPort, useClass: MeetingTranscriptRepository },
+        { provide: TranscriptSegmentRepositoryPort, useClass: TranscriptSegmentRepository },
         { provide: MeetingTranscriptionQueuePort, useClass: MeetingTranscriptionQueue },
         {
             provide: AudioChunkerPort,

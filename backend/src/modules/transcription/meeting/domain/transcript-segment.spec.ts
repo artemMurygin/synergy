@@ -2,17 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { InvalidTranscriptSegmentError } from './errors';
 import { countSpeakers, TranscriptSegment } from './transcript-segment';
 
+const valid = { seq: 0, speaker: 1, startSec: 1.5, endSec: 3, text: 'привет' };
+
 describe('TranscriptSegment', () => {
-    it('keeps the speaker, the time and the trimmed text', () => {
-        expect(
-            TranscriptSegment.of({ speaker: 'Спикер 1', start: 1.5, end: 3, text: '  привет ' }),
-        ).toEqual({ speaker: 'Спикер 1', start: 1.5, end: 3, text: 'привет' });
+    it('keeps the number, the speaker number, the time and the trimmed text', () => {
+        expect(TranscriptSegment.of({ ...valid, seq: 4, speaker: 2, text: '  привет ' })).toEqual({
+            seq: 4,
+            speaker: 2,
+            startSec: 1.5,
+            endSec: 3,
+            text: 'привет',
+        });
+    });
+
+    it('is immutable', () => {
+        expect(Object.isFrozen(TranscriptSegment.of(valid))).toBe(true);
     });
 
     it('accepts a zero-length segment', () => {
-        expect(TranscriptSegment.of({ speaker: 'Спикер 1', start: 2, end: 2, text: 'а' }).end).toBe(
-            2,
-        );
+        expect(TranscriptSegment.of({ ...valid, startSec: 2, endSec: 2 }).endSec).toBe(2);
     });
 
     it.each([
@@ -20,31 +28,37 @@ describe('TranscriptSegment', () => {
         ['end before start', 3, 2],
         ['NaN start', Number.NaN, 2],
         ['infinite end', 0, Number.POSITIVE_INFINITY],
-    ])('rejects %s', (_case, start, end) => {
-        expect(() =>
-            TranscriptSegment.of({ speaker: 'Спикер 1', start, end, text: 'текст' }),
-        ).toThrow(InvalidTranscriptSegmentError);
+    ])('rejects %s', (_case, startSec, endSec) => {
+        expect(() => TranscriptSegment.of({ ...valid, startSec, endSec })).toThrow(
+            InvalidTranscriptSegmentError,
+        );
     });
 
     it('rejects an empty text', () => {
-        expect(() =>
-            TranscriptSegment.of({ speaker: 'Спикер 1', start: 0, end: 1, text: '   ' }),
-        ).toThrow(InvalidTranscriptSegmentError);
+        expect(() => TranscriptSegment.of({ ...valid, text: '   ' })).toThrow(
+            InvalidTranscriptSegmentError,
+        );
     });
 
-    it('rejects an empty speaker', () => {
-        expect(() => TranscriptSegment.of({ speaker: ' ', start: 0, end: 1, text: 'да' })).toThrow(
+    it.each([-1, 1.5, Number.NaN])('rejects the sequence number %s', (seq) => {
+        expect(() => TranscriptSegment.of({ ...valid, seq })).toThrow(
+            InvalidTranscriptSegmentError,
+        );
+    });
+
+    it.each([0, -2, 1.5, Number.NaN])('rejects the speaker number %s', (speaker) => {
+        expect(() => TranscriptSegment.of({ ...valid, speaker })).toThrow(
             InvalidTranscriptSegmentError,
         );
     });
 });
 
 describe('countSpeakers', () => {
-    it('counts distinct speaker labels', () => {
+    it('counts distinct speaker numbers', () => {
         const segments = [
-            TranscriptSegment.of({ speaker: 'Спикер 1', start: 0, end: 1, text: 'а' }),
-            TranscriptSegment.of({ speaker: 'Спикер 2', start: 1, end: 2, text: 'б' }),
-            TranscriptSegment.of({ speaker: 'Спикер 1', start: 2, end: 3, text: 'в' }),
+            TranscriptSegment.of({ ...valid, seq: 0, speaker: 1 }),
+            TranscriptSegment.of({ ...valid, seq: 1, speaker: 2 }),
+            TranscriptSegment.of({ ...valid, seq: 2, speaker: 1 }),
         ];
 
         expect(countSpeakers(segments)).toBe(2);

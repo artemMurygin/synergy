@@ -21,6 +21,7 @@ import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../../
 import { FakeMeetingTranscriber } from '../../testing/fake-meeting-transcriber';
 import { FakeMeetingTranscriptionQueue } from '../../testing/fake-meeting-transcription-queue';
 import { InMemoryMeetingTranscriptRepository } from '../../testing/in-memory-meeting-transcript.repository';
+import { InMemoryTranscriptSegmentRepository } from '../../testing/in-memory-transcript-segment.repository';
 import {
     MeetingTranscriptionProcessor,
     type ProcessableJob,
@@ -79,6 +80,7 @@ describe('MeetingTranscriptionProcessor', () => {
         );
         transcribe = new TranscribeMeetingUseCase(
             transcripts,
+            new InMemoryTranscriptSegmentRepository(transactions),
             new FakeMeetingTranscriber(() => Promise.reject(new Error('unused'))),
             new OpenFileForProcessingUseCase(files, new InMemoryObjectStorage(), silentLogger()),
             release,

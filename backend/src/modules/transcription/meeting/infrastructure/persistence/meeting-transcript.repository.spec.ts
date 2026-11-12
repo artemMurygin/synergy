@@ -39,9 +39,15 @@ class SilentWakeUp extends OutboxWakeUpPort {
 }
 
 const SEGMENTS = [
-    TranscriptSegment.of({ speaker: 'Спикер 1', start: 0, end: 4.25, text: 'Добрый день.' }),
-    TranscriptSegment.of({ speaker: 'Спикер 2', start: 4.5, end: 9.75, text: 'Здравствуйте!' }),
-    TranscriptSegment.of({ speaker: 'Спикер 1', start: 10, end: 12.5, text: 'Начнём.' }),
+    TranscriptSegment.of({ seq: 0, speaker: 1, startSec: 0, endSec: 4.25, text: 'Добрый день.' }),
+    TranscriptSegment.of({
+        seq: 1,
+        speaker: 2,
+        startSec: 4.5,
+        endSec: 9.75,
+        text: 'Здравствуйте!',
+    }),
+    TranscriptSegment.of({ seq: 2, speaker: 1, startSec: 10, endSec: 12.5, text: 'Начнём.' }),
 ];
 
 describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
@@ -71,6 +77,28 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
             ownerId: owner,
             now: T0,
         });
+    }
+
+    async function completed(): Promise<MeetingTranscript> {
+        const transcript = await pending();
+        await transcripts.insertPendingIfAbsent(transcript);
+        transcript.start();
+        transcript.complete(
+            DiarizedTranscript.of({ language: 'ru', durationSec: 12.5, segments: SEGMENTS }),
+            T1,
+        );
+        transcript.pullDomainEvents();
+        await transcripts.save(transcript);
+        return transcript;
+    }
+
+    async function speakerRows(fileId: string): Promise<{ speaker: number; name: string }[]> {
+        const result = await client.query<{ speaker: number; name: string }>(
+            `SELECT speaker, name FROM meeting_transcript_speaker WHERE file_id = $1
+             ORDER BY speaker`,
+            [fileId],
+        );
+        return result.rows;
     }
 
     async function countRows(table: 'meeting_transcript' | 'outbox_events'): Promise<number> {
@@ -132,6 +160,7 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
 
     beforeEach(async () => {
         await client.query('DELETE FROM outbox_events');
+        await client.query('DELETE FROM meeting_transcript_speaker');
         await client.query('DELETE FROM meeting_transcript');
         await client.query('DELETE FROM stored_file');
         await client.query('DELETE FROM auth_users');
@@ -151,7 +180,8 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
             expect(loaded?.status).toBe('pending');
             expect(loaded?.ownerId).toBe(owner);
             expect(loaded?.attempts).toBe(0);
-            expect(loaded?.segments).toEqual([]);
+            expect(loaded?.speakerCount).toBe(0);
+            expect(loaded?.speakerNames.entries()).toEqual([]);
             expect(loaded?.createdAt).toEqual(T0);
         });
 
@@ -176,7 +206,7 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
     });
 
     describe('save and findByFileId', () => {
-        it('restores segments from JSONB for a completed transcript', async () => {
+        it('restores a completed transcript with its speaker count', async () => {
             const transcript = await pending();
             await transcripts.insertPendingIfAbsent(transcript);
             transcript.start();
@@ -191,7 +221,6 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
             expect(loaded).not.toBeNull();
             if (loaded === null) return;
             expect(loaded.status).toBe('completed');
-            expect(loaded.segments).toEqual(SEGMENTS);
             expect(loaded.language).toBe('ru');
             expect(loaded.durationSec).toBe(12.5);
             expect(loaded.speakerCount).toBe(2);
@@ -217,7 +246,7 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
 
             expect(loaded?.status).toBe('failed');
             expect(loaded?.failureReason).toBe('too-long');
-            expect(loaded?.segments).toEqual([]);
+            expect(loaded?.speakerCount).toBe(0);
             expect(loaded?.completedAt).toEqual(T1);
         });
 
@@ -252,6 +281,84 @@ describe.skipIf(adminUrl === undefined)('MeetingTranscriptRepository', () => {
 
         it('returns null for an unknown file', async () => {
             expect(await transcripts.findByFileId(randomUUID())).toBeNull();
+        });
+    });
+
+    describe('speaker names', () => {
+        it('saves and reads assigned names', async () => {
+            const transcript = await completed();
+
+            transcript.assignSpeakers([
+                { speaker: 1, name: 'Анна' },
+                { speaker: 2, name: 'Олег' },
+            ]);
+            await transcripts.save(transcript);
+            const loaded = await transcripts.findByFileId(transcript.fileId);
+
+            expect(loaded?.speakerNames.entries()).toEqual([
+                { speaker: 1, name: 'Анна' },
+                { speaker: 2, name: 'Олег' },
+            ]);
+            expect(await speakerRows(transcript.fileId)).toEqual([
+                { speaker: 1, name: 'Анна' },
+                { speaker: 2, name: 'Олег' },
+            ]);
+        });
+
+        it('reads names with the row lock as well', async () => {
+            const transcript = await completed();
+            transcript.assignSpeakers([{ speaker: 2, name: 'Олег' }]);
+            await transcripts.save(transcript);
+
+            const loaded = await transactions.run(() =>
+                transcripts.findByFileIdForUpdate(transcript.fileId),
+            );
+
+            expect(loaded?.speakerNames.labelOf(2)).toBe('Олег');
+        });
+
+        it('deletes the row when a name is reset', async () => {
+            const transcript = await completed();
+            transcript.assignSpeakers([
+                { speaker: 1, name: 'Анна' },
+                { speaker: 2, name: 'Олег' },
+            ]);
+            await transcripts.save(transcript);
+
+            transcript.assignSpeakers([{ speaker: 1, name: '' }]);
+            await transcripts.save(transcript);
+
+            expect(await speakerRows(transcript.fileId)).toEqual([{ speaker: 2, name: 'Олег' }]);
+            const loaded = await transcripts.findByFileId(transcript.fileId);
+            expect(loaded?.speakerNames.nameOf(1)).toBeNull();
+            expect(loaded?.speakerNames.labelOf(1)).toBe('Спикер 1');
+        });
+
+        it('renames a speaker in place', async () => {
+            const transcript = await completed();
+            transcript.assignSpeakers([{ speaker: 1, name: 'Анна' }]);
+            await transcripts.save(transcript);
+
+            transcript.assignSpeakers([{ speaker: 1, name: 'Анна Петровна' }]);
+            await transcripts.save(transcript);
+
+            expect(await speakerRows(transcript.fileId)).toEqual([
+                { speaker: 1, name: 'Анна Петровна' },
+            ]);
+        });
+
+        it('keeps the names of other transcripts', async () => {
+            const a = await completed();
+            const b = await completed();
+            a.assignSpeakers([{ speaker: 1, name: 'Анна' }]);
+            b.assignSpeakers([{ speaker: 1, name: 'Ира' }]);
+            await transcripts.save(a);
+            await transcripts.save(b);
+
+            a.assignSpeakers([{ speaker: 1, name: null }]);
+            await transcripts.save(a);
+
+            expect(await speakerRows(b.fileId)).toEqual([{ speaker: 1, name: 'Ира' }]);
         });
     });
 

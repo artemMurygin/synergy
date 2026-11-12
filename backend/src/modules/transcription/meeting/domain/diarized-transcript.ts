@@ -3,7 +3,8 @@ import type { TranscriptSegment } from './transcript-segment';
 
 /**
  * Merged result of all chunks: segments ordered by time from the start of the recording,
- * adjacent segments of one speaker already joined. Empty segments mean no speech.
+ * adjacent segments of one speaker already joined, `seq` from zero without gaps.
+ * Empty segments mean no speech.
  */
 export interface DiarizedTranscript {
     readonly language: string | null;
@@ -16,11 +17,17 @@ export const DiarizedTranscript = {
         if (!Number.isFinite(input.durationSec) || input.durationSec < 0) {
             throw new InvalidDiarizedTranscriptError('Duration must be a non-negative number');
         }
-        for (let i = 1; i < input.segments.length; i++) {
-            if (input.segments[i].start < input.segments[i - 1].start) {
+        input.segments.forEach((segment, i) => {
+            if (segment.seq !== i) {
+                throw new InvalidDiarizedTranscriptError(
+                    'Segment seq must go 0, 1, 2… without gaps',
+                );
+            }
+            const previous = input.segments[i - 1] as TranscriptSegment | undefined;
+            if (previous !== undefined && segment.startSec < previous.startSec) {
                 throw new InvalidDiarizedTranscriptError('Segments must be ordered by time');
             }
-        }
+        });
         const language = input.language?.trim() ?? '';
         return Object.freeze({
             language: language.length > 0 ? language : null,

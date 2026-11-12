@@ -11,6 +11,7 @@ import {
     type MeetingTranscription,
 } from '../domain/ports/meeting-transcriber.port';
 import { MeetingTranscriptRepositoryPort } from '../domain/ports/meeting-transcript-repository.port';
+import { TranscriptSegmentRepositoryPort } from '../domain/ports/transcript-segment-repository.port';
 import type { TranscriptionFailureReason } from '../domain/transcription-status';
 import { releaseHoldSafely } from './release-hold-safely';
 
@@ -32,6 +33,7 @@ export interface TranscribeMeetingInput {
 export class TranscribeMeetingUseCase {
     constructor(
         private readonly transcripts: MeetingTranscriptRepositoryPort,
+        private readonly segments: TranscriptSegmentRepositoryPort,
         private readonly transcriber: MeetingTranscriberPort,
         private readonly openFile: OpenFileForProcessingUseCase,
         private readonly releaseHold: ReleaseFileHoldUseCase,
@@ -94,8 +96,9 @@ export class TranscribeMeetingUseCase {
                 );
                 throw error;
             }
-            const failed = await this.finish(fileId, attempt, (current) => {
+            const failed = await this.finish(fileId, attempt, async (current) => {
                 current.fail(reason, new Date());
+                await this.transcripts.save(current);
             });
             if (failed === null) return;
             this.logger.warn(
@@ -109,8 +112,10 @@ export class TranscribeMeetingUseCase {
             throw error;
         }
 
-        const done = await this.finish(fileId, attempt, (current) => {
+        const done = await this.finish(fileId, attempt, async (current) => {
             current.complete(result.transcript, new Date());
+            await this.transcripts.save(current);
+            await this.segments.insertAll(fileId, result.transcript.segments);
         });
         if (done === null) return;
         this.logger.info(
@@ -132,18 +137,18 @@ export class TranscribeMeetingUseCase {
     /**
      * Финальный переход под блокировкой строки и только из попытки этого job'а. Если расшифровку
      * уже закрыли (подписчик `file.deleted`, обработчик упавшего job'а) или запустили повтор,
-     * ничего не сохраняет и не публикует: `null`.
+     * ничего не сохраняет и не публикует: `null`. `transition` меняет и сохраняет расшифровку
+     * (для `complete` — вместе с сегментами) в той же транзакции, что и событие.
      */
     private async finish(
         fileId: string,
         attempt: number,
-        transition: (transcript: MeetingTranscript) => void,
+        transition: (transcript: MeetingTranscript) => Promise<void>,
     ): Promise<MeetingTranscript | null> {
         const finished = await this.transactions.run(async () => {
             const current = await this.transcripts.findByFileIdForUpdate(fileId);
             if (current?.status !== 'processing' || current.attempts !== attempt) return null;
-            transition(current);
-            await this.transcripts.save(current);
+            await transition(current);
             await this.events.publish(current.pullDomainEvents());
             return current;
         });

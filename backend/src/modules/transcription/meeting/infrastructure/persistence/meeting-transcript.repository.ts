@@ -1,22 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { sql, type ValueExpression } from 'slonik';
+import { sql } from 'slonik';
 import { z } from 'zod';
 import { millisColumn, toTimestampOrNull } from '../../../../../database/postgres/sql-time';
 import { TransactionRunnerPort } from '../../../../../database/postgres/transaction-runner.port';
 import { MeetingTranscript } from '../../domain/meeting-transcript';
 import { MeetingTranscriptRepositoryPort } from '../../domain/ports/meeting-transcript-repository.port';
-import { TranscriptSegment } from '../../domain/transcript-segment';
+import { SpeakerNames } from '../../domain/speaker-names';
 import {
     TRANSCRIPTION_FAILURE_REASONS,
     TRANSCRIPTION_STATUSES,
 } from '../../domain/transcription-status';
 
-const segmentJson = z.object({
-    speaker: z.string(),
-    start: z.number(),
-    end: z.number(),
-    text: z.string(),
-});
+const speakerJson = z.object({ speaker: z.number().int(), name: z.string() });
 
 const transcriptRow = z.object({
     file_id: z.string(),
@@ -25,15 +20,21 @@ const transcriptRow = z.object({
     failure_reason: z.enum(TRANSCRIPTION_FAILURE_REASONS).nullable(),
     language: z.string().nullable(),
     duration_sec: z.number().nullable(),
-    segments: z.array(segmentJson),
+    speaker_count: z.number().int(),
+    speakers: z.array(speakerJson),
     attempts: z.number().int(),
     created_at: z.number(),
     updated_at: z.number(),
     completed_at: z.number().nullable(),
 });
 
+// Имена собеседников — подзапросом: строки есть только у собеседников с именем.
 const COLUMNS = sql.fragment`
-    file_id, owner_id, status, failure_reason, language, duration_sec, segments, attempts,
+    t.file_id, t.owner_id, t.status, t.failure_reason, t.language, t.duration_sec,
+    t.speaker_count, t.attempts,
+    (SELECT coalesce(jsonb_agg(jsonb_build_object('speaker', s.speaker, 'name', s.name)
+                               ORDER BY s.speaker), '[]'::jsonb)
+     FROM meeting_transcript_speaker s WHERE s.file_id = t.file_id) AS speakers,
     ${millisColumn('created_at')}, ${millisColumn('updated_at')}, ${millisColumn('completed_at')}`;
 
 function toMeetingTranscript(raw: unknown): MeetingTranscript {
@@ -45,18 +46,13 @@ function toMeetingTranscript(raw: unknown): MeetingTranscript {
         failureReason: row.failure_reason,
         language: row.language,
         durationSec: row.duration_sec,
-        segments: row.segments.map((s) => TranscriptSegment.of(s)),
+        speakerCount: row.speaker_count,
+        speakerNames: SpeakerNames.of(row.speakers.map((s) => [s.speaker, s.name] as const)),
         attempts: row.attempts,
         completedAt: row.completed_at === null ? null : new Date(row.completed_at),
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
     });
-}
-
-function segmentsJson(transcript: MeetingTranscript): ValueExpression {
-    return sql.jsonb(
-        transcript.segments.map(({ speaker, start, end, text }) => ({ speaker, start, end, text })),
-    );
 }
 
 @Injectable()
@@ -79,25 +75,33 @@ export class MeetingTranscriptRepository extends MeetingTranscriptRepositoryPort
 
     async findByFileId(fileId: string): Promise<MeetingTranscript | null> {
         const row = await this.transactions.executor().maybeOne(sql.unsafe`
-            SELECT ${COLUMNS} FROM meeting_transcript WHERE file_id = ${fileId}`);
+            SELECT ${COLUMNS} FROM meeting_transcript t WHERE t.file_id = ${fileId}`);
         return row === null ? null : toMeetingTranscript(row);
     }
 
     async findByFileIdForUpdate(fileId: string): Promise<MeetingTranscript | null> {
         const row = await this.transactions.executor().maybeOne(sql.unsafe`
-            SELECT ${COLUMNS} FROM meeting_transcript WHERE file_id = ${fileId} FOR UPDATE`);
+            SELECT ${COLUMNS} FROM meeting_transcript t WHERE t.file_id = ${fileId}
+            FOR UPDATE OF t`);
         return row === null ? null : toMeetingTranscript(row);
     }
 
     async save(transcript: MeetingTranscript): Promise<void> {
+        await this.transactions.run(async () => {
+            await this.saveTranscript(transcript);
+            await this.saveSpeakerNames(transcript);
+        });
+    }
+
+    private async saveTranscript(transcript: MeetingTranscript): Promise<void> {
         // Владелец и время создания неизменны: при конфликте обновляется только состояние.
         await this.transactions.executor().query(sql.unsafe`
             INSERT INTO meeting_transcript
                 (file_id, owner_id, status, failure_reason, language, duration_sec, speaker_count,
-                 segments, attempts, created_at, updated_at, completed_at)
+                 attempts, created_at, updated_at, completed_at)
             VALUES (${transcript.fileId}, ${transcript.ownerId}, ${transcript.status},
                     ${transcript.failureReason}, ${transcript.language}, ${transcript.durationSec},
-                    ${transcript.speakerCount}, ${segmentsJson(transcript)}, ${transcript.attempts},
+                    ${transcript.speakerCount}, ${transcript.attempts},
                     ${sql.timestamp(transcript.createdAt)}, ${sql.timestamp(transcript.updatedAt)},
                     ${toTimestampOrNull(transcript.completedAt)})
             ON CONFLICT (file_id) DO UPDATE SET
@@ -106,9 +110,33 @@ export class MeetingTranscriptRepository extends MeetingTranscriptRepositoryPort
                 language = EXCLUDED.language,
                 duration_sec = EXCLUDED.duration_sec,
                 speaker_count = EXCLUDED.speaker_count,
-                segments = EXCLUDED.segments,
                 attempts = EXCLUDED.attempts,
                 updated_at = EXCLUDED.updated_at,
                 completed_at = EXCLUDED.completed_at`);
+    }
+
+    /** Сброшенное имя — удалённая строка; неизменные имена не переписываются. */
+    private async saveSpeakerNames(transcript: MeetingTranscript): Promise<void> {
+        const entries = transcript.speakerNames.entries();
+        const executor = this.transactions.executor();
+        await executor.query(sql.unsafe`
+            DELETE FROM meeting_transcript_speaker
+            WHERE file_id = ${transcript.fileId}
+              AND NOT (speaker = ANY(${sql.array(
+                  entries.map((e) => e.speaker),
+                  'int4',
+              )}))`);
+        if (entries.length === 0) return;
+        await executor.query(sql.unsafe`
+            INSERT INTO meeting_transcript_speaker (file_id, speaker, name, updated_at)
+            SELECT ${transcript.fileId}, e.speaker, e.name, ${sql.timestamp(transcript.updatedAt)}
+            FROM ${sql.unnest(
+                entries.map((e) => [e.speaker, e.name]),
+                ['int2', 'text'],
+            )} AS e (speaker, name)
+            ON CONFLICT (file_id, speaker) DO UPDATE SET
+                name = EXCLUDED.name,
+                updated_at = EXCLUDED.updated_at
+            WHERE meeting_transcript_speaker.name IS DISTINCT FROM EXCLUDED.name`);
     }
 }

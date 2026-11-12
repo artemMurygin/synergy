@@ -5,7 +5,7 @@ import { TranscriptSegment } from './transcript-segment';
 
 /**
  * Joins words of all chunks into one transcript. Adjacent chunks meet at the middle of their
- * overlap; words are grouped by speaker change; speakers are numbered by first appearance.
+ * overlap; words are grouped by speaker change; speakers are numbered 1, 2, … by first appearance.
  */
 export const TranscriptMerger = {
     merge(
@@ -27,7 +27,7 @@ export const TranscriptMerger = {
         });
         words.sort((a, b) => a.start - b.start);
 
-        const labels = new Map<string, string>();
+        const numbers = new Map<string, number>();
         const groups: { speaker: string; words: ChunkWord[] }[] = [];
         for (const w of words) {
             const last = groups.at(-1);
@@ -35,15 +35,16 @@ export const TranscriptMerger = {
                 last.words.push(w);
                 continue;
             }
-            if (!labels.has(w.speaker)) labels.set(w.speaker, `Спикер ${String(labels.size + 1)}`);
+            if (!numbers.has(w.speaker)) numbers.set(w.speaker, numbers.size + 1);
             groups.push({ speaker: w.speaker, words: [w] });
         }
 
-        const segments = groups.map(({ speaker, words: group }) =>
+        const segments = groups.map(({ speaker, words: group }, seq) =>
             TranscriptSegment.of({
-                speaker: labels.get(speaker) ?? speaker,
-                start: Math.max(0, group[0].start),
-                end: Math.max(0, ...group.map((w) => w.end)),
+                seq,
+                speaker: numbers.get(speaker) ?? 0,
+                startSec: Math.max(0, group[0].start),
+                endSec: Math.max(0, ...group.map((w) => w.end)),
                 text: group.map((w) => w.text.trim()).join(' '),
             }),
         );

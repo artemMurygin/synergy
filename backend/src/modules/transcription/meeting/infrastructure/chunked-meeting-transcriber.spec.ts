@@ -356,15 +356,11 @@ describe('ChunkedMeetingTranscriber', () => {
 
             expect(result.language).toBe('ru');
             expect(result.durationSec).toBe(900);
-            expect(result.segments.map((s) => s.speaker)).toEqual([
-                'Спикер 1',
-                'Спикер 2',
-                'Спикер 1',
-            ]);
-            expect(result.segments[0].start).toBe(0);
-            expect(result.segments[1].start).toBe(100);
+            expect(result.segments.map((s) => s.speaker)).toEqual([1, 2, 1]);
+            expect(result.segments[0].startSec).toBe(0);
+            expect(result.segments[1].startSec).toBe(100);
             // the second chunk starts at 570 s
-            expect(result.segments[2].start).toBe(670);
+            expect(result.segments[2].startSec).toBe(670);
         });
 
         it('gives an empty transcript when nobody speaks', async () => {

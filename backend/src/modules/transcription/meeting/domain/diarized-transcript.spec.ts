@@ -3,12 +3,12 @@ import { DiarizedTranscript } from './diarized-transcript';
 import { InvalidDiarizedTranscriptError } from './errors';
 import { TranscriptSegment } from './transcript-segment';
 
-const seg = (speaker: string, start: number, end: number): TranscriptSegment =>
-    TranscriptSegment.of({ speaker, start, end, text: 'слово' });
+const seg = (seq: number, speaker: number, startSec: number, endSec: number): TranscriptSegment =>
+    TranscriptSegment.of({ seq, speaker, startSec, endSec, text: 'слово' });
 
 describe('DiarizedTranscript', () => {
     it('keeps language, duration and segments', () => {
-        const segments = [seg('Спикер 1', 0, 1), seg('Спикер 2', 1, 2)];
+        const segments = [seg(0, 1, 0, 1), seg(1, 2, 1, 2)];
         const transcript = DiarizedTranscript.of({ language: 'ru', durationSec: 2, segments });
 
         expect(transcript.language).toBe('ru');
@@ -34,8 +34,17 @@ describe('DiarizedTranscript', () => {
             DiarizedTranscript.of({
                 language: 'ru',
                 durationSec: 10,
-                segments: [seg('Спикер 1', 5, 6), seg('Спикер 2', 1, 2)],
+                segments: [seg(0, 1, 5, 6), seg(1, 2, 1, 2)],
             }),
         ).toThrow(InvalidDiarizedTranscriptError);
+    });
+
+    it.each([
+        ['starting not from zero', [seg(1, 1, 0, 1), seg(2, 2, 1, 2)]],
+        ['with a gap', [seg(0, 1, 0, 1), seg(2, 2, 1, 2)]],
+    ])('rejects sequence numbers %s', (_case, segments) => {
+        expect(() => DiarizedTranscript.of({ language: 'ru', durationSec: 10, segments })).toThrow(
+            InvalidDiarizedTranscriptError,
+        );
     });
 });

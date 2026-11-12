@@ -39,8 +39,9 @@ describe('TranscriptMerger', () => {
         );
 
         expect(result.segments.map((s) => s.text)).toEqual(fx.expectedText);
-        expect(result.segments.map((s) => s.speaker)).toEqual(['Спикер 1', 'Спикер 2', 'Спикер 3']);
-        expect(result.segments[1]).toMatchObject({ start: 11, end: 18.5 });
+        expect(result.segments.map((s) => s.speaker)).toEqual([1, 2, 3]);
+        expect(result.segments[1]).toMatchObject({ startSec: 11, endSec: 18.5 });
+        expect(result.segments.map((s) => s.seq)).toEqual([0, 1, 2]);
         expect(result).toMatchObject({ language: 'rus', durationSec: 30 });
     });
 
@@ -50,7 +51,7 @@ describe('TranscriptMerger', () => {
         const result = TranscriptMerger.merge(ingestFixture(fx), { overlapSec: 10 }, null, 30);
 
         expect(result.segments.map((s) => s.text)).toEqual(fx.expectedText);
-        expect(result.segments.map((s) => s.speaker)).toEqual(['Спикер 1', 'Спикер 2']);
+        expect(result.segments.map((s) => s.speaker)).toEqual([1, 2]);
     });
 
     it('takes the left chunk before the middle and the right one after it (spike fixture)', () => {
@@ -77,11 +78,15 @@ describe('TranscriptMerger', () => {
 
         const result = TranscriptMerger.merge(registry, { overlapSec: 30 }, 'rus', 600);
 
-        expect(result.segments.map((s) => s.speaker)).toEqual(['Спикер 1', 'Спикер 2', 'Спикер 1']);
+        expect(result.segments.map((s) => s.speaker)).toEqual([1, 2, 1]);
         expect(result.segments.map((s) => s.text)).toEqual(
             [first, second, third].map((ws) => ws.map((w) => w.text).join(' ')),
         );
-        expect(result.segments[0]).toMatchObject({ start: 0, end: first[first.length - 1].end });
+        expect(result.segments[0]).toMatchObject({
+            seq: 0,
+            startSec: 0,
+            endSec: first[first.length - 1].end,
+        });
     });
 
     it('gives an empty transcript that completes as no_speech', () => {
@@ -131,7 +136,8 @@ describe('TranscriptMerger', () => {
         expect(result.segments).toHaveLength(150);
         expect(countSpeakers(result.segments)).toBe(2);
         result.segments.forEach((s, i) => {
-            expect(s.speaker).toBe(i % 2 === 0 ? 'Спикер 1' : 'Спикер 2');
+            expect(s.seq).toBe(i);
+            expect(s.speaker).toBe(i % 2 === 0 ? 1 : 2);
         });
     });
 });

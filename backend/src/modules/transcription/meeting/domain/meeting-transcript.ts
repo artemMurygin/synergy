@@ -4,10 +4,14 @@ import {
     InvalidMeetingTranscriptStateError,
     MeetingTranscriptNotRetryableError,
     MeetingTranscriptTransitionError,
+    TranscriptNotReadyError,
+    UnknownSpeakerError,
 } from './errors';
 import { MeetingTranscriptCompletedEvent } from './events/meeting-transcript-completed.event';
 import { MeetingTranscriptFailedEvent } from './events/meeting-transcript-failed.event';
-import { countSpeakers, type TranscriptSegment } from './transcript-segment';
+import { SpeakerAssignment, type SpeakerAssignmentInput } from './speaker-assignment';
+import { SpeakerNames } from './speaker-names';
+import { countSpeakers } from './transcript-segment';
 import type {
     FinalTranscriptionStatus,
     TranscriptionFailureReason,
@@ -20,7 +24,9 @@ export interface MeetingTranscriptProps {
     failureReason: TranscriptionFailureReason | null;
     language: string | null;
     durationSec: number | null;
-    segments: readonly TranscriptSegment[];
+    /** Число собеседников; больше нуля ровно у `completed`. */
+    speakerCount: number;
+    speakerNames: SpeakerNames;
     attempts: number;
     completedAt: Date | null;
 }
@@ -64,7 +70,8 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
                 failureReason: null,
                 language: null,
                 durationSec: null,
-                segments: [],
+                speakerCount: 0,
+                speakerNames: SpeakerNames.empty(),
                 attempts: 0,
                 completedAt: null,
             },
@@ -81,7 +88,7 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
             id: fileId,
             createdAt,
             updatedAt,
-            props: { ...props, segments: [...props.segments] },
+            props: { ...props },
         });
     }
 
@@ -109,12 +116,12 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
         return this.props.durationSec;
     }
 
-    get segments(): readonly TranscriptSegment[] {
-        return this.props.segments;
+    get speakerCount(): number {
+        return this.props.speakerCount;
     }
 
-    get speakerCount(): number {
-        return countSpeakers(this.props.segments);
+    get speakerNames(): SpeakerNames {
+        return this.props.speakerNames;
     }
 
     get attempts(): number {
@@ -137,12 +144,15 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
         this.touch();
     }
 
-    /** Empty segments mean `no_speech`. */
+    /**
+     * Empty segments mean `no_speech`. Сами сегменты в агрегат не входят: их пишет
+     * `TranscriptSegmentRepositoryPort` в той же транзакции, что и `save`.
+     */
     complete(transcript: DiarizedTranscript, now: Date): void {
         this.assertStatus(['processing'], 'complete');
         const status = transcript.segments.length > 0 ? 'completed' : 'no_speech';
         this.props.status = status;
-        this.props.segments = [...transcript.segments];
+        this.props.speakerCount = countSpeakers(transcript.segments);
         this.props.language = transcript.language;
         this.props.durationSec = transcript.durationSec;
         this.props.completedAt = now;
@@ -161,7 +171,7 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
         this.assertStatus(['pending', 'processing'], 'fail');
         this.props.status = 'failed';
         this.props.failureReason = reason;
-        this.props.segments = [];
+        this.props.speakerCount = 0;
         this.props.completedAt = now;
         this.touch();
         this.addEvent(
@@ -198,8 +208,33 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
         this.touch();
     }
 
+    /**
+     * Назначает имена собеседникам готовой расшифровки: всё или ничего. Пустое имя сбрасывает
+     * имя к метке «Спикер N»; одно имя может стоять у нескольких собеседников.
+     */
+    assignSpeakers(assignments: readonly SpeakerAssignmentInput[]): void {
+        if (this.props.status !== 'completed') {
+            throw new TranscriptNotReadyError(
+                `Speaker names can be assigned only to a completed transcript, status is ${this.props.status}`,
+            );
+        }
+        const unknown = [
+            ...new Set(
+                assignments
+                    .map((a) => a.speaker)
+                    .filter((n) => !Number.isInteger(n) || n < 1 || n > this.props.speakerCount),
+            ),
+        ];
+        if (unknown.length > 0) throw new UnknownSpeakerError(unknown);
+        const checked = assignments.map((a) => SpeakerAssignment.of(a));
+        this.props.speakerNames = this.props.speakerNames.assign(checked);
+        this.touch();
+    }
+
     validate(): void {
-        const { status, failureReason, segments, completedAt, attempts, durationSec } = this.props;
+        const { status, failureReason, speakerCount, speakerNames, completedAt, attempts } =
+            this.props;
+        const { durationSec } = this.props;
         if (this.props.ownerId.length === 0) {
             throw new InvalidMeetingTranscriptStateError('Owner must not be empty');
         }
@@ -211,9 +246,19 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
                 'failureReason must be set exactly when status is failed',
             );
         }
-        if ((status === 'completed') !== segments.length > 0) {
+        if (!Number.isInteger(speakerCount) || speakerCount < 0) {
             throw new InvalidMeetingTranscriptStateError(
-                'Segments must be present exactly when status is completed',
+                'Speaker count must be a non-negative integer',
+            );
+        }
+        if ((status === 'completed') !== speakerCount > 0) {
+            throw new InvalidMeetingTranscriptStateError(
+                'Speakers must be present exactly when status is completed',
+            );
+        }
+        if (speakerNames.maxSpeaker() > speakerCount) {
+            throw new InvalidMeetingTranscriptStateError(
+                'A named speaker must be within the speaker count',
             );
         }
         if (this.isFinal() !== (completedAt !== null)) {

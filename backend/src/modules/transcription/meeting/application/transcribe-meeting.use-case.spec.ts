@@ -21,6 +21,7 @@ import { MeetingTranscript } from '../domain/meeting-transcript';
 import { TranscriptSegment } from '../domain/transcript-segment';
 import { FakeMeetingTranscriber } from '../testing/fake-meeting-transcriber';
 import { InMemoryMeetingTranscriptRepository } from '../testing/in-memory-meeting-transcript.repository';
+import { InMemoryTranscriptSegmentRepository } from '../testing/in-memory-transcript-segment.repository';
 import { FailMeetingTranscriptionUseCase } from './fail-meeting-transcription.use-case';
 import { TranscribeMeetingUseCase } from './transcribe-meeting.use-case';
 
@@ -50,8 +51,14 @@ const dialog = (): DiarizedTranscript =>
         language: 'ru',
         durationSec: 125,
         segments: [
-            TranscriptSegment.of({ speaker: 'Спикер 1', start: 0, end: 4, text: SECRET_PHRASE }),
-            TranscriptSegment.of({ speaker: 'Спикер 2', start: 4, end: 9, text: 'Согласен' }),
+            TranscriptSegment.of({
+                seq: 0,
+                speaker: 1,
+                startSec: 0,
+                endSec: 4,
+                text: SECRET_PHRASE,
+            }),
+            TranscriptSegment.of({ seq: 1, speaker: 2, startSec: 4, endSec: 9, text: 'Согласен' }),
         ],
     });
 
@@ -60,6 +67,7 @@ const silence = (): DiarizedTranscript =>
 
 describe('TranscribeMeetingUseCase', () => {
     let transcripts: InMemoryMeetingTranscriptRepository;
+    let segments: InMemoryTranscriptSegmentRepository;
     let transactions: InMemoryTransactionRunner;
     let events: RecordingPublisher;
     let openFileUseCase: OpenFileForProcessingUseCase;
@@ -71,6 +79,7 @@ describe('TranscribeMeetingUseCase', () => {
     const useCase = (transcriber: FakeMeetingTranscriber): TranscribeMeetingUseCase =>
         new TranscribeMeetingUseCase(
             transcripts,
+            segments,
             transcriber,
             openFileUseCase,
             releaseHoldUseCase,
@@ -91,6 +100,7 @@ describe('TranscribeMeetingUseCase', () => {
         transcripts = new InMemoryMeetingTranscriptRepository();
         transactions = new InMemoryTransactionRunner();
         transcripts.transactions = transactions;
+        segments = new InMemoryTranscriptSegmentRepository(transactions);
         events = new RecordingPublisher(transactions);
         const files = new InMemoryStoredFileRepository();
         openFileUseCase = new OpenFileForProcessingUseCase(
@@ -135,7 +145,11 @@ describe('TranscribeMeetingUseCase', () => {
             const transcript = await stored();
             expect(transcript.status).toBe('completed');
             expect(transcript.attempts).toBe(1);
-            expect(transcript.segments.map((s) => s.text)).toEqual([SECRET_PHRASE, 'Согласен']);
+            expect(transcript.speakerCount).toBe(2);
+            expect((await segments.readAll(FILE_ID)).map((s) => s.text)).toEqual([
+                SECRET_PHRASE,
+                'Согласен',
+            ]);
             expect(transcript.language).toBe('ru');
             expect(transcript.durationSec).toBe(125);
             expect(transcript.completedAt).toEqual(NOW);
@@ -144,6 +158,17 @@ describe('TranscribeMeetingUseCase', () => {
             expect(events.published[0]).toMatchObject({ status: 'completed' });
             expect(events.inTransaction).toEqual([true]);
             expect(releaseHold).toHaveBeenCalledWith(FILE_ID);
+        });
+
+        it('writes segments in the same transaction as complete', async () => {
+            await useCase(FakeMeetingTranscriber.answering(dialog())).execute({
+                fileId: FILE_ID,
+                isFinalAttempt: false,
+            });
+
+            expect(segments.inserts).toEqual([{ fileId: FILE_ID, count: 2, inTransaction: true }]);
+            expect(transactions.commits).toBe(2);
+            expect(await segments.readAll(FILE_ID)).toEqual(dialog().segments);
         });
 
         it('passes the file stream and its metadata to the transcriber', async () => {
@@ -166,7 +191,8 @@ describe('TranscribeMeetingUseCase', () => {
 
             const transcript = await stored();
             expect(transcript.status).toBe('no_speech');
-            expect(transcript.segments).toEqual([]);
+            expect(await segments.readAll(FILE_ID)).toEqual([]);
+            expect(segments.inserts).toEqual([]);
             expect(events.published[0]).toMatchObject({ status: 'no_speech' });
             expect(releaseHold).toHaveBeenCalledWith(FILE_ID);
         });
@@ -393,9 +419,29 @@ describe('TranscribeMeetingUseCase', () => {
             const transcript = await stored();
             expect(transcript.status).toBe('failed');
             expect(transcript.failureReason).toBe('timeout');
-            expect(transcript.segments).toEqual([]);
+            expect(await segments.readAll(FILE_ID)).toEqual([]);
             expect(events.published).toHaveLength(1);
             expect(events.published[0]).toBeInstanceOf(MeetingTranscriptFailedEvent);
+        });
+
+        it('writes no segments when the recording was deleted while the job ran', async () => {
+            const transcriber = new FakeMeetingTranscriber(async () => {
+                await new FailMeetingTranscriptionUseCase(
+                    transcripts,
+                    releaseHoldUseCase,
+                    transactions,
+                    events,
+                    log.logger,
+                ).execute({ fileId: FILE_ID, reason: 'file-deleted' });
+                return dialog();
+            });
+
+            await useCase(transcriber).execute({ fileId: FILE_ID, isFinalAttempt: false });
+
+            const transcript = await stored();
+            expect(transcript.failureReason).toBe('file-deleted');
+            expect(segments.inserts).toEqual([]);
+            expect(await segments.readAll(FILE_ID)).toEqual([]);
         });
 
         it('does not fail it a second time', async () => {

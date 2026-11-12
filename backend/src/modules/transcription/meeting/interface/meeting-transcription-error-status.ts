@@ -7,5 +7,8 @@ export function registerMeetingTranscriptionErrorStatuses(): void {
     registerErrorStatuses({
         [MeetingTranscriptApplicationErrorCode.NotFound]: HttpStatus.NOT_FOUND,
         [MeetingTranscriptionErrorCode.NotRetryable]: HttpStatus.CONFLICT,
+        [MeetingTranscriptionErrorCode.NotReady]: HttpStatus.CONFLICT,
+        [MeetingTranscriptionErrorCode.UnknownSpeaker]: HttpStatus.UNPROCESSABLE_ENTITY,
+        [MeetingTranscriptionErrorCode.InvalidSpeakerName]: HttpStatus.UNPROCESSABLE_ENTITY,
     });
 }

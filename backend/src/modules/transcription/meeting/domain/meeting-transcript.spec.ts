@@ -3,8 +3,11 @@ import { ConflictError } from '../../../../shared/errors';
 import { DiarizedTranscript } from './diarized-transcript';
 import {
     InvalidMeetingTranscriptStateError,
+    InvalidSpeakerNameError,
     MeetingTranscriptNotRetryableError,
     MeetingTranscriptTransitionError,
+    TranscriptNotReadyError,
+    UnknownSpeakerError,
 } from './errors';
 import {
     MEETING_TRANSCRIPT_COMPLETED_EVENT_TYPE,
@@ -15,6 +18,8 @@ import {
     MeetingTranscriptFailedEvent,
 } from './events/meeting-transcript-failed.event';
 import { MeetingTranscript } from './meeting-transcript';
+import type { SpeakerAssignmentInput } from './speaker-assignment';
+import { SpeakerNames } from './speaker-names';
 import { TranscriptSegment } from './transcript-segment';
 
 const FILE_ID = '0b9c1f7e-5d0a-4c3e-9a51-6f1f2d3c4b5a';
@@ -22,14 +27,31 @@ const OWNER_ID = 'user-1';
 const T0 = new Date('2026-11-01T10:00:00Z');
 const T1 = new Date('2026-11-01T10:05:00Z');
 
-const seg = (speaker: string, start: number, end: number, text = 'текст'): TranscriptSegment =>
-    TranscriptSegment.of({ speaker, start, end, text });
+const seg = (
+    seq: number,
+    speaker: number,
+    startSec: number,
+    endSec: number,
+    text = 'текст',
+): TranscriptSegment => TranscriptSegment.of({ seq, speaker, startSec, endSec, text });
 
 const dialog = DiarizedTranscript.of({
     language: 'ru',
     durationSec: 30,
-    segments: [seg('Спикер 1', 0, 10), seg('Спикер 2', 10, 20), seg('Спикер 1', 20, 30)],
+    segments: [seg(0, 1, 0, 10), seg(1, 2, 10, 20), seg(2, 1, 20, 30)],
 });
+
+const assign = (speaker: number, name: string | null): SpeakerAssignmentInput => ({
+    speaker,
+    name,
+});
+
+function completed(): MeetingTranscript {
+    const t = processing();
+    t.complete(dialog, T1);
+    t.pullDomainEvents();
+    return t;
+}
 
 const silence = DiarizedTranscript.of({ language: null, durationSec: 30, segments: [] });
 
@@ -58,8 +80,8 @@ describe('MeetingTranscript', () => {
         expect(t.ownerId).toBe(OWNER_ID);
         expect(t.status).toBe('pending');
         expect(t.attempts).toBe(0);
-        expect(t.segments).toEqual([]);
         expect(t.speakerCount).toBe(0);
+        expect(t.speakerNames.entries()).toEqual([]);
         expect(t.failureReason).toBeNull();
         expect(t.completedAt).toBeNull();
         expect(t.pullDomainEvents()).toEqual([]);
@@ -80,19 +102,20 @@ describe('MeetingTranscript', () => {
         expect(t.attempts).toBe(2);
     });
 
-    it('goes processing → completed with segments, language and duration', () => {
+    it('goes processing → completed with speaker count, language and duration', () => {
         const t = processing();
         t.complete(dialog, T1);
 
         expect(t.status).toBe('completed');
-        expect(t.segments).toEqual(dialog.segments);
+        expect(t.speakerCount).toBe(2);
+        expect('segments' in t).toBe(false);
         expect(t.language).toBe('ru');
         expect(t.durationSec).toBe(30);
         expect(t.completedAt).toEqual(T1);
         expect(t.failureReason).toBeNull();
     });
 
-    it('counts speakers by distinct labels', () => {
+    it('counts speakers by distinct numbers', () => {
         const t = processing();
         t.complete(dialog, T1);
 
@@ -104,7 +127,6 @@ describe('MeetingTranscript', () => {
         t.complete(silence, T1);
 
         expect(t.status).toBe('no_speech');
-        expect(t.segments).toEqual([]);
         expect(t.speakerCount).toBe(0);
         expect(t.durationSec).toBe(30);
         expect(t.completedAt).toEqual(T1);
@@ -117,7 +139,7 @@ describe('MeetingTranscript', () => {
         expect(t.status).toBe('failed');
         expect(t.failureReason).toBe('too-long');
         expect(t.completedAt).toEqual(T1);
-        expect(t.segments).toEqual([]);
+        expect(t.speakerCount).toBe(0);
     });
 
     it('retries only from failed: back to pending, reason cleared', () => {
@@ -286,7 +308,8 @@ describe('MeetingTranscript', () => {
             ownerId: OWNER_ID,
             language: null,
             durationSec: null,
-            segments: [],
+            speakerCount: 0,
+            speakerNames: SpeakerNames.empty(),
             attempts: 1,
             failureReason: null,
             completedAt: null,
@@ -300,12 +323,14 @@ describe('MeetingTranscript', () => {
                 status: 'completed',
                 language: 'ru',
                 durationSec: 30,
-                segments: dialog.segments,
+                speakerCount: 2,
+                speakerNames: SpeakerNames.of([[1, 'Анна']]),
                 completedAt: T1,
             });
 
             expect(t.status).toBe('completed');
             expect(t.speakerCount).toBe(2);
+            expect(t.speakerNames.labelOf(1)).toBe('Анна');
             expect(t.pullDomainEvents()).toEqual([]);
         });
 
@@ -325,17 +350,26 @@ describe('MeetingTranscript', () => {
             ).toThrow(InvalidMeetingTranscriptStateError);
         });
 
-        it('rejects segments outside completed', () => {
+        it('rejects speakers outside completed', () => {
+            expect(() =>
+                MeetingTranscript.restore({ ...base, status: 'processing', speakerCount: 2 }),
+            ).toThrow(InvalidMeetingTranscriptStateError);
+        });
+
+        it('rejects a name of a speaker beyond the speaker count', () => {
             expect(() =>
                 MeetingTranscript.restore({
                     ...base,
-                    status: 'processing',
-                    segments: dialog.segments,
+                    status: 'completed',
+                    durationSec: 30,
+                    speakerCount: 2,
+                    speakerNames: SpeakerNames.of([[3, 'Ира']]),
+                    completedAt: T1,
                 }),
             ).toThrow(InvalidMeetingTranscriptStateError);
         });
 
-        it('rejects completed without segments', () => {
+        it('rejects completed without speakers', () => {
             expect(() =>
                 MeetingTranscript.restore({ ...base, status: 'completed', completedAt: T1 }),
             ).toThrow(InvalidMeetingTranscriptStateError);
@@ -345,6 +379,99 @@ describe('MeetingTranscript', () => {
             expect(() =>
                 MeetingTranscript.restore({ ...base, status: 'no_speech', durationSec: 3 }),
             ).toThrow(InvalidMeetingTranscriptStateError);
+        });
+    });
+
+    describe('assignSpeakers', () => {
+        it('assigns names to several speakers at once', () => {
+            const t = completed();
+
+            t.assignSpeakers([assign(1, 'Анна'), assign(2, 'Олег')]);
+
+            expect(t.speakerNames.labelOf(1)).toBe('Анна');
+            expect(t.speakerNames.labelOf(2)).toBe('Олег');
+            expect(t.pullDomainEvents()).toEqual([]);
+        });
+
+        it('resets a name with an empty value', () => {
+            const t = completed();
+            t.assignSpeakers([assign(2, 'Олег')]);
+
+            t.assignSpeakers([assign(2, '')]);
+
+            expect(t.speakerNames.nameOf(2)).toBeNull();
+            expect(t.speakerNames.labelOf(2)).toBe('Спикер 2');
+        });
+
+        it('allows the same name for two speakers', () => {
+            const t = completed();
+
+            t.assignSpeakers([assign(1, 'Олег'), assign(2, 'Олег')]);
+
+            expect(t.speakerNames.labelOf(1)).toBe('Олег');
+            expect(t.speakerNames.labelOf(2)).toBe('Олег');
+        });
+
+        it.each([
+            ['pending', pending],
+            ['processing', processing],
+            ['failed', failed],
+            [
+                'no_speech',
+                () => {
+                    const t = processing();
+                    t.complete(silence, T1);
+                    return t;
+                },
+            ],
+        ])('refuses names in status %s with TranscriptNotReadyError', (_status, make) => {
+            const t = make();
+
+            expect(() => {
+                t.assignSpeakers([assign(1, 'Анна')]);
+            }).toThrow(TranscriptNotReadyError);
+            expect(() => {
+                t.assignSpeakers([assign(1, 'Анна')]);
+            }).toThrow(ConflictError);
+        });
+
+        it.each([0, -1])('rejects the speaker number %s as unknown', (speaker) => {
+            expect(() => {
+                completed().assignSpeakers([assign(speaker, 'Анна')]);
+            }).toThrow(UnknownSpeakerError);
+        });
+
+        it('rejects unknown speakers with their list and changes no name', () => {
+            const t = completed();
+            t.assignSpeakers([assign(1, 'Анна')]);
+            const updatedAt = t.updatedAt;
+
+            let error: unknown;
+            try {
+                t.assignSpeakers([assign(1, 'Мария'), assign(3, 'Ира'), assign(7, 'Петя')]);
+            } catch (e) {
+                error = e;
+            }
+
+            expect(error).toBeInstanceOf(UnknownSpeakerError);
+            if (!(error instanceof UnknownSpeakerError)) return;
+            expect(error.speakers).toEqual([3, 7]);
+            expect(t.speakerNames.labelOf(1)).toBe('Анна');
+            expect(t.updatedAt).toBe(updatedAt);
+        });
+
+        it('reports an invalid name and changes no name', () => {
+            const t = completed();
+
+            t.assignSpeakers([assign(2, 'Олег')]);
+            const updatedAt = t.updatedAt;
+
+            expect(() => {
+                t.assignSpeakers([assign(2, 'Ира'), assign(1, 'я'.repeat(101))]);
+            }).toThrow(InvalidSpeakerNameError);
+            expect(t.speakerNames.labelOf(2)).toBe('Олег');
+            expect(t.speakerNames.nameOf(1)).toBeNull();
+            expect(t.updatedAt).toBe(updatedAt);
         });
     });
 });

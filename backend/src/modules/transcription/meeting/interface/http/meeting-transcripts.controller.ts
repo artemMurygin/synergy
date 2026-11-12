@@ -1,14 +1,31 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    Body,
+    Controller,
+    Get,
+    HttpCode,
+    HttpStatus,
+    Param,
+    ParseUUIDPipe,
+    Post,
+    Put,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
     apiErrorResponse,
     apiUnauthorizedResponse,
 } from '../../../../../shared/http/api-error-response.decorator';
+import { zodToOpenApi } from '../../../../../shared/http/zod-openapi';
+import { ZodValidationPipe } from '../../../../../shared/http/zod-validation.pipe';
 import { CurrentUser, type AuthenticatedUser } from '../../../../auth/interface/http/decorators';
 import { ownerOf } from '../../../../auth/interface/http/owner-of';
 import { GetMeetingTranscriptUseCase } from '../../application/get-meeting-transcript.use-case';
+import { RenameSpeakersUseCase } from '../../application/rename-speakers.use-case';
 import { RetryMeetingTranscriptionUseCase } from '../../application/retry-meeting-transcription.use-case';
-import { MeetingTranscriptResponse } from './meeting-transcripts.responses';
+import { MeetingTranscriptResponse, SpeakersResponse } from './meeting-transcripts.responses';
+import {
+    renameSpeakersRequestSchema,
+    type RenameSpeakersRequest,
+} from './meeting-transcripts.schemas';
 
 const notFound = apiErrorResponse(
     HttpStatus.NOT_FOUND,
@@ -22,6 +39,7 @@ export class MeetingTranscriptsController {
     constructor(
         private readonly getTranscript: GetMeetingTranscriptUseCase,
         private readonly retryTranscription: RetryMeetingTranscriptionUseCase,
+        private readonly renameSpeakers: RenameSpeakersUseCase,
     ) {}
 
     @Get(':fileId')
@@ -39,6 +57,42 @@ export class MeetingTranscriptsController {
     ): Promise<MeetingTranscriptResponse> {
         return new MeetingTranscriptResponse(
             await this.getTranscript.execute({ ownerId: ownerOf(user), fileId }),
+        );
+    }
+
+    @Put(':fileId/speakers')
+    @ApiOperation({
+        summary: 'Assign names to speakers of a completed transcript, all or nothing',
+        description: 'An empty or null name resets the speaker to the label «Спикер N».',
+    })
+    @ApiBody({ schema: zodToOpenApi(renameSpeakersRequestSchema) })
+    @ApiResponse({
+        status: HttpStatus.OK,
+        description: 'All speakers with names and talk time',
+        type: SpeakersResponse,
+    })
+    @apiErrorResponse(HttpStatus.BAD_REQUEST, 'Malformed body or id')
+    @apiErrorResponse(
+        HttpStatus.CONFLICT,
+        'MEETING_TRANSCRIPT_NOT_READY: the transcript is not completed',
+    )
+    @apiErrorResponse(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'MEETING_TRANSCRIPT_UNKNOWN_SPEAKER or MEETING_TRANSCRIPT_INVALID_SPEAKER_NAME; no name changed',
+    )
+    @notFound
+    @apiUnauthorizedResponse
+    async putSpeakers(
+        @CurrentUser() user: AuthenticatedUser | undefined,
+        @Param('fileId', ParseUUIDPipe) fileId: string,
+        @Body(new ZodValidationPipe(renameSpeakersRequestSchema)) body: RenameSpeakersRequest,
+    ): Promise<SpeakersResponse> {
+        return new SpeakersResponse(
+            await this.renameSpeakers.execute({
+                ownerId: ownerOf(user),
+                fileId,
+                assignments: body.speakers,
+            }),
         );
     }
 

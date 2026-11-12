@@ -1,28 +1,40 @@
 import { InvalidTranscriptSegmentError } from './errors';
 
-/** A phrase of one speaker; time in seconds from the start of the whole recording. */
+/**
+ * A phrase of one speaker; time in seconds from the start of the whole recording.
+ * `seq` — порядковый номер в расшифровке с нуля, `speaker` — номер собеседника с единицы
+ * (метка «Спикер N» и имя — только отображение). После `complete` сегмент неизменен.
+ */
 export interface TranscriptSegment {
-    readonly speaker: string;
-    readonly start: number;
-    readonly end: number;
+    readonly seq: number;
+    readonly speaker: number;
+    readonly startSec: number;
+    readonly endSec: number;
     readonly text: string;
 }
 
 export const TranscriptSegment = {
     of(input: TranscriptSegment): TranscriptSegment {
-        const { start, end } = input;
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
-            throw new InvalidTranscriptSegmentError('Segment time must satisfy 0 <= start <= end');
+        const { seq, speaker, startSec, endSec } = input;
+        if (!Number.isInteger(seq) || seq < 0) {
+            throw new InvalidTranscriptSegmentError('Segment seq must be a non-negative integer');
         }
-        const speaker = input.speaker.trim();
-        if (speaker.length === 0) {
-            throw new InvalidTranscriptSegmentError('Segment speaker must not be empty');
+        if (!Number.isInteger(speaker) || speaker < 1) {
+            throw new InvalidTranscriptSegmentError('Segment speaker must be an integer >= 1');
+        }
+        if (
+            !Number.isFinite(startSec) ||
+            !Number.isFinite(endSec) ||
+            startSec < 0 ||
+            endSec < startSec
+        ) {
+            throw new InvalidTranscriptSegmentError('Segment time must satisfy 0 <= start <= end');
         }
         const text = input.text.trim();
         if (text.length === 0) {
             throw new InvalidTranscriptSegmentError('Segment text must not be empty');
         }
-        return Object.freeze({ speaker, start, end, text });
+        return Object.freeze({ seq, speaker, startSec, endSec, text });
     },
 };
 
