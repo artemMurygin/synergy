@@ -7,11 +7,13 @@ import { DomainEventRegistry } from '../../shared/outbox/application/domain-even
 import { CreateDownloadLinkUseCase } from './application/create-download-link.use-case';
 import { DeleteFileUseCase } from './application/delete-file.use-case';
 import { DownloadFileContentUseCase } from './application/download-file-content.use-case';
+import { FindOwnedFilesUseCase } from './application/find-owned-files.use-case';
 import { GetFileUseCase } from './application/get-file.use-case';
 import { HoldFileUseCase } from './application/hold-file.use-case';
 import { OpenFileForProcessingUseCase } from './application/open-file-for-processing.use-case';
 import { PurgeExpiredFilesUseCase } from './application/purge-expired-files.use-case';
 import { ReleaseFileHoldUseCase } from './application/release-file-hold.use-case';
+import { StoreGeneratedFileUseCase } from './application/store-generated-file.use-case';
 import { UploadFileUseCase } from './application/upload-file.use-case';
 import { registerFileEvents } from './contracts/register-file-events';
 import { FilesClockPort } from './domain/ports/clock.port';
@@ -47,6 +49,8 @@ import { FilesController } from './interface/http/files.controller';
         OpenFileForProcessingUseCase,
         HoldFileUseCase,
         ReleaseFileHoldUseCase,
+        StoreGeneratedFileUseCase,
+        FindOwnedFilesUseCase,
         FilesPurgeProcessor,
         FilesPurgeScheduler,
         { provide: FilesSettingsPort, useClass: FilesSettings },
@@ -89,7 +93,13 @@ import { FilesController } from './interface/http/files.controller';
                 ),
         },
     ],
-    exports: [OpenFileForProcessingUseCase, HoldFileUseCase, ReleaseFileHoldUseCase],
+    exports: [
+        OpenFileForProcessingUseCase,
+        HoldFileUseCase,
+        ReleaseFileHoldUseCase,
+        StoreGeneratedFileUseCase,
+        FindOwnedFilesUseCase,
+    ],
 })
 export class FilesModule implements OnModuleInit {
     constructor(

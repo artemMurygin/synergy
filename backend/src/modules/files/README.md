@@ -39,7 +39,9 @@
 
 - `OpenFileForProcessingUseCase` — поток и метаданные по `fileId` без проверки владельца, только для внутренних потребителей; `null`, если файла нет или он удалён;
 - `HoldFileUseCase` — снова удержать запись (повтор расшифровки), 410 для удалённой;
-- `ReleaseFileHoldUseCase` — снять удержание после обработки.
+- `ReleaseFileHoldUseCase` — снять удержание после обработки;
+- `StoreGeneratedFileUseCase` — сохранить файл, созданный на сервере (`{ ownerId, name, mediaType, buffer }`), как документ владельца: тип только из белого списка документов, обычный срок хранения, событие `file.uploaded`, компенсация удаления объекта при сбое транзакции;
+- `FindOwnedFilesUseCase` — проверка вложений по списку `fileIds`: все свои и `active`, порядок как во входе; иначе `FileNotFoundError(id)` (чужой или несуществующий) или `FileGoneError(id)` (удалённый).
 
 События пишутся в outbox в одной транзакции со строкой `stored_file`, их регистрирует `contracts/register-file-events.ts`:
 

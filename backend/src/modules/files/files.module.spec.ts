@@ -8,6 +8,8 @@ import { findErrorStatus } from '../../shared/http/error-status.registry';
 import { HoldFileUseCase } from './application/hold-file.use-case';
 import { OpenFileForProcessingUseCase } from './application/open-file-for-processing.use-case';
 import { ReleaseFileHoldUseCase } from './application/release-file-hold.use-case';
+import { FindOwnedFilesUseCase } from './application/find-owned-files.use-case';
+import { StoreGeneratedFileUseCase } from './application/store-generated-file.use-case';
 import { FILE_UPLOADED_EVENT_TYPE } from './domain/events/file-uploaded.event';
 import type { ObjectStoragePort } from './domain/ports/object-storage.port';
 import { FilesModule } from './files.module';
@@ -32,12 +34,14 @@ describe('FilesModule', () => {
     it('exports only the use cases meant for other modules', () => {
         const exported: unknown = Reflect.getMetadata(MODULE_METADATA.EXPORTS, FilesModule);
 
-        expect(exported).toHaveLength(3);
+        expect(exported).toHaveLength(5);
         expect(exported).toEqual(
             expect.arrayContaining([
                 OpenFileForProcessingUseCase,
                 HoldFileUseCase,
                 ReleaseFileHoldUseCase,
+                StoreGeneratedFileUseCase,
+                FindOwnedFilesUseCase,
             ]),
         );
     });
