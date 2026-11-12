@@ -381,3 +381,127 @@ describe('validateEnv transcription settings', () => {
         expect(env.TRANSCRIPTION_MODEL).toBe('openai/gpt-audio-mini');
     });
 });
+
+describe('validateEnv file storage settings', () => {
+    it('uses local MinIO defaults for S3', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.S3_ENDPOINT).toBe('http://localhost:9000');
+        expect(env.S3_REGION).toBe('us-east-1');
+        expect(env.S3_ACCESS_KEY).toBe('minioadmin');
+        expect(env.S3_SECRET_KEY).toBe('minioadmin');
+        expect(env.S3_BUCKET).toBe('files');
+        expect(env.S3_FORCE_PATH_STYLE).toBe(true);
+    });
+
+    it.each(['S3_ACCESS_KEY', 'S3_SECRET_KEY'] as const)(
+        'requires %s in production instead of the MinIO default',
+        (name) => {
+            const production = {
+                ...REQUIRED_ENV,
+                NODE_ENV: 'production',
+                S3_ACCESS_KEY: 'prod-access-key',
+                S3_SECRET_KEY: 'prod-secret-key',
+            };
+
+            expect(() => validateEnv({ ...production, [name]: '' })).toThrow(
+                `${name} is required when NODE_ENV=production`,
+            );
+            expect(validateEnv(production)[name]).toBe(production[name]);
+        },
+    );
+
+    it('parses S3_FORCE_PATH_STYLE=false', () => {
+        expect(
+            validateEnv({ ...REQUIRED_ENV, S3_FORCE_PATH_STYLE: 'false' }).S3_FORCE_PATH_STYLE,
+        ).toBe(false);
+    });
+
+    it('uses FILES_* defaults from design', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.FILES_MAX_RECORDING_MB).toBe(1024);
+        expect(env.FILES_MAX_DOCUMENT_MB).toBe(50);
+        expect(env.FILES_DOCUMENT_RETENTION_DAYS).toBe(30);
+        expect(env.FILES_RECORDING_RETENTION_DAYS).toBe(1);
+        expect(env.FILES_MAX_HOLD_DAYS).toBe(7);
+        expect(env.FILES_PURGE_CRON).toBe('0 3 * * *');
+        expect(env.FILES_DOWNLOAD_LINK_TTL_SEC).toBe(300);
+        expect(env.FILES_DOWNLOAD_TOKEN_SECRET).toBeUndefined();
+    });
+
+    it('accepts a download token secret of 32+ characters', () => {
+        const secret = 'x'.repeat(32);
+
+        expect(
+            validateEnv({ ...REQUIRED_ENV, FILES_DOWNLOAD_TOKEN_SECRET: secret })
+                .FILES_DOWNLOAD_TOKEN_SECRET,
+        ).toBe(secret);
+    });
+
+    it('rejects a download token secret shorter than 32 characters', () => {
+        expect(() =>
+            validateEnv({ ...REQUIRED_ENV, FILES_DOWNLOAD_TOKEN_SECRET: 'x'.repeat(31) }),
+        ).toThrow('FILES_DOWNLOAD_TOKEN_SECRET');
+    });
+
+    it.each([
+        ['S3_ENDPOINT', 'not a url'],
+        ['S3_FORCE_PATH_STYLE', 'yes'],
+        ['FILES_MAX_RECORDING_MB', '0'],
+        ['FILES_RECORDING_RETENTION_DAYS', '1.5'],
+        ['FILES_DOWNLOAD_LINK_TTL_SEC', '-1'],
+    ])('rejects %s=%s', (name, value) => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
+    });
+});
+
+describe('validateEnv meeting transcription settings', () => {
+    it('uses defaults from design', () => {
+        const env = validateEnv(REQUIRED_ENV);
+
+        expect(env.MEETING_TRANSCRIPTION_MODEL).toBe('elevenlabs/scribe-v2');
+        expect(env.MEETING_TRANSCRIPTION_LANGUAGE).toBeUndefined();
+        expect(env.MEETING_TRANSCRIPTION_MAX_DURATION_SEC).toBe(14400);
+        expect(env.MEETING_TRANSCRIPTION_CHUNK_SEC).toBe(600);
+        expect(env.MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC).toBe(30);
+        expect(env.MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES).toBe(20971520);
+        expect(env.MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS).toBe(90000);
+        expect(env.MEETING_TRANSCRIPTION_MAX_EXEMPLARS).toBe(8);
+        expect(env.MEETING_TRANSCRIPTION_EXEMPLAR_SEC).toBe(10);
+        expect(env).not.toHaveProperty('MEETING_TRANSCRIPTION_CHUNK_CONCURRENCY');
+        expect(env.MEETING_TRANSCRIPTION_ATTEMPTS).toBe(3);
+        expect(env.MEETING_TRANSCRIPTION_CONCURRENCY).toBe(2);
+        expect(env.MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS).toBe(7_200_000);
+    });
+
+    it('treats an empty language as missing and accepts a set one', () => {
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_LANGUAGE: '' })
+                .MEETING_TRANSCRIPTION_LANGUAGE,
+        ).toBeUndefined();
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_LANGUAGE: 'ru' })
+                .MEETING_TRANSCRIPTION_LANGUAGE,
+        ).toBe('ru');
+    });
+
+    it.each([
+        ['MEETING_TRANSCRIPTION_CHUNK_SEC', '0'],
+        ['MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC', '-1'],
+        ['MEETING_TRANSCRIPTION_MAX_EXEMPLARS', 'many'],
+        ['MEETING_TRANSCRIPTION_EXEMPLAR_SEC', '0'],
+    ])('rejects %s=%s', (name, value) => {
+        expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
+    });
+
+    it('rejects an overlap not shorter than the chunk', () => {
+        expect(() =>
+            validateEnv({
+                ...REQUIRED_ENV,
+                MEETING_TRANSCRIPTION_CHUNK_SEC: '60',
+                MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: '60',
+            }),
+        ).toThrow('MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC');
+    });
+});
