@@ -7,11 +7,11 @@ import { ChatSystemMessagePostedEvent } from '../contracts/chat-system-message-p
 import type { SystemMessageCommand } from '../contracts/system-message.command';
 import { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
-import { type ActiveRunRegistryPort } from '../domain/ports/active-run-registry.port';
 import { AttachmentFilesPort } from '../domain/ports/attachment-files.port';
 import { AgentContextWriterPort } from '../domain/ports/agent-context-writer.port';
 import { ChatThreadPort } from '../domain/ports/chat-thread.port';
 import { RunInProgressError } from '../domain/run-in-progress.error';
+import { ActiveRunRegistry } from '../infrastructure/active-run-registry';
 import { InMemoryChatSessionRepository } from '../interface/http/testing/in-memory-chat-session-repository';
 import { PostSystemMessageUseCase } from './post-system-message.use-case';
 
@@ -59,7 +59,7 @@ describe('PostSystemMessageUseCase', () => {
     let sessions: InMemoryChatSessionRepository;
     let thread: FakeThread;
     let context: FakeContext;
-    let running: Set<string>;
+    let registry: ActiveRunRegistry;
     let published: DomainEvent[];
     let transactions: InMemoryTransactionRunner;
     let useCase: PostSystemMessageUseCase;
@@ -88,10 +88,7 @@ describe('PostSystemMessageUseCase', () => {
         };
         thread = new FakeThread();
         context = new FakeContext(calls);
-        running = new Set();
-        const registry = {
-            isRunning: (threadId: string) => running.has(threadId),
-        } as unknown as ActiveRunRegistryPort;
+        registry = new ActiveRunRegistry();
         published = [];
         transactions = new InMemoryTransactionRunner();
         const events: DomainEventPublisherPort = {
@@ -156,10 +153,52 @@ describe('PostSystemMessageUseCase', () => {
     });
 
     it('throws RunInProgressError while the chat has an active run and writes nothing', async () => {
-        running.add(session.id);
+        registry.tryStart(session.id, 'run-1');
         await expect(useCase.execute(command())).rejects.toBeInstanceOf(RunInProgressError);
         expect(calls).toEqual([]);
         expect(await sessions.listMessages(session.id, OWNER)).toEqual([]);
+    });
+
+    it('a run started during the write waits until the message is saved', async () => {
+        let finishCheckpointer: () => void = () => undefined;
+        context.appendAssistantMessage = (sessionId, text) => {
+            calls.push('checkpointer');
+            context.appended.push({ sessionId, text });
+            return new Promise<void>((resolve) => {
+                finishCheckpointer = resolve;
+            });
+        };
+        const posting = useCase.execute(command());
+        await vi.waitFor(() => {
+            expect(calls).toEqual(['checkpointer']);
+        });
+
+        const starting = registry.startAfterSystemMessages(session.id, 'run-1').then((run) => {
+            calls.push('run');
+            return run;
+        });
+        await Promise.resolve();
+        expect(registry.isRunning(session.id)).toBe(false);
+
+        finishCheckpointer();
+        expect(await posting).toBe('posted');
+        expect(await starting).not.toBeNull();
+        expect(calls).toEqual(['checkpointer', 'row', 'event', 'run']);
+    });
+
+    it('releases the chat when the write fails', async () => {
+        context.appendAssistantMessage = () => Promise.reject(new Error('checkpointer is down'));
+        await expect(useCase.execute(command())).rejects.toThrow('checkpointer is down');
+        expect(await registry.startAfterSystemMessages(session.id, 'run-1')).not.toBeNull();
+    });
+
+    it('releases the chat after a duplicate and after a deleted chat', async () => {
+        await useCase.execute(command());
+        expect(await useCase.execute(command())).toBe('duplicate');
+        sessions.appendSystemMessage = () =>
+            Promise.reject(new ChatSessionNotFoundError(session.id));
+        expect(await useCase.execute(command({ dedupKey: 'event-2' }))).toBe('skipped');
+        expect(await registry.startAfterSystemMessages(session.id, 'run-1')).not.toBeNull();
     });
 
     it('a repeated dedup key is a duplicate and does not touch the checkpointer again', async () => {

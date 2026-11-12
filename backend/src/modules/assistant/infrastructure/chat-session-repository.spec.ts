@@ -444,7 +444,7 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
     });
 
     describe('system message lookups', () => {
-        it('findFirstSessionWithFile returns the first existing chat of the owner with the file in a question', async () => {
+        it('findFirstSessionWithFile returns the first chat of the owner with the file in a question', async () => {
             const fileId = await createFile('встреча.m4a');
             const first = await repo.create(ChatSession.create(mine));
             const second = await repo.create(ChatSession.create(mine));
@@ -458,10 +458,20 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
 
             expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBe(first.id);
             expect(await repo.findFirstSessionWithFile(fileId, await createUser())).toBeNull();
+        });
+
+        it('findFirstSessionWithFile is null after the first chat is deleted, not the next chat', async () => {
+            const fileId = await createFile('встреча.m4a');
+            const first = await repo.create(ChatSession.create(mine));
+            const second = await repo.create(ChatSession.create(mine));
+            await repo.appendUserMessage(first.id, ownerId, '', [fileId]);
+            await repo.appendUserMessage(second.id, ownerId, 'снова', [fileId]);
 
             await repo.delete(first.id, ownerId);
-            expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBe(second.id);
-            await repo.delete(second.id, ownerId);
+            expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBeNull();
+
+            const third = await repo.create(ChatSession.create(mine));
+            await repo.appendUserMessage(third.id, ownerId, 'ещё раз', [fileId]);
             expect(await repo.findFirstSessionWithFile(fileId, ownerId)).toBeNull();
         });
 

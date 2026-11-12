@@ -15,10 +15,6 @@ import { formatAttachmentsBlock } from '../domain/run-input';
 
 export type PostSystemMessageOutcome = 'posted' | 'duplicate' | 'skipped';
 
-/**
- * Adds a message of the agent to a chat without a question: to the agent context first, then to
- * the history. It is not a run: it never takes the run slot and waits (by retry) while one is active.
- */
 @Injectable()
 export class PostSystemMessageUseCase {
     constructor(
@@ -35,12 +31,23 @@ export class PostSystemMessageUseCase {
     }
 
     async execute(command: SystemMessageCommand): Promise<PostSystemMessageOutcome> {
-        const { sessionId, ownerId, dedupKey } = command;
+        const { sessionId, ownerId } = command;
         const session = await this.sessions.findOwned(sessionId, ownerId);
         // A deleted chat is never restored; system messages go only to app chats.
         if (session?.channel !== 'app') return 'skipped';
-        // Must not get inside the current answer: the queue retries after a delay.
-        if (this.registry.isRunning(sessionId)) throw new RunInProgressError(sessionId);
+        // Must not get inside the current answer: the queue retries after a delay. A run asked
+        // for while the message is written waits for the hold instead of being refused.
+        const hold = this.registry.holdForSystemMessage(sessionId);
+        if (hold === null) throw new RunInProgressError(sessionId);
+        try {
+            return await this.post(command);
+        } finally {
+            hold.release();
+        }
+    }
+
+    private async post(command: SystemMessageCommand): Promise<PostSystemMessageOutcome> {
+        const { sessionId, ownerId, dedupKey } = command;
         // A redelivery must not add a second copy to the agent context.
         if (await this.sessions.hasDedupKey(dedupKey)) return 'duplicate';
 

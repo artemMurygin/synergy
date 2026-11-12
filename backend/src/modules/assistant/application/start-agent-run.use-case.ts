@@ -65,7 +65,7 @@ export class StartAgentRunUseCase {
             fileIds.length === 0 ? [] : await this.files.findOwned(ownerId, fileIds);
         const input = this.guard(() => RunInput.of({ ...props, attachments }));
 
-        const run = this.registry.tryStart(input.threadId, input.runId);
+        const run = await this.registry.startAfterSystemMessages(input.threadId, input.runId);
         if (run === null) throw new RunConflictError(input.threadId);
 
         try {

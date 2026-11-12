@@ -21,8 +21,6 @@ describe('FindFirstChatOfFileUseCase', () => {
         expect(await useCase.execute({ ownerId: OWNER, fileId: 'other' })).toBeNull();
 
         await sessions.delete(first.id, OWNER);
-        expect(await useCase.execute({ ownerId: OWNER, fileId: 'rec-1' })).toBe(second.id);
-        await sessions.delete(second.id, OWNER);
         expect(await useCase.execute({ ownerId: OWNER, fileId: 'rec-1' })).toBeNull();
     });
 });

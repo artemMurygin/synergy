@@ -225,7 +225,9 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
                 RETURNING ${MESSAGE_COLUMNS}
             `);
             if (row === null) throw new ChatSessionNotFoundError(sessionId);
-            return this.withAttachments(db, row, attachments);
+            const message = await this.withAttachments(db, row, attachments);
+            await this.rememberFirstSession(db, sessionId, ownerId, attachments);
+            return message;
         });
     }
 
@@ -289,13 +291,10 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
 
     async findFirstSessionWithFile(fileId: string, ownerId: string): Promise<string | null> {
         const row = await this.db.maybeOne(sql.unsafe`
-            SELECT m.session_id
-            FROM chat_message_attachment a
-            JOIN chat_message m ON m.id = a.message_id
-            JOIN chat_session s ON s.id = m.session_id
-            WHERE a.file_id = ${fileId} AND s.owner_id = ${ownerId} AND m.role = 'user'
-            ORDER BY a.message_id
-            LIMIT 1
+            SELECT f.session_id
+            FROM chat_file_first_session f
+            JOIN chat_session s ON s.id = f.session_id AND s.owner_id = f.owner_id
+            WHERE f.file_id = ${fileId} AND f.owner_id = ${ownerId}
         `);
         return row === null ? null : z.object({ session_id: z.string() }).parse(row).session_id;
     }
@@ -318,6 +317,21 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
     }
 
     /** Links the files to the stored message in the given order and returns the full message. */
+    private async rememberFirstSession(
+        db: CommonQueryMethods,
+        sessionId: string,
+        ownerId: string,
+        fileIds: readonly string[],
+    ): Promise<void> {
+        if (fileIds.length === 0) return;
+        await db.query(sql.unsafe`
+            INSERT INTO chat_file_first_session (file_id, owner_id, session_id)
+            SELECT file_id, ${ownerId}, ${sessionId}
+            FROM unnest(${sql.array([...fileIds], 'uuid')}) AS t(file_id)
+            ON CONFLICT (file_id) DO NOTHING
+        `);
+    }
+
     private async withAttachments(
         db: CommonQueryMethods,
         row: unknown,

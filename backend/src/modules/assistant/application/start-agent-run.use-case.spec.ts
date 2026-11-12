@@ -89,7 +89,14 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         calls.push('release');
         if (runs.get(threadId)?.runId === runId) runs.delete(threadId);
     });
-    const registry = { tryStart, release } as unknown as ActiveRunRegistryPort;
+    const startAfterSystemMessages = vi.fn((threadId: string, runId: string) =>
+        Promise.resolve(tryStart(threadId, runId)),
+    );
+    const registry = {
+        tryStart,
+        startAfterSystemMessages,
+        release,
+    } as unknown as ActiveRunRegistryPort;
 
     const findById = vi.fn(() => {
         calls.push('find');

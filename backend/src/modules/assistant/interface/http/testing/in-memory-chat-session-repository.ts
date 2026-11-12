@@ -26,6 +26,7 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
     /** Facts of stored files by id, as the history would read them from stored_file. */
     files = new Map<string, FileFacts>();
     private nextId = 1;
+    private readonly firstSessionByFile = new Map<string, { ownerId: string; sessionId: string }>();
 
     private attach(fileIds: readonly string[] = []): MessageAttachment[] {
         return fileIds.map((fileId, position) =>
@@ -84,6 +85,11 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
                 attachments: this.attach(attachments),
             });
             this.messages.get(sessionId)?.push(message);
+            for (const fileId of attachments) {
+                if (!this.firstSessionByFile.has(fileId)) {
+                    this.firstSessionByFile.set(fileId, { ownerId, sessionId });
+                }
+            }
             return message;
         });
     }
@@ -134,17 +140,10 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
         return Promise.resolve(all.some((m) => m.dedupKey === dedupKey));
     }
     findFirstSessionWithFile(fileId: string, ownerId: string): Promise<string | null> {
-        const found = [...this.messages.values()]
-            .flat()
-            .filter(
-                (m) =>
-                    m.role === 'user' &&
-                    this.sessions.get(m.sessionId)?.ownerId === ownerId &&
-                    m.attachments.some((a) => a.fileId === fileId),
-            )
-            .sort((a, b) => a.id - b.id)
-            .at(0);
-        return Promise.resolve(found?.sessionId ?? null);
+        const first = this.firstSessionByFile.get(fileId);
+        const isLive =
+            first?.ownerId === ownerId && this.sessions.get(first.sessionId)?.ownerId === ownerId;
+        return Promise.resolve(isLive ? first.sessionId : null);
     }
     rename(sessionId: string, ownerId: string, title: ChatTitle): Promise<ChatSession> {
         return this.require(sessionId, ownerId, () => {

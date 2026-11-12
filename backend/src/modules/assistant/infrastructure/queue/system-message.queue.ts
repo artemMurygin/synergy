@@ -11,14 +11,13 @@ import {
     SYSTEM_MESSAGE_QUEUE_NAME,
 } from './system-message-queue.constants';
 
-/** Posting through BullMQ: retries while the chat has an active run, one job per dedupKey. */
 @Injectable()
 export class SystemMessageQueue extends PostSystemMessagePort {
     constructor(@InjectQueue(SYSTEM_MESSAGE_QUEUE_NAME) private readonly queue: Queue) {
         super();
     }
 
-    // BullMQ при существующем `jobId` возвращает прежний job, ошибки нет.
+    // BullMQ returns the existing job for a repeated jobId instead of failing.
     async request(command: SystemMessageCommand): Promise<void> {
         const data = systemMessageCommandSchema.parse(command);
         await this.queue.add(SYSTEM_MESSAGE_JOB_NAME, data, { jobId: data.dedupKey });

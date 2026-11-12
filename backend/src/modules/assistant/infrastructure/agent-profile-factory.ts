@@ -22,30 +22,39 @@ export interface AgentProfileFactoryOptions {
     readonly checkpointer: BaseCheckpointSaver;
 }
 
-/** The part of the compiled graph used to write into a thread without running the agent. */
-interface StateWriter {
+interface ThreadStateWriter {
     updateState(
         config: { configurable: Record<string, string> },
         values: { messages: AIMessage[] },
     ): Promise<unknown>;
 }
 
-/** Assembles the agent of a client's profile for one run; capabilities see the run context. */
+function createContextWriter(
+    model: BaseChatModel,
+    checkpointer: BaseCheckpointSaver,
+): ThreadStateWriter {
+    return createDeepAgent({ model, checkpointer, subagents: [] }).graph;
+}
+
 export class AgentProfileFactory implements AgentContextWriterPort {
+    private writer: ThreadStateWriter | undefined;
+
     constructor(private readonly options: AgentProfileFactoryOptions) {}
 
-    /**
-     * Adds a message of the agent to the thread of an app chat, as if the orchestrator had written
-     * it. The graph is built without specialists: only its state schema and checkpointer are used.
-     */
+    // The writer has no specialists: only its state schema and checkpointer matter here.
     async appendAssistantMessage(threadId: string, text: string): Promise<void> {
-        const { orchestratorModel, checkpointer } = this.options;
-        const agent = createDeepAgent({ model: orchestratorModel, checkpointer, subagents: [] });
-        const graph = agent.graph as unknown as StateWriter;
-        await graph.updateState(
+        await this.contextWriter().updateState(
             { configurable: { thread_id: threadId } },
             { messages: [new AIMessage(text)] },
         );
+    }
+
+    private contextWriter(): ThreadStateWriter {
+        this.writer ??= createContextWriter(
+            this.options.orchestratorModel,
+            this.options.checkpointer,
+        );
+        return this.writer;
     }
 
     build(client: ClientId, ctx: AgentRunContext): CapabilityAgent {
