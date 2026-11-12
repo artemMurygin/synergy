@@ -104,7 +104,8 @@ export function AttachmentDropZone({ onFiles, disabled = false, children }: Atta
     setDragging(true)
   }
   const onDragLeave = (event: DragEvent) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false)
+    const related = event.relatedTarget
+    if (!(related instanceof Node) || !event.currentTarget.contains(related)) setDragging(false)
   }
   const onDrop = (event: DragEvent) => {
     if (disabled || !hasFiles(event)) return

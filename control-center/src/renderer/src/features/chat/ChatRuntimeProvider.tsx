@@ -50,9 +50,13 @@ function toRuntimeMessages(history: readonly ChatHistoryMessage[]) {
  * The composer puts the attached file ids into the message run config (`runConfig.custom.fileIds`),
  * which the AG-UI runtime forwards as `forwardedProps.runConfig`. The backend reads `forwardedProps.fileIds`.
  */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export function liftFileIds(input: RunAgentInput): RunAgentInput {
-  const props = (input.forwardedProps ?? {}) as Record<string, unknown>
-  const runConfig = props.runConfig as Record<string, unknown> | undefined
+  const props: Record<string, unknown> = isRecord(input.forwardedProps) ? input.forwardedProps : {}
+  const runConfig = isRecord(props.runConfig) ? props.runConfig : undefined
   const fileIds = runConfig?.fileIds
   if (!Array.isArray(fileIds) || fileIds.length === 0) return input
   return { ...input, forwardedProps: { ...props, fileIds } }
