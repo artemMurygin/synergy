@@ -3,12 +3,20 @@ import { ConfigService } from '@nestjs/config';
 import { PinoLogger } from 'nestjs-pino';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
+import { DocumentsModule } from '../../shared/documents';
+import { createChatModel } from '../../shared/llm';
 import { FilesModule } from '../files/files.module';
 import { TranscribeVoiceUseCase } from './application/transcribe-voice.use-case';
 import { TranscriberPort } from './domain/ports/transcriber.port';
 import { Transcriber } from './infrastructure/openrouter/transcriber';
 import { FailMeetingTranscriptionOnFileDeleted } from './meeting/application/fail-meeting-transcription-on-file-deleted.subscriber';
 import { FailMeetingTranscriptionUseCase } from './meeting/application/fail-meeting-transcription.use-case';
+import {
+    ExtractMeetingTasksSettings,
+    ExtractMeetingTasksUseCase,
+} from './meeting/application/extract-meeting-tasks.use-case';
+import { GetSpeakerSamplesUseCase } from './meeting/application/get-speaker-samples.use-case';
+import { MeetingDocuments } from './meeting/application/meeting-documents';
 import { GetMeetingTranscriptUseCase } from './meeting/application/get-meeting-transcript.use-case';
 import { MeetingTranscriptionEventSubscriptions } from './meeting/application/meeting-transcription-event-subscriptions';
 import { RenameSpeakersUseCase } from './meeting/application/rename-speakers.use-case';
@@ -20,10 +28,16 @@ import { ChunkTranscriberPort } from './meeting/domain/ports/chunk-transcriber.p
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
+import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
 import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
 import { AudioChunker } from './meeting/infrastructure/ffmpeg/audio-chunker';
 import { ChunkTranscriber } from './meeting/infrastructure/openrouter/chunk-transcriber';
+import {
+    LlmTaskExtractor,
+    meetingTasksExtractionSettingsFromConfig,
+    meetingTasksModelSetting,
+} from './meeting/infrastructure/openrouter/llm-task-extractor';
 import { MeetingTranscriptionQueue } from './meeting/infrastructure/queue/meeting-transcription.queue';
 import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/meeting-transcription-queue.module';
 import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/meeting-transcription.processor';
@@ -34,7 +48,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
 
 // Маршруты закрыты глобальным JwtAuthGuard из AuthModule.
 @Module({
-    imports: [PostgresModule, FilesModule, MeetingTranscriptionQueueModule],
+    imports: [PostgresModule, FilesModule, DocumentsModule, MeetingTranscriptionQueueModule],
     controllers: [MeetingTranscriptsController],
     providers: [
         // Голосовые Telegram.
@@ -49,6 +63,23 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         TranscribeMeetingUseCase,
         GetMeetingTranscriptUseCase,
         RenameSpeakersUseCase,
+        GetSpeakerSamplesUseCase,
+        MeetingDocuments,
+        ExtractMeetingTasksUseCase,
+        {
+            provide: ExtractMeetingTasksSettings,
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<Env, true>): ExtractMeetingTasksSettings =>
+                meetingTasksExtractionSettingsFromConfig(config),
+        },
+        {
+            provide: TaskExtractorPort,
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<Env, true>): TaskExtractorPort =>
+                new LlmTaskExtractor(() =>
+                    createChatModel(config, meetingTasksModelSetting(config)),
+                ),
+        },
         RetryMeetingTranscriptionUseCase,
         FailMeetingTranscriptionUseCase,
         StartMeetingTranscriptionOnFileUploaded,

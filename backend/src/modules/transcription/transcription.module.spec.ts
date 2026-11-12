@@ -11,7 +11,9 @@ import { TransactionRunnerPort } from '../../database/postgres/transaction-runne
 import { DomainEventPublisherPort } from '../../shared/ddd';
 import { findErrorStatus } from '../../shared/http/error-status.registry';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
+import { GetFileUseCase } from '../files/application/get-file.use-case';
 import { HoldFileUseCase } from '../files/application/hold-file.use-case';
+import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
 import { OpenFileForProcessingUseCase } from '../files/application/open-file-for-processing.use-case';
 import { ReleaseFileHoldUseCase } from '../files/application/release-file-hold.use-case';
 import { FILE_DELETED_EVENT_TYPE } from '../files/domain/events/file-deleted.event';
@@ -23,6 +25,14 @@ import { Transcriber } from './infrastructure/openrouter/transcriber';
 import { FAIL_MEETING_TRANSCRIPTION_ON_FILE_DELETED_SUBSCRIBER } from './meeting/application/fail-meeting-transcription-on-file-deleted.subscriber';
 import { FailMeetingTranscriptionUseCase } from './meeting/application/fail-meeting-transcription.use-case';
 import { GetMeetingTranscriptUseCase } from './meeting/application/get-meeting-transcript.use-case';
+import {
+    ExtractMeetingTasksSettings,
+    ExtractMeetingTasksUseCase,
+} from './meeting/application/extract-meeting-tasks.use-case';
+import { GetSpeakerSamplesUseCase } from './meeting/application/get-speaker-samples.use-case';
+import { MeetingDocuments } from './meeting/application/meeting-documents';
+import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
+import { LlmTaskExtractor } from './meeting/infrastructure/openrouter/llm-task-extractor';
 import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-meeting-transcription.use-case';
 import { START_MEETING_TRANSCRIPTION_SUBSCRIBER } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
@@ -53,6 +63,8 @@ const values: Record<string, unknown> = {
     MEETING_TRANSCRIPTION_ATTEMPTS: 3,
     MEETING_TRANSCRIPTION_CONCURRENCY: 2,
     MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: 7_200_000,
+    MEETING_TASKS_WINDOW_TOKENS: 60_000,
+    MEETING_TASKS_WINDOW_MIN: 30,
 };
 
 // Новый реестр на каждое приложение: события нельзя зарегистрировать дважды.
@@ -78,8 +90,16 @@ class FakeInfrastructureModule {}
         { provide: OpenFileForProcessingUseCase, useValue: { execute: vi.fn() } },
         { provide: HoldFileUseCase, useValue: { execute: vi.fn() } },
         { provide: ReleaseFileHoldUseCase, useValue: { execute: vi.fn() } },
+        { provide: StoreGeneratedFileUseCase, useValue: { execute: vi.fn() } },
+        { provide: GetFileUseCase, useValue: { execute: vi.fn() } },
     ],
-    exports: [OpenFileForProcessingUseCase, HoldFileUseCase, ReleaseFileHoldUseCase],
+    exports: [
+        OpenFileForProcessingUseCase,
+        HoldFileUseCase,
+        ReleaseFileHoldUseCase,
+        StoreGeneratedFileUseCase,
+        GetFileUseCase,
+    ],
 })
 class FakeFilesModule {}
 
@@ -175,6 +195,20 @@ describe('TranscriptionModule', () => {
             MeetingTranscriptRepository,
         );
         expect(app.get(MeetingTranscriptionQueuePort)).toBeInstanceOf(MeetingTranscriptionQueue);
+    });
+
+    it('wires the meeting documents, speaker samples and task extraction', async () => {
+        app = await createApp();
+
+        expect(app.get(MeetingDocuments)).toBeInstanceOf(MeetingDocuments);
+        expect(app.get(GetSpeakerSamplesUseCase)).toBeInstanceOf(GetSpeakerSamplesUseCase);
+        expect(app.get(ExtractMeetingTasksUseCase)).toBeInstanceOf(ExtractMeetingTasksUseCase);
+        expect(app.get(TaskExtractorPort)).toBeInstanceOf(LlmTaskExtractor);
+        expect(app.get(ExtractMeetingTasksSettings)).toEqual({
+            windowTokens: 60_000,
+            windowSec: 1800,
+            overlapSec: 120,
+        });
     });
 
     it('subscribes to file.uploaded and file.deleted and registers error statuses on start', async () => {

@@ -5,6 +5,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it, vi } from 'vitest';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
 import { findErrorStatus } from '../../shared/http/error-status.registry';
+import { GetFileUseCase } from './application/get-file.use-case';
 import { HoldFileUseCase } from './application/hold-file.use-case';
 import { OpenFileForProcessingUseCase } from './application/open-file-for-processing.use-case';
 import { ReleaseFileHoldUseCase } from './application/release-file-hold.use-case';
@@ -34,7 +35,7 @@ describe('FilesModule', () => {
     it('exports only the use cases meant for other modules', () => {
         const exported: unknown = Reflect.getMetadata(MODULE_METADATA.EXPORTS, FilesModule);
 
-        expect(exported).toHaveLength(5);
+        expect(exported).toHaveLength(6);
         expect(exported).toEqual(
             expect.arrayContaining([
                 OpenFileForProcessingUseCase,
@@ -42,6 +43,7 @@ describe('FilesModule', () => {
                 ReleaseFileHoldUseCase,
                 StoreGeneratedFileUseCase,
                 FindOwnedFilesUseCase,
+                GetFileUseCase,
             ]),
         );
     });

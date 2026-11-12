@@ -99,6 +99,8 @@ import { FilesController } from './interface/http/files.controller';
         ReleaseFileHoldUseCase,
         StoreGeneratedFileUseCase,
         FindOwnedFilesUseCase,
+        // Имя и дата загрузки записи для документов встречи, в том числе после удаления.
+        GetFileUseCase,
     ],
 })
 export class FilesModule implements OnModuleInit {
