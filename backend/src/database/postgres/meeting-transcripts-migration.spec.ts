@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { migrate } from './migrator';
+import { migrateBefore } from './testing/migrate-before';
 
 // Интеграционный тест: нужна PostgreSQL. Без PROGRAMS_ETL_TEST_ADMIN_URL тест пропускается.
 const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
@@ -64,7 +64,8 @@ describe.skipIf(adminUrl === undefined)('021_meeting_transcripts migration', () 
         await admin.query(`CREATE DATABASE ${dbName}`);
         await admin.end();
         const dbUrl = withDatabase(adminUrl ?? '', dbName);
-        await migrate(dbUrl);
+        // Схема до 022: дальше таблица меняется, этот тест проверяет исходную миграцию.
+        await migrateBefore(dbUrl, '022');
         client = new Client({ connectionString: dbUrl });
         await client.connect();
         const [user] = await query(
