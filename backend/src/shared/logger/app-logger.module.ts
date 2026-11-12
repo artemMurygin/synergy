@@ -5,6 +5,7 @@ import type { Env } from '../config/env.schema';
 import { RequestContext } from '../context/request-context';
 import { resolveRequestIds } from '../context/request-id';
 import { LOG_REDACT_PATHS } from './log-redact-paths';
+import { serializeRequest } from './request-serializer';
 
 @Module({
     imports: [
@@ -38,6 +39,7 @@ import { LOG_REDACT_PATHS } from './log-redact-paths';
                         level: config.get('LOG_LEVEL', { infer: true }),
                         genReqId: (req, res) => resolveRequestIds(req, res).requestId,
                         mixin: () => RequestContext.getIds() ?? {},
+                        serializers: { req: serializeRequest },
                         redact: {
                             paths: [...LOG_REDACT_PATHS],
                             censor: '[Redacted]',
