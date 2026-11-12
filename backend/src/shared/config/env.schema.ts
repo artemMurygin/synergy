@@ -163,7 +163,7 @@ export const envSchema = z
         MEETING_TASKS_EXTRACTION_MODEL: z.string().min(1).optional(),
         // Порог длины расшифровки, после которого она режется на окна
         MEETING_TASKS_WINDOW_TOKENS: positiveInt(60_000),
-        MEETING_TASKS_WINDOW_MIN: positiveInt(30),
+        MEETING_TASKS_WINDOW_MINUTES: positiveInt(30),
 
         // Сообщение системы в чат: пауза перед повтором, пока идёт запуск, и предельный срок
         CHAT_SYSTEM_MESSAGE_RETRY_MS: positiveInt(5000),

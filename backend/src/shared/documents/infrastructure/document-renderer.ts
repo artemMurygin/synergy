@@ -19,7 +19,7 @@ const FONT = 'Calibri';
 
 /** `DocumentModel` → `.docx` на библиотеке `docx`. */
 @Injectable()
-export class DocxDocumentRenderer extends DocumentRendererPort {
+export class DocumentRenderer extends DocumentRendererPort {
     readonly mediaType = DOCX_MEDIA_TYPE;
     readonly extension = '.docx';
 

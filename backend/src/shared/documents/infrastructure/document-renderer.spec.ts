@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import { DocumentModel } from '../document-model';
-import { DocxDocumentRenderer } from './docx-document-renderer';
+import { DocumentRenderer } from './document-renderer';
 
 const EMPTY_CELL = '—';
 
@@ -20,8 +20,8 @@ function texts(xml: string): string[] {
     return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]);
 }
 
-describe('DocxDocumentRenderer', () => {
-    const renderer = new DocxDocumentRenderer();
+describe('DocumentRenderer', () => {
+    const renderer = new DocumentRenderer();
 
     const doc = DocumentModel.of({
         title: 'Расшифровка — Планёрка',

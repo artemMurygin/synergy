@@ -512,7 +512,7 @@ describe('validateEnv meeting tasks and chat system message settings', () => {
 
         expect(env.MEETING_TASKS_EXTRACTION_MODEL).toBeUndefined();
         expect(env.MEETING_TASKS_WINDOW_TOKENS).toBe(60_000);
-        expect(env.MEETING_TASKS_WINDOW_MIN).toBe(30);
+        expect(env.MEETING_TASKS_WINDOW_MINUTES).toBe(30);
         expect(env.CHAT_SYSTEM_MESSAGE_RETRY_MS).toBe(5000);
         expect(env.CHAT_SYSTEM_MESSAGE_DEADLINE_MS).toBe(600_000);
     });
@@ -530,7 +530,7 @@ describe('validateEnv meeting tasks and chat system message settings', () => {
 
     it.each([
         ['MEETING_TASKS_WINDOW_TOKENS', '0'],
-        ['MEETING_TASKS_WINDOW_MIN', '1.5'],
+        ['MEETING_TASKS_WINDOW_MINUTES', '1.5'],
         ['CHAT_SYSTEM_MESSAGE_RETRY_MS', '-1'],
         ['CHAT_SYSTEM_MESSAGE_DEADLINE_MS', 'soon'],
     ])('rejects %s=%s', (name, value) => {
