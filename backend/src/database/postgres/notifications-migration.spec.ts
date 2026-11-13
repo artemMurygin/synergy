@@ -129,21 +129,25 @@ describe.skipIf(adminUrl === undefined)('017_notifications migration', () => {
         expect(row.read_at).toBeNull();
     });
 
-    it('is idempotent by (source_event_id, recipient_id, type)', async () => {
+    it('is idempotent by (source_event_id, recipient_id, type, target_id)', async () => {
         const recipient = await createUser();
         const other = await createUser();
         const sourceEventId = randomUUID();
-        await createNotification(recipient, { sourceEventId });
-        await expect(createNotification(recipient, { sourceEventId })).rejects.toThrow();
-        await expect(createNotification(other, { sourceEventId })).resolves.toBeTypeOf('string');
+        await createNotification(recipient, { sourceEventId, targetId: 'x' });
         await expect(
-            createNotification(recipient, { sourceEventId, type: 'task.commented' }),
+            createNotification(recipient, { sourceEventId, targetId: 'x' }),
+        ).rejects.toThrow();
+        await expect(
+            createNotification(other, { sourceEventId, targetId: 'x' }),
+        ).resolves.toBeTypeOf('string');
+        await expect(
+            createNotification(recipient, { sourceEventId, type: 'task.commented', targetId: 'x' }),
         ).resolves.toBeTypeOf('string');
         const inserted = await query(
             `INSERT INTO notifications
                  (recipient_id, type, title, target_type, target_id, source_event_id)
              VALUES ($1, 'task.assigned', 'T', 'task', 'x', $2)
-             ON CONFLICT (source_event_id, recipient_id, type) DO NOTHING RETURNING id`,
+             ON CONFLICT (source_event_id, recipient_id, type, target_id) DO NOTHING RETURNING id`,
             [recipient, sourceEventId],
         );
         expect(inserted).toHaveLength(0);
@@ -208,7 +212,7 @@ describe.skipIf(adminUrl === undefined)('017_notifications migration', () => {
             defs.some(
                 (d) =>
                     d.startsWith('CREATE UNIQUE INDEX') &&
-                    d.includes('(source_event_id, recipient_id, type)'),
+                    d.includes('(source_event_id, recipient_id, type, target_id)'),
             ),
         ).toBe(true);
     });

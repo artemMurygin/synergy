@@ -7,6 +7,7 @@ import {
     AccessTokenService,
     type AccessTokenSigned,
 } from '../domain/ports/access-token-service.port';
+import { InvalidRoleError, Role } from '../domain/role';
 import type { Clock } from '../domain/ports/clock.port';
 
 export interface JwtAccessTokenOptions {
@@ -26,12 +27,13 @@ export class JwtAccessTokenService extends AccessTokenService {
         this.jwt = new JwtService({ secret: options.secret });
     }
 
-    sign(claims: Pick<AccessClaims, 'sub' | 'sid' | 'mcp'>): AccessTokenSigned {
+    sign(claims: Pick<AccessClaims, 'sub' | 'sid' | 'mcp'> & { rol?: Role[] }): AccessTokenSigned {
         const exp = Math.floor(this.options.clock.now().getTime() / 1000) + this.options.ttlSeconds;
         const payload: AccessClaims = {
             sub: claims.sub,
             sid: claims.sid,
             mcp: claims.mcp,
+            rol: claims.rol ?? [],
             jti: randomUUID(),
             exp,
         };
@@ -42,16 +44,19 @@ export class JwtAccessTokenService extends AccessTokenService {
     }
 
     verify(token: string): AccessClaims {
-        let decoded: Partial<AccessClaims>;
+        let decoded: Partial<Omit<AccessClaims, 'rol'>> & { rol?: unknown };
         try {
-            decoded = this.jwt.verify<Partial<AccessClaims>>(token, { algorithms: [ALGORITHM] });
+            decoded = this.jwt.verify<Partial<Omit<AccessClaims, 'rol'>> & { rol?: unknown }>(
+                token,
+                { algorithms: [ALGORITHM] },
+            );
         } catch (error) {
             if ((error as { name?: string }).name === 'TokenExpiredError') {
                 throw new AccessTokenExpiredError();
             }
             throw new AccessTokenInvalidError();
         }
-        const { sub, sid, mcp, jti, exp } = decoded;
+        const { sub, sid, mcp, jti, exp, rol } = decoded;
         if (
             typeof sub !== 'string' ||
             typeof sid !== 'string' ||
@@ -61,6 +66,17 @@ export class JwtAccessTokenService extends AccessTokenService {
         ) {
             throw new AccessTokenInvalidError();
         }
-        return { sub, sid, mcp, jti, exp };
+        return { sub, sid, mcp, rol: parseRoles(rol), jti, exp };
+    }
+}
+
+function parseRoles(raw: unknown): Role[] {
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) throw new AccessTokenInvalidError();
+    try {
+        return raw.map((r) => Role.of(r));
+    } catch (error) {
+        if (error instanceof InvalidRoleError) throw new AccessTokenInvalidError();
+        throw error;
     }
 }

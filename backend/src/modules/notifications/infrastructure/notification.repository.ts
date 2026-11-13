@@ -150,7 +150,7 @@ export class NotificationRepository extends NotificationRepositoryPort {
                         ${notification.actorId}, ${notification.sourceEventId},
                         ${sql.timestamp(notification.createdAt)},
                         ${nullableTimestamp(notification.readAt)})
-                ON CONFLICT (source_event_id, recipient_id, type) DO NOTHING
+                ON CONFLICT (source_event_id, recipient_id, type, target_id) DO NOTHING
                 RETURNING id`,
         );
         return row !== null;

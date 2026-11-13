@@ -29,6 +29,7 @@ export class JwtAuthGuard implements CanActivate {
             id: claims.sub,
             sessionId: claims.sid,
             mustChangePassword: claims.mcp,
+            roles: claims.rol,
         };
         return true;
     }

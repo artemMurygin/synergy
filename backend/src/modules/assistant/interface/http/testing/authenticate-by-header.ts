@@ -13,6 +13,8 @@ export function authenticateByHeader(
     next: NextFunction,
 ): void {
     const id = req.header(USER_HEADER) ?? TEST_USER;
-    if (id !== ANONYMOUS) req.authUser = { id, sessionId: 's', mustChangePassword: false };
+    if (id !== ANONYMOUS) {
+        req.authUser = { id, sessionId: 's', mustChangePassword: false, roles: [] };
+    }
     next();
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NotificationCreatedEvent } from '../domain/events/notification-created.event';
+import { NotificationTarget } from '../domain/notification-target';
 import { CreateNotificationsUseCase } from './create-notifications.use-case';
 import {
     FixedClock,
@@ -12,6 +13,7 @@ import {
 } from './test-doubles';
 
 const SOURCE_EVENT_ID = '3f1c2a9e-0d4b-4c6e-8a7f-1b2c3d4e5f60';
+const TARGET = NotificationTarget.of({ type: 'task', id: 'task-same' });
 
 describe('CreateNotificationsUseCase', () => {
     let notifications: InMemoryNotificationRepository;
@@ -70,11 +72,13 @@ describe('CreateNotificationsUseCase', () => {
     });
 
     it('creates no duplicates and no events when the same source event is processed again', async () => {
-        await useCase.execute(SOURCE_EVENT_ID, [makeDraft({ recipientId: 'boris' })]);
+        await useCase.execute(SOURCE_EVENT_ID, [
+            makeDraft({ recipientId: 'boris', target: TARGET }),
+        ]);
         events.published.length = 0;
 
         const repeated = await useCase.execute(SOURCE_EVENT_ID, [
-            makeDraft({ recipientId: 'boris' }),
+            makeDraft({ recipientId: 'boris', target: TARGET }),
         ]);
 
         expect(repeated).toEqual([]);
@@ -83,12 +87,14 @@ describe('CreateNotificationsUseCase', () => {
     });
 
     it('publishes events only for the notifications actually inserted', async () => {
-        await useCase.execute(SOURCE_EVENT_ID, [makeDraft({ recipientId: 'boris' })]);
+        await useCase.execute(SOURCE_EVENT_ID, [
+            makeDraft({ recipientId: 'boris', target: TARGET }),
+        ]);
         events.published.length = 0;
 
         const created = await useCase.execute(SOURCE_EVENT_ID, [
-            makeDraft({ recipientId: 'boris' }),
-            makeDraft({ recipientId: 'carol' }),
+            makeDraft({ recipientId: 'boris', target: TARGET }),
+            makeDraft({ recipientId: 'carol', target: TARGET }),
         ]);
 
         expect(created.map((notification) => notification.recipientId)).toEqual(['carol']);
@@ -111,11 +117,13 @@ describe('CreateNotificationsUseCase', () => {
     });
 
     it('counts only the notifications actually inserted, by type, after the commit', async () => {
-        await useCase.execute(SOURCE_EVENT_ID, [makeDraft({ recipientId: 'boris' })]);
+        await useCase.execute(SOURCE_EVENT_ID, [
+            makeDraft({ recipientId: 'boris', target: TARGET }),
+        ]);
 
         await useCase.execute(SOURCE_EVENT_ID, [
-            makeDraft({ recipientId: 'boris' }),
-            makeDraft({ recipientId: 'carol' }),
+            makeDraft({ recipientId: 'boris', target: TARGET }),
+            makeDraft({ recipientId: 'carol', target: TARGET }),
         ]);
 
         expect(metrics.created).toEqual(['task.assigned', 'task.assigned']);

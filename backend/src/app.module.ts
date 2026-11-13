@@ -14,6 +14,7 @@ import { AuditAgentModule } from './modules/audit-agent/audit-agent.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { SheetsQaModule } from './modules/sheets-qa/sheets-qa.module';
+import { PortalModule } from './modules/portal/portal.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { FilesModule } from './modules/files/files.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
@@ -33,6 +34,7 @@ import { MeetingChatModule } from './modules/transcription/meeting/meeting-chat.
         SheetsQaModule,
         AssistantModule,
         TasksModule,
+        PortalModule,
         FilesModule,
         NotificationsModule,
         TelegramModule,

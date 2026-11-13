@@ -173,7 +173,12 @@ describe('ChangePasswordUseCase', () => {
 describe('GetCurrentUserUseCase', () => {
     it('returns id, login and the flag without the hash', async () => {
         const { me } = setup();
-        const result = await me.execute('u1');
-        expect(result).toEqual({ id: 'u1', login: 'ivan', mustChangePassword: true });
+        const result = await me.execute('u1', []);
+        expect(result).toEqual({
+            id: 'u1',
+            login: 'ivan',
+            mustChangePassword: true,
+            roles: [],
+        });
     });
 });

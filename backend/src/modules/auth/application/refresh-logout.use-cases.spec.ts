@@ -66,10 +66,32 @@ function setup(
         fakeTx,
     );
     const logout = new LogoutUseCase(sessions, tokens.refresh as never, fakeClock, fakeTx);
-    return { refresh, logout, sessions, tokens, session };
+    return { refresh, logout, sessions, tokens, session, users };
 }
 
 describe('RefreshSessionUseCase', () => {
+    it('puts a role assigned after login into the new token', async () => {
+        const { refresh, users, tokens } = setup();
+        users.roles.set('u1', ['developer']);
+
+        await refresh.execute('old');
+
+        expect(tokens.access.sign).toHaveBeenCalledWith(
+            expect.objectContaining({ sub: 'u1', rol: ['developer'] }),
+        );
+    });
+
+    it('issues a token without the role after it was removed', async () => {
+        const { refresh, users, tokens } = setup();
+        users.roles.set('u1', ['developer']);
+        await refresh.execute('old');
+        users.roles.delete('u1');
+
+        await refresh.execute('secret1');
+
+        expect(tokens.access.sign).toHaveBeenLastCalledWith(expect.objectContaining({ rol: [] }));
+    });
+
     it('rotates the token and issues a new access token', async () => {
         const { refresh, session, sessions } = setup();
 

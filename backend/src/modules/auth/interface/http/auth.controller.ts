@@ -187,7 +187,7 @@ export class AuthController {
     })
     @errorResponse(HttpStatus.UNAUTHORIZED, 'TOKEN_INVALID or TOKEN_EXPIRED')
     me(@CurrentUser() user: AuthenticatedUser): ReturnType<GetCurrentUserUseCase['execute']> {
-        return this.currentUserUseCase.execute(user.id);
+        return this.currentUserUseCase.execute(user.id, user.roles);
     }
 
     private presentedToken(

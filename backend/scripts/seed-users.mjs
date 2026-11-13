@@ -1,4 +1,4 @@
-// Creates users from AUTH_SEED_USERS (JSON: [{"login","password?"}]). Run after `npm run build`.
+// Creates users from AUTH_SEED_USERS (JSON: [{"login","password?","roles?"}]). Run after `npm run build`.
 // Generated passwords go to stdout once and are never written to the application log.
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';

@@ -50,6 +50,7 @@ export class LoginUseCase {
             sub: user.id,
             sid: session.id,
             mcp: user.mustChangePassword,
+            rol: await this.users.findRoles(user.id),
         });
         return {
             access: access.token,

@@ -10,6 +10,7 @@
     "start:prod": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "seed:users": "nest build && node scripts/seed-users.mjs",
+    "seed:portal": "nest build && node scripts/seed-portal.mjs",
     "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:pull": "prisma db pull",

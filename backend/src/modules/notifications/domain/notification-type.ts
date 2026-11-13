@@ -5,6 +5,9 @@ export const NOTIFICATION_TYPES = [
     'task.created-on-behalf',
     'meeting-transcript.ready',
     'meeting-transcript.failed',
+    'request.accepted',
+    'request.rejected',
+    'request.status-changed',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

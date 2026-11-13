@@ -8,6 +8,7 @@ import { BaseError } from '../../../shared/errors';
 import { HttpExceptionFilter } from '../../../shared/http/http-exception.filter';
 import {
     InvalidCredentialsError,
+    ForbiddenError,
     ForbiddenOriginError,
     InvalidRefreshTokenError,
     PasswordChangeRequiredError,
@@ -29,6 +30,7 @@ const FACTORIES: Record<string, () => Error> = {
     weak: () => new WeakPasswordError(['too-short', 'no-digit']),
     limited: () => new RateLimitedError(42),
     origin: () => new ForbiddenOriginError(),
+    forbidden: () => new ForbiddenError(),
 };
 
 @Controller('probe')
@@ -73,6 +75,7 @@ describe('auth domain errors over HTTP', () => {
         ['weak', 422, 'WEAK_PASSWORD'],
         ['limited', 429, 'RATE_LIMITED'],
         ['origin', 403, 'FORBIDDEN_ORIGIN'],
+        ['forbidden', 403, 'FORBIDDEN'],
     ])('%s answers %i with code %s', async (kind, status, code) => {
         expect(FACTORIES[kind]()).toBeInstanceOf(BaseError);
 

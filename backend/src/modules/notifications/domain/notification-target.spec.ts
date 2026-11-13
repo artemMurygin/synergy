@@ -23,6 +23,14 @@ describe('NotificationTarget', () => {
         expect(target.equals(NotificationTarget.of({ type: 'task', id: 'chat-1' }))).toBe(false);
     });
 
+    it('points at a request by id', () => {
+        const target = NotificationTarget.of({ type: 'request', id: 'req-1' });
+
+        expect(target.type).toBe('request');
+        expect(target.id).toBe('req-1');
+        expect(target.equals(NotificationTarget.of({ type: 'task', id: 'req-1' }))).toBe(false);
+    });
+
     it.each([['deal'], ['Task'], ['Chat'], ['']])(
         'accepts only the known types, not %j',
         (type) => {

@@ -5,6 +5,19 @@ import {
     ChatSystemMessagePostedEvent,
 } from '../../assistant/contracts/chat-system-message-posted.event';
 import { registerAssistantEvents } from '../../assistant/contracts/register-assistant-events';
+import { registerPortalEvents } from '../../portal/contracts/register-portal-events';
+import {
+    REQUEST_ACCEPTED_EVENT_TYPE,
+    RequestAcceptedEvent,
+} from '../../portal/contracts/request-accepted.event';
+import {
+    REQUEST_REJECTED_EVENT_TYPE,
+    RequestRejectedEvent,
+} from '../../portal/contracts/request-rejected.event';
+import {
+    SKILL_STATUS_CHANGED_EVENT_TYPE,
+    SkillStatusChangedEvent,
+} from '../../portal/contracts/skill-status-changed.event';
 import { registerTaskEvents } from '../../tasks/contracts/register-task-events';
 import {
     TASK_CREATED_EVENT_TYPE,
@@ -21,6 +34,15 @@ import {
 import { CreateNotificationsUseCase } from './create-notifications.use-case';
 import { NotificationEventSubscriptions } from './notification-event-subscriptions';
 import { registerNotificationEvents } from './register-notification-events';
+import {
+    REQUEST_ACCEPTED_SUBSCRIBER,
+    REQUEST_REJECTED_SUBSCRIBER,
+    RequestDecidedSubscriber,
+} from './request-decided.subscriber';
+import {
+    SKILL_STATUS_CHANGED_SUBSCRIBER,
+    SkillStatusChangedSubscriber,
+} from './skill-status-changed.subscriber';
 import {
     TASK_ASSIGNED_ON_CREATE_SUBSCRIBER,
     TaskCreatedSubscriber,
@@ -48,6 +70,14 @@ function createNotifications(): CreateNotificationsUseCase {
 
 function subscriber(): TaskCreatedSubscriber {
     return new TaskCreatedSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function requestSubscriber(): RequestDecidedSubscriber {
+    return new RequestDecidedSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function skillSubscriber(): SkillStatusChangedSubscriber {
+    return new SkillStatusChangedSubscriber(createNotifications());
 }
 
 function chatSubscriber(): ChatSystemMessagePostedSubscriber {
@@ -94,6 +124,8 @@ describe('NotificationEventSubscriptions', () => {
             registry,
             taskCreatedSubscriber,
             chatSubscriber(),
+            requestSubscriber(),
+            skillSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -125,6 +157,8 @@ describe('NotificationEventSubscriptions', () => {
             registry,
             subscriber(),
             chatSystemMessageSubscriber,
+            requestSubscriber(),
+            skillSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -141,5 +175,73 @@ describe('NotificationEventSubscriptions', () => {
             subject: { fileId: 'f-1', fileName: 'встреча.m4a' },
         });
         expect(registry.serialize(posted).subscribers).toEqual([CHAT_SYSTEM_MESSAGE_SUBSCRIBER]);
+    });
+
+    it('subscribes to the portal request and skill events on module init', () => {
+        const registry = new DomainEventRegistry();
+        registerPortalEvents(registry);
+        const requests = requestSubscriber();
+        const skills = skillSubscriber();
+
+        new NotificationEventSubscriptions(
+            registry,
+            subscriber(),
+            chatSubscriber(),
+            requests,
+            skills,
+        ).onModuleInit();
+
+        expect(
+            registry.findSubscriber(REQUEST_ACCEPTED_EVENT_TYPE, REQUEST_ACCEPTED_SUBSCRIBER),
+        ).toBe(requests);
+        expect(
+            registry.findSubscriber(REQUEST_REJECTED_EVENT_TYPE, REQUEST_REJECTED_SUBSCRIBER),
+        ).toBeDefined();
+        expect(
+            registry.findSubscriber(
+                SKILL_STATUS_CHANGED_EVENT_TYPE,
+                SKILL_STATUS_CHANGED_SUBSCRIBER,
+            ),
+        ).toBe(skills);
+        const metadata = { timestamp: 1, correlationId: 'c' };
+        expect(
+            registry.serialize(
+                new RequestAcceptedEvent({
+                    aggregateId: 'r-1',
+                    authorId: 'a',
+                    decidedBy: 'd',
+                    requestTitle: 'З',
+                    skillId: 's',
+                    skillName: 'Н',
+                    skillStatus: 'planned',
+                    metadata,
+                }),
+            ).subscribers,
+        ).toEqual([REQUEST_ACCEPTED_SUBSCRIBER]);
+        expect(
+            registry.serialize(
+                new RequestRejectedEvent({
+                    aggregateId: 'r-1',
+                    authorId: 'a',
+                    decidedBy: 'd',
+                    reason: 'П',
+                    requestTitle: 'З',
+                    metadata,
+                }),
+            ).subscribers,
+        ).toEqual([REQUEST_REJECTED_SUBSCRIBER]);
+        expect(
+            registry.serialize(
+                new SkillStatusChangedEvent({
+                    aggregateId: 's-1',
+                    skillName: 'Н',
+                    from: 'planned',
+                    to: 'in_dev',
+                    changedBy: 'd',
+                    linked: [],
+                    metadata,
+                }),
+            ).subscribers,
+        ).toEqual([SKILL_STATUS_CHANGED_SUBSCRIBER]);
     });
 });

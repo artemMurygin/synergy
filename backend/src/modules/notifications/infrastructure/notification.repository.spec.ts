@@ -51,6 +51,7 @@ describe.skipIf(adminUrl === undefined)('NotificationRepository', () => {
             createdAt?: Date;
             actorId?: string | null;
             title?: string;
+            targetId?: string;
         } = {},
     ): Notification {
         sequence += 1;
@@ -63,7 +64,10 @@ describe.skipIf(adminUrl === undefined)('NotificationRepository', () => {
                     title: overrides.title ?? 'Вам назначена задача',
                     body: `anna назначил вас ответственным: Задача ${String(sequence)}`,
                 }),
-                target: NotificationTarget.of({ type: 'task', id: randomUUID() }),
+                target: NotificationTarget.of({
+                    type: 'task',
+                    id: overrides.targetId ?? randomUUID(),
+                }),
                 actorId: overrides.actorId === undefined ? anna : overrides.actorId,
             },
             sourceEventId: overrides.sourceEventId ?? randomUUID(),
@@ -145,13 +149,18 @@ describe.skipIf(adminUrl === undefined)('NotificationRepository', () => {
             expect(stored.readAt).toBeNull();
         });
 
-        it('skips a duplicate by (source_event_id, recipient_id, type) and returns only the inserted', async () => {
+        it('skips a duplicate by (source_event_id, recipient_id, type, target_id) and returns only the inserted', async () => {
             const sourceEventId = randomUUID();
-            const original = makeNotification({ sourceEventId });
+            const targetId = randomUUID();
+            const original = makeNotification({ sourceEventId, targetId });
             await insert(original);
 
-            const repeat = makeNotification({ sourceEventId, title: 'Повтор' });
-            const forAnotherRecipient = makeNotification({ sourceEventId, recipientId: carol });
+            const repeat = makeNotification({ sourceEventId, targetId, title: 'Повтор' });
+            const forAnotherRecipient = makeNotification({
+                sourceEventId,
+                targetId,
+                recipientId: carol,
+            });
             const inserted = await insert(repeat, forAnotherRecipient);
 
             expect(inserted.map((notification) => notification.id)).toEqual([

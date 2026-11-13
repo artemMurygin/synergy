@@ -13,6 +13,19 @@ describe('parseSeedUsers', () => {
         ]);
     });
 
+    it('parses the optional roles field', () => {
+        expect(parseSeedUsers('[{"login":"a","roles":["developer"]},{"login":"b"}]')).toEqual([
+            { login: 'a', roles: ['developer'] },
+            { login: 'b' },
+        ]);
+        expect(parseSeedUsers('[{"login":"a","roles":[]}]')).toEqual([{ login: 'a', roles: [] }]);
+    });
+
+    it('rejects an unknown role', () => {
+        expect(() => parseSeedUsers('[{"login":"a","roles":["admin"]}]')).toThrow();
+        expect(() => parseSeedUsers('[{"login":"a","roles":"developer"}]')).toThrow();
+    });
+
     it('rejects malformed input', () => {
         expect(() => parseSeedUsers('{')).toThrow();
         expect(() => parseSeedUsers('{"login":"a"}')).toThrow();

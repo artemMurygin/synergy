@@ -5,6 +5,7 @@ import type { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import type { AuthSessionRepository } from '../domain/ports/auth-session-repository.port';
 import type { UserRepository } from '../domain/ports/user-repository.port';
+import type { Role } from '../domain/role';
 import type { User } from '../domain/user';
 import type { UserSearch } from '../domain/user-search';
 
@@ -14,6 +15,13 @@ export const REFRESH_TTL_MS = 14 * 24 * 3600 * 1000;
 
 export class FakeUsers implements UserRepository {
     readonly byId = new Map<string, User>();
+    readonly roles = new Map<string, Role[]>();
+    findRoles = vi.fn((userId: string) => Promise.resolve([...(this.roles.get(userId) ?? [])]));
+    assignRoles = vi.fn((userId: string, roles: Role[]) => {
+        const current = this.roles.get(userId) ?? [];
+        this.roles.set(userId, [...new Set([...current, ...roles])]);
+        return Promise.resolve();
+    });
     findByLogin = vi.fn((login: Login) =>
         Promise.resolve([...this.byId.values()].find((u) => u.login.equals(login)) ?? null),
     );
@@ -74,7 +82,7 @@ export function fakeTokens(): {
     let n = 0;
     return {
         access: {
-            sign: vi.fn((c: { sub: string; sid: string; mcp: boolean }) => ({
+            sign: vi.fn((c: { sub: string; sid: string; mcp: boolean; rol?: Role[] }) => ({
                 token: `access:${c.sub}:${c.sid}:${String(c.mcp)}`,
                 expiresIn: 900,
             })),

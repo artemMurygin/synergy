@@ -61,6 +61,7 @@ export class RefreshSessionUseCase {
             sub: user.id,
             sid: session.id,
             mcp: user.mustChangePassword,
+            rol: await this.users.findRoles(user.id),
         });
         return {
             kind: 'ok',

@@ -128,6 +128,15 @@ describe('validateEnv auth settings', () => {
         expect(env.AUTH_SEED_USERS).toEqual([{ login: 'ivan', password: 'Temp12345678' }]);
     });
 
+    it('keeps the optional roles field of AUTH_SEED_USERS entries', () => {
+        const env = validateEnv({
+            ...withAuth,
+            AUTH_SEED_USERS: '[{"login":"dev","roles":["developer"]}]',
+        });
+
+        expect(env.AUTH_SEED_USERS).toEqual([{ login: 'dev', roles: ['developer'] }]);
+    });
+
     it('rejects invalid TTL, numbers and seed JSON', () => {
         expect(() => validateEnv({ ...withAuth, AUTH_ACCESS_TTL: 'soon' })).toThrow(
             'AUTH_ACCESS_TTL',

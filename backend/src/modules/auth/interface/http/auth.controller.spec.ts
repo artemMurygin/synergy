@@ -125,6 +125,7 @@ describe('AuthController', () => {
             id: 'u1',
             login: 'anna',
             mustChangePassword: false,
+            roles: [],
         });
     });
 
@@ -140,8 +141,13 @@ describe('AuthController', () => {
         });
     }
 
-    function bearer(opts: { mcp?: boolean } = {}): Record<string, string> {
-        const { token } = tokens.sign({ sub: 'u1', sid: 's1', mcp: opts.mcp ?? false });
+    function bearer(opts: { mcp?: boolean; rol?: 'developer'[] } = {}): Record<string, string> {
+        const { token } = tokens.sign({
+            sub: 'u1',
+            sid: 's1',
+            mcp: opts.mcp ?? false,
+            rol: opts.rol,
+        });
         return { authorization: `Bearer ${token}` };
     }
 
@@ -452,8 +458,25 @@ describe('AuthController', () => {
                 id: 'u1',
                 login: 'anna',
                 mustChangePassword: false,
+                roles: [],
             });
-            expect(currentUser.execute).toHaveBeenCalledWith('u1');
+            expect(currentUser.execute).toHaveBeenCalledWith('u1', []);
+        });
+
+        it('passes the roles from the token claims to the use case', async () => {
+            currentUser.execute.mockResolvedValue({
+                id: 'u1',
+                login: 'anna',
+                mustChangePassword: false,
+                roles: ['developer'],
+            });
+
+            const response = await call('GET', '/auth/me', {
+                headers: bearer({ rol: ['developer'] }),
+            });
+
+            expect(currentUser.execute).toHaveBeenCalledWith('u1', ['developer']);
+            expect(await response.json()).toMatchObject({ roles: ['developer'] });
         });
     });
 

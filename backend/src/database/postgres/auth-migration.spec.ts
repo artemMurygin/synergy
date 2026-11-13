@@ -62,7 +62,7 @@ describe.skipIf(adminUrl === undefined)('013_auth migration', () => {
         await admin.end();
     });
 
-    it('creates the three auth tables', async () => {
+    it('creates the auth tables', async () => {
         const rows = await query(
             `SELECT table_name FROM information_schema.tables
              WHERE table_schema = 'public' AND table_name LIKE 'auth\\_%'`,
@@ -70,6 +70,7 @@ describe.skipIf(adminUrl === undefined)('013_auth migration', () => {
         expect(rows.map((r) => r.table_name).sort()).toEqual([
             'auth_refresh_tokens',
             'auth_sessions',
+            'auth_user_roles',
             'auth_users',
         ]);
     });

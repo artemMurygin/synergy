@@ -15,6 +15,9 @@ describe('NotificationType', () => {
         ['task.created-on-behalf'],
         ['meeting-transcript.ready'],
         ['meeting-transcript.failed'],
+        ['request.accepted'],
+        ['request.rejected'],
+        ['request.status-changed'],
     ])('knows the %s type', (raw) => {
         expect(NOTIFICATION_TYPES).toContain(raw);
         expect(NotificationType.parse(raw)).toBe(raw);

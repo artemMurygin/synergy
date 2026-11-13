@@ -51,6 +51,7 @@ import { LoginThrottlerGuard } from './interface/http/login-throttler.guard';
 import { OriginGuard } from './interface/http/origin.guard';
 import { PasswordChangeGuard } from './interface/http/password-change.guard';
 import { RefreshCookieService } from './interface/http/refresh-cookie.service';
+import { RolesGuard } from './interface/http/roles.guard';
 import { UsersController } from './interface/http/users.controller';
 
 @Injectable()
@@ -78,6 +79,7 @@ class RedisLifecycle implements OnApplicationShutdown {
         LoginThrottler,
         LoginThrottlerGuard,
         OriginGuard,
+        RolesGuard,
         RefreshCookieService,
         { provide: UserRepository, useClass: SlonikUserRepository },
         { provide: AuthSessionRepository, useClass: SlonikAuthSessionRepository },
@@ -127,8 +129,10 @@ class RedisLifecycle implements OnApplicationShutdown {
         // Deny by default: authentication first, then the forced password change check.
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PasswordChangeGuard },
+        // Active only where @Roles() is present; runs after authentication.
+        { provide: APP_GUARD, useClass: RolesGuard },
     ],
-    exports: [AccessTokenService, FindActiveUserUseCase],
+    exports: [AccessTokenService, FindActiveUserUseCase, RolesGuard],
 })
 export class AuthModule implements OnModuleInit {
     onModuleInit(): void {

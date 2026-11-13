@@ -7,6 +7,7 @@ import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { UserRepository } from '../domain/ports/user-repository.port';
 import { User } from '../domain/user';
+import { Role } from '../domain/role';
 import type { UserSearch } from '../domain/user-search';
 import type { UserSummary } from '../domain/user-summary';
 
@@ -76,6 +77,20 @@ export class SlonikUserRepository extends UserRepository {
                 must_change_password = EXCLUDED.must_change_password,
                 is_active = EXCLUDED.is_active,
                 password_changed_at = EXCLUDED.password_changed_at`);
+    }
+
+    async findRoles(userId: string): Promise<Role[]> {
+        const rows = await this.tx.executor().anyFirst(sql.unsafe`
+            SELECT role FROM auth_user_roles WHERE user_id = ${userId} ORDER BY role`);
+        return rows.map((role) => Role.of(role));
+    }
+
+    async assignRoles(userId: string, roles: Role[]): Promise<void> {
+        for (const role of roles) {
+            await this.tx.executor().query(sql.unsafe`
+                INSERT INTO auth_user_roles (user_id, role) VALUES (${userId}, ${role})
+                ON CONFLICT DO NOTHING`);
+        }
     }
 
     async existsByLogin(login: Login): Promise<boolean> {

@@ -117,6 +117,7 @@ export const envSchema = z
                         z.object({
                             login: z.string().min(1),
                             password: z.string().min(1).optional(),
+                            roles: z.array(z.string()).optional(),
                         }),
                     )
                     .optional(),

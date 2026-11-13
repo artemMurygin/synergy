@@ -12,6 +12,7 @@ export const AuthErrorCode = {
     RateLimited: 'RATE_LIMITED',
     ForbiddenOrigin: 'FORBIDDEN_ORIGIN',
     InvalidClientType: 'INVALID_CLIENT_TYPE',
+    Forbidden: 'FORBIDDEN',
 } as const;
 
 export class InvalidCredentialsError extends BaseError {
@@ -99,5 +100,13 @@ export class ForbiddenOriginError extends BaseError {
 
     constructor() {
         super('Origin is not allowed');
+    }
+}
+
+export class ForbiddenError extends BaseError {
+    readonly code = AuthErrorCode.Forbidden;
+
+    constructor() {
+        super('Insufficient role');
     }
 }

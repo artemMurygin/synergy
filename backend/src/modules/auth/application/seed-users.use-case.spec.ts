@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it } from 'vitest';
+import { InvalidRoleError } from '../domain/role';
 import { Login } from '../domain/login';
 import { SeedUsersUseCase } from './seed-users.use-case';
 import { FakeUsers, fakeClock, fakeHasher } from './test-doubles';
@@ -49,5 +50,65 @@ describe('SeedUsersUseCase', () => {
         const user = await users.findByLogin(Login.of('ivan'));
         expect(user?.passwordHash.value).toBe('hash:first-pass-1');
         expect(users.save).toHaveBeenCalledTimes(1);
+    });
+
+    describe('roles', () => {
+        async function roleOf(users: FakeUsers, login: string): Promise<string[]> {
+            const user = await users.findByLogin(Login.of(login));
+            return user === null ? [] : users.findRoles(user.id);
+        }
+
+        it('assigns developer to a created user', async () => {
+            const { useCase, users } = setup();
+
+            await useCase.execute([{ login: 'dev', password: 'p-1', roles: ['developer'] }]);
+
+            expect(await roleOf(users, 'dev')).toEqual(['developer']);
+        });
+
+        it('does not duplicate the role on a repeated run', async () => {
+            const { useCase, users } = setup();
+            const entries = [{ login: 'dev', password: 'p-1', roles: ['developer'] }];
+
+            await useCase.execute(entries);
+            await useCase.execute(entries);
+
+            expect(await roleOf(users, 'dev')).toEqual(['developer']);
+        });
+
+        it('assigns the role to an already existing user without recreating it', async () => {
+            const { useCase, users } = setup();
+            await useCase.execute([{ login: 'dev', password: 'p-1' }]);
+            users.save.mockClear();
+
+            const result = await useCase.execute([{ login: 'dev', roles: ['developer'] }]);
+
+            expect(result.skipped).toEqual(['dev']);
+            expect(users.save).not.toHaveBeenCalled();
+            expect(await roleOf(users, 'dev')).toEqual(['developer']);
+        });
+
+        it('rejects an unknown role and assigns nothing', async () => {
+            const { useCase, users } = setup();
+
+            await expect(
+                useCase.execute([
+                    { login: 'ok', password: 'p-1', roles: ['developer'] },
+                    { login: 'bad', password: 'p-2', roles: ['admin'] },
+                ]),
+            ).rejects.toBeInstanceOf(InvalidRoleError);
+
+            expect(users.assignRoles).not.toHaveBeenCalled();
+            expect(users.save).not.toHaveBeenCalled();
+        });
+
+        it('leaves users without roles untouched', async () => {
+            const { useCase, users } = setup();
+
+            await useCase.execute([{ login: 'plain', password: 'p-1' }]);
+
+            expect(users.assignRoles).not.toHaveBeenCalled();
+            expect(await roleOf(users, 'plain')).toEqual([]);
+        });
     });
 });

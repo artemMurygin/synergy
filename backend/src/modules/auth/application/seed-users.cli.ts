@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { Role } from '../domain/role';
 import type { SeedEntry, SeedResult } from './seed-users.use-case';
 
 const seedSchema = z.array(
-    z.object({ login: z.string().min(1), password: z.string().min(1).optional() }),
+    z.object({
+        login: z.string().min(1),
+        password: z.string().min(1).optional(),
+        roles: z
+            .array(z.string().refine((role) => Role.ALL.includes(role as Role), 'Unknown role'))
+            .optional(),
+    }),
 );
 
 export function parseSeedUsers(raw: string | undefined): SeedEntry[] {

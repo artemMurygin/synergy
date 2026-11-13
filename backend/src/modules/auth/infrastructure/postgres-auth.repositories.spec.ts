@@ -99,6 +99,20 @@ describe.skipIf(adminUrl === undefined)('Slonik auth repositories', () => {
             expect((await users.findById(user.id))?.login.value).toBe('ivanov');
         });
 
+        it('findRoles returns an empty set for a user without roles', async () => {
+            const user = newUser();
+            await users.save(user);
+            expect(await users.findRoles(user.id)).toEqual([]);
+        });
+
+        it('findRoles returns the assigned role; assignRoles is idempotent', async () => {
+            const user = newUser();
+            await users.save(user);
+            await users.assignRoles(user.id, ['developer']);
+            await users.assignRoles(user.id, ['developer']);
+            expect(await users.findRoles(user.id)).toEqual(['developer']);
+        });
+
         it('returns null for unknown user', async () => {
             expect(await users.findByLogin(Login.of('nobody'))).toBeNull();
             expect(await users.findById(randomUUID())).toBeNull();

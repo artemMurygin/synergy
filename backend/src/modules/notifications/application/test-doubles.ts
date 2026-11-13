@@ -111,7 +111,7 @@ export class RecordingEventPublisher extends DomainEventPublisherPort {
 }
 
 function duplicateKey(notification: Notification): string {
-    return `${notification.sourceEventId}|${notification.recipientId}|${notification.type}`;
+    return `${notification.sourceEventId}|${notification.recipientId}|${notification.type}|${notification.target.id}`;
 }
 
 export class InMemoryNotificationRepository extends NotificationRepositoryPort {

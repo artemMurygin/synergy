@@ -1,3 +1,4 @@
+import { JwtService } from '@nestjs/jwt';
 import { describe, expect, it } from 'vitest';
 import { AccessTokenExpiredError, AccessTokenInvalidError } from '../domain/errors';
 import { JwtAccessTokenService } from './jwt-access-token.service';
@@ -24,6 +25,30 @@ describe('JwtAccessTokenService', () => {
         expect(verified).toMatchObject(claims);
         expect(verified.jti).toMatch(/[0-9a-f-]{36}/);
         expect(verified.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    });
+
+    it('puts roles into the token and reads them back', () => {
+        const svc = service();
+        const { token } = svc.sign({ ...claims, rol: ['developer'] });
+        expect(svc.verify(token).rol).toEqual(['developer']);
+    });
+
+    it('parses a token without rol as an empty list', () => {
+        const svc = service();
+        expect(svc.verify(svc.sign(claims).token).rol).toEqual([]);
+        const legacy = new JwtService({ secret: SECRET }).sign(
+            { ...claims, jti: 'j', exp: Math.floor(Date.now() / 1000) + 600 },
+            { algorithm: 'HS256' },
+        );
+        expect(svc.verify(legacy).rol).toEqual([]);
+    });
+
+    it('rejects a token with an unknown role', () => {
+        const bad = new JwtService({ secret: SECRET }).sign(
+            { ...claims, rol: ['admin'], jti: 'j', exp: Math.floor(Date.now() / 1000) + 600 },
+            { algorithm: 'HS256' },
+        );
+        expect(() => service().verify(bad)).toThrow(AccessTokenInvalidError);
     });
 
     it('issues a unique jti per token', () => {

@@ -14,5 +14,6 @@ export function registerAuthErrorStatuses(): void {
         [AuthErrorCode.WeakPassword]: HttpStatus.UNPROCESSABLE_ENTITY,
         [AuthErrorCode.RateLimited]: HttpStatus.TOO_MANY_REQUESTS,
         [AuthErrorCode.ForbiddenOrigin]: HttpStatus.FORBIDDEN,
+        [AuthErrorCode.Forbidden]: HttpStatus.FORBIDDEN,
     });
 }

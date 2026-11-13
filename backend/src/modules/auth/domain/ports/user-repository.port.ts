@@ -1,3 +1,4 @@
+import type { Role } from '../role';
 import type { Login } from '../login';
 import type { User } from '../user';
 import type { UserSearch } from '../user-search';
@@ -8,6 +9,10 @@ export abstract class UserRepository {
     abstract findById(id: string): Promise<User | null>;
     /** Inserts or updates by id. */
     abstract save(user: User): Promise<void>;
+    /** Roles currently assigned to the user, from the database. */
+    abstract findRoles(userId: string): Promise<Role[]>;
+    /** Idempotent: an already assigned role is left as is. */
+    abstract assignRoles(userId: string, roles: Role[]): Promise<void>;
     abstract existsByLogin(login: Login): Promise<boolean>;
     /** Active users whose login contains the search text, ordered by login, with the overall total. */
     abstract searchActive(
