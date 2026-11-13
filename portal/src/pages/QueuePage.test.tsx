@@ -1,0 +1,70 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useSessionStore } from '@/features/auth'
+import { createTestClient, json, page, queryWrapper, requestFixture, stubFetch } from '@/test/helpers'
+import { QueuePage } from './QueuePage'
+
+beforeEach(() => {
+  useSessionStore.setState(useSessionStore.getInitialState())
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'] })
+})
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+function renderPage() {
+  const Wrapper = queryWrapper(createTestClient())
+  render(
+    <Wrapper>
+      <MemoryRouter initialEntries={['/queue']}>
+        <Routes>
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/requests/:id" element={<p>request-page</p>} />
+        </Routes>
+      </MemoryRouter>
+    </Wrapper>
+  )
+}
+
+const older = { ...requestFixture, id: 'r-old', title: 'Старая идея', author: { id: 'u2', login: 'petr' }, createdAt: '2026-11-01T09:00:00.000Z' }
+const newer = { ...requestFixture, id: 'r-new', title: 'Новая идея', createdAt: '2026-11-10T09:00:00.000Z' }
+
+describe('QueuePage', () => {
+  it('shows title, author and submission date, oldest first', async () => {
+    stubFetch(() => json(page([newer, older])))
+    renderPage()
+    await screen.findByText('Старая идея')
+    const titles = screen.getAllByRole('link').map((l) => l.textContent ?? '')
+    expect(titles.findIndex((t) => t.includes('Старая идея'))).toBeLessThan(titles.findIndex((t) => t.includes('Новая идея')))
+    expect(screen.getByText(/petr/)).toBeTruthy()
+    expect(screen.getByTitle('01.11.2026')).toBeTruthy()
+    expect(screen.getAllByText(/5 раз в неделю · 20 мин · 3 чел./)).toHaveLength(2)
+  })
+
+  it('opens the request on click', async () => {
+    stubFetch(() => json(page([older])))
+    renderPage()
+    await userEvent.click(await screen.findByRole('link', { name: /Старая идея/ }))
+    expect(screen.getByText('request-page')).toBeTruthy()
+  })
+
+  it('shows the empty state', async () => {
+    stubFetch(() => json(page([])))
+    renderPage()
+    expect(await screen.findByText('Очередь пуста')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Перейти к навыкам/ }).getAttribute('href')).toBe('/skills')
+  })
+
+  it('shows an error with a retry', async () => {
+    let fail = true
+    stubFetch(() => (fail ? json({ message: 'Сбой' }, 500) : json(page([older]))))
+    renderPage()
+    const retry = await screen.findByRole('button', { name: 'Повторить' })
+    fail = false
+    await userEvent.click(retry)
+    expect(await screen.findByText('Старая идея')).toBeTruthy()
+  })
+})

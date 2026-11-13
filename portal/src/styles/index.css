@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+@import '@fontsource/onest/latin-400.css';
+@import '@fontsource/onest/latin-500.css';
+@import '@fontsource/onest/latin-600.css';
+@import '@fontsource/onest/latin-700.css';
+@import '@fontsource/onest/cyrillic-400.css';
+@import '@fontsource/onest/cyrillic-500.css';
+@import '@fontsource/onest/cyrillic-600.css';
+@import '@fontsource/onest/cyrillic-700.css';
+@import '@fontsource/raleway/latin-400.css';
+@import '@fontsource/raleway/latin-500.css';
+@import '@fontsource/raleway/latin-600.css';
+@import '@fontsource/raleway/latin-700.css';
+@import '@fontsource/raleway/cyrillic-400.css';
+@import '@fontsource/raleway/cyrillic-500.css';
+@import '@fontsource/raleway/cyrillic-600.css';
+@import '@fontsource/raleway/cyrillic-700.css';
+
+:root {
+  /* Brand tokens from design/synergy-design-kit.pen */
+  --brand-red: #ed131c;
+  --brand-red-hover: #c81018;
+  --brand-red-soft: #fde8e9;
+  --ink: #1c1c1c;
+  --ink-80: #3a3a3a;
+  --ink-60: #7e7f81;
+  --ink-40: #a8a9ac;
+  --surface: #ffffff;
+  --surface-alt: #f5f5f6;
+  --surface-sunken: #ecedf0;
+  --border-strong: #cacacb;
+  --success: #1e9e62;
+  --warning: #e08a00;
+  --info: #2563d9;
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --primary: var(--brand-red);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-alt);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-alt);
+  --muted-foreground: var(--ink-60);
+  --accent: var(--brand-red-soft);
+  --accent-foreground: var(--brand-red-hover);
+  --destructive: var(--brand-red-hover);
+  --border: #e0e1e5;
+  --input: #e0e1e5;
+  --ring: var(--brand-red);
+  --radius: 0.75rem;
+  --info-soft: #e9effc;
+  --success-soft: #e6f4ec;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-hover: var(--brand-red-hover);
+  --color-brand-red-soft: var(--brand-red-soft);
+  --color-ink: var(--ink);
+  --color-ink-80: var(--ink-80);
+  --color-ink-60: var(--ink-60);
+  --color-ink-40: var(--ink-40);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-success-soft: var(--success-soft);
+  --font-display: 'Onest', system-ui, sans-serif;
+  --font-sans: 'Raleway', system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 100px;
+  --shadow-red: 0 8px 4px #66000033;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  /* full-height chain so min-h-full screens (login, restoring, errors) fill the window */
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  /* Pencil text has no CSS line-height: it uses the font's own ("normal"), so match it */
+  html {
+    line-height: normal;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
