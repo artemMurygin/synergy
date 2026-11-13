@@ -6,7 +6,7 @@ export const NotificationTargetSchema = z.object({
 });
 
 /** Object types a notification can point at. */
-export const NOTIFICATION_TARGET = { task: "task", chat: "chat" } as const;
+export const NOTIFICATION_TARGET = { task: "task", chat: "chat", request: "request" } as const;
 
 export const MEETING_TRANSCRIPT_READY = "meeting-transcript.ready";
 export const MEETING_TRANSCRIPT_FAILED = "meeting-transcript.failed";

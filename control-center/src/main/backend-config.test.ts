@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getBackendUrl } from './backend-config'
+import { getBackendUrl, getPortalUrl } from './backend-config'
 
 describe('getBackendUrl', () => {
   const original = process.env['CC_BACKEND_URL']
@@ -32,5 +32,35 @@ describe('getBackendUrl', () => {
   it('throws on a scheme other than http/https', () => {
     process.env['CC_BACKEND_URL'] = 'ftp://localhost:3000'
     expect(() => getBackendUrl()).toThrow(/CC_BACKEND_URL/)
+  })
+})
+
+describe('getPortalUrl', () => {
+  const original = process.env['CC_PORTAL_URL']
+
+  afterEach(() => {
+    if (original === undefined) delete process.env['CC_PORTAL_URL']
+    else process.env['CC_PORTAL_URL'] = original
+  })
+
+  it('is null when CC_PORTAL_URL is not set or blank', () => {
+    delete process.env['CC_PORTAL_URL']
+    expect(getPortalUrl()).toBeNull()
+    process.env['CC_PORTAL_URL'] = '   '
+    expect(getPortalUrl()).toBeNull()
+  })
+
+  it('reads CC_PORTAL_URL without trailing slashes', () => {
+    process.env['CC_PORTAL_URL'] = 'https://portal.example.com//'
+    expect(getPortalUrl()).toBe('https://portal.example.com')
+  })
+
+  it('is null for an invalid or non-http(s) address', () => {
+    process.env['CC_PORTAL_URL'] = 'not a url'
+    expect(getPortalUrl()).toBeNull()
+    process.env['CC_PORTAL_URL'] = 'javascript:alert(1)'
+    expect(getPortalUrl()).toBeNull()
+    process.env['CC_PORTAL_URL'] = 'file:///etc/passwd'
+    expect(getPortalUrl()).toBeNull()
   })
 })

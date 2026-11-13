@@ -12,6 +12,8 @@ import { useUiStore } from '@/stores/ui.store'
 
 export const TASK_NOT_FOUND_NOTICE = 'Задача не найдена'
 export const CHAT_NOT_FOUND_NOTICE = 'Чат не найден'
+export const PORTAL_UNAVAILABLE_NOTICE = 'Портал недоступен'
+export const PORTAL_LINK_INVALID_NOTICE = 'Не удалось открыть заявку в портале'
 
 export function useOpenNotification(): (notification: Notification) => void {
   const queryClient = useQueryClient()
@@ -40,6 +42,18 @@ export function useOpenNotification(): (notification: Notification) => void {
         queryClient.fetchQuery(threadHistoryOptions(threadId)).catch((error: unknown) => {
           if (error instanceof ThreadNotFoundError) useNotificationsStore.getState().showNotice(CHAT_NOT_FOUND_NOTICE)
         })
+        return
+      }
+
+      if (notification.target.type === NOTIFICATION_TARGET.request) {
+        // The portal opens in the system browser, never inside the app window
+        window.api.portal
+          .openRequest(notification.target.id)
+          .then((result) => {
+            if (result === 'unavailable') useNotificationsStore.getState().showNotice(PORTAL_UNAVAILABLE_NOTICE)
+            else if (result === 'invalid') useNotificationsStore.getState().showNotice(PORTAL_LINK_INVALID_NOTICE)
+          })
+          .catch(() => useNotificationsStore.getState().showNotice(PORTAL_UNAVAILABLE_NOTICE))
       }
     },
     [queryClient, markRead]

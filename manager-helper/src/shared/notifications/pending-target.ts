@@ -4,6 +4,7 @@ const PENDING_TARGET_KEY = 'pendingTarget'
 
 const pendingTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('task'), taskId: z.string().min(1) }),
+  z.object({ kind: z.literal('request'), requestId: z.string().min(1) }),
   z.object({ kind: z.literal('notifications') }),
 ])
 

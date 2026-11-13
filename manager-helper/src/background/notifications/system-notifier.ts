@@ -1,3 +1,5 @@
+import { buildRequestUrl } from '@/shared/portal-link'
+import { getPortalUrl } from '@/shared/settings'
 import { setPendingTarget } from '@/shared/notifications/pending-target'
 import type { PendingTarget } from '@/shared/notifications/pending-target'
 import type {
@@ -37,7 +39,14 @@ export function summaryMessage(count: number): string {
 }
 
 function toPendingTarget(target: NotificationTarget | null): PendingTarget {
-  return target?.type === 'task' ? { kind: 'task', taskId: target.id } : { kind: 'notifications' }
+  if (target?.type === 'task') return { kind: 'task', taskId: target.id }
+  if (target?.type === 'request') return { kind: 'request', requestId: target.id }
+  return { kind: 'notifications' }
+}
+
+/** The request page address of the configured portal; null when the portal cannot be opened. */
+async function requestUrl(requestId: string): Promise<string | null> {
+  return buildRequestUrl(await getPortalUrl().catch(() => null), requestId)
 }
 
 async function focusLastWindow(): Promise<void> {
@@ -48,6 +57,7 @@ async function focusLastWindow(): Promise<void> {
 
 export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
   let lastFocusedWindowId: number | undefined
+  const requestNotificationIds = new Set<string>()
 
   const handleFocusChanged = (windowId: number): void => {
     if (windowId !== chrome.windows.WINDOW_ID_NONE) lastFocusedWindowId = windowId
@@ -86,17 +96,31 @@ export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
     return toPendingTarget(await deps.seen.findTarget(notificationId))
   }
 
-  async function handleClick(notificationId: string, panelOpened: Promise<void>): Promise<void> {
+  async function handleClick(
+    notificationId: string,
+    panelOpened: Promise<void> | null,
+  ): Promise<void> {
     const target = await targetOf(notificationId)
+    if (target.kind === 'request') {
+      const url = await requestUrl(target.requestId)
+      if (url !== null) {
+        await Promise.all([chrome.tabs.create({ url }), chrome.notifications.clear(notificationId)])
+        return
+      }
+    }
     await Promise.all([
       setPendingTarget(target),
       chrome.notifications.clear(notificationId),
-      panelOpened,
+      panelOpened ?? openPanel(),
     ])
   }
 
   const handleClicked = (notificationId: string): void => {
-    void handleClick(notificationId, openPanel()).catch((error: unknown) => {
+    // The panel opens inside the click, while it still counts as a user gesture. A request
+    // notification goes to the portal tab instead; if it is unknown after a restart, the panel
+    // opens and opens the tab itself from the pending target.
+    const panelOpened = requestNotificationIds.has(notificationId) ? null : openPanel()
+    void handleClick(notificationId, panelOpened).catch((error: unknown) => {
       console.warn('Notification click handling failed', error)
     })
   }
@@ -114,6 +138,7 @@ export function createSystemNotifier(deps: SystemNotifierDeps): SystemNotifier {
     async showNotification(notification) {
       if (await deps.seen.hasShown(notification.id)) return
       await deps.seen.markShown([{ id: notification.id, target: notification.target }])
+      if (notification.target.type === 'request') requestNotificationIds.add(notification.id)
       if (deps.isPanelOpen()) return
       await create(notification.id, notification.title, notification.body)
     },

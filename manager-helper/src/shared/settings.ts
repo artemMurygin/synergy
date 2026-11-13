@@ -38,3 +38,27 @@ export async function setBackendUrl(url: string): Promise<boolean> {
   if (changed) endSession()
   return true
 }
+
+const PORTAL_URL_KEY = 'portalUrl'
+
+/** The portal address, or null when it is not configured. */
+export async function getPortalUrl(): Promise<string | null> {
+  const stored = await chrome.storage.sync.get(PORTAL_URL_KEY)
+  const value: unknown = stored[PORTAL_URL_KEY]
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+/** Saves the portal address (empty clears it); false for an address that is not http(s). Needs no host permission: the portal is opened in a tab. */
+export async function setPortalUrl(url: string): Promise<boolean> {
+  const next = normalizeBackendUrl(url)
+  if (next !== '') {
+    try {
+      const { protocol } = new URL(next)
+      if (protocol !== 'http:' && protocol !== 'https:') return false
+    } catch {
+      return false
+    }
+  }
+  await chrome.storage.sync.set({ [PORTAL_URL_KEY]: next })
+  return true
+}

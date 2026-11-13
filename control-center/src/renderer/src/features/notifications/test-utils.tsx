@@ -7,6 +7,7 @@ import type {
   NotificationEventView,
   NotificationsBridge
 } from '../../../../preload/notifications-bridge'
+import type { PortalBridge, PortalOpenResult } from '../../../../preload/portal-bridge'
 
 export const makeNotification = (id: string, readAt: string | null = null): Notification => ({
   id,
@@ -54,4 +55,12 @@ export function createTestQueryClient(): QueryClient {
 
 export function createWrapper(client: QueryClient) {
   return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+}
+
+export function installPortalBridgeMock(result: PortalOpenResult) {
+  const openRequest = vi.fn<PortalBridge['openRequest']>().mockResolvedValue(result)
+  const current: unknown = Reflect.get(window, 'api')
+  const base = typeof current === 'object' && current !== null ? current : {}
+  Object.defineProperty(window, 'api', { value: { ...base, portal: { openRequest } }, configurable: true, writable: true })
+  return { openRequest }
 }

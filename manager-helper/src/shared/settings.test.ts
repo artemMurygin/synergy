@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setAccessToken, getAccessToken, clearAccessToken } from './auth/access-token-store'
 import { getAuthState, resetAuthState, setAuthState } from './auth/auth-state'
-import { getBackendUrl, setBackendUrl } from './settings'
+import { getBackendUrl, getPortalUrl, setBackendUrl, setPortalUrl } from './settings'
 
 let store: Record<string, unknown>
 let request: ReturnType<typeof vi.fn<(p: { origins: string[] }) => Promise<boolean>>>
@@ -82,4 +82,37 @@ describe('setBackendUrl', () => {
     await expect(setBackendUrl('http://127.0.0.1:3000')).resolves.toBe(true)
     expect(request).not.toHaveBeenCalled()
   })
+})
+
+describe('portal address', () => {
+  it('is not configured by default', async () => {
+    expect(await getPortalUrl()).toBeNull()
+  })
+
+  it('treats an empty stored value as not configured', async () => {
+    store.portalUrl = ''
+    expect(await getPortalUrl()).toBeNull()
+  })
+
+  it('saves a normalized address without asking for permissions or ending the session', async () => {
+    await expect(setPortalUrl(' https://portal.example.com/ ')).resolves.toBe(true)
+    expect(store.portalUrl).toBe('https://portal.example.com')
+    expect(await getPortalUrl()).toBe('https://portal.example.com')
+    expect(request).not.toHaveBeenCalled()
+    expect(getAccessToken()).toBe('tok')
+  })
+
+  it('clears the address with an empty value', async () => {
+    await setPortalUrl('https://portal.example.com')
+    await expect(setPortalUrl('  ')).resolves.toBe(true)
+    expect(await getPortalUrl()).toBeNull()
+  })
+
+  it.each(['not a url', 'portal.example.com', 'ftp://portal.example.com'])(
+    'refuses the invalid address "%s" without saving it',
+    async (url) => {
+      await expect(setPortalUrl(url)).resolves.toBe(false)
+      expect(await getPortalUrl()).toBeNull()
+    },
+  )
 })

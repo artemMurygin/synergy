@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuthSession } from '@/shared/auth'
 import { useAuthSession } from '@/shared/auth'
+import { getPortalUrl, setBackendUrl, setPortalUrl } from '@/shared/settings'
 import { App } from './App'
 
 vi.mock('@/shared/auth', () => ({ useAuthSession: vi.fn() }))
@@ -10,6 +11,8 @@ vi.mock('@/shared/settings', () => ({
   getBackendUrl: () => Promise.resolve('http://localhost:3000'),
   normalizeBackendUrl: (v: string) => v,
   setBackendUrl: vi.fn(),
+  getPortalUrl: vi.fn(),
+  setPortalUrl: vi.fn(),
 }))
 vi.mock('./telegram/TelegramSection', () => ({
   TelegramSection: () => <section aria-label="Telegram" />,
@@ -30,6 +33,42 @@ function setSession(patch: Partial<AuthSession>) {
 
 beforeEach(() => {
   setSession({})
+  vi.mocked(getPortalUrl).mockResolvedValue(null)
+  vi.mocked(setBackendUrl).mockResolvedValue(true)
+  vi.mocked(setPortalUrl).mockResolvedValue(true)
+})
+
+describe('options App portal address', () => {
+  it('shows the saved portal address', async () => {
+    vi.mocked(getPortalUrl).mockResolvedValue('https://portal.example.com')
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByLabelText('Адрес портала')).toHaveProperty(
+        'value',
+        'https://portal.example.com',
+      )
+    })
+  })
+
+  it('saves the portal address with the settings', async () => {
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Адрес портала'), {
+      target: { value: 'https://portal.example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(setPortalUrl).toHaveBeenCalledWith('https://portal.example.com')
+    })
+    expect(await screen.findByText('Сохранено')).toBeTruthy()
+  })
+
+  it('reports an invalid portal address', async () => {
+    vi.mocked(setPortalUrl).mockResolvedValue(false)
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Адрес портала'), { target: { value: 'oops' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText(/Адрес портала/)).toBeTruthy()
+  })
 })
 
 describe('options App account block', () => {

@@ -9,7 +9,11 @@ import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
 import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
 import { cancelRun, createAgent } from '@/shared/agent-client'
 import { createThread, getThread, listThreads, renameThread } from '@/shared/threads-api'
-import { installChromeFake, makeNotification } from '@/background/notifications/chrome-fake.testing'
+import {
+  installChromeFake,
+  makeNotification,
+  makeRequestNotification,
+} from '@/background/notifications/chrome-fake.testing'
 import type { ChromeFake } from '@/background/notifications/chrome-fake.testing'
 import type * as NotificationsApi from '@/shared/notifications/notifications-api'
 import {
@@ -698,6 +702,53 @@ describe('notifications', () => {
     chromeFake.storage.session.store.pendingTarget = { kind: 'notifications' }
     await openApp()
     expect(await screen.findByRole('dialog', { name: 'Уведомления' })).toBeTruthy()
+  })
+
+  describe('request notification', () => {
+    const REQUEST = makeRequestNotification('n7', new Date().toISOString(), 'req 7')
+
+    beforeEach(() => {
+      vi.mocked(listNotifications).mockResolvedValue({
+        items: [REQUEST],
+        total: 1,
+        limit: 20,
+        page: 0,
+      })
+    })
+
+    async function clickRequest() {
+      await openApp()
+      await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+      fireEvent.click(bell())
+      fireEvent.click(await screen.findByRole('button', { name: /Статус заявки изменён/ }))
+    }
+
+    it('opens the request page in a new tab and marks read', async () => {
+      chromeFake.storage.sync.store.portalUrl = 'https://portal.example.com'
+      await clickRequest()
+      await waitFor(() => {
+        expect(chromeFake.tabs.create).toHaveBeenCalledWith({
+          url: 'https://portal.example.com/requests/req%207',
+        })
+      })
+      expect(markNotificationRead).toHaveBeenCalledWith('n7')
+      expect(screen.queryByRole('alert', { name: 'Портал недоступен' })).toBeNull()
+    })
+
+    it('marks read and says the portal is unavailable when its address is not set', async () => {
+      await clickRequest()
+      expect(await screen.findByRole('alert', { name: 'Портал недоступен' })).toBeTruthy()
+      expect(markNotificationRead).toHaveBeenCalledWith('n7')
+      expect(chromeFake.tabs.create).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /^Уведомления/ })).toBeTruthy()
+    })
+
+    it('says the portal is unavailable for a request left by a system notification', async () => {
+      chromeFake.storage.session.store.pendingTarget = { kind: 'request', requestId: 'r1' }
+      await openApp()
+      expect(await screen.findByRole('alert', { name: 'Портал недоступен' })).toBeTruthy()
+      expect(chromeFake.tabs.create).not.toHaveBeenCalled()
+    })
   })
 
   it('reads all notifications from the list', async () => {

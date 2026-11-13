@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { takePendingTarget } from '@/shared/notifications/pending-target'
-import { installChromeFake, makeNotification } from './chrome-fake.testing'
+import { installChromeFake, makeNotification, makeRequestNotification } from './chrome-fake.testing'
 import type { ChromeFake } from './chrome-fake.testing'
 import { createSeenStore } from './seen-store'
 import { SUMMARY_NOTIFICATION_ID, createSystemNotifier } from './system-notifier'
@@ -167,5 +167,59 @@ describe('system-notifier: click', () => {
     )
     await click('n1')
     expect(chromeFake.sidePanel.open).toHaveBeenCalledWith({ windowId: 7 })
+  })
+})
+
+describe('system-notifier: request click', () => {
+  const PORTAL = 'https://portal.example.com'
+
+  it('opens the request page in a new tab and marks read without opening the panel', async () => {
+    chromeFake.storage.sync.store.portalUrl = PORTAL
+    const { notifier, markRead } = setup()
+    await notifier.showNotification(
+      makeRequestNotification('n1', '2026-11-10T09:00:00.000Z', 'req 1'),
+    )
+    chromeFake.notifications.onClicked.emit('n1')
+    await vi.waitFor(() => {
+      expect(chromeFake.tabs.create).toHaveBeenCalledWith({
+        url: 'https://portal.example.com/requests/req%201',
+      })
+    })
+    expect(markRead).toHaveBeenCalledWith('n1')
+    expect(chromeFake.sidePanel.open).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(chromeFake.shownNotifications.has('n1')).toBe(false)
+    })
+    expect(await takePendingTarget()).toBeNull()
+  })
+
+  it('marks read and shows "portal unavailable" in the panel when the portal is not set', async () => {
+    const { notifier, markRead } = setup()
+    await notifier.showNotification(makeRequestNotification('n1', '2026-11-10T09:00:00.000Z', 'r1'))
+    await click('n1')
+    expect(markRead).toHaveBeenCalledWith('n1')
+    expect(chromeFake.tabs.create).not.toHaveBeenCalled()
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'request', requestId: 'r1' })
+    })
+  })
+
+  it('does not open a tab for an id that cannot form an address of the portal', async () => {
+    chromeFake.storage.sync.store.portalUrl = PORTAL
+    const { notifier } = setup()
+    await notifier.showNotification(makeRequestNotification('n1', '2026-11-10T09:00:00.000Z', '..'))
+    await click('n1')
+    expect(chromeFake.tabs.create).not.toHaveBeenCalled()
+  })
+
+  it('still opens the notifications list for the summary when the portal is set', async () => {
+    chromeFake.storage.sync.store.portalUrl = PORTAL
+    const { notifier } = setup()
+    await notifier.showSummary(3)
+    await click(SUMMARY_NOTIFICATION_ID)
+    expect(chromeFake.tabs.create).not.toHaveBeenCalled()
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'notifications' })
+    })
   })
 })

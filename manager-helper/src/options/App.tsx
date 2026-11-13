@@ -4,18 +4,24 @@ import { useAuthSession } from '@/shared/auth'
 import {
   DEFAULT_BACKEND_URL,
   getBackendUrl,
+  getPortalUrl,
   normalizeBackendUrl,
   setBackendUrl,
+  setPortalUrl,
 } from '@/shared/settings'
 import { TelegramSection } from './telegram/TelegramSection'
 
 export function App() {
   const [url, setUrl] = useState(DEFAULT_BACKEND_URL)
+  const [portalUrl, setPortalUrlValue] = useState('')
   const [status, setStatus] = useState('')
   const session = useAuthSession()
 
   useEffect(() => {
     void getBackendUrl().then(setUrl)
+    void getPortalUrl().then((stored) => {
+      setPortalUrlValue(stored ?? '')
+    })
   }, [])
 
   const save = async () => {
@@ -23,7 +29,12 @@ export function App() {
       setStatus('Нужен адрес http:// или https:// и доступ к нему')
       return
     }
+    if (!(await setPortalUrl(portalUrl))) {
+      setStatus('Адрес портала должен начинаться с http:// или https://')
+      return
+    }
     setUrl(normalizeBackendUrl(url))
+    setPortalUrlValue(normalizeBackendUrl(portalUrl))
     setStatus('Сохранено')
   }
 
@@ -53,6 +64,24 @@ export function App() {
           <span className="text-xs text-ink-60">
             Для адреса не из localhost браузер запросит доступ к этому хосту. При смене адреса нужно
             войти заново.
+          </span>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="portal-url" className="text-[13px] font-semibold text-ink">
+            Адрес портала
+          </label>
+          <input
+            id="portal-url"
+            className="h-13 w-full rounded-xl border border-field-line bg-white px-4 text-[15px] text-ink outline-none placeholder:text-ink-40 focus:border-brand-red"
+            value={portalUrl}
+            onChange={(event) => {
+              setPortalUrlValue(event.target.value)
+            }}
+            placeholder="https://portal.example.com"
+          />
+          <span className="text-xs text-ink-60">
+            Заявки Featurer открываются по этому адресу в новой вкладке. Без адреса ссылки на заявки
+            не работают.
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

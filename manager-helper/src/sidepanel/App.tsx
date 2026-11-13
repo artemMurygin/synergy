@@ -4,6 +4,8 @@ import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
 import { getAuthState, subscribeAuth } from '@/shared/auth/auth-state'
+import { buildRequestUrl } from '@/shared/portal-link'
+import { getPortalUrl } from '@/shared/settings'
 import type { NotificationDto } from '@/shared/notifications/notifications-schema'
 import type { PendingTarget } from '@/shared/notifications/pending-target'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
@@ -132,6 +134,7 @@ export function App() {
   const notifications = useNotifications(signedIn)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null)
+  const [portalUnavailable, setPortalUnavailable] = useState(false)
   const notificationsAnchor = useRef<HTMLButtonElement>(null)
   const isOverlayVisible = signedIn && isNotificationsOpen
 
@@ -156,15 +159,29 @@ export function App() {
     setRequestedTaskId(taskId)
   }
 
+  const openRequest = (requestId: string) => {
+    void getPortalUrl()
+      .then((portalUrl) => {
+        const url = buildRequestUrl(portalUrl, requestId)
+        if (url === null) setPortalUnavailable(true)
+        else void chrome.tabs.create({ url })
+      })
+      .catch(() => {
+        setPortalUnavailable(true)
+      })
+  }
+
   const openNotification = (notification: NotificationDto) => {
     setIsNotificationsOpen(false)
     if (notifications.toast?.id === notification.id) notifications.dismissToast()
     void notifications.markRead(notification.id)
     if (notification.target.type === 'task') showTask(notification.target.id)
+    if (notification.target.type === 'request') openRequest(notification.target.id)
   }
 
   usePendingTarget((target: PendingTarget) => {
     if (target.kind === 'task') showTask(target.taskId)
+    else if (target.kind === 'request') openRequest(target.requestId)
     else setIsNotificationsOpen(true)
   }, signedIn)
 
@@ -346,6 +363,24 @@ export function App() {
             onTaskRequestHandled={clearTaskRequest}
             notifications={section === 'tasks' ? notificationsSlot : undefined}
           />
+        </div>
+      )}
+      {portalUnavailable && (
+        <div
+          role="alert"
+          aria-label="Портал недоступен"
+          className="absolute inset-x-3 top-3 z-50 flex items-center justify-between gap-2 rounded-xl bg-brand-red-soft px-3.5 py-3 text-[13px] font-semibold text-brand-red"
+        >
+          <span>Портал недоступен. Укажите его адрес в настройках расширения.</span>
+          <button
+            type="button"
+            className="shrink-0 hover:text-brand-red-hover"
+            onClick={() => {
+              setPortalUnavailable(false)
+            }}
+          >
+            Закрыть
+          </button>
         </div>
       )}
       {signedIn && notifications.toast !== null && !isOverlayVisible && (

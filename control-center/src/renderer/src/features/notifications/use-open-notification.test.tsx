@@ -9,8 +9,14 @@ import type { TaskDetails } from '@/lib/backend/tasks.schema'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
-import { createTestQueryClient, createWrapper, makeNotification } from './test-utils'
-import { CHAT_NOT_FOUND_NOTICE, TASK_NOT_FOUND_NOTICE, useOpenNotification } from './use-open-notification'
+import { createTestQueryClient, createWrapper, installPortalBridgeMock, makeNotification } from './test-utils'
+import {
+  CHAT_NOT_FOUND_NOTICE,
+  PORTAL_LINK_INVALID_NOTICE,
+  PORTAL_UNAVAILABLE_NOTICE,
+  TASK_NOT_FOUND_NOTICE,
+  useOpenNotification
+} from './use-open-notification'
 
 vi.mock('@/lib/backend/notifications.api')
 vi.mock('@/lib/backend/tasks.api')
@@ -143,6 +149,66 @@ describe('useOpenNotification', () => {
       await waitFor(() => expect(threadsApi.getThreadHistory).toHaveBeenCalled())
       await Promise.resolve()
       expect(useNotificationsStore.getState().notice).toBeNull()
+    })
+  })
+
+  describe('request', () => {
+    const accepted = {
+      ...makeNotification('q'),
+      type: 'request.accepted',
+      target: { type: 'request', id: 'req 7' }
+    }
+
+    it('marks read and asks the main process to open the request in the portal', async () => {
+      const { openRequest } = installPortalBridgeMock('opened')
+      useUiStore.setState({ section: 'tasks' })
+      const { open } = setup()
+      act(() => open(accepted))
+      await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('q'))
+      await waitFor(() => expect(openRequest).toHaveBeenCalledWith('req 7'))
+      expect(useNotificationsStore.getState().notice).toBeNull()
+      expect(useUiStore.getState().section).toBe('tasks')
+      expect(useTasksStore.getState().selectedTaskId).toBeNull()
+    })
+
+    it('says the portal is unavailable when it is not configured, notification stays read', async () => {
+      installPortalBridgeMock('unavailable')
+      const { open } = setup()
+      act(() => open(accepted))
+      await waitFor(() => expect(useNotificationsStore.getState().notice).toBe(PORTAL_UNAVAILABLE_NOTICE))
+      expect(PORTAL_UNAVAILABLE_NOTICE).toBe('Портал недоступен')
+      expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('q')
+    })
+
+    it('shows a clear message for an identifier that cannot form a portal address', async () => {
+      installPortalBridgeMock('invalid')
+      const { open } = setup()
+      act(() => open(accepted))
+      await waitFor(() => expect(useNotificationsStore.getState().notice).toBe(PORTAL_LINK_INVALID_NOTICE))
+    })
+
+    it('does not break when the bridge call fails', async () => {
+      const { openRequest } = installPortalBridgeMock('opened')
+      openRequest.mockRejectedValue(new Error('ipc'))
+      const { open } = setup()
+      act(() => open(accepted))
+      await waitFor(() => expect(useNotificationsStore.getState().notice).toBe(PORTAL_UNAVAILABLE_NOTICE))
+    })
+
+    it('does not mark an already read notification again', async () => {
+      const { openRequest } = installPortalBridgeMock('opened')
+      const { open } = setup()
+      act(() => open({ ...accepted, readAt: '2026-11-10T10:01:00.000Z' }))
+      await waitFor(() => expect(openRequest).toHaveBeenCalled())
+      expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled()
+    })
+
+    it('leaves task and chat clicks unchanged (no portal call)', async () => {
+      const { openRequest } = installPortalBridgeMock('opened')
+      const { open } = setup()
+      act(() => open(makeNotification('a')))
+      await waitFor(() => expect(tasksApi.getTask).toHaveBeenCalled())
+      expect(openRequest).not.toHaveBeenCalled()
     })
   })
 })

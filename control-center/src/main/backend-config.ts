@@ -14,3 +14,16 @@ export function getBackendUrl(): string {
   }
   return raw.replace(/\/+$/, '')
 }
+
+// Featurer portal base URL from CC_PORTAL_URL, without trailing slashes; null when unset or unusable
+export function getPortalUrl(): string | null {
+  const raw = process.env['CC_PORTAL_URL']?.trim()
+  if (!raw) return null
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+  } catch {
+    return null
+  }
+  return raw.replace(/\/+$/, '')
+}

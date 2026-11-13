@@ -64,6 +64,16 @@ describe('pending-target', () => {
     expect(await takePendingTarget()).toEqual({ kind: 'notifications' })
   })
 
+  it('keeps the request target with its id', async () => {
+    await setPendingTarget({ kind: 'request', requestId: 'r1' })
+    expect(await takePendingTarget()).toEqual({ kind: 'request', requestId: 'r1' })
+  })
+
+  it('take drops a request target without an id', async () => {
+    store.pendingTarget = { kind: 'request' }
+    expect(await takePendingTarget()).toBe(null)
+  })
+
   it('take returns null when nothing is stored', async () => {
     expect(await takePendingTarget()).toBe(null)
   })

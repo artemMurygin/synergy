@@ -4,10 +4,11 @@ import type { AuthService } from './auth/application/auth-service'
 import { createAuthService } from './auth/auth-composition'
 import { TokenVault } from './auth/infrastructure/token-vault'
 import { registerAuthIpc } from './auth/interface/auth-ipc'
-import { getBackendUrl } from './backend-config'
+import { getBackendUrl, getPortalUrl } from './backend-config'
 import { install as installCcApi, registerScheme as registerCcApiScheme } from './cc-api-protocol'
 import { createNotificationsConnection } from './notifications/notifications-composition'
 import { registerNotificationsIpc } from './notifications/notifications-ipc'
+import { registerPortalIpc } from './portal/portal-ipc'
 
 registerCcApiScheme()
 
@@ -68,6 +69,7 @@ app.whenReady().then(() => {
     installCcApi(backendUrl, auth)
     const notifications = createNotificationsConnection(backendUrl, auth)
     registerNotificationsIpc({ ipcMain, socket: notifications, getWindows: () => BrowserWindow.getAllWindows() })
+    registerPortalIpc({ ipcMain, portalUrl: getPortalUrl(), openExternal: (url) => shell.openExternal(url) })
     app.on('before-quit', () => notifications.dispose())
   } catch (error) {
     // A bad CC_BACKEND_URL must not leave a windowless process behind

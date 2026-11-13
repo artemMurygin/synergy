@@ -69,6 +69,7 @@ export function createChromeFake() {
     },
     storage: {
       local: fakeStorageArea(),
+      sync: fakeStorageArea(),
       session: fakeStorageArea(),
       onChanged: new FakeEvent<(changes: Record<string, unknown>, areaName: string) => void>(),
     },
@@ -104,6 +105,11 @@ export function createChromeFake() {
         Promise.resolve({ id: 7 }),
       ),
     },
+    tabs: {
+      create: vi.fn<(properties: { url: string }) => Promise<{ id: number }>>(() =>
+        Promise.resolve({ id: 1 }),
+      ),
+    },
     alarms: {
       create: vi.fn<(name: string, info: { periodInMinutes: number }) => Promise<void>>(() =>
         Promise.resolve(),
@@ -119,6 +125,16 @@ export function installChromeFake(): ChromeFake {
   const fake = createChromeFake()
   vi.stubGlobal('chrome', fake)
   return fake
+}
+
+export function makeRequestNotification(id: string, createdAt: string, requestId: string) {
+  return {
+    ...makeNotification(id, createdAt),
+    type: 'request.status-changed',
+    title: 'Статус заявки изменён',
+    body: 'Навык запущен',
+    target: { type: 'request', id: requestId },
+  }
 }
 
 export function makeNotification(
