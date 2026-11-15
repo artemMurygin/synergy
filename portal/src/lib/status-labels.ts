@@ -2,7 +2,8 @@ import type { AgentStatusCode, RequestStatusCode, SkillStatus } from './schemas'
 
 /** The single Russian dictionary of request and skill statuses on the portal. */
 export const REQUEST_STATUS_LABEL: Record<RequestStatusCode, string> = {
-  pending: 'На рассмотрении',
+  new: 'Новая',
+  under_review: 'На рассмотрении',
   rejected: 'Отклонена',
   planned: 'Запланировано',
   in_dev: 'В разработке',
@@ -36,4 +37,10 @@ export const SKILL_BADGE_CLASS: Record<SkillStatus, string> = {
 export const AGENT_BADGE_CLASS: Record<AgentStatusCode, string> = {
   working: 'bg-success-soft text-success [&>span:first-child]:bg-success',
   in_development: 'bg-info-soft text-info [&>span:first-child]:bg-info'
+}
+
+/** Badge colours of the two review statuses: background, label and dot. */
+export const REQUEST_BADGE_CLASS: Record<'new' | 'under_review', string> = {
+  new: 'bg-surface-sunken text-ink-80 [&>span:first-child]:bg-ink-40',
+  under_review: 'bg-purple-soft text-ink-80 [&>span:first-child]:bg-accent-purple'
 }

@@ -18,16 +18,38 @@ const request = {
   frequency: { count: 5, period: 'week' },
   minutesPerRun: 20,
   peopleCount: 3,
-  status: { code: 'pending', label: 'На рассмотрении' },
+  status: { code: 'new', label: 'Новая' },
   author: { id: 'u1', login: 'anna', fullName: 'Иванова Анна' },
+  reviewer: null,
+  takenAt: null,
+  effortHours: null,
   rejectReason: null,
   skill: null,
   createdAt: '2026-01-01T00:00:00.000Z'
 }
 
 describe('requestSchema', () => {
-  it('parses a pending request', () => {
-    expect(requestSchema.parse(request).status.code).toBe('pending')
+  it('parses a new request without reviewer', () => {
+    const parsed = requestSchema.parse(request)
+    expect(parsed.status.code).toBe('new')
+    expect(parsed.reviewer).toBeNull()
+  })
+
+  it('parses an under_review request with reviewer, takenAt and effortHours', () => {
+    const parsed = requestSchema.parse({
+      ...request,
+      status: { code: 'under_review', label: 'На рассмотрении' },
+      reviewer: { id: 'd1', login: 'dev', fullName: 'Петров Пётр' },
+      takenAt: '2026-01-02T00:00:00.000Z',
+      effortHours: 16
+    })
+    expect(parsed.reviewer).toEqual({ id: 'd1', login: 'dev', fullName: 'Петров Пётр' })
+    expect(parsed.takenAt).toBe('2026-01-02T00:00:00.000Z')
+    expect(parsed.effortHours).toBe(16)
+  })
+
+  it('no longer accepts the pending status code', () => {
+    expect(requestSchema.safeParse({ ...request, status: { code: 'pending', label: 'x' } }).success).toBe(false)
   })
 
   it('parses a rejected request with a reason', () => {
@@ -115,6 +137,9 @@ describe('request status with rework', () => {
       peopleCount: 1,
       status: { code: 'rework', label: 'Доработка' },
       author: { id: 'u', login: 'l', fullName: 'F' },
+      reviewer: { id: 'd', login: 'd', fullName: 'D' },
+      takenAt: '2026-01-01T00:00:00.000Z',
+      effortHours: 8,
       rejectReason: null,
       skill: null,
       createdAt: '2026-01-01T00:00:00.000Z'

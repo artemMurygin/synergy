@@ -49,8 +49,11 @@ export const requestFixture = {
   frequency: { count: 5, period: 'week' as const },
   minutesPerRun: 20,
   peopleCount: 3,
-  status: { code: 'pending' as const, label: 'На рассмотрении' },
+  status: { code: 'under_review' as const, label: 'На рассмотрении' },
   author: { id: 'u1', login: 'ivan', fullName: 'Иванов Иван Иванович' },
+  reviewer: { id: 'd1', login: 'dev', fullName: 'Петров Пётр' } as { id: string; login: string; fullName: string } | null,
+  takenAt: '2026-11-11T09:00:00.000Z' as string | null,
+  effortHours: null as number | null,
   rejectReason: null,
   skill: null,
   createdAt: '2026-11-10T09:00:00.000Z'

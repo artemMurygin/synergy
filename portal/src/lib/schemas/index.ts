@@ -6,7 +6,7 @@ export type Role = z.infer<typeof roleSchema>
 export const skillStatusSchema = z.enum(['planned', 'in_dev', 'testing', 'launched', 'rework'])
 export type SkillStatus = z.infer<typeof skillStatusSchema>
 
-export const requestStatusCodeSchema = z.enum(['pending', 'rejected', ...skillStatusSchema.options])
+export const requestStatusCodeSchema = z.enum(['new', 'under_review', 'rejected', ...skillStatusSchema.options])
 export type RequestStatusCode = z.infer<typeof requestStatusCodeSchema>
 
 export const frequencyPeriodSchema = z.enum(['day', 'week', 'month'])
@@ -30,6 +30,9 @@ export const requestSchema = z.object({
   peopleCount: z.number().int(),
   status: z.object({ code: requestStatusCodeSchema, label: z.string() }),
   author: z.object({ id: z.string(), login: z.string(), fullName: z.string() }),
+  reviewer: z.object({ id: z.string(), login: z.string(), fullName: z.string() }).nullable(),
+  takenAt: z.string().nullable(),
+  effortHours: z.number().nullable(),
   rejectReason: z.string().nullable(),
   skill: z.object({ id: z.string(), name: z.string(), description: z.string() }).nullable(),
   createdAt: z.string()

@@ -3,7 +3,8 @@ import { REQUEST_STATUS_LABEL } from '@/lib/status-labels'
 import type { RequestStatusCode } from '@/lib/schemas'
 
 const TONE: Record<RequestStatusCode, NonNullable<BadgeProps['tone']>> = {
-  pending: 'neutral',
+  new: 'neutral',
+  under_review: 'neutral',
   rejected: 'red',
   planned: 'neutral',
   in_dev: 'info',

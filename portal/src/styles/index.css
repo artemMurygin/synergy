@@ -50,6 +50,8 @@
   --ring: var(--brand-red);
   --radius: 0.75rem;
   --info-soft: #e9effc;
+  --purple-soft: #F0EBFF;
+  --accent-purple: #7c4dff;
   --success-soft: #e6f4ec;
   --warning-soft: #FDF1DC;
 }
@@ -86,6 +88,8 @@
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-purple-soft: var(--purple-soft);
+  --color-accent-purple: var(--accent-purple);
   --color-success-soft: var(--success-soft);
   --color-warning-soft: var(--warning-soft);
   --font-display: 'Onest', system-ui, sans-serif;
