@@ -10,6 +10,9 @@ export const NOTIFICATION_TYPES = [
     'request.under-review',
     'request.status-changed',
     'request.comment-added',
+    'bug.reported',
+    'bug.status-changed',
+    'bug.comment-added',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

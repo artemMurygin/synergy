@@ -5,13 +5,17 @@ import { AppLayout } from '@/layouts/AppLayout'
 import { AgentPage } from '@/pages/AgentPage'
 import { ArchivePage } from '@/pages/ArchivePage'
 import { CatalogPage } from '@/pages/CatalogPage'
+import { BugPage } from '@/pages/BugPage'
+import { BugQueuePage } from '@/pages/BugQueuePage'
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { DepartmentsPage } from '@/pages/DepartmentsPage'
 import { EmployeeCreatePage } from '@/pages/EmployeeCreatePage'
 import { EmployeePage } from '@/pages/EmployeePage'
 import { EmployeesPage } from '@/pages/EmployeesPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { MyBugsPage } from '@/pages/MyBugsPage'
 import { MyRequestsPage } from '@/pages/MyRequestsPage'
+import { NewBugPage } from '@/pages/NewBugPage'
 import { NewIdeaPage } from '@/pages/NewIdeaPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { QueuePage } from '@/pages/QueuePage'
@@ -37,8 +41,12 @@ export function AppRoutes() {
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/agents/:id" element={<AgentPage />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
+          <Route path="/bugs" element={<MyBugsPage />} />
+          <Route path="/bugs/new" element={<NewBugPage />} />
+          <Route path="/bugs/:id" element={<BugPage />} />
           <Route element={<RequireRole role="developer" />}>
             <Route path="/queue" element={<QueuePage />} />
+            <Route path="/bugs/queue" element={<BugQueuePage />} />
             <Route path="/skills" element={<SkillsPage />} />
             <Route path="/archive" element={<ArchivePage />} />
           </Route>

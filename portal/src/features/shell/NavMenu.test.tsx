@@ -61,7 +61,7 @@ const linkNames = () =>
 describe("NavMenu", () => {
   it('shows "Новая идея", "Мои заявки", "Каталог" and "Роадмап" to a user without roles', () => {
     renderMenu(employee);
-    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап"]);
+    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап", "Поддержка"]);
     expect(screen.getByRole("link", { name: "Каталог" }).getAttribute("href")).toBe("/catalog");
     expect(screen.getByRole("link", { name: "Роадмап" }).getAttribute("href")).toBe("/roadmap");
     expect(screen.queryByRole("link", { name: "Архив" })).toBeNull();
@@ -80,14 +80,62 @@ describe("NavMenu", () => {
       "Мои заявки",
       "Каталог",
       "Роадмап",
+      "Поддержка",
       "Очередь",
       "Навыки",
+      "Баги",
       "Архив",
     ]);
     expect(screen.getByRole("link", { name: "Архив" }).getAttribute("href")).toBe("/archive");
     expect(
       screen.getByRole("link", { name: "Очередь" }).getAttribute("href"),
     ).toBe("/queue");
+  });
+
+  it('links "Поддержка" to /bugs and "Баги" to /bugs/queue, "Баги" only for a developer', () => {
+    stubFetch(() => json(queuePage));
+    renderMenu(developer);
+    expect(screen.getByRole("link", { name: "Поддержка" }).getAttribute("href")).toBe("/bugs");
+    expect(screen.getByRole("link", { name: "Баги" }).getAttribute("href")).toBe("/bugs/queue");
+    cleanup();
+    renderMenu(employee);
+    expect(screen.getByRole("link", { name: "Поддержка" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Баги" })).toBeNull();
+  });
+
+  it('highlights only "Баги" on /bugs/queue and "Поддержка" on /bugs and a bug card', () => {
+    stubFetch(() => json(queuePage));
+    const at = (path: string) => {
+      cleanup();
+      useSessionStore.getState().signIn("tok", developer);
+      const Wrapper = queryWrapper();
+      render(
+        <Wrapper>
+          <MemoryRouter initialEntries={[path]}>
+            <NavMenu />
+          </MemoryRouter>
+        </Wrapper>,
+      );
+      const current = (name: string) => screen.getByRole("link", { name }).getAttribute("aria-current");
+      return [current("Поддержка"), current("Баги")];
+    };
+    expect(at("/bugs/queue")).toEqual([null, "page"]);
+    expect(at("/bugs")).toEqual(["page", null]);
+    expect(at("/bugs/new")).toEqual(["page", null]);
+    expect(at("/bugs/3f0c2d9e")).toEqual(["page", null]);
+  });
+
+  it("widens the step of the developer bar to 24 on a wide screen, the employee bar keeps its step", () => {
+    stubFetch(() => json(queuePage));
+    renderMenu(developer);
+    const devUl = screen.getByRole("link", { name: "Роадмап" }).closest("ul") as HTMLElement;
+    expect(devUl.className).toContain("xl:gap-6");
+    expect(devUl.parentElement?.className).toContain("xl:gap-6");
+    cleanup();
+    renderMenu(employee);
+    const empUl = screen.getByRole("link", { name: "Роадмап" }).closest("ul") as HTMLElement;
+    expect(empUl.className).not.toContain("xl:gap-6");
+    expect(empUl.parentElement?.className).not.toContain("xl:gap-6");
   });
 
   it("shows the user login and role", () => {
@@ -121,13 +169,15 @@ describe("NavMenu", () => {
       "Мои заявки",
       "Каталог",
       "Роадмап",
+      "Поддержка",
       "Новая идея",
       "Мои заявки",
       "Каталог",
       "Роадмап",
+      "Поддержка",
     ]);
     await userEvent.click(button);
-    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап"]);
+    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап", "Поддержка"]);
   });
 
   it("the logout button revokes the session on the server and clears the session", async () => {
@@ -148,6 +198,7 @@ describe("NavMenu", () => {
       "Мои заявки",
       "Каталог",
       "Роадмап",
+      "Поддержка",
       "Сотрудники",
       "Отделы",
     ]);
@@ -171,8 +222,10 @@ describe("NavMenu", () => {
       "Мои заявки",
       "Каталог",
       "Роадмап",
+      "Поддержка",
       "Очередь",
       "Навыки",
+      "Баги",
       "Архив",
       "Сотрудники",
       "Отделы",
@@ -256,7 +309,7 @@ describe("NavMenu", () => {
     expect(menu.textContent).toContain("Администрирование");
     expect(
       Array.from(menu.querySelectorAll("a")).map((a) => a.textContent?.replace(/\d+$/, "")),
-    ).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап", "Очередь", "Навыки", "Архив", "Сотрудники", "Отделы"]);
+    ).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап", "Поддержка", "Очередь", "Навыки", "Баги", "Архив", "Сотрудники", "Отделы"]);
     expect(menu.querySelector("button")?.textContent).toContain("Выйти");
   });
 

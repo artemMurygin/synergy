@@ -151,4 +151,37 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
     expect(calls.some((c) => c.path === '/portal/queue')).toBe(false)
   })
+
+  describe('bug routes', () => {
+    const bugId = '3f0c2d9e-7a31-4c55-9a52-1f6d8b0e4a22'
+    const empty = (c: FetchCall) => (c.path === '/portal/bugs/my' || c.path === '/portal/bugs/queue' ? json({ items: [], total: 0, limit: 20, page: 0 }) : undefined)
+
+    it('/bugs, /bugs/new and /bugs/:id open for any signed-in user', async () => {
+      renderApp('/bugs', employee, empty)
+      expect(await screen.findByRole('heading', { name: 'Поддержка' })).toBeTruthy()
+      cleanup()
+      renderApp('/bugs/new', employee, (c) => (c.path === '/portal/catalog' ? json({ products: [] }) : undefined))
+      expect(await screen.findByRole('heading', { name: 'Сообщить о проблеме' })).toBeTruthy()
+      cleanup()
+      renderApp(`/bugs/${bugId}`, employee, (c) => (c.path.startsWith('/portal/bugs/') ? json({}, 404) : undefined))
+      expect(await screen.findByRole('heading', { name: 'Обращение не найдено' })).toBeTruthy()
+    })
+
+    it('a developer opens /bugs/queue, which is not taken for a bug id', async () => {
+      const { calls } = renderApp('/bugs/queue', developer, empty)
+      expect(await screen.findByRole('heading', { name: 'Баги' })).toBeTruthy()
+      expect(calls.some((c) => c.path === '/portal/bugs/queue')).toBe(true)
+    })
+
+    it.each([[employee], [admin]])('a user without the developer role opening /bugs/queue sees "Мои заявки" and the queue is not requested', async (profile) => {
+      const { calls } = renderApp('/bugs/queue', profile, empty)
+      expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
+      expect(calls.some((c) => c.path === '/portal/bugs/queue')).toBe(false)
+    })
+
+    it('/bugs/queue without a session shows the login screen', async () => {
+      renderApp('/bugs/queue', null)
+      expect(await screen.findByRole('heading', { name: 'Вход в портал' })).toBeTruthy()
+    })
+  })
 })

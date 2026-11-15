@@ -61,7 +61,7 @@ function TableHead({ showAuthor }: { showAuthor: boolean }) {
       <span className={HEAD_CELL}>Обращение</span>
       <span className={HEAD_CELL}>Статус</span>
       {showAuthor ? <span className={HEAD_CELL}>Автор</span> : null}
-      <span className={HEAD_CELL}>Статус изменён</span>
+      <span className={HEAD_CELL}>{showAuthor ? 'Подано' : 'Статус изменён'}</span>
       <span />
     </div>
   )
@@ -112,6 +112,8 @@ function ErrorState({ onRetry }: { onRetry?: () => void }) {
 }
 
 function BugRow({ bug, showAuthor }: { bug: BugListItem; showAuthor: boolean }) {
+  // the queue is sorted by creation time, so it shows «Подано»; «Поддержка» shows the last status change
+  const date = showAuthor ? bug.createdAt : bug.statusChangedAt
   return (
     <li className="border-t border-border first:border-t-0">
       <Link
@@ -134,11 +136,11 @@ function BugRow({ bug, showAuthor }: { bug: BugListItem; showAuthor: boolean }) 
           <span className="hidden truncate text-[13px] text-ink-80 min-[768px]:block">{bug.author.fullName}</span>
         ) : null}
         <time
-          dateTime={bug.statusChangedAt}
+          dateTime={date}
           className="col-start-2 row-start-2 text-xs text-ink-60 min-[768px]:col-auto min-[768px]:row-auto min-[768px]:text-[13px] min-[768px]:text-ink-80"
         >
-          <span className="min-[768px]:hidden">{shortDate(bug.statusChangedAt)}</span>
-          <span className="hidden min-[768px]:inline">{formatDate(bug.statusChangedAt)}</span>
+          <span className="min-[768px]:hidden">{shortDate(date)}</span>
+          <span className="hidden min-[768px]:inline">{formatDate(date)}</span>
         </time>
         <Chevron className="hidden min-[768px]:block" />
       </Link>

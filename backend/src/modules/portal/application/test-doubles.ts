@@ -3,6 +3,15 @@ import type { CommonQueryMethods } from 'slonik';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd';
 import { formatFullName, type FullNameParts } from '../../../shared/people/full-name';
+import { BugReport } from '../domain/bug-report';
+import type { BugStatus } from '../domain/bug-status';
+import {
+    BugQuery,
+    type BugListRecord,
+    type BugPerson,
+    type BugRecord,
+} from '../domain/ports/bug-query.port';
+import { BugRepository } from '../domain/ports/bug-repository.port';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
 import { Agent } from '../domain/agent';
 import {
@@ -233,6 +242,56 @@ export class InMemoryRequestRepository extends RequestRepository implements Tran
                     title: request.title.value,
                 })),
         );
+    }
+}
+
+export class InMemoryBugRepository extends BugRepository implements TransactionParticipant {
+    readonly byId = new Map<string, BugReport>();
+
+    /** Если задан, `insert` падает: имитация сбоя записи. */
+    insertError: Error | null = null;
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, bug] of saved) this.byId.set(id, bug);
+        };
+    }
+
+    private static copy(bug: BugReport): BugReport {
+        return BugReport.restore({
+            id: bug.id,
+            createdAt: bug.createdAt,
+            authorId: bug.authorId,
+            productId: bug.productId,
+            agentId: bug.agentId,
+            title: bug.title,
+            description: bug.description,
+            status: bug.status,
+            wontFixReason: bug.wontFixReason,
+            statusChangedBy: bug.statusChangedBy,
+            statusChangedAt: bug.statusChangedAt,
+        });
+    }
+
+    insert(bug: BugReport): Promise<void> {
+        if (this.insertError !== null) return Promise.reject(this.insertError);
+        this.byId.set(bug.id, InMemoryBugRepository.copy(bug));
+        return Promise.resolve();
+    }
+
+    /** Отдаёт копию: мутация домена не попадает в «БД» до `updateStatus`. */
+    findById(id: string): Promise<BugReport | null> {
+        const stored = this.byId.get(id);
+        return Promise.resolve(stored === undefined ? null : InMemoryBugRepository.copy(stored));
+    }
+
+    updateStatus(bug: BugReport, expected: BugStatus): Promise<boolean> {
+        const stored = this.byId.get(bug.id);
+        if (stored?.status !== expected) return Promise.resolve(false);
+        this.byId.set(bug.id, InMemoryBugRepository.copy(bug));
+        return Promise.resolve(true);
     }
 }
 
@@ -766,6 +825,85 @@ export class InMemoryCatalogQuery extends CatalogQuery {
     }
 }
 
+/** Read-модель багов в памяти: названия берёт из in-memory каталога. */
+export class InMemoryBugQuery extends BugQuery {
+    /** Логины пользователей; по умолчанию логин равен идентификатору. */
+    readonly logins = new Map<string, string>();
+
+    /** Записи `listByAuthor`/`listQueue` для проверки переданных параметров. */
+    readonly calls: { method: string; args: unknown[] }[] = [];
+
+    constructor(
+        private readonly bugs: InMemoryBugRepository,
+        private readonly catalog: InMemoryCatalogRepository,
+    ) {
+        super();
+    }
+
+    private person(id: string): BugPerson {
+        const login = this.logins.get(id) ?? id;
+        return { id, login, fullName: login };
+    }
+
+    private toRecord(bug: BugReport): BugRecord {
+        const product = [...this.catalog.products.values()].find((p) => p.id === bug.productId);
+        const agent = this.catalog.agents.get(bug.agentId);
+        return {
+            id: bug.id,
+            title: bug.title.value,
+            description: bug.description.value,
+            product: { id: bug.productId, name: product?.name ?? bug.productId },
+            agent: { id: bug.agentId, name: agent?.name ?? bug.agentId },
+            status: bug.status,
+            createdAt: bug.createdAt,
+            statusChangedAt: bug.statusChangedAt,
+            author: this.person(bug.authorId),
+            statusChangedBy: bug.statusChangedBy === null ? null : this.person(bug.statusChangedBy),
+            wontFixReason: bug.wontFixReason?.value ?? null,
+        };
+    }
+
+    findView(id: string): Promise<BugRecord | null> {
+        const bug = this.bugs.byId.get(id);
+        return Promise.resolve(bug === undefined ? null : this.toRecord(bug));
+    }
+
+    listByAuthor(authorId: string, page: PageRequest): Promise<Page<BugListRecord>> {
+        this.calls.push({ method: 'listByAuthor', args: [authorId, page] });
+        const own = [...this.bugs.byId.values()]
+            .filter((bug) => bug.authorId === authorId)
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return Promise.resolve(
+            paginate(
+                own.map((bug) => this.toRecord(bug)),
+                page,
+            ),
+        );
+    }
+
+    listQueue(status: BugStatus | null, page: PageRequest): Promise<Page<BugListRecord>> {
+        this.calls.push({ method: 'listQueue', args: [status, page] });
+        const all = [...this.bugs.byId.values()];
+        const matching = all.filter((bug) =>
+            status === null
+                ? bug.status === 'open' || bug.status === 'in_progress'
+                : bug.status === status,
+        );
+        const closed = status === 'resolved' || status === 'wont_fix';
+        matching.sort((a, b) => {
+            if (closed) return b.statusChangedAt.getTime() - a.statusChangedAt.getTime();
+            if (status === null && a.status !== b.status) return a.status === 'open' ? -1 : 1;
+            return a.createdAt.getTime() - b.createdAt.getTime();
+        });
+        return Promise.resolve(
+            paginate(
+                matching.map((bug) => this.toRecord(bug)),
+                page,
+            ),
+        );
+    }
+}
+
 export interface PortalFixture {
     clock: FakeClock;
     requests: InMemoryRequestRepository;
@@ -777,6 +915,8 @@ export interface PortalFixture {
     skillQuery: InMemorySkillQuery;
     comments: InMemoryCommentRepository;
     commentQuery: InMemoryCommentQuery;
+    bugs: InMemoryBugRepository;
+    bugQuery: InMemoryBugQuery;
 }
 
 /** Полный набор двойников для тестов use case'ов портала. */
@@ -786,6 +926,7 @@ export function createPortalFixture(): PortalFixture {
     const skills = new InMemorySkillRepository();
     const catalog = new InMemoryCatalogRepository();
     const comments = new InMemoryCommentRepository();
+    const bugs = new InMemoryBugRepository();
     // Раннер откатывает события, события спрашивают раннер: связываем через ссылку.
     const ref: { runner?: SnapshotTransactionRunner } = {};
     const events = new RecordingEventPublisher(() => {
@@ -797,6 +938,7 @@ export function createPortalFixture(): PortalFixture {
         skills,
         catalog,
         comments,
+        bugs,
         events,
     ]);
     ref.runner = transactions;
@@ -811,5 +953,7 @@ export function createPortalFixture(): PortalFixture {
         skillQuery: new InMemorySkillQuery(skills, requests, catalog),
         comments,
         commentQuery: new InMemoryCommentQuery(comments, requests),
+        bugs,
+        bugQuery: new InMemoryBugQuery(bugs, catalog),
     };
 }

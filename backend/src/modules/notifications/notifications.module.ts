@@ -20,6 +20,9 @@ import { NotificationChannelMetricsPort } from './application/ports/notification
 import { NotificationCreationMetricsPort } from './application/ports/notification-creation-metrics.port';
 import { RealtimeConnectionMetricsPort } from './application/ports/realtime-connection-metrics.port';
 import { UserRealtimeEmitterPort } from './application/ports/user-realtime-emitter.port';
+import { BugCommentPostedSubscriber } from './application/bug-comment-posted.subscriber';
+import { BugReportedSubscriber } from './application/bug-reported.subscriber';
+import { BugStatusChangedSubscriber } from './application/bug-status-changed.subscriber';
 import { RequestDecidedSubscriber } from './application/request-decided.subscriber';
 import { RequestCommentPostedSubscriber } from './application/request-comment-posted.subscriber';
 import { RequestTakenSubscriber } from './application/request-taken.subscriber';
@@ -65,6 +68,9 @@ import { UserRealtimeEmitter } from './interface/ws/user-realtime-emitter';
         RequestDecidedSubscriber,
         RequestTakenSubscriber,
         RequestCommentPostedSubscriber,
+        BugReportedSubscriber,
+        BugStatusChangedSubscriber,
+        BugCommentPostedSubscriber,
         SkillStatusChangedSubscriber,
         NotificationEventSubscriptions,
         NotificationChannelSubscriptions,

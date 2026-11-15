@@ -44,6 +44,17 @@ describe('BugList', () => {
     expect(screen.getByText('Петров Пётр')).toBeTruthy()
   })
 
+  it('the queue (showAuthor) dates a bug by creation under «Подано», «Поддержка» by status change', () => {
+    const changed = { ...bugListItemFixture, createdAt: '2026-11-10T09:00:00.000Z', statusChangedAt: '2026-11-12T09:00:00.000Z' }
+    renderList({ items: [changed] })
+    expect(screen.getByText('Статус изменён')).toBeTruthy()
+    expect(document.querySelector('time')?.getAttribute('datetime')).toBe(changed.statusChangedAt)
+    cleanup()
+    renderList({ items: [changed], showAuthor: true })
+    expect(screen.getByText('Подано')).toBeTruthy()
+    expect(document.querySelector('time')?.getAttribute('datetime')).toBe(changed.createdAt)
+  })
+
   it('pages through the list', async () => {
     const onPageChange = vi.fn()
     renderList({ total: 45, onPageChange })

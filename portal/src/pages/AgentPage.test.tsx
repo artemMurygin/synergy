@@ -80,4 +80,27 @@ describe('AgentPage', () => {
     renderPage('a-assistant')
     expect(await screen.findByRole('button', { name: 'Архивировать агента' })).toBeTruthy()
   })
+
+  it('offers "Сообщить о проблеме" to an employee and a developer, the link carries the agent', async () => {
+    stubFetch(() => json(catalogFixture))
+    renderPage('a-assistant')
+    const link = await screen.findByRole('link', { name: 'Сообщить о проблеме' })
+    expect(link.getAttribute('href')).toBe('/bugs/new?agentId=a-assistant')
+    expect(screen.queryByRole('button', { name: 'Архивировать агента' })).toBeNull()
+    cleanup()
+    signIn(['developer'])
+    renderPage('a-assistant')
+    const devLink = await screen.findByRole('link', { name: 'Сообщить о проблеме' })
+    const archive = screen.getByRole('button', { name: 'Архивировать агента' })
+    expect(devLink.parentElement).toBe(archive.parentElement)
+    expect(devLink.compareDocumentPosition(archive) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('encodes the agent id in the link', async () => {
+    const agent = { ...catalogFixture.products[0]!.agents[0]!, id: 'a b&c' }
+    stubFetch(() => json({ products: [{ ...catalogFixture.products[0]!, agents: [agent] }] }))
+    renderPage(encodeURIComponent('a b&c'))
+    const link = await screen.findByRole('link', { name: 'Сообщить о проблеме' })
+    expect(link.getAttribute('href')).toBe('/bugs/new?agentId=a%20b%26c')
+  })
 })
