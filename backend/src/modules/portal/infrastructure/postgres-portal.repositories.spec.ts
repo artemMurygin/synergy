@@ -217,7 +217,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await skills.save(skill);
             const loaded = await skills.findById(skill.id);
             const now = new Date(T0.getTime() + 60 * SECOND);
-            loaded?.advance('in_dev', now);
+            loaded?.changeStatus('in_dev', now);
 
             await skills.save(must(loaded), 'planned');
 
@@ -233,7 +233,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
                 skill.id,
             ]);
             const stale = await skills.findById(skill.id);
-            stale?.advance('testing', new Date(T0.getTime() + 60 * SECOND));
+            stale?.changeStatus('testing', new Date(T0.getTime() + 60 * SECOND));
 
             await expect(skills.save(must(stale), 'planned')).rejects.toBeInstanceOf(
                 InvalidSkillTransitionError,
@@ -595,7 +595,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             ]);
             const audit = agents.find((entry) => entry.agent.slug === 'audit-agent');
             expect(audit?.product.slug).toBe('manager-helper');
-            expect(audit?.agent.productId).toBe(audit?.product.id);
+            expect(audit?.agent.productIds).toEqual([audit?.product.id]);
         });
 
         it('findAgent returns the agent or null', async () => {

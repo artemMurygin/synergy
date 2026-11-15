@@ -33,6 +33,8 @@ function toSkill(raw: unknown): Skill {
         description: row.description,
         status: SkillStatus.parse(row.status),
         statusChangedAt,
+        launchedAt: null,
+        archivedAt: null,
         createdAt: new Date(row.created_at),
         updatedAt: statusChangedAt,
     });

@@ -8,7 +8,8 @@ const TONE: Record<RequestStatusCode, NonNullable<BadgeProps['tone']>> = {
   planned: 'neutral',
   in_dev: 'info',
   testing: 'warning',
-  launched: 'success'
+  launched: 'success',
+  rework: 'warning'
 }
 
 export function RequestStatusBadge({ status }: { status: RequestStatusCode }) {

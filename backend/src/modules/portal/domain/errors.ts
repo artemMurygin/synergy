@@ -6,10 +6,12 @@ export const PortalErrorCode = {
     RequestNotFound: 'PORTAL_REQUEST_NOT_FOUND',
     SkillNotFound: 'PORTAL_SKILL_NOT_FOUND',
     AgentNotFound: 'PORTAL_AGENT_NOT_FOUND',
+    SkillArchived: 'PORTAL_SKILL_ARCHIVED',
+    AgentArchived: 'PORTAL_AGENT_ARCHIVED',
     RequestIntegrity: 'PORTAL_REQUEST_INTEGRITY',
 } as const;
 
-/** Статус навыка можно сменить только на соседний вперёд (HTTP 409). */
+/** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
 export class InvalidSkillTransitionError extends BaseError {
     readonly code = PortalErrorCode.InvalidSkillTransition;
 
@@ -63,5 +65,23 @@ export class RequestIntegrityError extends BaseError {
 
     constructor(readonly requestDecision: string) {
         super(`Data integrity violation: ${requestDecision} request has no skill status`);
+    }
+}
+
+/** Навык в архиве: менять статус нельзя (HTTP 409). */
+export class SkillArchivedError extends BaseError {
+    readonly code = PortalErrorCode.SkillArchived;
+
+    constructor(readonly skillId: string) {
+        super(`Skill ${skillId} is archived`);
+    }
+}
+
+/** Агент в архиве: операция недоступна (HTTP 409). */
+export class AgentArchivedError extends BaseError {
+    readonly code = PortalErrorCode.AgentArchived;
+
+    constructor(readonly agentId: string) {
+        super(`Agent ${agentId} is archived`);
     }
 }

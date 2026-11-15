@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { REQUESTS_KEY } from '@/features/requests'
-import { SKILLS_KEY } from '@/features/skills'
+import { SKILLS_KEY } from '@/lib/query-keys'
 import type { IdeaRequest } from '@/lib/schemas'
 import type { QueuePage } from './decision.api'
 import { QUEUE_KEY } from './decision.queries'

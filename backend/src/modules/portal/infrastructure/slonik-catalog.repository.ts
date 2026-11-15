@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { sql } from 'slonik';
 import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
-import type { Agent } from '../domain/agent';
+import { Agent } from '../domain/agent';
 import {
     CatalogRepository,
     type AgentWithProduct,
@@ -40,12 +40,15 @@ export class SlonikCatalogRepository extends CatalogRepository {
         return rows.map((raw) => {
             const row = agentWithProductRow.parse(raw);
             return {
-                agent: {
+                agent: Agent.restore({
                     id: row.id,
-                    productId: row.product_id,
                     slug: row.slug,
                     name: row.name,
-                },
+                    productIds: [row.product_id],
+                    archivedAt: null,
+                    createdAt: new Date(0),
+                    updatedAt: new Date(0),
+                }),
                 product: { id: row.product_id, slug: row.product_slug, name: row.product_name },
             };
         });
@@ -56,12 +59,15 @@ export class SlonikCatalogRepository extends CatalogRepository {
             SELECT id, product_id, slug, name FROM portal_agents WHERE id = ${id}`);
         if (row === null) return null;
         const parsed = agentRow.parse(row);
-        return {
+        return Agent.restore({
             id: parsed.id,
-            productId: parsed.product_id,
             slug: parsed.slug,
             name: parsed.name,
-        };
+            productIds: [parsed.product_id],
+            archivedAt: null,
+            createdAt: new Date(0),
+            updatedAt: new Date(0),
+        });
     }
 
     seed(products: readonly CatalogSeedProduct[]): Promise<CatalogSeedResult> {

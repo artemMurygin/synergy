@@ -6,4 +6,5 @@ export const SKILL_STATUS_LABELS: Readonly<Record<SkillStatus, string>> = {
     in_dev: 'В разработке',
     testing: 'Тестируется',
     launched: 'Запущено',
+    rework: 'Доработка',
 };

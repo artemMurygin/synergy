@@ -73,7 +73,7 @@ describe('ListSkillsUseCase', () => {
         const { create, list, tasks, audit, skills } = setup();
         const planned = await create.execute({ agentId: tasks.id, name: 'А', description: '' });
         const other = await create.execute({ agentId: audit.id, name: 'Б', description: '' });
-        skills.byId.get(other.id)?.advance('in_dev', new Date('2026-02-02T10:00:00Z'));
+        skills.byId.get(other.id)?.changeStatus('in_dev', new Date('2026-02-02T10:00:00Z'));
 
         const all = await list.execute({ limit: 10, page: 0 });
         expect(all.total).toBe(2);

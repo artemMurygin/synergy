@@ -12,6 +12,7 @@ import { HttpExceptionFilter } from '../../shared/http/http-exception.filter';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
 import { OutboxStorePort } from '../../shared/outbox/application/outbox-store.port';
 import { OutboxWakeUpPort } from '../../shared/outbox/application/outbox-wake-up.port';
+import { Agent } from './domain/agent';
 import { OutboxDomainEventPublisher } from '../../shared/outbox/infrastructure/outbox-domain-event-publisher';
 import {
     FakeOutboxClock,
@@ -115,12 +116,16 @@ describe('portal flow (PortalModule wired end to end)', () => {
         const skills = new InMemorySkillRepository();
         const catalog = new InMemoryCatalogRepository();
         const product = catalog.addProduct('control-center', 'Control Center');
-        catalog.agents.set(AGENT_ID, {
-            id: AGENT_ID,
-            productId: product.id,
-            slug: 'assistant',
-            name: 'Ассистент',
-        });
+        catalog.agents.set(
+            AGENT_ID,
+            Agent.create({
+                id: AGENT_ID,
+                slug: 'assistant',
+                name: 'Ассистент',
+                productIds: [product.id],
+                now: new Date(),
+            }),
+        );
         const requestQuery = new InMemoryRequestQuery(requests, skills);
         requestQuery.logins.set(ANNA, 'anna');
         requestQuery.profiles.set(ANNA, { lastName: 'Иванова', firstName: 'Анна' });

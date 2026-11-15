@@ -1,4 +1,4 @@
-import type { RequestStatusCode, SkillStatus } from './schemas'
+import type { AgentStatusCode, RequestStatusCode, SkillStatus } from './schemas'
 
 /** The single Russian dictionary of request and skill statuses on the portal. */
 export const REQUEST_STATUS_LABEL: Record<RequestStatusCode, string> = {
@@ -7,19 +7,33 @@ export const REQUEST_STATUS_LABEL: Record<RequestStatusCode, string> = {
   planned: 'Запланировано',
   in_dev: 'В разработке',
   testing: 'Тестируется',
-  launched: 'Запущено'
+  launched: 'Запущено',
+  rework: 'Доработка'
 }
 
 export const SKILL_STATUS_LABEL: Record<SkillStatus, string> = {
   planned: 'Запланировано',
   in_dev: 'В разработке',
   testing: 'Тестируется',
-  launched: 'Запущено'
+  launched: 'Запущено',
+  rework: 'Доработка'
 }
 
-export const SKILL_STATUS_FLOW: readonly SkillStatus[] = ['planned', 'in_dev', 'testing', 'launched']
+export const AGENT_STATUS_LABEL: Record<AgentStatusCode, string> = {
+  working: 'Работает',
+  in_development: 'В разработке'
+}
 
-/** The only status a skill can move to, or null for the final one. */
-export function nextSkillStatus(status: SkillStatus): SkillStatus | null {
-  return SKILL_STATUS_FLOW[SKILL_STATUS_FLOW.indexOf(status) + 1] ?? null
+/* Badge colours: background, label and the (separately coloured) dot, shared by skills and catalog. */
+export const SKILL_BADGE_CLASS: Record<SkillStatus, string> = {
+  planned: 'bg-surface-sunken text-ink-80 [&>span:first-child]:bg-info',
+  in_dev: 'bg-info-soft text-info [&>span:first-child]:bg-info',
+  testing: 'bg-info-soft text-info [&>span:first-child]:bg-warning',
+  launched: 'bg-success-soft text-success [&>span:first-child]:bg-success',
+  rework: 'bg-warning-soft text-ink-80 [&>span:first-child]:bg-warning'
+}
+
+export const AGENT_BADGE_CLASS: Record<AgentStatusCode, string> = {
+  working: 'bg-success-soft text-success [&>span:first-child]:bg-success',
+  in_development: 'bg-info-soft text-info [&>span:first-child]:bg-info'
 }

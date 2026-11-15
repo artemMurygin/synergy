@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { ApiError } from '@/lib/errors'
 import type { Skill, SkillStatus } from '@/lib/schemas'
 import { changeSkillStatus } from './skills.api'
-import { SKILLS_KEY } from './skills.queries'
+import { SKILLS_KEY } from '@/lib/query-keys'
 
 export const SKILL_CONFLICT_MESSAGE = 'Статус навыка уже изменён. Показано актуальное состояние.'
 

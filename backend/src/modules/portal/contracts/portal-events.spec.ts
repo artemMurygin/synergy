@@ -289,6 +289,7 @@ describe('SKILL_STATUS_LABELS', () => {
             in_dev: 'В разработке',
             testing: 'Тестируется',
             launched: 'Запущено',
+            rework: 'Доработка',
         });
         expect(Object.keys(SKILL_STATUS_LABELS).sort()).toEqual([...SKILL_STATUSES].sort());
     });

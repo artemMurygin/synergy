@@ -27,6 +27,8 @@ async function setup(initial: SkillStatus = 'planned'): Promise<Setup> {
         description: '',
         status: initial,
         statusChangedAt: new Date('2026-01-01T00:00:00Z'),
+        launchedAt: null,
+        archivedAt: null,
         createdAt: new Date('2026-01-01T00:00:00Z'),
         updatedAt: new Date('2026-01-01T00:00:00Z'),
     });
@@ -130,10 +132,12 @@ describe('ChangeSkillStatusUseCase', () => {
             description: '',
             status: 'planned',
             statusChangedAt: skill.statusChangedAt,
+            launchedAt: null,
+            archivedAt: null,
             createdAt: skill.createdAt,
             updatedAt: skill.updatedAt,
         });
-        skill.advance('in_dev', new Date('2026-02-01T00:00:00Z'));
+        skill.changeStatus('in_dev', new Date('2026-02-01T00:00:00Z'));
         await skills.save(skill);
         vi.spyOn(skills, 'findForUpdate').mockResolvedValueOnce(stale);
 

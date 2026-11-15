@@ -1,5 +1,5 @@
 import { AggregateRoot } from '../../../shared/ddd';
-import { InvalidSkillTransitionError } from './errors';
+import { InvalidSkillTransitionError, SkillArchivedError } from './errors';
 import { SkillStatus } from './skill-status';
 import type { SkillName } from './skill-name';
 
@@ -9,6 +9,8 @@ export interface SkillProps {
     description: string;
     status: SkillStatus;
     statusChangedAt: Date;
+    launchedAt: Date | null;
+    archivedAt: Date | null;
 }
 
 export interface CreateSkillInput {
@@ -38,6 +40,8 @@ export class Skill extends AggregateRoot<SkillProps> {
                 description: input.description ?? '',
                 status: 'planned',
                 statusChangedAt: input.now,
+                launchedAt: null,
+                archivedAt: null,
             },
         });
     }
@@ -66,17 +70,43 @@ export class Skill extends AggregateRoot<SkillProps> {
         return this.props.statusChangedAt;
     }
 
-    /** Только соседний статус вперёд; иначе состояние не меняется. */
-    advance(to: SkillStatus, now: Date): void {
-        if (!SkillStatus.canAdvanceTo(this.props.status, to)) {
+    get launchedAt(): Date | null {
+        return this.props.launchedAt;
+    }
+
+    get archivedAt(): Date | null {
+        return this.props.archivedAt;
+    }
+
+    /** Переход по таблице; архивный навык не меняется; `launchedAt` пишется один раз. */
+    changeStatus(to: SkillStatus, now: Date): void {
+        if (this.props.archivedAt !== null) throw new SkillArchivedError(this.id);
+        if (!SkillStatus.canMove(this.props.status, to)) {
             throw new InvalidSkillTransitionError(this.props.status, to);
         }
         this.props.status = to;
         this.props.statusChangedAt = now;
+        if (to === 'launched') this.props.launchedAt ??= now;
         this.touch();
     }
 
+    /** Возвращает, изменилось ли состояние. */
+    archive(now: Date): boolean {
+        if (this.props.archivedAt !== null) return false;
+        this.props.archivedAt = now;
+        this.touch();
+        return true;
+    }
+
+    /** Возвращает, изменилось ли состояние. */
+    restore(): boolean {
+        if (this.props.archivedAt === null) return false;
+        this.props.archivedAt = null;
+        this.touch();
+        return true;
+    }
+
     validate(): void {
-        // Инварианты обеспечивают VO и `advance`.
+        // Инварианты обеспечивают VO и `changeStatus`.
     }
 }

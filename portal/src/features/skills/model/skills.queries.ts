@@ -1,8 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { SkillStatus } from '@/lib/schemas'
+import { SKILLS_KEY } from '@/lib/query-keys'
 import { listSkills } from './skills.api'
-
-export const SKILLS_KEY = ['skills'] as const
 
 export function skillsQuery(filter: SkillStatus | undefined, page: number) {
   return queryOptions({

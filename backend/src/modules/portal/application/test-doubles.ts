@@ -4,7 +4,7 @@ import { TransactionRunnerPort } from '../../../database/postgres/transaction-ru
 import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd';
 import { formatFullName, type FullNameParts } from '../../../shared/people/full-name';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
-import type { Agent } from '../domain/agent';
+import { Agent } from '../domain/agent';
 import { InvalidSkillTransitionError, RequestAlreadyDecidedError } from '../domain/errors';
 import type { IdeaRequest } from '../domain/idea-request';
 import {
@@ -208,7 +208,13 @@ export class InMemoryCatalogRepository extends CatalogRepository {
     addAgent(productSlug: string, slug: string, name: string): Agent {
         const product = this.products.get(productSlug);
         if (product === undefined) throw new Error(`Unknown product ${productSlug}`);
-        const agent: Agent = { id: `agent-${slug}`, productId: product.id, slug, name };
+        const agent = Agent.create({
+            id: `agent-${slug}`,
+            slug,
+            name,
+            productIds: [product.id],
+            now: new Date(),
+        });
         this.agents.set(agent.id, agent);
         return agent;
     }
@@ -216,7 +222,9 @@ export class InMemoryCatalogRepository extends CatalogRepository {
     listAgents(): Promise<AgentWithProduct[]> {
         const items: AgentWithProduct[] = [];
         for (const agent of this.agents.values()) {
-            const product = [...this.products.values()].find((p) => p.id === agent.productId);
+            const product = [...this.products.values()].find((p) =>
+                agent.productIds.includes(p.id),
+            );
             if (product !== undefined) items.push({ agent, product });
         }
         return Promise.resolve(items);
@@ -333,7 +341,9 @@ export class InMemorySkillQuery extends SkillQuery {
 
     private toView(skill: Skill): SkillView | null {
         const agent = this.catalog.agents.get(skill.agentId);
-        const product = [...this.catalog.products.values()].find((p) => p.id === agent?.productId);
+        const product = [...this.catalog.products.values()].find(
+            (p) => agent?.productIds.includes(p.id) === true,
+        );
         if (agent === undefined || product === undefined) return null;
         const linkedRequestCount = [...this.requests.byId.values()].filter(
             (request) =>

@@ -51,6 +51,7 @@
   --radius: 0.75rem;
   --info-soft: #e9effc;
   --success-soft: #e6f4ec;
+  --warning-soft: #FDF1DC;
 }
 
 @theme inline {
@@ -86,6 +87,7 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-success-soft: var(--success-soft);
+  --color-warning-soft: var(--warning-soft);
   --font-display: 'Onest', system-ui, sans-serif;
   --font-sans: 'Raleway', system-ui, sans-serif;
   --radius-sm: 8px;

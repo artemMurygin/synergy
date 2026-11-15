@@ -93,9 +93,12 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
             `INSERT INTO portal_products (slug, name) VALUES ('p', 'П') RETURNING id`,
         );
         const [agent] = await query(
-            `INSERT INTO portal_agents (product_id, slug, name) VALUES ($1, 'a', 'А') RETURNING id`,
-            [product.id],
+            `INSERT INTO portal_agents (slug, name) VALUES ('a', 'А') RETURNING id`,
         );
+        await query(`INSERT INTO portal_agent_products (agent_id, product_id) VALUES ($1, $2)`, [
+            agent.id,
+            product.id,
+        ]);
         const [skill] = await query(
             `INSERT INTO portal_skills (agent_id, name, status) VALUES ($1, 'Н', 'planned') RETURNING id`,
             [agent.id],

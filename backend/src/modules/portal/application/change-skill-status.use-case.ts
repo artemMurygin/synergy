@@ -32,7 +32,7 @@ export class ChangeSkillStatusUseCase {
             const skill = await this.skills.findForUpdate(input.skillId);
             if (skill === null) throw new SkillNotFoundError(input.skillId);
             const from = skill.status;
-            skill.advance(input.to, this.clock.now());
+            skill.changeStatus(input.to, this.clock.now());
             const linked = await this.requests.listLinkedToSkill(skill.id);
             await this.skills.save(skill, from);
             await this.events.publish([

@@ -1,4 +1,4 @@
-export { SKILLS_KEY, skillsQuery } from './model/skills.queries'
+export { skillsQuery } from './model/skills.queries'
 export { agentsQuery } from './model/catalog.queries'
 export { useChangeSkillStatus, skillErrorMessage, SKILL_CONFLICT_MESSAGE } from './model/use-change-skill-status'
 export { SkillPicker } from './ui/SkillPicker'
