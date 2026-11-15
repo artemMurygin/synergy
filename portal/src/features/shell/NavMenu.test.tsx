@@ -12,8 +12,23 @@ const employee: Profile = {
   login: "ivan",
   mustChangePassword: false,
   roles: [],
+  fullName: "ivan",
+  lastName: null,
+  firstName: null,
+  middleName: null,
+  position: null,
+  department: null,
 };
 const developer: Profile = { ...employee, login: "dev", roles: ["developer"] };
+const admin: Profile = { ...employee, login: "adm", roles: ["admin"] };
+const both: Profile = { ...employee, login: "both", roles: ["developer", "admin"] };
+const named = (p: Profile): Profile => ({
+  ...p,
+  lastName: "Котова",
+  firstName: "Анна",
+  middleName: "Сергеевна",
+  fullName: "Котова Анна Сергеевна",
+});
 
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState());
@@ -65,7 +80,7 @@ describe("NavMenu", () => {
 
   it("shows the user login and role", () => {
     renderMenu(employee);
-    expect(screen.getByText("ivan")).toBeTruthy();
+    expect(screen.getAllByText("ivan").length).toBeGreaterThan(0);
     expect(screen.getByText("сотрудник")).toBeTruthy();
   });
 
@@ -107,5 +122,127 @@ describe("NavMenu", () => {
       expect(useSessionStore.getState().status).toBe("signedOut"),
     );
     expect(calls[0]).toMatchObject({ method: "POST", path: "/auth/logout" });
+  });
+
+  it("shows an administrator without the developer role only the common and the admin sections", () => {
+    const calls = stubFetch(() => json(queuePage)).calls;
+    renderMenu(admin);
+    expect(linkNames()).toEqual([
+      "Новая идея",
+      "Мои заявки",
+      "Сотрудники",
+      "Отделы",
+    ]);
+    expect(
+      screen.getByRole("link", { name: "Сотрудники" }).getAttribute("href"),
+    ).toBe("/admin/employees");
+    expect(
+      screen.getByRole("link", { name: "Отделы" }).getAttribute("href"),
+    ).toBe("/admin/departments");
+    expect(screen.queryByRole("link", { name: "Очередь" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Навыки" })).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
+  it("shows both sets of sections to a user with both roles, the groups labelled", () => {
+    stubFetch(() => json(queuePage));
+    renderMenu(both);
+    expect(linkNames()).toEqual([
+      "Новая идея",
+      "Мои заявки",
+      "Очередь",
+      "Навыки",
+      "Сотрудники",
+      "Отделы",
+    ]);
+    expect(screen.getByRole("list", { name: "Разработка" })).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Администрирование" })).toBeTruthy();
+  });
+
+  it("does not show the admin sections to a developer", () => {
+    stubFetch(() => json(queuePage));
+    renderMenu(developer);
+    expect(screen.queryByRole("link", { name: "Сотрудники" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Отделы" })).toBeNull();
+  });
+
+  it('keeps "Сотрудники" active on the creation form and on a card', () => {
+    useSessionStore.getState().signIn("tok", admin);
+    const Wrapper = queryWrapper();
+    render(
+      <Wrapper>
+        <MemoryRouter initialEntries={["/admin/employees/e1"]}>
+          <NavMenu />
+        </MemoryRouter>
+      </Wrapper>,
+    );
+    expect(
+      screen.getByRole("link", { name: "Сотрудники" }).getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen.getByRole("link", { name: "Отделы" }).getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("shows the full name instead of the login, with the full name in the title", () => {
+    renderMenu(named(admin));
+    const names = screen.getAllByText("Котова Анна Сергеевна");
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) expect(name.getAttribute("title")).toBe("Котова Анна Сергеевна");
+    expect(screen.queryByText("adm")).toBeNull();
+    expect(screen.getAllByText("КА").length).toBeGreaterThan(0);
+  });
+
+  it("shows the login for a user without a full name", () => {
+    renderMenu({ ...employee, login: "user10", fullName: "user10" });
+    expect(screen.getAllByText("user10").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("US").length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [employee, "сотрудник"],
+    [developer, "разработчик"],
+    [admin, "администратор"],
+    [both, "разработчик, администратор"],
+  ])("labels the role of %#", (profile, label) => {
+    stubFetch(() => json(queuePage));
+    renderMenu(profile);
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it("truncates a long name in the 1440 bar and in the 360 bar", () => {
+    const long = "Константинопольская Александра Владимировна";
+    renderMenu({ ...named(admin), fullName: long });
+    const names = screen.getAllByText(long);
+    expect(names.length).toBeGreaterThan(0);
+    for (const element of names) {
+      expect(element.className).toContain("truncate");
+      expect(element.getAttribute("title")).toBe(long);
+    }
+    expect(screen.getByRole("button", { name: "Выйти" })).toBeTruthy();
+  });
+
+  it("the open mobile menu shows the full name, the role, the group captions and logout", async () => {
+    stubFetch(() => json(queuePage));
+    const long = "Константинопольская Александра Владимировна";
+    renderMenu({ ...both, fullName: long, lastName: "Константинопольская", firstName: "Александра" });
+    await userEvent.click(screen.getByRole("button", { name: "Меню" }));
+    const menu = document.getElementById("mobile-menu") as HTMLElement;
+    expect(menu.textContent).toContain(long);
+    expect(menu.textContent).toContain("разработчик, администратор");
+    expect(menu.textContent).toContain("Разработка");
+    expect(menu.textContent).toContain("Администрирование");
+    expect(
+      Array.from(menu.querySelectorAll("a")).map((a) => a.textContent?.replace(/\d+$/, "")),
+    ).toEqual(["Новая идея", "Мои заявки", "Очередь", "Навыки", "Сотрудники", "Отделы"]);
+    expect(menu.querySelector("button")?.textContent).toContain("Выйти");
+  });
+
+  it("the mobile menu of an administrator has no developer group", async () => {
+    renderMenu(admin);
+    await userEvent.click(screen.getByRole("button", { name: "Меню" }));
+    const menu = document.getElementById("mobile-menu") as HTMLElement;
+    expect(menu.textContent).toContain("Администрирование");
+    expect(menu.textContent).not.toContain("Разработка");
   });
 });

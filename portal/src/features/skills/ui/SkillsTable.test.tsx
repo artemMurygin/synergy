@@ -8,7 +8,7 @@ import { SkillsTable } from './SkillsTable'
 beforeEach(() => {
   stubFetch(() => json([agent]))
   useSessionStore.setState(useSessionStore.getInitialState())
-  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'] })
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'], fullName: 'dev', lastName: null, firstName: null, middleName: null, position: null, department: null })
 })
 afterEach(() => {
   cleanup()

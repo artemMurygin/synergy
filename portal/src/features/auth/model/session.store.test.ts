@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { Profile } from '@/lib/schemas'
 import { useSessionStore } from './session.store'
 
-const profile: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'] }
+const profile: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 describe('session store', () => {
   beforeEach(() => {

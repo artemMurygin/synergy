@@ -49,7 +49,7 @@ export const requestFixture = {
   minutesPerRun: 20,
   peopleCount: 3,
   status: { code: 'pending' as const, label: 'На рассмотрении' },
-  author: { id: 'u1', login: 'ivan' },
+  author: { id: 'u1', login: 'ivan', fullName: 'Иванов Иван Иванович' },
   rejectReason: null,
   skill: null,
   createdAt: '2026-11-10T09:00:00.000Z'

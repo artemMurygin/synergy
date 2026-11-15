@@ -3,6 +3,10 @@ import { RequireAuth, RequireRole } from '@/features/auth'
 import { NavMenu } from '@/features/shell'
 import { AppLayout } from '@/layouts/AppLayout'
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
+import { DepartmentsPage } from '@/pages/DepartmentsPage'
+import { EmployeeCreatePage } from '@/pages/EmployeeCreatePage'
+import { EmployeePage } from '@/pages/EmployeePage'
+import { EmployeesPage } from '@/pages/EmployeesPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MyRequestsPage } from '@/pages/MyRequestsPage'
 import { NewIdeaPage } from '@/pages/NewIdeaPage'
@@ -29,6 +33,12 @@ export function AppRoutes() {
           <Route element={<RequireRole role="developer" />}>
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/skills" element={<SkillsPage />} />
+          </Route>
+          <Route element={<RequireRole role="admin" />}>
+            <Route path="/admin/employees" element={<EmployeesPage />} />
+            <Route path="/admin/employees/new" element={<EmployeeCreatePage />} />
+            <Route path="/admin/employees/:id" element={<EmployeePage />} />
+            <Route path="/admin/departments" element={<DepartmentsPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>

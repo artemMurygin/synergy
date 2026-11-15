@@ -18,7 +18,7 @@ const tokens = (accessToken = 'access-1', mustChangePassword = false) => ({
   expiresIn: 900,
   mustChangePassword
 })
-const profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'] }
+const profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 type Handler = (url: string, init: RequestInit) => Response | Promise<Response>
 function stubFetch(handler: Handler) {
@@ -109,7 +109,7 @@ describe('auth api', () => {
   })
 
   it('fetchProfile validates roles', async () => {
-    stubFetch(() => json({ ...profile, roles: ['admin'] }))
+    stubFetch(() => json({ ...profile, roles: ['root'] }))
     await expect(fetchProfile()).rejects.toBeInstanceOf(ApiError)
   })
 

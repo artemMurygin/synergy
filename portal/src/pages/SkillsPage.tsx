@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
 import { SkillsTable } from '@/features/skills'
 import type { SkillStatus } from '@/lib/schemas'
 import { useSkillCounts, useSkills } from './use-skills'
@@ -13,7 +14,6 @@ export function SkillsPage() {
   const query = useSkills(filter, pageNo)
   const counts = useSkillCounts()
   const data = query.data
-  const hasNext = data ? (data.page + 1) * data.limit < data.total : false
 
   return (
     <section className="flex flex-col gap-6">
@@ -68,16 +68,7 @@ export function SkillsPage() {
           }}
         />
       )}
-      {pageNo > 0 || hasNext ? (
-        <nav aria-label="Страницы" className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={pageNo === 0} onClick={() => setPageNo(pageNo - 1)}>
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" disabled={!hasNext} onClick={() => setPageNo(pageNo + 1)}>
-            Вперёд
-          </Button>
-        </nav>
-      ) : null}
+      {data ? <Pagination page={pageNo} pageSize={data.limit} total={data.total} onPageChange={setPageNo} /> : null}
     </section>
   )
 }

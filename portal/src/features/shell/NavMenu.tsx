@@ -1,18 +1,52 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router";
 import { queueQuery } from "@/features/decision";
 import { useSession } from "@/features/auth";
+import { initials as initialsFor } from "@/lib/initials";
 import { cn } from "@/lib/utils";
 
-const COMMON = [
-  { to: "/ideas/new", label: "Новая идея" },
-  { to: "/requests", label: "Мои заявки" },
-];
-const DEVELOPER = [
-  { to: "/queue", label: "Очередь" },
-  { to: "/skills", label: "Навыки" },
-];
+interface Item {
+  to: string;
+  label: string;
+}
+interface Group {
+  key: "main" | "developer" | "admin";
+  /** Caption of the group in the mobile menu and `aria-label` of its list; the common group has no caption. */
+  caption: string | null;
+  items: Item[];
+}
+
+const MAIN: Group = {
+  key: "main",
+  caption: null,
+  items: [
+    { to: "/ideas/new", label: "Новая идея" },
+    { to: "/requests", label: "Мои заявки" },
+  ],
+};
+const DEVELOPER: Group = {
+  key: "developer",
+  caption: "Разработка",
+  items: [
+    { to: "/queue", label: "Очередь" },
+    { to: "/skills", label: "Навыки" },
+  ],
+};
+const ADMIN: Group = {
+  key: "admin",
+  caption: "Администрирование",
+  items: [
+    { to: "/admin/employees", label: "Сотрудники" },
+    { to: "/admin/departments", label: "Отделы" },
+  ],
+};
+
+/** "разработчик, администратор": the roles are independent, so the label lists every one of them. */
+function roleLabel(isDeveloper: boolean, isAdmin: boolean): string {
+  const labels = [isDeveloper ? "разработчик" : null, isAdmin ? "администратор" : null].filter(Boolean);
+  return labels.length > 0 ? labels.join(", ") : "сотрудник";
+}
 
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -57,11 +91,14 @@ function Mark({ size, icon }: { size: number; icon: number }) {
   );
 }
 
-function Avatar({ initials, size }: { initials: string; size: number }) {
+function Avatar({ initials, size, className }: { initials: string; size: number; className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className="inline-flex shrink-0 items-center justify-center rounded-pill bg-surface-sunken text-[13px] font-semibold text-ink-80"
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-pill bg-surface-sunken text-[13px] font-semibold text-ink-80",
+        className,
+      )}
       style={{ width: size, height: size }}
     >
       {initials}
@@ -85,60 +122,78 @@ const LogoutIcon = () => (
   </Icon>
 );
 
-/** Top bar: brand, sections by role, the user and logout; a menu button on narrow screens. */
+/** Top bar: brand, sections by role in groups, the user and logout; a menu button on narrow screens. */
 export function NavMenu() {
   const { profile, roles, logout } = useSession();
   const [open, setOpen] = useState(false);
   const isDeveloper = roles.includes("developer");
+  const isAdmin = roles.includes("admin");
   const queue = useQuery({ ...queueQuery(0), enabled: isDeveloper });
   const queueCount = queue.data?.total ?? 0;
-  const items = isDeveloper ? [...COMMON, ...DEVELOPER] : COMMON;
-  const roleLabel = isDeveloper ? "разработчик" : "сотрудник";
-  const initials = (profile?.login ?? "").slice(0, 2).toUpperCase();
+  const groups = [MAIN, ...(isDeveloper ? [DEVELOPER] : []), ...(isAdmin ? [ADMIN] : [])];
+  const role = roleLabel(isDeveloper, isAdmin);
+  const fullName = profile?.fullName || profile?.login || "";
+  const initials = initialsFor(fullName);
+
+  const badge = (item: Item) =>
+    item.to === "/queue" && queueCount > 0 ? <CountBadge count={queueCount} /> : null;
 
   return (
     <>
-      <div className="hidden h-16 items-center gap-10 px-8 lg:flex">
-        <div className="flex items-center gap-2.5">
+      <div className="hidden h-16 items-center gap-6 px-6 lg:flex xl:gap-10 xl:px-8">
+        <div className="flex shrink-0 items-center gap-2.5">
           <Mark size={32} icon={18} />
-          <div className="flex min-w-[269px] flex-col">
-            <p className="font-display text-[17px] leading-[22px] font-bold text-ink">
-              Портал разработки ИИ-агентов
+          <div className="flex flex-col xl:min-w-[269px]">
+            <p className="font-display text-[17px] leading-[22px] font-bold whitespace-nowrap text-ink">
+              Портал разработки
+              <span className="hidden xl:inline"> ИИ-агентов</span>
             </p>
             <p className="text-[11px] leading-[13px] text-ink-60">Synergy</p>
           </div>
         </div>
-        <nav aria-label="Разделы" className="h-full flex-1">
-          <ul className="flex h-full gap-7">
-            {items.map((item) => (
-              <li key={item.to} className="h-full">
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      "relative box-border flex h-full items-center gap-2 border-b-2 border-transparent text-sm leading-4 font-semibold text-ink-60 hover:text-ink",
-                      FOCUS,
-                      isActive && "border-brand-red text-ink",
-                    )
-                  }
-                >
-                  {item.label}
-                  {item.to === "/queue" && queueCount > 0 ? (
-                    <CountBadge count={queueCount} />
-                  ) : null}
-                </NavLink>
-              </li>
+        <nav aria-label="Разделы" className="h-full min-w-0 flex-1">
+          <div className="flex h-full items-stretch gap-5 xl:gap-6">
+            {groups.map((group, index) => (
+              <Fragment key={group.key}>
+                {index > 0 ? (
+                  <span aria-hidden="true" className="flex items-center">
+                    <span className="h-5 w-px bg-border" />
+                  </span>
+                ) : null}
+                <ul aria-label={group.caption ?? "Основное"} className="flex h-full gap-5 xl:gap-6">
+                  {group.items.map((item) => (
+                    <li key={item.to} className="h-full">
+                      <NavLink
+                        to={item.to}
+                        className={({ isActive }) =>
+                          cn(
+                            "relative box-border flex h-full items-center gap-2 border-b-2 border-transparent text-sm leading-4 font-semibold whitespace-nowrap text-ink-60 hover:text-ink",
+                            FOCUS,
+                            isActive && "border-brand-red text-ink",
+                          )
+                        }
+                      >
+                        {item.label}
+                        {badge(item)}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </Fragment>
             ))}
-          </ul>
+          </div>
         </nav>
-        <div className="flex items-center gap-3">
-          <Avatar initials={initials} size={36} />
+        <div className="flex shrink-0 items-center gap-3">
+          <Avatar initials={initials} size={36} className="max-xl:hidden" />
           <div className="flex flex-col gap-px">
-            <span className="max-w-40 truncate text-[13px] leading-[15px] font-semibold text-ink">
-              {profile?.login}
+            <span
+              title={fullName}
+              className="max-w-[120px] truncate text-[13px] leading-[15px] font-semibold text-ink xl:max-w-40"
+            >
+              {fullName}
             </span>
-            <span className="text-[11px] leading-[13px] text-ink-60">
-              {roleLabel}
+            <span className="max-w-[120px] truncate text-[11px] leading-[13px] text-ink-60 xl:max-w-40">
+              {role}
             </span>
           </div>
           <button
@@ -157,12 +212,17 @@ export function NavMenu() {
       </div>
 
       <div className="lg:hidden">
-        <div className="flex h-14 items-center gap-2.5 px-4">
+        <div className="flex h-14 items-center gap-2.5 pr-2 pl-4">
           <Mark size={28} icon={16} />
-          <p className="font-display text-base leading-5 font-bold text-ink">
+          <p className="hidden font-display text-base leading-5 font-bold text-ink min-[400px]:block">
             Портал разработки
           </p>
-          <div className="flex-1" />
+          <span
+            title={fullName}
+            className="min-w-0 flex-1 truncate text-[13px] leading-[15px] font-semibold text-ink"
+          >
+            {fullName}
+          </span>
           <Avatar initials={initials} size={32} />
           <button
             type="button"
@@ -171,7 +231,7 @@ export function NavMenu() {
             aria-controls="mobile-menu"
             onClick={() => setOpen((v) => !v)}
             className={cn(
-              "inline-flex size-9 items-center justify-center rounded-md text-ink",
+              "inline-flex size-11 shrink-0 items-center justify-center rounded-md text-ink",
               FOCUS,
             )}
           >
@@ -192,40 +252,52 @@ export function NavMenu() {
           </button>
         </div>
         {open ? (
-          <div id="mobile-menu" className="border-t border-border px-4 py-3">
-            <p className="pb-2 text-[13px] text-ink-60">
-              <span className="font-semibold text-ink">{profile?.login}</span> ·{" "}
-              {roleLabel}
-            </p>
+          <div id="mobile-menu" className="border-t border-border pt-2 pb-3">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <Avatar initials={initials} size={40} />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-sm leading-4 font-semibold break-words text-ink">
+                  {fullName}
+                </span>
+                <span className="text-xs leading-[14px] text-ink-60">{role}</span>
+              </div>
+            </div>
             <nav aria-label="Разделы">
-              <ul className="flex flex-col">
-                {items.map((item) => (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      onClick={() => setOpen(false)}
-                      className={({ isActive }) =>
-                        cn(
-                          "flex h-11 items-center gap-2 border-l-2 border-transparent pl-3 text-sm font-semibold text-ink-60",
-                          FOCUS,
-                          isActive && "border-brand-red text-ink",
-                        )
-                      }
-                    >
-                      {item.label}
-                      {item.to === "/queue" && queueCount > 0 ? (
-                        <CountBadge count={queueCount} />
-                      ) : null}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
+              {groups.map((group) => (
+                <div key={group.key}>
+                  {group.caption ? (
+                    <p className="px-4 pt-3.5 pb-1.5 text-[11px] leading-[13px] font-bold tracking-[0.6px] text-ink-60 uppercase">
+                      {group.caption}
+                    </p>
+                  ) : null}
+                  <ul aria-label={group.caption ?? "Основное"} className="flex flex-col">
+                    {group.items.map((item) => (
+                      <li key={item.to}>
+                        <NavLink
+                          to={item.to}
+                          onClick={() => setOpen(false)}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex h-12 items-center gap-2 px-4 text-[15px] font-semibold text-ink",
+                              FOCUS,
+                              isActive && "bg-brand-red-soft text-brand-red",
+                            )
+                          }
+                        >
+                          {item.label}
+                          {badge(item)}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </nav>
             <button
               type="button"
               onClick={() => void logout()}
               className={cn(
-                "mt-2 flex h-11 w-full items-center gap-2 pl-3 text-sm font-semibold text-ink-60 hover:text-ink",
+                "mt-2 flex h-12 w-full items-center gap-2.5 border-t border-border px-4 text-[15px] font-semibold text-ink-80 hover:text-ink",
                 FOCUS,
               )}
             >

@@ -2,7 +2,9 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
 import { formatDate } from '@/lib/format'
+import { initials } from '@/lib/initials'
 import type { FrequencyPeriod, IdeaRequest } from '@/lib/schemas'
 import { useQueue } from './use-queue'
 
@@ -94,10 +96,6 @@ function formatDecimal(n: number): string {
   return n.toFixed(1).replace('.', ',')
 }
 
-function initials(login: string): string {
-  return login.slice(0, 2).toUpperCase()
-}
-
 const ROW_GRID =
   'md:grid md:grid-cols-[minmax(0,1fr)_170px_120px_110px_112px] md:items-center md:gap-4'
 
@@ -116,7 +114,6 @@ export function QueuePage() {
   const query = useQueue(pageNo)
   const data = query.data
   const items = data ? [...data.items].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)) : []
-  const hasNext = data ? (data.page + 1) * data.limit < data.total : false
   const now = Date.now()
   const waits = items.map((r) => Math.max(0, now - Date.parse(r.createdAt)))
   const total = data?.total ?? items.length
@@ -217,14 +214,16 @@ export function QueuePage() {
                         <span className="break-words text-[15px] font-semibold leading-[18px] text-ink">{request.title}</span>
                         <span className="text-xs leading-[14px] text-ink-60">{formatMeta(request)}</span>
                       </span>
-                      <span className="flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <span
                           aria-hidden="true"
-                          className="flex size-7 items-center justify-center rounded-full bg-[#ECEDF0] text-[11px] font-semibold text-[#3A3A3A]"
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ECEDF0] text-[11px] font-semibold text-[#3A3A3A]"
                         >
-                          {initials(request.author.login)}
+                          {initials(request.author.fullName)}
                         </span>
-                        <span className="text-[13px] font-medium text-ink">{request.author.login}</span>
+                        <span title={request.author.fullName} className="min-w-0 break-words text-[13px] font-medium text-ink md:truncate">
+                          {request.author.fullName}
+                        </span>
                       </span>
                       <span className="text-sm font-semibold text-ink">{formatHours(effectHours(request))}</span>
                       <span className={`flex items-center gap-1.5 text-[13px] ${urgent ? 'font-semibold text-brand-red' : 'text-ink-60'}`}>
@@ -250,16 +249,7 @@ export function QueuePage() {
           </div>
         </>
       )}
-      {pageNo > 0 || hasNext ? (
-        <nav aria-label="Страницы" className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={pageNo === 0} onClick={() => setPageNo(pageNo - 1)}>
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" disabled={!hasNext} onClick={() => setPageNo(pageNo + 1)}>
-            Вперёд
-          </Button>
-        </nav>
-      ) : null}
+      {data ? <Pagination page={pageNo} pageSize={data.limit} total={data.total} onPageChange={setPageNo} /> : null}
     </section>
   )
 }

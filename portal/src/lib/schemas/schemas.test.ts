@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { agentSchema, pageSchema, profileSchema, requestSchema, skillSchema } from './index'
+import { agentSchema, pageSchema, profileSchema, requestSchema, roleSchema, skillSchema } from './index'
 
 const request = {
   id: 'r1',
@@ -10,7 +10,7 @@ const request = {
   minutesPerRun: 20,
   peopleCount: 3,
   status: { code: 'pending', label: 'На рассмотрении' },
-  author: { id: 'u1', login: 'anna' },
+  author: { id: 'u1', login: 'anna', fullName: 'Иванова Анна' },
   rejectReason: null,
   skill: null,
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -72,13 +72,52 @@ describe('agentSchema', () => {
 })
 
 describe('profileSchema', () => {
-  it('parses a profile with roles', () => {
-    const p = profileSchema.parse({ id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'] })
+  const base = {
+    id: 'u1',
+    login: 'dev',
+    mustChangePassword: false,
+    roles: ['developer'],
+    fullName: 'Иванов Иван Иванович',
+    lastName: 'Иванов',
+    firstName: 'Иван',
+    middleName: 'Иванович',
+    position: 'Аналитик',
+    department: { id: 'd1', name: 'Бухгалтерия' }
+  }
+
+  it('parses a profile with roles, name parts, position and department', () => {
+    const p = profileSchema.parse(base)
     expect(p.roles).toEqual(['developer'])
+    expect(p.fullName).toBe('Иванов Иван Иванович')
+    expect(p.lastName).toBe('Иванов')
+    expect(p.position).toBe('Аналитик')
+    expect(p.department).toEqual({ id: 'd1', name: 'Бухгалтерия' })
   })
-  it('rejects an unknown role and a missing roles field', () => {
-    expect(profileSchema.safeParse({ id: 'u1', login: 'x', mustChangePassword: false, roles: ['admin'] }).success).toBe(false)
-    expect(profileSchema.safeParse({ id: 'u1', login: 'x', mustChangePassword: false }).success).toBe(false)
+
+  it('accepts the admin role', () => {
+    expect(profileSchema.parse({ ...base, roles: ['admin', 'developer'] }).roles).toEqual(['admin', 'developer'])
+    expect(roleSchema.parse('admin')).toBe('admin')
+  })
+
+  it('parses a profile without name parts, position and department', () => {
+    const p = profileSchema.parse({
+      ...base,
+      fullName: 'dev',
+      lastName: null,
+      firstName: null,
+      middleName: null,
+      position: null,
+      department: null
+    })
+    expect(p.fullName).toBe('dev')
+    expect(p.department).toBeNull()
+    expect(p.middleName).toBeNull()
+  })
+
+  it('rejects an unknown role, a missing roles field and a missing fullName', () => {
+    expect(profileSchema.safeParse({ ...base, roles: ['root'] }).success).toBe(false)
+    expect(profileSchema.safeParse({ ...base, roles: undefined }).success).toBe(false)
+    expect(profileSchema.safeParse({ ...base, fullName: undefined }).success).toBe(false)
   })
 })
 

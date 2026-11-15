@@ -5,6 +5,8 @@ export interface FieldProps {
   label: string
   error?: string
   hint?: string
+  /** Override of the hint colour (default ink-40; the DepartmentDialog frames use ink-60) */
+  hintClassName?: string
 }
 
 /** Wires a visible label, hint and error text to a control (label, aria-invalid, aria-describedby). */
@@ -21,6 +23,7 @@ export function FormField({
   label,
   controlId,
   hint,
+  hintClassName,
   hintId,
   error,
   errorId,
@@ -35,12 +38,12 @@ export function FormField({
 }) {
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
         <label htmlFor={controlId} className="text-[13px] font-semibold leading-[1.17] text-ink">
           {label}
         </label>
         {hint ? (
-          <p id={hintId} className="text-xs leading-[1.17] text-ink-40">
+          <p id={hintId} className={cn('text-xs leading-[1.17] text-ink-40', hintClassName)}>
             {hint}
           </p>
         ) : null}

@@ -6,7 +6,7 @@ import type { Profile } from '@/lib/schemas'
 import { RequireRole } from './RequireRole'
 import { useSessionStore } from './model/session.store'
 
-const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] }
+const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 const developer: Profile = { ...employee, roles: ['developer'] }
 
 const queueFetch = vi.fn()

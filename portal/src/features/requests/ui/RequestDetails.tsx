@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { initials } from '@/lib/initials'
 import { REQUEST_STATUS_LABEL } from '@/lib/status-labels'
 import type { IdeaRequest, RequestStatusCode } from '@/lib/schemas'
 import { RequestStatusBadge } from './RequestStatusBadge'
@@ -234,7 +235,6 @@ function StatusNotice({ code }: { code: RequestStatusCode }) {
 }
 
 function History({ request }: { request: IdeaRequest }) {
-  const initials = request.author.login.slice(0, 2).toUpperCase()
   return (
     <Card title="История" className="hidden min-[900px]:flex">
       <ul className="flex flex-col pt-3.5">
@@ -243,7 +243,7 @@ function History({ request }: { request: IdeaRequest }) {
             aria-hidden="true"
             className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-[10px] font-semibold text-ink-80"
           >
-            {initials}
+            {initials(request.author.login)}
           </span>
           <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
             <span className="text-sm font-medium leading-4 text-ink">Вы подали заявку</span>
@@ -252,6 +252,29 @@ function History({ request }: { request: IdeaRequest }) {
         </li>
       </ul>
     </Card>
+  )
+}
+
+/** Author Card · ФИО автора: avatar with initials and the full name (the stats line of the mock-up has no data in the API). */
+function AuthorCard({ request }: { request: IdeaRequest }) {
+  const { fullName } = request.author
+  return (
+    <section aria-labelledby="request-author" className="flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-5 min-[900px]:p-6">
+      <h2 id="request-author" className="text-[13px] font-bold leading-[15px] text-ink">
+        Автор
+      </h2>
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-[13px] font-semibold text-ink-80"
+        >
+          {initials(fullName)}
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="break-words text-[15px] leading-[18px] font-semibold text-ink">{fullName}</span>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -310,9 +333,12 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
           <RequestStatusBadge status={code} />
         </div>
         <p className="min-w-0 text-xs text-ink-60 min-[900px]:col-span-3 min-[900px]:text-[13px] min-[900px]:leading-[15px]">
-          <span className="min-[900px]:hidden">{shortDate(request.createdAt)}</span>
+          <span className="min-[900px]:hidden">
+            {shortDate(request.createdAt)}
+            {decision ? ` · ${request.author.fullName}` : ''}
+          </span>
           <span className="hidden min-[900px]:inline">
-            Подана {longDate(request.createdAt)} · {request.author.login}
+            Подана {longDate(request.createdAt)} · {request.author.fullName}
             {waiting}
           </span>
         </p>
@@ -351,7 +377,12 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
 
         <div className="contents min-[900px]:flex min-[900px]:flex-col min-[900px]:gap-4">
           {decision ? (
-            <div className="order-1 min-[900px]:order-none">{decision}</div>
+            <>
+              <div className="order-1 min-[900px]:order-none">{decision}</div>
+              <div className="order-5 min-[900px]:order-none">
+                <AuthorCard request={request} />
+              </div>
+            </>
           ) : (
             <>
               <div className="order-1 min-[900px]:order-none">

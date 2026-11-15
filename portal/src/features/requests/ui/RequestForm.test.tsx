@@ -7,7 +7,7 @@ import { RequestForm } from './RequestForm'
 
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
-  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] })
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null })
 })
 afterEach(() => {
   cleanup()

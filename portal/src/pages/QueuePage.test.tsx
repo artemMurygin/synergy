@@ -8,7 +8,7 @@ import { QueuePage } from './QueuePage'
 
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
-  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'] })
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'], fullName: 'dev', lastName: null, firstName: null, middleName: null, position: null, department: null })
 })
 afterEach(() => {
   cleanup()
@@ -29,7 +29,7 @@ function renderPage() {
   )
 }
 
-const older = { ...requestFixture, id: 'r-old', title: 'Старая идея', author: { id: 'u2', login: 'petr' }, createdAt: '2026-11-01T09:00:00.000Z' }
+const older = { ...requestFixture, id: 'r-old', title: 'Старая идея', author: { id: 'u2', login: 'petr', fullName: 'Петров Пётр Петрович' }, createdAt: '2026-11-01T09:00:00.000Z' }
 const newer = { ...requestFixture, id: 'r-new', title: 'Новая идея', createdAt: '2026-11-10T09:00:00.000Z' }
 
 describe('QueuePage', () => {
@@ -39,7 +39,8 @@ describe('QueuePage', () => {
     await screen.findByText('Старая идея')
     const titles = screen.getAllByRole('link').map((l) => l.textContent ?? '')
     expect(titles.findIndex((t) => t.includes('Старая идея'))).toBeLessThan(titles.findIndex((t) => t.includes('Новая идея')))
-    expect(screen.getByText(/petr/)).toBeTruthy()
+    expect(screen.getByText('Петров Пётр Петрович')).toBeTruthy()
+    expect(screen.queryByText('petr')).toBeNull()
     expect(screen.getByTitle('01.11.2026')).toBeTruthy()
     expect(screen.getAllByText(/5 раз в неделю · 20 мин · 3 чел./)).toHaveLength(2)
   })
@@ -66,5 +67,23 @@ describe('QueuePage', () => {
     fail = false
     await userEvent.click(retry)
     expect(await screen.findByText('Старая идея')).toBeTruthy()
+  })
+
+  it('shows the full name of the author and the login when the author has no full name', async () => {
+    const noName = { ...requestFixture, id: 'r-nn', title: 'Без ФИО', author: { id: 'u3', login: 'user10', fullName: 'user10' } }
+    stubFetch(() => json(page([older, noName])))
+    renderPage()
+    await screen.findByText('Старая идея')
+    expect(screen.getByText('Петров Пётр Петрович')).toBeTruthy()
+    expect(screen.getByText('user10')).toBeTruthy()
+  })
+
+  it('truncates a long author name and keeps the full name in the title', async () => {
+    const long = 'Константинопольская Александра Владимировна'
+    stubFetch(() => json(page([{ ...older, author: { id: 'u2', login: 'kav', fullName: long } }])))
+    renderPage()
+    const name = await screen.findByText(long)
+    expect(name.className).toContain('truncate')
+    expect(name.getAttribute('title')).toBe(long)
   })
 })

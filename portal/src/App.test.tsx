@@ -5,8 +5,9 @@ import { useSessionStore } from '@/features/auth'
 import type { Profile } from '@/lib/schemas'
 import { createTestClient, json, page, stubFetch, type FetchCall } from '@/test/helpers'
 
-const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] }
+const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 const developer: Profile = { ...employee, login: 'dev', roles: ['developer'] }
+const admin: Profile = { ...employee, login: 'adm', roles: ['admin'] }
 const tokens = { accessToken: 't', expiresIn: 900, mustChangePassword: false }
 
 beforeEach(() => {
@@ -86,5 +87,46 @@ describe('routing', () => {
     renderApp('/no/such/page', employee)
     expect(await screen.findByRole('heading', { name: 'Страница не найдена' })).toBeTruthy()
     expect(screen.getAllByRole('link', { name: 'Мои заявки' }).length).toBeGreaterThan(0)
+  })
+
+  it.each(['/admin/employees', '/admin/employees/new', '/admin/employees/e1', '/admin/departments'])(
+    'an employee without the role opening %s sees "Мои заявки" and no admin data is requested',
+    async (path) => {
+      const { calls } = renderApp(path, employee)
+      expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
+      expect(calls.some((c) => c.path.startsWith('/admin/'))).toBe(false)
+    }
+  )
+
+  it('a developer without the admin role opening /admin/employees sees "Мои заявки"', async () => {
+    const { calls } = renderApp('/admin/employees', developer)
+    expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
+    expect(calls.some((c) => c.path.startsWith('/admin/'))).toBe(false)
+  })
+
+  it('an administrator opens the employees, the creation form, the card and the departments', async () => {
+    const api = (c: FetchCall) => {
+      if (c.path === '/admin/departments') return json([])
+      if (c.path === '/admin/employees') return json(page([]))
+      if (c.path === '/admin/employees/e1') return json({ id: 'e1', login: 'ivanov', lastName: 'Иванов', firstName: 'Иван', middleName: null, fullName: 'Иванов Иван', department: null, position: null, email: null, scrmEmployeeId: null, roles: [], isActive: true })
+      return undefined
+    }
+    renderApp('/admin/employees', admin, api)
+    expect(await screen.findByRole('heading', { name: 'Сотрудники' })).toBeTruthy()
+    cleanup()
+    renderApp('/admin/employees/new', admin, api)
+    expect(await screen.findByRole('heading', { name: 'Новый сотрудник' })).toBeTruthy()
+    cleanup()
+    renderApp('/admin/employees/e1', admin, api)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Иванов Иван' })).toBeTruthy()
+    cleanup()
+    renderApp('/admin/departments', admin, api)
+    expect(await screen.findByRole('heading', { name: 'Отделы' })).toBeTruthy()
+  })
+
+  it('an administrator without the developer role opening /queue sees "Мои заявки"', async () => {
+    const { calls } = renderApp('/queue', admin)
+    expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
+    expect(calls.some((c) => c.path === '/portal/queue')).toBe(false)
   })
 })

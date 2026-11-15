@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
 import { RequestList } from '@/features/requests'
 import { formatHours, matchesFilter, monthlyHours } from '@/features/requests/ui/request-presentation'
 import { cn } from '@/lib/utils'
@@ -73,7 +74,6 @@ export function MyRequestsPage() {
   const [pageNo, setPageNo] = useState(0)
   const query = useMyRequests(pageNo)
   const data = query.data
-  const hasNext = data ? (data.page + 1) * data.limit < data.total : false
   const hasItems = Boolean(data && data.items.length > 0)
 
   return (
@@ -110,16 +110,7 @@ export function MyRequestsPage() {
         onRetry={() => void query.refetch()}
         total={data?.total}
       />
-      {pageNo > 0 || hasNext ? (
-        <nav aria-label="Страницы" className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={pageNo === 0} onClick={() => setPageNo(pageNo - 1)}>
-            Назад
-          </Button>
-          <Button variant="outline" size="sm" disabled={!hasNext} onClick={() => setPageNo(pageNo + 1)}>
-            Вперёд
-          </Button>
-        </nav>
-      ) : null}
+      {data ? <Pagination page={pageNo} pageSize={data.limit} total={data.total} onPageChange={setPageNo} /> : null}
     </section>
   )
 }

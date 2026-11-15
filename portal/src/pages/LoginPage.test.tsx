@@ -15,7 +15,7 @@ afterEach(() => {
 })
 
 const tokens = { accessToken: 't', expiresIn: 900, mustChangePassword: false }
-const profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] }
+const profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 function renderLogin(entry: string | { pathname: string; state?: unknown } = '/login') {
   const Wrapper = queryWrapper(createTestClient())

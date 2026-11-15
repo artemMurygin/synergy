@@ -8,7 +8,7 @@ import { SkillPicker, type SkillPickerValue } from './SkillPicker'
 
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
-  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'] })
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'], fullName: 'dev', lastName: null, firstName: null, middleName: null, position: null, department: null })
   stubFetch(({ path }) => (path === '/portal/agents' ? json([agentFixture]) : json(page([skillFixture]))))
 })
 afterEach(() => {

@@ -9,7 +9,7 @@ import { useSessionStore } from './model/session.store'
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const tokens = { accessToken: 't', expiresIn: 900, mustChangePassword: false }
-const dev = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'] }
+const dev = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: ['developer'], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 function stub(handler: (path: string) => Response) {
   const fn = vi.fn((url: string) => {

@@ -6,7 +6,7 @@ import { useSessionStore } from '@/features/auth'
 import { createTestClient, json, queryWrapper, stubFetch } from '@/test/helpers'
 import { ChangePasswordPage } from './ChangePasswordPage'
 
-const temp = { id: 'u1', login: 'ivan', mustChangePassword: true, roles: [] }
+const temp = { id: 'u1', login: 'ivan', mustChangePassword: true, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 beforeEach(() => {
   useSessionStore.getState().signIn('t', temp)

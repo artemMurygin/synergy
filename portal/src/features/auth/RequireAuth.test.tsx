@@ -7,7 +7,7 @@ import type { Profile } from '@/lib/schemas'
 import { RequireAuth, returnToFrom } from './RequireAuth'
 import { useSessionStore } from './model/session.store'
 
-const user: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] }
+const user: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 
 function Login() {
   const navigate = useNavigate()

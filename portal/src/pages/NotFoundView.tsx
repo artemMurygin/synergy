@@ -20,7 +20,14 @@ function Svg({ children, size }: { children: React.ReactNode; size: number }) {
 }
 
 /** Static "not found" block with a way back; used by the unknown route and by RequestPage. */
-export function NotFoundView({ title, text }: { title: string; text: string }) {
+export interface NotFoundViewProps {
+  title: string
+  text: string
+  /** The way back; the requests of the user when absent (and then "Подать идею" is offered as well). */
+  back?: { to: string; label: string }
+}
+
+export function NotFoundView({ title, text, back }: NotFoundViewProps) {
   return (
     <section className="mx-auto flex max-w-[460px] flex-col items-center gap-3.5 pt-[98px] text-center">
       <span className="flex size-16 items-center justify-center rounded-full border border-border bg-surface text-ink-60">
@@ -35,17 +42,19 @@ export function NotFoundView({ title, text }: { title: string; text: string }) {
       <p className="text-sm leading-[1.5] text-ink-60">{text}</p>
       <div className="flex flex-wrap justify-center gap-2.5 pt-2">
         <Button asChild>
-          <Link to="/requests">
+          <Link to={back?.to ?? '/requests'}>
             <Svg size={18}>
               <path d="m12 19-7-7 7-7" />
               <path d="M19 12H5" />
             </Svg>
-            К моим заявкам
+            {back?.label ?? 'К моим заявкам'}
           </Link>
         </Button>
-        <Button asChild variant="outline">
-          <Link to="/ideas/new">Подать идею</Link>
-        </Button>
+        {back ? null : (
+          <Button asChild variant="outline">
+            <Link to="/ideas/new">Подать идею</Link>
+          </Button>
+        )}
       </div>
     </section>
   )

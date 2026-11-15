@@ -28,7 +28,7 @@ describe('useLogin', () => {
         Promise.resolve(
           new URL(url).pathname === '/auth/login'
             ? json({ accessToken: 't', expiresIn: 900, mustChangePassword: false })
-            : json({ id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] })
+            : json({ id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null })
         )
       )
     )

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const roleSchema = z.enum(['developer'])
+export const roleSchema = z.enum(['developer', 'admin'])
 export type Role = z.infer<typeof roleSchema>
 
 export const skillStatusSchema = z.enum(['planned', 'in_dev', 'testing', 'launched'])
@@ -29,7 +29,7 @@ export const requestSchema = z.object({
   minutesPerRun: z.number().int(),
   peopleCount: z.number().int(),
   status: z.object({ code: requestStatusCodeSchema, label: z.string() }),
-  author: z.object({ id: z.string(), login: z.string() }),
+  author: z.object({ id: z.string(), login: z.string(), fullName: z.string() }),
   rejectReason: z.string().nullable(),
   skill: z.object({ id: z.string(), name: z.string(), description: z.string() }).nullable(),
   createdAt: z.string()
@@ -59,6 +59,12 @@ export const profileSchema = z.object({
   id: z.string(),
   login: z.string(),
   mustChangePassword: z.boolean(),
-  roles: z.array(roleSchema)
+  roles: z.array(roleSchema),
+  fullName: z.string(),
+  lastName: z.string().nullable(),
+  firstName: z.string().nullable(),
+  middleName: z.string().nullable(),
+  position: z.string().nullable(),
+  department: z.object({ id: z.string(), name: z.string() }).nullable()
 })
 export type Profile = z.infer<typeof profileSchema>

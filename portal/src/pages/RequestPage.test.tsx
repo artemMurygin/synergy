@@ -8,7 +8,7 @@ import { agentFixture, createTestClient, json, page, queryWrapper, requestFixtur
 import { LoginPage } from './LoginPage'
 import { RequestPage } from './RequestPage'
 
-const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [] }
+const employee: Profile = { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null }
 const developer: Profile = { ...employee, login: 'dev', roles: ['developer'] }
 const ID = requestFixture.id
 
@@ -121,5 +121,22 @@ describe('RequestPage', () => {
     await userEvent.type(screen.getByLabelText('Пароль'), 'pw')
     await userEvent.click(screen.getByRole('button', { name: 'Войти' }))
     expect(await screen.findByRole('heading', { name: 'Сверка актов' })).toBeTruthy()
+  })
+
+  it('shows the full name of the author instead of the login to the developer', async () => {
+    useSessionStore.getState().signIn('t', developer)
+    api((c) => (c.path === `/portal/requests/${ID}` ? json({ ...requestFixture, author: { id: 'u2', login: 'nikitina', fullName: 'Никитина Анна Сергеевна' } }) : undefined))
+    renderAt(`/requests/${ID}`)
+    await screen.findByRole('heading', { name: 'Сверка актов' })
+    expect(screen.getAllByText(/Никитина Анна Сергеевна/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/nikitina/)).toBeNull()
+  })
+
+  it('shows the login of an author without the full name', async () => {
+    useSessionStore.getState().signIn('t', developer)
+    api((c) => (c.path === `/portal/requests/${ID}` ? json({ ...requestFixture, author: { id: 'u3', login: 'user10', fullName: 'user10' } }) : undefined))
+    renderAt(`/requests/${ID}`)
+    await screen.findByRole('heading', { name: 'Сверка актов' })
+    expect(screen.getAllByText(/user10/).length).toBeGreaterThan(0)
   })
 })
