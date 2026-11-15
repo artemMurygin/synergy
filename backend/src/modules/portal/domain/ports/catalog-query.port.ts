@@ -6,6 +6,17 @@ export interface ProductRef {
     name: string;
 }
 
+/** Отдел в ответах каталога. */
+export interface DepartmentRef {
+    id: string;
+    name: string;
+}
+
+/** Пометка доступности: отдел продукта (`productId` — ключ группировки). */
+export interface ProductDepartmentRow extends DepartmentRef {
+    productId: string;
+}
+
 export interface CatalogAgentRow {
     id: string;
     slug: string;
@@ -62,4 +73,6 @@ export abstract class CatalogQuery {
      */
     abstract loadVisible(): Promise<CatalogRow[]>;
     abstract loadArchive(): Promise<ArchiveRows>;
+    /** Отделы всех продуктов одним запросом: `ORDER BY lower(name), id`. */
+    abstract loadProductDepartments(): Promise<ProductDepartmentRow[]>;
 }

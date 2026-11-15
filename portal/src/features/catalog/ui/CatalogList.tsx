@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import type { CatalogProduct } from '@/lib/schemas'
 import { AgentTile } from './AgentTile'
 import { agentsCount } from './plural'
+import { ProductAccessLabel } from './ProductAccessLabel'
 
 const SVG = {
   'aria-hidden': true,
@@ -68,7 +70,13 @@ function NoAgents() {
   )
 }
 
-export function CatalogList({ products }: { products: CatalogProduct[] }) {
+export interface CatalogListProps {
+  products: CatalogProduct[]
+  /** Per-product action on the right of the product header (the admin's "Доступ отделов"). */
+  productAction?: (product: CatalogProduct) => ReactNode
+}
+
+export function CatalogList({ products, productAction }: CatalogListProps) {
   return (
     <div className="flex flex-col gap-7 min-[768px]:gap-8">
       {products.map((product) => (
@@ -77,15 +85,21 @@ export function CatalogList({ products }: { products: CatalogProduct[] }) {
           aria-labelledby={`catalog-product-${product.id}`}
           className="flex flex-col gap-3 min-[768px]:gap-3.5"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <ProductIcon slug={product.slug} />
-            <h2
-              id={`catalog-product-${product.id}`}
-              className="font-display text-lg font-bold text-ink min-[768px]:text-xl"
-            >
-              {product.name}
-            </h2>
-            <span className="text-[13px] text-ink-60">{agentsCount(product.agents.length)}</span>
+            <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+              <div className="flex items-center gap-3">
+                <h2
+                  id={`catalog-product-${product.id}`}
+                  className="font-display text-lg font-bold text-ink min-[768px]:text-xl"
+                >
+                  {product.name}
+                </h2>
+                <span className="text-[13px] text-ink-60">{agentsCount(product.agents.length)}</span>
+              </div>
+              <ProductAccessLabel departments={product.departments} />
+            </div>
+            {productAction ? <div className="shrink-0 self-center">{productAction(product)}</div> : null}
           </div>
           {product.agents.length === 0 ? (
             <NoAgents />

@@ -36,6 +36,7 @@ import {
     CatalogQuery,
     type ArchiveRows,
     type CatalogRow,
+    type ProductDepartmentRow,
 } from '../domain/ports/catalog-query.port';
 import { CommentQuery, type CommentRecord } from '../domain/ports/comment-query.port';
 import { CommentRepository } from '../domain/ports/comment-repository.port';
@@ -789,6 +790,10 @@ export class InMemoryCatalogQuery extends CatalogQuery {
             }
         }
         return Promise.resolve(rows);
+    }
+
+    loadProductDepartments(): Promise<ProductDepartmentRow[]> {
+        return Promise.resolve([]);
     }
 
     loadArchive(): Promise<ArchiveRows> {

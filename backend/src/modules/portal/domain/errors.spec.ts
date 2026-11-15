@@ -11,6 +11,7 @@ import {
     CommentEditWindowExpiredError,
     CommentNotFoundError,
     CommentNotOwnedError,
+    DepartmentNotFoundError,
     InvalidRejectReasonError,
     InvalidSkillTransitionError,
     PortalErrorCode,
@@ -82,5 +83,11 @@ describe('portal domain errors', () => {
         expect(findErrorStatus(PortalErrorCode.BugNotFound)).toBe(HttpStatus.NOT_FOUND);
         expect(findErrorStatus(PortalErrorCode.InvalidBugTransition)).toBe(HttpStatus.CONFLICT);
         expect(findErrorStatus(PortalErrorCode.AgentNotInProduct)).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('DepartmentNotFoundError carries its code and maps to 404', () => {
+        registerPortalErrorStatuses();
+        expect(new DepartmentNotFoundError('d1').code).toBe('PORTAL_DEPARTMENT_NOT_FOUND');
+        expect(findErrorStatus(PortalErrorCode.DepartmentNotFound)).toBe(HttpStatus.NOT_FOUND);
     });
 });

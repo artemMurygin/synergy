@@ -4,12 +4,13 @@ import { formatDate } from '@/lib/format'
 import type { CatalogAgent } from '@/lib/schemas'
 import { SKILL_BADGE_CLASS, SKILL_STATUS_LABEL } from '@/lib/status-labels'
 import { AgentStatusBadge } from './AgentStatusBadge'
+import { ProductAccessLabel } from './ProductAccessLabel'
 
 const SVG = { 'aria-hidden': true, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
 
 const COLUMNS = 'min-[768px]:grid min-[768px]:grid-cols-[minmax(0,1fr)_160px_140px] min-[768px]:items-center min-[768px]:gap-4'
 
-/** Agent card: header (name, all products, derived status, `actions` slot) and the list of its skills. */
+/** Agent card: header (name, products one per row with their departments, derived status, `actions` slot) and the list of its skills. */
 export function AgentCard({ agent, actions }: { agent: CatalogAgent; actions?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 min-[768px]:gap-6">
@@ -23,14 +24,21 @@ export function AgentCard({ agent, actions }: { agent: CatalogAgent; actions?: R
         </span>
         <h1 className="self-center font-display text-2xl font-bold leading-tight tracking-[-0.4px] text-ink min-[768px]:text-[32px] min-[768px]:tracking-[-0.6px]">{agent.name}</h1>
         <div className="col-span-2 flex flex-col items-start gap-2.5 min-[768px]:col-span-1 min-[768px]:flex-row min-[768px]:items-center min-[768px]:gap-3">
-          <p className="flex items-center gap-1.5 text-sm font-medium text-ink-60 max-[767px]:order-last">
-            <svg {...SVG} className="size-4 shrink-0">
-              <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-              <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
-              <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
-            </svg>
-            {agent.products.map((p) => p.name).join(', ')}
-          </p>
+          <ul aria-label="Продукты агента" className="flex min-w-0 flex-col gap-1.5 max-[767px]:order-last">
+            {agent.products.map((p) => (
+              <li key={p.id} className="flex min-w-0 flex-col gap-0.5 min-[768px]:flex-row min-[768px]:items-center min-[768px]:gap-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-ink-80">
+                  <svg {...SVG} className="size-4 shrink-0 text-ink-60">
+                    <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+                    <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+                    <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+                  </svg>
+                  {p.name}
+                </span>
+                <ProductAccessLabel departments={p.departments} className="pl-6 min-[768px]:pl-0" />
+              </li>
+            ))}
+          </ul>
           <AgentStatusBadge status={agent.status.code} />
         </div>
         {actions ? <div className="col-span-2 min-[768px]:col-span-1 min-[768px]:col-start-3 min-[768px]:row-span-2 min-[768px]:row-start-1 min-[768px]:self-center">{actions}</div> : null}

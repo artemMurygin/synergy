@@ -6,9 +6,14 @@ import {
     CatalogQuery,
     type ArchiveRows,
     type CatalogRow,
+    type ProductDepartmentRow,
 } from '../domain/ports/catalog-query.port';
 import { SkillStatus } from '../domain/skill-status';
 import { millis, toDate } from './sql-helpers';
+
+const departmentRow = z
+    .object({ product_id: z.string(), id: z.string(), name: z.string() })
+    .transform(({ product_id, id, name }) => ({ productId: product_id, id, name }));
 
 const catalogRow = z.object({
     product_id: z.string(),
@@ -96,6 +101,15 @@ export class SlonikCatalogQuery extends CatalogQuery {
                 skill,
             };
         });
+    }
+
+    async loadProductDepartments(): Promise<ProductDepartmentRow[]> {
+        const rows = await this.transactions.executor().any(sql.unsafe`
+            SELECT pd.product_id, d.id, d.name
+              FROM portal_product_departments pd
+              JOIN auth_departments d ON d.id = pd.department_id
+             ORDER BY lower(d.name), d.id`);
+        return rows.map((row) => departmentRow.parse(row));
     }
 
     async loadArchive(): Promise<ArchiveRows> {

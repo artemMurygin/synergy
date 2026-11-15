@@ -38,7 +38,9 @@ describe('AgentPage', () => {
     renderPage('a-assistant')
     expect(screen.getByText('Загружаем агента…')).toBeTruthy()
     expect(await screen.findByRole('heading', { name: 'Ассистент' })).toBeTruthy()
-    expect(screen.getByText('Control Center, Telegram-бот')).toBeTruthy()
+    const list = screen.getByRole('list', { name: 'Продукты агента' })
+    const items = within(list).getAllByRole('listitem')
+    expect(items.map((li) => li.textContent)).toEqual(['Control CenterДоступно: КЦ 1, КЦ 2', 'Telegram-бот'])
     expect(screen.getByText('Работает')).toBeTruthy()
     const row = screen.getByText('Сводка встречи').closest('li')!
     expect(within(row).getByText('Запущено')).toBeTruthy()

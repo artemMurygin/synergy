@@ -149,7 +149,7 @@ describe('request status with rework', () => {
 })
 
 describe('catalogSchema', () => {
-  const product = { id: 'p1', slug: 'control-center', name: 'Control Center' }
+  const product = { id: 'p1', slug: 'control-center', name: 'Control Center', departments: [{ id: 'd1', name: 'КЦ 1' }] }
   const catalog = {
     products: [
       {
@@ -174,7 +174,7 @@ describe('catalogSchema', () => {
           }
         ]
       },
-      { id: 'p2', slug: 'web', name: 'Веб', agents: [] }
+      { id: 'p2', slug: 'web', name: 'Веб', departments: [], agents: [] }
     ]
   }
   it('parses a catalog response', () => {
@@ -182,6 +182,8 @@ describe('catalogSchema', () => {
     expect(parsed.products[0].agents[0].status.code).toBe('working')
     expect(parsed.products[0].agents[0].skills[0].nextStatuses).toEqual(['launched', 'rework'])
     expect(parsed.products[1].agents).toEqual([])
+    expect(parsed.products[0].departments).toEqual([{ id: 'd1', name: 'КЦ 1' }])
+    expect(parsed.products[0].agents[0].products[0].departments).toHaveLength(1)
   })
   it('rejects an unknown skill status', () => {
     const bad = structuredClone(catalog)

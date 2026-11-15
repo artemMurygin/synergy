@@ -1,6 +1,10 @@
 import { Button } from '@/components/ui/button'
-import { CatalogList } from '@/features/catalog'
+import { useState } from 'react'
+import { useSessionStore } from '@/features/auth'
+import { CatalogList, ProductAccessDialog, type DepartmentOption } from '@/features/catalog'
+import type { CatalogProduct } from '@/lib/schemas'
 import { useCatalog } from './use-catalog'
+import { useDepartments } from './use-departments'
 
 function LoadingState() {
   return (
@@ -52,8 +56,28 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   )
 }
 
+function ProductAccessAction({ product, departments }: { product: CatalogProduct; departments: DepartmentOption[] | undefined }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button variant="outline" className="h-9 px-3.5" disabled={!departments} onClick={() => setOpen(true)}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+          <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
+        </svg>
+        Доступ отделов
+      </Button>
+      <ProductAccessDialog product={product} departments={departments ?? []} open={open} onClose={() => setOpen(false)} />
+    </>
+  )
+}
+
 export function CatalogPage() {
   const query = useCatalog()
+  const isAdmin = useSessionStore((s) => s.profile?.roles.includes('admin') ?? false)
+  const departments = useDepartments(isAdmin)
   return (
     <section className="flex flex-col gap-4 min-[768px]:gap-6">
       <header className="flex flex-col gap-1 min-[768px]:gap-1.5">
@@ -69,7 +93,10 @@ export function CatalogPage() {
       ) : query.error || !query.data ? (
         <ErrorState onRetry={() => void query.refetch()} />
       ) : (
-        <CatalogList products={query.data.products} />
+        <CatalogList
+          products={query.data.products}
+          productAction={isAdmin ? (product) => <ProductAccessAction product={product} departments={departments.data} /> : undefined}
+        />
       )}
     </section>
   )

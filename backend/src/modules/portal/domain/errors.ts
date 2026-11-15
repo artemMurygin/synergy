@@ -21,6 +21,7 @@ export const PortalErrorCode = {
     BugNotFound: 'PORTAL_BUG_NOT_FOUND',
     InvalidBugTransition: 'PORTAL_BUG_INVALID_TRANSITION',
     AgentNotInProduct: 'PORTAL_AGENT_NOT_IN_PRODUCT',
+    DepartmentNotFound: 'PORTAL_DEPARTMENT_NOT_FOUND',
 } as const;
 
 /** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
@@ -209,5 +210,14 @@ export class AgentNotInProductError extends BaseError {
         readonly productId: string,
     ) {
         super(`Agent ${agentId} does not belong to product ${productId}`);
+    }
+}
+
+/** Отдел не найден в справочнике (HTTP 404). */
+export class DepartmentNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.DepartmentNotFound;
+
+    constructor(readonly departmentId: string) {
+        super(`Department ${departmentId} not found`);
     }
 }

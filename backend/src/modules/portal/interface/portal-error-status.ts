@@ -23,5 +23,6 @@ export function registerPortalErrorStatuses(): void {
         [PortalErrorCode.BugNotFound]: HttpStatus.NOT_FOUND,
         [PortalErrorCode.InvalidBugTransition]: HttpStatus.CONFLICT,
         [PortalErrorCode.AgentNotInProduct]: HttpStatus.BAD_REQUEST,
+        [PortalErrorCode.DepartmentNotFound]: HttpStatus.NOT_FOUND,
     });
 }

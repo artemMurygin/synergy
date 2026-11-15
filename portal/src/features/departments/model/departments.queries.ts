@@ -1,7 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
+import { DEPARTMENTS_KEY } from '@/lib/query-keys'
 import { listDepartments, searchEmployees } from './departments.api'
 
-export const DEPARTMENTS_KEY = ['departments'] as const
+export { DEPARTMENTS_KEY }
 
 export function departmentsQuery() {
   return queryOptions({
