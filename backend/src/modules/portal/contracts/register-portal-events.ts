@@ -12,6 +12,12 @@ import {
     type RequestRejectedPayload,
 } from './request-rejected.event';
 import {
+    REQUEST_TAKEN_EVENT_TYPE,
+    RequestTakenEvent,
+    requestTakenPayloadSchema,
+    type RequestTakenPayload,
+} from './request-taken.event';
+import {
     SKILL_STATUS_CHANGED_EVENT_TYPE,
     SkillStatusChangedEvent,
     skillStatusChangedPayloadSchema,
@@ -30,6 +36,7 @@ export function registerPortalEvents(registry: DomainEventRegistry): void {
             skillId: event.skillId,
             skillName: event.skillName,
             skillStatus: event.skillStatus,
+            ...(event.effortHours === undefined ? {} : { effortHours: event.effortHours }),
         }),
         fromRecord: ({ id, aggregateId, metadata, payload }) =>
             new RequestAcceptedEvent({ id, aggregateId, metadata, ...payload }),
@@ -46,6 +53,18 @@ export function registerPortalEvents(registry: DomainEventRegistry): void {
         }),
         fromRecord: ({ id, aggregateId, metadata, payload }) =>
             new RequestRejectedEvent({ id, aggregateId, metadata, ...payload }),
+    });
+    registry.registerEvent({
+        eventType: REQUEST_TAKEN_EVENT_TYPE,
+        eventClass: RequestTakenEvent,
+        schema: requestTakenPayloadSchema,
+        toPayload: (event): RequestTakenPayload => ({
+            authorId: event.authorId,
+            reviewerId: event.reviewerId,
+            requestTitle: event.requestTitle,
+        }),
+        fromRecord: ({ id, aggregateId, metadata, payload }) =>
+            new RequestTakenEvent({ id, aggregateId, metadata, ...payload }),
     });
     registry.registerEvent({
         eventType: SKILL_STATUS_CHANGED_EVENT_TYPE,

@@ -51,10 +51,10 @@ function toView(raw: unknown): RequestView {
     const row = viewRow.parse(raw);
     const decision =
         row.decision === 'pending'
-            ? RequestDecision.pending()
+            ? RequestDecision.new()
             : row.decision === 'accepted'
-              ? RequestDecision.accepted(row.skill_id ?? '', '', new Date(0))
-              : RequestDecision.rejected(row.reject_reason ?? '', '', new Date(0));
+              ? RequestDecision.accepted('', new Date(0), row.skill_id ?? '', null, '', new Date(0))
+              : RequestDecision.rejected('', new Date(0), row.reject_reason ?? '', '', new Date(0));
     const frequency = Frequency.of(row.frequency_count, row.frequency_period);
     const skill =
         row.skill_id === null

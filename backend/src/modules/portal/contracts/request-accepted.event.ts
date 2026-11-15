@@ -11,6 +11,7 @@ export const requestAcceptedPayloadSchema = z.object({
     skillId: z.string().min(1),
     skillName: z.string().min(1),
     skillStatus: z.enum(SKILL_STATUSES),
+    effortHours: z.number().int().positive().optional(),
 });
 
 export type RequestAcceptedPayload = z.infer<typeof requestAcceptedPayloadSchema>;
@@ -29,6 +30,8 @@ export class RequestAcceptedEvent extends DomainEvent {
 
     readonly skillStatus: RequestAcceptedPayload['skillStatus'];
 
+    readonly effortHours?: number;
+
     constructor(props: DomainEventProps<RequestAcceptedPayload>) {
         super(props);
         this.authorId = props.authorId;
@@ -37,6 +40,7 @@ export class RequestAcceptedEvent extends DomainEvent {
         this.skillId = props.skillId;
         this.skillName = props.skillName;
         this.skillStatus = props.skillStatus;
+        this.effortHours = props.effortHours;
     }
 
     get requestId(): string {

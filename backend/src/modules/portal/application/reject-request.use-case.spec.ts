@@ -6,6 +6,7 @@ import { RejectRequestUseCase } from './reject-request.use-case';
 import { SubmitRequestUseCase } from './submit-request.use-case';
 import type { RequestView } from './request-view';
 import { createPortalFixture, type PortalFixture } from './test-doubles';
+import { EffortHours } from '../domain/effort-hours';
 
 interface Setup extends PortalFixture {
     reject: RejectRequestUseCase;
@@ -81,7 +82,9 @@ describe('RejectRequestUseCase', () => {
 
     it('принятую заявку отклонить нельзя: 409 без события', async () => {
         const { reject, request, requests, clock, events } = await setup();
-        requests.byId.get(request.id)?.accept('skill-1', 'dev-1', clock.now());
+        const stored = requests.byId.get(request.id);
+        stored?.take('dev-1', clock.now());
+        stored?.accept('skill-1', EffortHours.of(8), 'dev-1', clock.now());
 
         await expect(
             reject.execute({ requestId: request.id, decidedBy: 'dev-2', reason: 'Поздно' }),

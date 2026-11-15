@@ -3,12 +3,17 @@ import { ArgumentInvalidError, BaseError } from '../../../shared/errors';
 export const PortalErrorCode = {
     InvalidSkillTransition: 'PORTAL_INVALID_SKILL_TRANSITION',
     RequestAlreadyDecided: 'PORTAL_REQUEST_ALREADY_DECIDED',
+    RequestAlreadyTaken: 'PORTAL_REQUEST_ALREADY_TAKEN',
+    RequestNotTaken: 'PORTAL_REQUEST_NOT_TAKEN',
+    ProductNotFound: 'PORTAL_PRODUCT_NOT_FOUND',
     RequestNotFound: 'PORTAL_REQUEST_NOT_FOUND',
     SkillNotFound: 'PORTAL_SKILL_NOT_FOUND',
     AgentNotFound: 'PORTAL_AGENT_NOT_FOUND',
     SkillArchived: 'PORTAL_SKILL_ARCHIVED',
     AgentArchived: 'PORTAL_AGENT_ARCHIVED',
     RequestIntegrity: 'PORTAL_REQUEST_INTEGRITY',
+    AgentNameTaken: 'PORTAL_AGENT_NAME_TAKEN',
+    ProductNameTaken: 'PORTAL_PRODUCT_NAME_TAKEN',
 } as const;
 
 /** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
@@ -29,6 +34,24 @@ export class RequestAlreadyDecidedError extends BaseError {
 
     constructor(readonly requestId: string) {
         super(`Request ${requestId} already has a decision`);
+    }
+}
+
+/** Заявку уже взяли в работу (HTTP 409). */
+export class RequestAlreadyTakenError extends BaseError {
+    readonly code = PortalErrorCode.RequestAlreadyTaken;
+
+    constructor(readonly requestId: string) {
+        super(`Request ${requestId} is already under review`);
+    }
+}
+
+/** Решить можно только взятую в работу заявку (HTTP 409). */
+export class RequestNotTakenError extends BaseError {
+    readonly code = PortalErrorCode.RequestNotTaken;
+
+    constructor(readonly requestId: string) {
+        super(`Request ${requestId} has not been taken into work`);
     }
 }
 
@@ -83,5 +106,32 @@ export class AgentArchivedError extends BaseError {
 
     constructor(readonly agentId: string) {
         super(`Agent ${agentId} is archived`);
+    }
+}
+
+/** Агент с таким названием уже есть (HTTP 409). */
+export class AgentNameTakenError extends BaseError {
+    readonly code = PortalErrorCode.AgentNameTaken;
+
+    constructor() {
+        super('агент с таким названием уже есть');
+    }
+}
+
+/** Продукт с таким названием уже есть (HTTP 409). */
+export class ProductNameTakenError extends BaseError {
+    readonly code = PortalErrorCode.ProductNameTaken;
+
+    constructor() {
+        super('продукт с таким названием уже есть');
+    }
+}
+
+/** Продукт каталога не найден (HTTP 404). */
+export class ProductNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.ProductNotFound;
+
+    constructor(readonly productId: string) {
+        super(`Product ${productId} not found`);
     }
 }

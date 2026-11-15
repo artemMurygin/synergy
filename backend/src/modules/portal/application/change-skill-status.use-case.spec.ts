@@ -15,6 +15,7 @@ import { SkillName } from '../domain/skill-name';
 import type { SkillStatus } from '../domain/skill-status';
 import { ChangeSkillStatusUseCase } from './change-skill-status.use-case';
 import { createPortalFixture, type PortalFixture } from './test-doubles';
+import { EffortHours } from '../domain/effort-hours';
 
 interface Setup extends PortalFixture {
     change: ChangeSkillStatusUseCase;
@@ -60,7 +61,8 @@ async function setup(initial: SkillStatus = 'planned'): Promise<Setup> {
             peopleCount: 1,
             now: fx.clock.now(),
         });
-        request.accept(skill.id, 'dev-1', fx.clock.now());
+        request.take('dev-1', fx.clock.now());
+        request.accept(skill.id, EffortHours.of(8), 'dev-1', fx.clock.now());
         await fx.requests.save(request);
     };
     return { ...fx, change, skill, agent, link };

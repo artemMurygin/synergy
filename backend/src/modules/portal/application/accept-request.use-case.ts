@@ -18,6 +18,7 @@ import { SkillRepository } from '../domain/ports/skill-repository.port';
 import { Skill } from '../domain/skill';
 import { SkillName } from '../domain/skill-name';
 import type { RequestView } from './request-view';
+import { EffortHours } from '../domain/effort-hours';
 
 export type AcceptTarget =
     { skillId: string } | { agentId: string; name: string; description: string };
@@ -25,6 +26,8 @@ export type AcceptTarget =
 export interface AcceptRequestInput {
     requestId: string;
     decidedBy: string;
+    /** Обязательна; контроллер и use-case переписываются в группе приёма (тело accept с effortHours). */
+    effortHours?: number;
     target: AcceptTarget;
 }
 
@@ -44,12 +47,14 @@ export class AcceptRequestUseCase {
         await this.transactions.run(async () => {
             const request = await this.requests.findById(input.requestId);
             if (request === null) throw new RequestNotFoundError(input.requestId);
-            if (request.decision.kind !== 'pending') {
-                throw new RequestAlreadyDecidedError(request.id);
-            }
             const now = this.clock.now();
             const skill = await this.resolveSkill(input.target, now);
-            request.accept(skill.id, input.decidedBy, now);
+            request.accept(
+                skill.id,
+                EffortHours.of(input.effortHours ?? Number.NaN),
+                input.decidedBy,
+                now,
+            );
             await this.requests.save(request);
             await this.events.publish([
                 new RequestAcceptedEvent({

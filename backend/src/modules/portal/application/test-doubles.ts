@@ -133,7 +133,12 @@ export class InMemoryRequestRepository extends RequestRepository implements Tran
 
     save(request: IdeaRequest): Promise<void> {
         const stored = this.byId.get(request.id);
-        if (stored !== undefined && stored !== request && stored.decision.kind !== 'pending') {
+        if (
+            stored !== undefined &&
+            stored !== request &&
+            stored.decision.kind !== 'new' &&
+            stored.decision.kind !== 'under_review'
+        ) {
             return Promise.reject(new RequestAlreadyDecidedError(request.id));
         }
         this.byId.set(request.id, request);
@@ -365,7 +370,10 @@ export class InMemoryRequestQuery extends RequestQuery {
 
     listPending(page: PageRequest): Promise<Page<RequestView>> {
         const pending = [...this.requests.byId.values()]
-            .filter((request) => request.decision.kind === 'pending')
+            .filter(
+                (request) =>
+                    request.decision.kind === 'new' || request.decision.kind === 'under_review',
+            )
             .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
         return Promise.resolve(
             paginate(

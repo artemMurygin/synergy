@@ -117,7 +117,7 @@ describe('AcceptRequestUseCase', () => {
         ).rejects.toBeInstanceOf(AgentNotFoundError);
 
         expect(skills.byId.size).toBe(1);
-        expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+        expect(requests.byId.get(request.id)?.decision.kind).toBe('new');
         expect(events.published).toHaveLength(0);
         expect(transactions.commits).toBe(0);
     });
@@ -133,7 +133,7 @@ describe('AcceptRequestUseCase', () => {
             }),
         ).rejects.toBeInstanceOf(SkillNotFoundError);
 
-        expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+        expect(requests.byId.get(request.id)?.decision.kind).toBe('new');
         expect(events.published).toHaveLength(0);
     });
 
@@ -186,7 +186,7 @@ describe('AcceptRequestUseCase', () => {
                 }),
             ).rejects.toBeInstanceOf(SkillArchivedError);
 
-            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('new');
             expect(events.published).toHaveLength(0);
         });
 
@@ -202,7 +202,7 @@ describe('AcceptRequestUseCase', () => {
                 }),
             ).rejects.toBeInstanceOf(AgentArchivedError);
 
-            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('new');
             expect(events.published).toHaveLength(0);
         });
 
@@ -219,7 +219,7 @@ describe('AcceptRequestUseCase', () => {
             ).rejects.toBeInstanceOf(AgentArchivedError);
 
             expect(skills.byId.size).toBe(1);
-            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('new');
             expect(events.published).toHaveLength(0);
         });
 

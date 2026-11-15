@@ -9,6 +9,7 @@ import { ListSkillsUseCase } from './list-skills.use-case';
 import type { Agent } from '../domain/agent';
 import { toSkillView } from './skill-view';
 import { createPortalFixture, type PortalFixture } from './test-doubles';
+import { EffortHours } from '../domain/effort-hours';
 
 interface Setup extends PortalFixture {
     tasks: Agent;
@@ -144,7 +145,8 @@ describe('ListSkillsUseCase', () => {
                 peopleCount: 1,
                 now: new Date(),
             });
-            request.accept(skill.id, 'dev', new Date());
+            request.take('dev', new Date());
+            request.accept(skill.id, EffortHours.of(8), 'dev', new Date());
             await requests.save(request);
         }
 

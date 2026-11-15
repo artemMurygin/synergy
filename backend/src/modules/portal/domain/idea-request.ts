@@ -1,8 +1,13 @@
 import { AggregateRoot } from '../../../shared/ddd';
 import { ArgumentInvalidError } from '../../../shared/errors';
-import { RequestAlreadyDecidedError } from './errors';
+import {
+    RequestAlreadyDecidedError,
+    RequestAlreadyTakenError,
+    RequestNotTakenError,
+} from './errors';
 import { RejectReason } from './reject-reason';
-import { RequestDecision } from './request-decision';
+import { RequestDecision, type RequestStatusKind } from './request-decision';
+import type { EffortHours } from './effort-hours';
 import type { Frequency } from './frequency';
 import type { RequestTitle } from './request-title';
 
@@ -49,7 +54,7 @@ export class IdeaRequest extends AggregateRoot<IdeaRequestProps> {
                 frequency: input.frequency,
                 minutesPerRun: input.minutesPerRun,
                 peopleCount: input.peopleCount,
-                decision: RequestDecision.pending(),
+                decision: RequestDecision.new(),
             },
         });
     }
@@ -86,21 +91,47 @@ export class IdeaRequest extends AggregateRoot<IdeaRequestProps> {
         return this.props.decision;
     }
 
-    /** Принять в навык: только из `pending`. */
-    accept(skillId: string, by: string, now: Date): void {
-        if (skillId.length === 0) {
-            throw new InvalidIdeaRequestError('Accepted request must reference a skill');
-        }
-        this.assertPending();
-        this.props.decision = RequestDecision.accepted(skillId, by, now);
+    get statusKind(): RequestStatusKind {
+        return this.props.decision.kind;
+    }
+
+    /** Взять в работу: только из `new`. */
+    take(by: string, now: Date): void {
+        const decision = this.props.decision;
+        if (decision.kind === 'under_review') throw new RequestAlreadyTakenError(this.id);
+        if (decision.kind !== 'new') throw new RequestAlreadyDecidedError(this.id);
+        this.props.decision = RequestDecision.underReview(by, now);
         this.touch();
     }
 
-    /** Отклонить с обязательной причиной: только из `pending`. */
+    /** Принять в навык с оценкой: только из `under_review`; решать может не взявший. */
+    accept(skillId: string, effort: EffortHours, by: string, now: Date): void {
+        if (skillId.length === 0) {
+            throw new InvalidIdeaRequestError('Accepted request must reference a skill');
+        }
+        const taken = this.assertUnderReview();
+        this.props.decision = RequestDecision.accepted(
+            taken.reviewerId,
+            taken.takenAt,
+            skillId,
+            effort.value,
+            by,
+            now,
+        );
+        this.touch();
+    }
+
+    /** Отклонить с обязательной причиной: только из `under_review`. */
     reject(reason: string, by: string, now: Date): void {
         const validReason = RejectReason.of(reason);
-        this.assertPending();
-        this.props.decision = RequestDecision.rejected(validReason.value, by, now);
+        const taken = this.assertUnderReview();
+        this.props.decision = RequestDecision.rejected(
+            taken.reviewerId,
+            taken.takenAt,
+            validReason.value,
+            by,
+            now,
+        );
         this.touch();
     }
 
@@ -112,10 +143,11 @@ export class IdeaRequest extends AggregateRoot<IdeaRequestProps> {
         assertPositiveInteger(this.props.peopleCount, 'peopleCount');
     }
 
-    private assertPending(): void {
-        if (this.props.decision.kind !== 'pending') {
-            throw new RequestAlreadyDecidedError(this.id);
-        }
+    private assertUnderReview(): { reviewerId: string; takenAt: Date } {
+        const decision = this.props.decision;
+        if (decision.kind === 'under_review') return decision;
+        if (decision.kind === 'new') throw new RequestNotTakenError(this.id);
+        throw new RequestAlreadyDecidedError(this.id);
     }
 }
 

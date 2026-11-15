@@ -1,27 +1,64 @@
 export type RequestDecision =
-    | { readonly kind: 'pending' }
+    | { readonly kind: 'new' }
+    | {
+          readonly kind: 'under_review';
+          readonly reviewerId: string;
+          readonly takenAt: Date;
+      }
     | {
           readonly kind: 'accepted';
+          readonly reviewerId: string;
+          readonly takenAt: Date;
           readonly skillId: string;
+          /** null только у заявок, принятых до появления оценки. */
+          readonly effortHours: number | null;
           readonly decidedBy: string;
           readonly decidedAt: Date;
       }
     | {
           readonly kind: 'rejected';
+          readonly reviewerId: string;
+          readonly takenAt: Date;
           readonly reason: string;
           readonly decidedBy: string;
           readonly decidedAt: Date;
       };
 
-/** Размеченное объединение: «принято без навыка» собрать невозможно. */
+export type RequestStatusKind = RequestDecision['kind'];
+
+/** Размеченное объединение: «принято без навыка» или «решено без взявшего» собрать невозможно. */
 export const RequestDecision = {
-    pending(): RequestDecision {
-        return { kind: 'pending' };
+    new(): RequestDecision {
+        return { kind: 'new' };
     },
-    accepted(skillId: string, decidedBy: string, decidedAt: Date): RequestDecision {
-        return { kind: 'accepted', skillId, decidedBy, decidedAt };
+    underReview(reviewerId: string, takenAt: Date): RequestDecision {
+        return { kind: 'under_review', reviewerId, takenAt };
     },
-    rejected(reason: string, decidedBy: string, decidedAt: Date): RequestDecision {
-        return { kind: 'rejected', reason, decidedBy, decidedAt };
+    accepted(
+        reviewerId: string,
+        takenAt: Date,
+        skillId: string,
+        effortHours: number | null,
+        decidedBy: string,
+        decidedAt: Date,
+    ): RequestDecision {
+        return {
+            kind: 'accepted',
+            reviewerId,
+            takenAt,
+            skillId,
+            effortHours,
+            decidedBy,
+            decidedAt,
+        };
+    },
+    rejected(
+        reviewerId: string,
+        takenAt: Date,
+        reason: string,
+        decidedBy: string,
+        decidedAt: Date,
+    ): RequestDecision {
+        return { kind: 'rejected', reviewerId, takenAt, reason, decidedBy, decidedAt };
     },
 };

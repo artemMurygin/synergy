@@ -23,6 +23,7 @@ import { SlonikRequestQuery } from './slonik-request.query';
 import { SlonikRequestRepository } from './slonik-request.repository';
 import { SlonikSkillQuery } from './slonik-skill.query';
 import { SlonikSkillRepository } from './slonik-skill.repository';
+import { EffortHours } from '../domain/effort-hours';
 
 // Интеграционный тест: нужна PostgreSQL. Без PROGRAMS_ETL_TEST_ADMIN_URL тест пропускается.
 const adminUrl = process.env.PROGRAMS_ETL_TEST_ADMIN_URL;
@@ -376,7 +377,8 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const request = makeRequest();
             await requests.save(request);
             const decidedAt = new Date(T0.getTime() + 90 * SECOND);
-            request.accept(skill.id, dev, decidedAt);
+            request.take(dev, decidedAt);
+            request.accept(skill.id, EffortHours.of(8), dev, decidedAt);
 
             await requests.save(request);
 
@@ -393,6 +395,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const request = makeRequest();
             await requests.save(request);
             const decidedAt = new Date(T0.getTime() + 90 * SECOND);
+            request.take(dev, decidedAt);
             request.reject('Уже есть в поставке', dev, decidedAt);
 
             await requests.save(request);
@@ -413,7 +416,10 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await requests.save(request);
             const first = must(await requests.findById(request.id));
             const second = must(await requests.findById(request.id));
-            first.accept(skill.id, dev, new Date(T0.getTime() + 10 * SECOND));
+            first.take(dev, new Date(T0.getTime() + 10 * SECOND));
+            second.take(dev, new Date(T0.getTime() + 10 * SECOND));
+            first.accept(skill.id, EffortHours.of(8), dev, new Date(T0.getTime() + 10 * SECOND));
+            second.take(dev, new Date(T0.getTime() + 11 * SECOND));
             second.reject('Нет', dev, new Date(T0.getTime() + 11 * SECOND));
 
             await requests.save(first);
@@ -425,6 +431,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
 
         it('saving a decision for a missing request fails with RequestNotFoundError', async () => {
             const request = makeRequest();
+            request.take(dev, new Date(T0.getTime() + 10 * SECOND));
             request.reject('Нет', dev, new Date(T0.getTime() + 10 * SECOND));
 
             await expect(requests.save(request)).rejects.toBeInstanceOf(RequestNotFoundError);
@@ -441,9 +448,13 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const pending = makeRequest(bob);
             const rejected = makeRequest(alice);
             for (const request of [a, b, toOther, pending, rejected]) await requests.save(request);
-            a.accept(skill.id, dev, T0);
-            b.accept(skill.id, dev, T0);
-            toOther.accept(other.id, dev, T0);
+            a.take(dev, T0);
+            a.accept(skill.id, EffortHours.of(8), dev, T0);
+            b.take(dev, T0);
+            b.accept(skill.id, EffortHours.of(8), dev, T0);
+            toOther.take(dev, T0);
+            toOther.accept(other.id, EffortHours.of(8), dev, T0);
+            rejected.take(dev, T0);
             rejected.reject('Нет', dev, T0);
             for (const request of [a, b, toOther, rejected]) await requests.save(request);
 
@@ -500,7 +511,8 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await skills.save(skill);
             const request = makeRequest(alice);
             await requests.save(request);
-            request.accept(skill.id, dev, T0);
+            request.take(dev, T0);
+            request.accept(skill.id, EffortHours.of(8), dev, T0);
             await requests.save(request);
 
             const planned = await requestQuery.findView(request.id);
@@ -521,6 +533,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         it('shows the reject reason and "Отклонена" for a rejected request', async () => {
             const request = makeRequest(alice);
             await requests.save(request);
+            request.take(dev, T0);
             request.reject('Уже есть в поставке', dev, T0);
             await requests.save(request);
 
@@ -540,6 +553,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const older = makeRequest(alice, 10);
             const decided = makeRequest(alice, 5);
             for (const request of [newer, older, decided]) await requests.save(request);
+            decided.take(dev, T0);
             decided.reject('Нет', dev, T0);
             await requests.save(decided);
 
@@ -619,7 +633,8 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             ]);
             const request = makeRequest(alice);
             await requests.save(request);
-            request.accept(first.id, dev, T0);
+            request.take(dev, T0);
+            request.accept(first.id, EffortHours.of(8), dev, T0);
             await requests.save(request);
 
             const all = await skillQuery.list({}, { limit: 50, page: 0 });

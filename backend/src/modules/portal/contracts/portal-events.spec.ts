@@ -6,6 +6,7 @@ import {
 import type { DomainEvent } from '../../../shared/ddd';
 import { SKILL_STATUSES } from '../domain/skill-status';
 import { RequestAcceptedEvent, REQUEST_ACCEPTED_EVENT_TYPE } from './request-accepted.event';
+import { RequestTakenEvent, REQUEST_TAKEN_EVENT_TYPE } from './request-taken.event';
 import { RequestRejectedEvent, REQUEST_REJECTED_EVENT_TYPE } from './request-rejected.event';
 import {
     SKILL_STATUS_CHANGED_EVENT_TYPE,
@@ -26,7 +27,11 @@ function registry(): DomainEventRegistry {
 
 function roundTrip(
     events: DomainEventRegistry,
-    original: RequestAcceptedEvent | RequestRejectedEvent | SkillStatusChangedEvent,
+    original:
+        | RequestAcceptedEvent
+        | RequestRejectedEvent
+        | RequestTakenEvent
+        | SkillStatusChangedEvent,
 ): DomainEvent {
     const serialized = events.serialize(original);
     return events.restore({
@@ -148,6 +153,97 @@ describe('RequestAccepted contract', () => {
     });
 });
 
+const taken = (): RequestTakenEvent =>
+    new RequestTakenEvent({
+        aggregateId: REQUEST_ID,
+        authorId: 'author',
+        reviewerId: 'dev',
+        requestTitle: 'Идея',
+        metadata,
+    });
+
+describe('RequestAccepted effortHours', () => {
+    it('round-trips effortHours', () => {
+        const events = registry();
+        const original = new RequestAcceptedEvent({
+            aggregateId: REQUEST_ID,
+            authorId: 'author',
+            decidedBy: 'dev',
+            requestTitle: 'Идея',
+            skillId: SKILL_ID,
+            skillName: 'Разбор писем',
+            skillStatus: 'planned',
+            effortHours: 16,
+            metadata,
+        });
+        expect(events.serialize(original).payload).toMatchObject({ effortHours: 16 });
+        const restored = roundTrip(events, original);
+        expect(restored).toBeInstanceOf(RequestAcceptedEvent);
+        if (!(restored instanceof RequestAcceptedEvent)) return;
+        expect(restored.effortHours).toBe(16);
+    });
+
+    it('parses an old event without effortHours', () => {
+        const restored = registry().restore({
+            id: 'e1',
+            eventType: REQUEST_ACCEPTED_EVENT_TYPE,
+            aggregateId: REQUEST_ID,
+            payload: {
+                authorId: 'a',
+                decidedBy: 'd',
+                requestTitle: 't',
+                skillId: 's',
+                skillName: 'n',
+                skillStatus: 'planned',
+            },
+            metadata,
+        });
+        expect(restored).toBeInstanceOf(RequestAcceptedEvent);
+        if (!(restored instanceof RequestAcceptedEvent)) return;
+        expect(restored.effortHours).toBeUndefined();
+    });
+});
+
+describe('RequestTaken contract', () => {
+    it('has a stable event type and exposes the request id', () => {
+        expect(REQUEST_TAKEN_EVENT_TYPE).toBe('portal.request_taken');
+        expect(taken().requestId).toBe(REQUEST_ID);
+    });
+
+    it('serializes and restores an equal event', () => {
+        const events = registry();
+        const original = taken();
+        expect(events.serialize(original).payload).toEqual({
+            authorId: 'author',
+            reviewerId: 'dev',
+            requestTitle: 'Идея',
+        });
+        const restored = roundTrip(events, original);
+        expect(restored).toBeInstanceOf(RequestTakenEvent);
+        if (!(restored instanceof RequestTakenEvent)) return;
+        expect(restored.requestId).toBe(REQUEST_ID);
+        expect(restored.authorId).toBe('author');
+        expect(restored.reviewerId).toBe('dev');
+        expect(restored.requestTitle).toBe('Идея');
+        expect(restored.metadata).toEqual(metadata);
+    });
+
+    it.each([
+        ['an empty reviewer', { authorId: 'a', reviewerId: '', requestTitle: 't' }],
+        ['a missing title', { authorId: 'a', reviewerId: 'r' }],
+    ])('rejects a payload with %s', (_case, payload) => {
+        expect(() =>
+            registry().restore({
+                id: 'e1',
+                eventType: REQUEST_TAKEN_EVENT_TYPE,
+                aggregateId: REQUEST_ID,
+                payload,
+                metadata,
+            }),
+        ).toThrow(InvalidEventPayloadError);
+    });
+});
+
 describe('RequestRejected contract', () => {
     it('has a stable event type and exposes the request id', () => {
         expect(REQUEST_REJECTED_EVENT_TYPE).toBe('portal.request_rejected');
@@ -260,11 +356,12 @@ describe('SkillStatusChanged contract', () => {
 });
 
 describe('registerPortalEvents', () => {
-    it('registers all three events so the relay can serialize them with their subscribers', () => {
+    it('registers all four events so the relay can serialize them with their subscribers', () => {
         const events = registry();
         for (const type of [
             REQUEST_ACCEPTED_EVENT_TYPE,
             REQUEST_REJECTED_EVENT_TYPE,
+            REQUEST_TAKEN_EVENT_TYPE,
             SKILL_STATUS_CHANGED_EVENT_TYPE,
         ]) {
             events.subscribe(type, { name: `testing.${type}`, handle: () => Promise.resolve() });
@@ -275,6 +372,9 @@ describe('registerPortalEvents', () => {
         ]);
         expect(events.serialize(rejected()).subscribers).toEqual([
             `testing.${REQUEST_REJECTED_EVENT_TYPE}`,
+        ]);
+        expect(events.serialize(taken()).subscribers).toEqual([
+            `testing.${REQUEST_TAKEN_EVENT_TYPE}`,
         ]);
         expect(events.serialize(changed()).subscribers).toEqual([
             `testing.${SKILL_STATUS_CHANGED_EVENT_TYPE}`,

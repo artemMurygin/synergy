@@ -39,7 +39,7 @@ describe('SubmitRequestUseCase', () => {
 
         expect(view.authorId).toBe('user-1');
         expect(view.title).toBe('Сводка по сделкам');
-        expect(view.status).toEqual({ code: 'pending', label: 'На рассмотрении' });
+        expect(view.status).toEqual({ code: 'new', label: 'Новая' });
         expect(view.skill).toBeNull();
         expect(requests.byId.get(view.id)?.authorId).toBe('user-1');
     });

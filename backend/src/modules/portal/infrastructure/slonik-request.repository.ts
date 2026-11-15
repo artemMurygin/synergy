@@ -37,16 +37,29 @@ const COLUMNS = sql.fragment`
 
 function toDecision(row: z.infer<typeof requestRow>): RequestDecision {
     const decidedAt = toDate(row.decided_at);
-    if (row.decision === 'pending') return RequestDecision.pending();
+    if (row.decision === 'pending') return RequestDecision.new();
     if (decidedAt === null || row.decided_by === null) {
         throw new Error(`Request ${row.id} has a decision without decided_by/decided_at`);
     }
     if (row.decision === 'accepted') {
         if (row.skill_id === null) throw new Error(`Accepted request ${row.id} has no skill`);
-        return RequestDecision.accepted(row.skill_id, row.decided_by, decidedAt);
+        return RequestDecision.accepted(
+            row.decided_by,
+            decidedAt,
+            row.skill_id,
+            null,
+            row.decided_by,
+            decidedAt,
+        );
     }
     if (row.reject_reason === null) throw new Error(`Rejected request ${row.id} has no reason`);
-    return RequestDecision.rejected(row.reject_reason, row.decided_by, decidedAt);
+    return RequestDecision.rejected(
+        row.decided_by,
+        decidedAt,
+        row.reject_reason,
+        row.decided_by,
+        decidedAt,
+    );
 }
 
 function toRequest(raw: unknown): IdeaRequest {
@@ -75,7 +88,7 @@ export class SlonikRequestRepository extends RequestRepository {
     async save(request: IdeaRequest): Promise<void> {
         const executor = this.transactions.executor();
         const decision = request.decision;
-        if (decision.kind === 'pending') {
+        if (decision.kind === 'new') {
             await executor.query(sql.unsafe`
                 INSERT INTO portal_requests
                     (id, author_id, title, description, frequency_count, frequency_period,
@@ -87,6 +100,8 @@ export class SlonikRequestRepository extends RequestRepository {
                 ON CONFLICT (id) DO NOTHING`);
             return;
         }
+        // Взятие в работу и миграция 035 — в группе репозиториев; пока схема знает только pending.
+        if (decision.kind === 'under_review') return;
         const skillId = decision.kind === 'accepted' ? decision.skillId : null;
         const reason = decision.kind === 'rejected' ? decision.reason : null;
         const result = await executor.query(sql.unsafe`
