@@ -646,6 +646,20 @@ describe('AcceptRequestUseCase: new_agent', () => {
             );
         });
 
+        it('вставку slug выполняет в savepoint', async () => {
+            const { accept, request, catalog, transactions } = await flaky(0);
+            const spy = vi.spyOn(transactions, 'savepoint');
+
+            await accept.execute({
+                requestId: request.id,
+                decidedBy: 'dev-1',
+                effortHours: 8,
+                target: target(catalog),
+            });
+
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+
         it('после трёх неудач отдаёт SlugTakenError, ничего не создано', async () => {
             const { accept, request, catalog, requests, events } = await flaky(3);
 

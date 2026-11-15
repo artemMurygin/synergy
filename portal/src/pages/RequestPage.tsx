@@ -56,6 +56,8 @@ export function RequestPage() {
         <DecisionPanel request={request} products={catalog.data?.products} onDecided={() => void query.refetch()} />
       </div>
     )
+  } else if (conflict) {
+    decision = <Alert title="Не удалось взять заявку в работу">По заявке уже принято решение.</Alert>
   }
   return <RequestDetails request={request} decision={decision} />
 }

@@ -107,6 +107,22 @@ describe.skipIf(adminUrl === undefined)('TransactionRunner', () => {
         });
     });
 
+    describe('savepoint', () => {
+        it('keeps the outer transaction usable after a failed nested work', async () => {
+            await runner.run(async () => {
+                await expect(
+                    runner.savepoint(async () => {
+                        await insertMark('rolled-back');
+                        await runner.executor().query(sql.unsafe`SELECT 1/0`);
+                    }),
+                ).rejects.toThrow();
+                await insertMark('kept');
+            });
+
+            expect(await countMarks()).toBe(1);
+        });
+    });
+
     describe('executor', () => {
         it('returns the pool outside a transaction', () => {
             expect(runner.executor()).toBe(pool);

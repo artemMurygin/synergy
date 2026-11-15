@@ -156,6 +156,23 @@ describe('RequestPage', () => {
     })
   })
 
+  it('on 409 "already decided" shows a notice for the decided request', async () => {
+    useSessionStore.getState().signIn('t', developer)
+    let attempted = false
+    const rejected = { ...requestFixture, status: { code: 'rejected', label: 'Отклонена' }, rejectReason: 'Дубль' }
+    api((c) => {
+      if (c.method === 'POST' && c.path === `/portal/requests/${ID}/take`) {
+        attempted = true
+        return json({ message: 'Решение уже принято', code: 'PORTAL_REQUEST_ALREADY_DECIDED' }, 409)
+      }
+      if (c.path === `/portal/requests/${ID}`) return json(attempted ? rejected : { ...requestFixture, status: { code: 'new', label: 'Новая' }, reviewer: null })
+    })
+    renderAt(`/requests/${ID}`)
+    await userEvent.click(await screen.findByRole('button', { name: 'Взять в работу' }))
+    expect(await screen.findByText('Дубль')).toBeTruthy()
+    expect(screen.getAllByRole('alert').map((a) => a.textContent).join(' ')).toContain('уже принято решение')
+  })
+
   it('does not show the panel to a developer for a decided request', async () => {
     useSessionStore.getState().signIn('t', developer)
     api((c) =>

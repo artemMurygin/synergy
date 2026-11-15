@@ -16,7 +16,9 @@ export async function applyDecision(client: QueryClient, decided: IdeaRequest): 
   await Promise.all([
     client.invalidateQueries({ queryKey: QUEUE_KEY }),
     client.invalidateQueries({ queryKey: REQUESTS_KEY }),
-    client.invalidateQueries({ queryKey: SKILLS_KEY })
+    client.invalidateQueries({ queryKey: SKILLS_KEY }),
+    client.invalidateQueries({ queryKey: AGENTS_KEY }),
+    client.invalidateQueries({ queryKey: CATALOG_KEY })
   ])
 }
 
