@@ -127,7 +127,9 @@ describe('GuidesController', () => {
                 '/portal/agents/nope/guide',
             );
             expect(response.status).toBe(404);
-            expect(saveGuide.execute).toHaveBeenCalledWith(expect.objectContaining({ agentId: 'nope' }));
+            expect(saveGuide.execute).toHaveBeenCalledWith(
+                expect.objectContaining({ agentId: 'nope' }),
+            );
         });
 
         it('limits the schema to 200000 characters (the HTTP body parser limit applies earlier)', () => {
