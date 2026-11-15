@@ -15,6 +15,9 @@ export const PortalErrorCode = {
     AgentNameTaken: 'PORTAL_AGENT_NAME_TAKEN',
     ProductNameTaken: 'PORTAL_PRODUCT_NAME_TAKEN',
     SlugTaken: 'PORTAL_SLUG_TAKEN',
+    CommentNotFound: 'PORTAL_COMMENT_NOT_FOUND',
+    CommentNotOwned: 'PORTAL_COMMENT_NOT_OWNED',
+    CommentEditExpired: 'PORTAL_COMMENT_EDIT_EXPIRED',
 } as const;
 
 /** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
@@ -143,5 +146,32 @@ export class SlugTakenError extends BaseError {
 
     constructor() {
         super('slug is already taken');
+    }
+}
+
+/** Комментарий не найден в этой заявке (HTTP 404). */
+export class CommentNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.CommentNotFound;
+
+    constructor(readonly commentId: string) {
+        super(`Comment ${commentId} not found`);
+    }
+}
+
+/** Править можно только свой комментарий (HTTP 403). */
+export class CommentNotOwnedError extends BaseError {
+    readonly code = PortalErrorCode.CommentNotOwned;
+
+    constructor(readonly commentId: string) {
+        super(`Comment ${commentId} belongs to another user`);
+    }
+}
+
+/** Окно правки комментария истекло (HTTP 409). */
+export class CommentEditWindowExpiredError extends BaseError {
+    readonly code = PortalErrorCode.CommentEditExpired;
+
+    constructor(readonly commentId: string) {
+        super(`Edit window for comment ${commentId} has expired`);
     }
 }

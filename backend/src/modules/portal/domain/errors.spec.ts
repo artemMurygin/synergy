@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ArgumentInvalidError } from '../../../shared/errors';
+import { HttpStatus } from '@nestjs/common';
+import { findErrorStatus } from '../../../shared/http/error-status.registry';
+import { registerPortalErrorStatuses } from '../interface/portal-error-status';
 import {
     AgentNameTakenError,
+    CommentEditWindowExpiredError,
+    CommentNotFoundError,
+    CommentNotOwnedError,
     InvalidRejectReasonError,
     InvalidSkillTransitionError,
     PortalErrorCode,
@@ -45,5 +51,18 @@ describe('portal domain errors', () => {
         expect(new RequestAlreadyTakenError('r1').code).toBe('PORTAL_REQUEST_ALREADY_TAKEN');
         expect(new RequestNotTakenError('r1').code).toBe('PORTAL_REQUEST_NOT_TAKEN');
         expect(new ProductNotFoundError('p1').code).toBe('PORTAL_PRODUCT_NOT_FOUND');
+    });
+
+    it('comment errors carry their codes', () => {
+        expect(new CommentNotFoundError('c1').code).toBe('PORTAL_COMMENT_NOT_FOUND');
+        expect(new CommentNotOwnedError('c1').code).toBe('PORTAL_COMMENT_NOT_OWNED');
+        expect(new CommentEditWindowExpiredError('c1').code).toBe('PORTAL_COMMENT_EDIT_EXPIRED');
+    });
+
+    it('comment error codes are mapped to HTTP statuses', () => {
+        registerPortalErrorStatuses();
+        expect(findErrorStatus(PortalErrorCode.CommentNotFound)).toBe(HttpStatus.NOT_FOUND);
+        expect(findErrorStatus(PortalErrorCode.CommentNotOwned)).toBe(HttpStatus.FORBIDDEN);
+        expect(findErrorStatus(PortalErrorCode.CommentEditExpired)).toBe(HttpStatus.CONFLICT);
     });
 });

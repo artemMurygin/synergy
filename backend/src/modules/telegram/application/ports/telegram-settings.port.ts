@@ -15,6 +15,7 @@ export abstract class TelegramSettingsPort {
     abstract readonly linkTokenTtlSeconds: number;
     abstract readonly deliveryReservationMs: number;
     abstract readonly apiBaseUrl: string;
+    abstract readonly portalUrl: string | null;
 
     abstract isConfigured(): boolean;
 }
