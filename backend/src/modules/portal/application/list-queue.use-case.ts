@@ -7,7 +7,7 @@ export interface ListQueueInput {
     page: number;
 }
 
-/** Очередь заявок без решения, старые первыми. Доступ ограничивает `RolesGuard`. */
+/** Очередь заявок `new` и `under_review`, старые первыми. Доступ ограничивает `RolesGuard`. */
 @Injectable()
 export class ListQueueUseCase {
     constructor(private readonly query: RequestQuery) {}

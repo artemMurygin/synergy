@@ -68,12 +68,24 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
 
     rollbacks = 0;
 
+    savepointRollbacks = 0;
+
     constructor(private readonly participants: readonly TransactionParticipant[]) {
         super();
     }
 
     async run<T>(work: () => Promise<T>): Promise<T> {
-        if (this.storage.getStore() !== undefined) return work();
+        if (this.storage.getStore() !== undefined) {
+            // Вложенный вызов — savepoint: при ошибке откатывает только свои изменения.
+            const nestedRestores = this.participants.map((participant) => participant.snapshot());
+            try {
+                return await work();
+            } catch (error: unknown) {
+                this.savepointRollbacks += 1;
+                for (const restore of nestedRestores) restore();
+                throw error;
+            }
+        }
         const restores = this.participants.map((participant) => participant.snapshot());
         const callbacks: (() => void)[] = [];
         try {
@@ -230,10 +242,21 @@ export class InMemorySkillRepository extends SkillRepository implements Transact
     }
 }
 
-export class InMemoryCatalogRepository extends CatalogRepository {
+export class InMemoryCatalogRepository extends CatalogRepository implements TransactionParticipant {
     readonly products = new Map<string, Product>();
 
     readonly agents = new Map<string, Agent>();
+
+    snapshot(): () => void {
+        const savedProducts = new Map(this.products);
+        const savedAgents = new Map(this.agents);
+        return () => {
+            this.products.clear();
+            for (const [key, value] of savedProducts) this.products.set(key, value);
+            this.agents.clear();
+            for (const [key, value] of savedAgents) this.agents.set(key, value);
+        };
+    }
 
     addProduct(slug: string, name: string): Product {
         const product: Product = { id: `product-${slug}`, slug, name };
@@ -659,7 +682,7 @@ export function createPortalFixture(): PortalFixture {
         if (ref.runner === undefined) throw new Error('Fixture is not initialised');
         return ref.runner;
     });
-    const transactions = new SnapshotTransactionRunner([requests, skills, events]);
+    const transactions = new SnapshotTransactionRunner([requests, skills, catalog, events]);
     ref.runner = transactions;
     return {
         clock,

@@ -135,6 +135,11 @@ export class IdeaRequest extends AggregateRoot<IdeaRequestProps> {
         this.touch();
     }
 
+    /** Проверка до побочных эффектов: решать можно только заявку `under_review`. */
+    ensureUnderReview(): void {
+        this.assertUnderReview();
+    }
+
     validate(): void {
         if (this.props.description.trim().length === 0) {
             throw new InvalidIdeaRequestError('Request description must not be empty');

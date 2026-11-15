@@ -14,6 +14,26 @@ const base = {
 };
 
 describe('ListQueueUseCase', () => {
+    it('возвращает new и under_review, решённые не показывает', async () => {
+        const fx = createPortalFixture();
+        const submit = new SubmitRequestUseCase(fx.requests, fx.requestQuery, fx.clock);
+        const queue = new ListQueueUseCase(fx.requestQuery);
+        const fresh = await submit.execute({ ...base, title: 'Новая' });
+        const taken = await submit.execute({ ...base, title: 'Взятая' });
+        fx.requests.byId.get(taken.id)?.take('dev-1', fx.clock.now());
+        const done = await submit.execute({ ...base, title: 'Решённая' });
+        fx.requests.byId.get(done.id)?.take('dev-1', fx.clock.now());
+        fx.requests.byId.get(done.id)?.reject('нет', 'dev-1', fx.clock.now());
+
+        const page = await queue.execute({ limit: 10, page: 0 });
+
+        expect(page.items.map((item) => [item.id, item.status.code])).toEqual([
+            [fresh.id, 'new'],
+            [taken.id, 'under_review'],
+        ]);
+        expect(page.total).toBe(2);
+    });
+
     it('возвращает только неразрешённые, старые первыми, с пагинацией', async () => {
         const fx = createPortalFixture();
         const submit = new SubmitRequestUseCase(fx.requests, fx.requestQuery, fx.clock);

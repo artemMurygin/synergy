@@ -29,7 +29,7 @@ export class RejectRequestUseCase {
             const request = await this.requests.findById(input.requestId);
             if (request === null) throw new RequestNotFoundError(input.requestId);
             request.reject(input.reason, input.decidedBy, this.clock.now());
-            await this.requests.save(request);
+            await this.requests.save(request, 'under_review');
             const decision = request.decision;
             if (decision.kind !== 'rejected') throw new Error('Request must be rejected here');
             await this.events.publish([

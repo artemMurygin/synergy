@@ -16,6 +16,7 @@ import { ListSkillsUseCase } from './application/list-skills.use-case';
 import { RejectRequestUseCase } from './application/reject-request.use-case';
 import { SeedPortalCatalogUseCase } from './application/seed-portal-catalog.use-case';
 import { SubmitRequestUseCase } from './application/submit-request.use-case';
+import { TakeRequestUseCase } from './application/take-request.use-case';
 import { registerPortalEvents } from './contracts/register-portal-events';
 import { CatalogRepository } from './domain/ports/catalog-repository.port';
 import { CatalogQuery } from './domain/ports/catalog-query.port';
@@ -45,6 +46,7 @@ import { registerPortalErrorStatuses } from './interface/portal-error-status';
         ListMyRequestsUseCase,
         GetRequestUseCase,
         ListQueueUseCase,
+        TakeRequestUseCase,
         AcceptRequestUseCase,
         RejectRequestUseCase,
         ListAgentsUseCase,

@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ArgumentInvalidError } from '../../../shared/errors';
 import { RequestRejectedEvent } from '../contracts/request-rejected.event';
-import { RequestAlreadyDecidedError, RequestNotFoundError } from '../domain/errors';
+import {
+    RequestAlreadyDecidedError,
+    RequestNotFoundError,
+    RequestNotTakenError,
+} from '../domain/errors';
 import { RejectRequestUseCase } from './reject-request.use-case';
 import { SubmitRequestUseCase } from './submit-request.use-case';
 import type { RequestView } from './request-view';
@@ -31,6 +35,10 @@ async function setup(): Promise<Setup> {
         minutesPerRun: 10,
         peopleCount: 1,
     });
+    const stored = fx.requests.byId.get(request.id);
+    if (stored === undefined) throw new Error('request was not stored');
+    stored.take('dev-1', fx.clock.now());
+    await fx.requests.save(stored, 'new');
     return { ...fx, reject, request };
 }
 
@@ -58,14 +66,50 @@ describe('RejectRequestUseCase', () => {
         expect(events.publishedInTransaction).toEqual([true]);
     });
 
-    it('требует причину: пустая даёт 400, заявка остаётся pending, события нет', async () => {
+    it('сохраняет решение условным обновлением из under_review', async () => {
+        const { reject, request, requests } = await setup();
+        const save = vi.spyOn(requests, 'save');
+
+        await reject.execute({ requestId: request.id, decidedBy: 'dev-1', reason: 'Нет' });
+
+        expect(save).toHaveBeenCalledWith(expect.anything(), 'under_review');
+    });
+
+    it('заявку в статусе new отклонить нельзя: 409 без события', async () => {
+        const fx = createPortalFixture();
+        const submit = new SubmitRequestUseCase(fx.requests, fx.requestQuery, fx.clock);
+        const reject = new RejectRequestUseCase(
+            fx.requests,
+            fx.requestQuery,
+            fx.clock,
+            fx.transactions,
+            fx.events,
+        );
+        const fresh = await submit.execute({
+            authorId: 'user-1',
+            title: 'Новая',
+            description: 'Описание',
+            frequency: { count: 1, period: 'day' },
+            minutesPerRun: 10,
+            peopleCount: 1,
+        });
+
+        await expect(
+            reject.execute({ requestId: fresh.id, decidedBy: 'dev-1', reason: 'Нет' }),
+        ).rejects.toBeInstanceOf(RequestNotTakenError);
+
+        expect(fx.requests.byId.get(fresh.id)?.statusKind).toBe('new');
+        expect(fx.events.published).toHaveLength(0);
+    });
+
+    it('требует причину: пустая даёт 400, заявка остаётся under_review, события нет', async () => {
         const { reject, request, requests, events } = await setup();
 
         await expect(
             reject.execute({ requestId: request.id, decidedBy: 'dev-1', reason: '   ' }),
         ).rejects.toBeInstanceOf(ArgumentInvalidError);
 
-        expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+        expect(requests.byId.get(request.id)?.decision.kind).toBe('under_review');
         expect(events.published).toHaveLength(0);
     });
 
@@ -83,7 +127,6 @@ describe('RejectRequestUseCase', () => {
     it('принятую заявку отклонить нельзя: 409 без события', async () => {
         const { reject, request, requests, clock, events } = await setup();
         const stored = requests.byId.get(request.id);
-        stored?.take('dev-1', clock.now());
         stored?.accept('skill-1', EffortHours.of(8), 'dev-1', clock.now());
 
         await expect(
