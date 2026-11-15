@@ -9,6 +9,9 @@ import { ChangeSkillStatusUseCase } from './application/change-skill-status.use-
 import { EditCommentUseCase } from './application/edit-comment.use-case';
 import { CreateSkillUseCase } from './application/create-skill.use-case';
 import { GetArchiveUseCase } from './application/get-archive.use-case';
+import { GetAgentGuideUseCase } from './application/get-agent-guide.use-case';
+import { SaveAgentGuideUseCase } from './application/save-agent-guide.use-case';
+import { SetProductDepartmentsUseCase } from './application/set-product-departments.use-case';
 import { GetBugUseCase } from './application/get-bug.use-case';
 import { GetCatalogUseCase } from './application/get-catalog.use-case';
 import { GetRequestUseCase } from './application/get-request.use-case';
@@ -35,6 +38,10 @@ import { BugQuery } from './domain/ports/bug-query.port';
 import { BugRepository } from './domain/ports/bug-repository.port';
 import { CatalogRepository } from './domain/ports/catalog-repository.port';
 import { CatalogQuery } from './domain/ports/catalog-query.port';
+import { AgentGuideQuery } from './domain/ports/agent-guide-query.port';
+import { AgentGuideRepository } from './domain/ports/agent-guide-repository.port';
+import { DepartmentLookupPort } from './domain/ports/department-lookup.port';
+import { ProductAccessRepository } from './domain/ports/product-access-repository.port';
 import { Clock } from './domain/ports/clock.port';
 import { CommentQuery } from './domain/ports/comment-query.port';
 import { CommentRepository } from './domain/ports/comment-repository.port';
@@ -42,6 +49,10 @@ import { RequestQuery } from './domain/ports/request-query.port';
 import { RequestRepository } from './domain/ports/request-repository.port';
 import { SkillQuery } from './domain/ports/skill-query.port';
 import { SkillRepository } from './domain/ports/skill-repository.port';
+import { SlonikAgentGuideQuery } from './infrastructure/slonik-agent-guide.query';
+import { SlonikAgentGuideRepository } from './infrastructure/slonik-agent-guide.repository';
+import { SlonikDepartmentLookup } from './infrastructure/slonik-department-lookup';
+import { SlonikProductAccessRepository } from './infrastructure/slonik-product-access.repository';
 import { SlonikBugCommentQuery } from './infrastructure/slonik-bug-comment.query';
 import { SlonikBugCommentRepository } from './infrastructure/slonik-bug-comment.repository';
 import { SlonikBugQuery } from './infrastructure/slonik-bug.query';
@@ -59,6 +70,7 @@ import { BugCommentsController } from './interface/http/bug-comments.controller'
 import { BugsController } from './interface/http/bugs.controller';
 import { CatalogController } from './interface/http/catalog.controller';
 import { CommentsController } from './interface/http/comments.controller';
+import { GuidesController } from './interface/http/guides.controller';
 import { RequestsController } from './interface/http/requests.controller';
 import { SkillsController } from './interface/http/skills.controller';
 import { registerPortalErrorStatuses } from './interface/portal-error-status';
@@ -73,6 +85,7 @@ import { registerPortalErrorStatuses } from './interface/portal-error-status';
         BugCommentsController,
         SkillsController,
         CatalogController,
+        GuidesController,
     ],
     providers: [
         SubmitRequestUseCase,
@@ -101,6 +114,9 @@ import { registerPortalErrorStatuses } from './interface/portal-error-status';
         ListBugCommentsUseCase,
         PostBugCommentUseCase,
         EditBugCommentUseCase,
+        GetAgentGuideUseCase,
+        SaveAgentGuideUseCase,
+        SetProductDepartmentsUseCase,
         SeedPortalCatalogUseCase,
         { provide: Clock, useClass: SystemClock },
         { provide: RequestRepository, useClass: SlonikRequestRepository },
@@ -115,6 +131,10 @@ import { registerPortalErrorStatuses } from './interface/portal-error-status';
         { provide: BugQuery, useClass: SlonikBugQuery },
         { provide: BugCommentRepository, useClass: SlonikBugCommentRepository },
         { provide: BugCommentQuery, useClass: SlonikBugCommentQuery },
+        { provide: AgentGuideRepository, useClass: SlonikAgentGuideRepository },
+        { provide: AgentGuideQuery, useClass: SlonikAgentGuideQuery },
+        { provide: ProductAccessRepository, useClass: SlonikProductAccessRepository },
+        { provide: DepartmentLookupPort, useClass: SlonikDepartmentLookup },
     ],
     exports: [
         SeedPortalCatalogUseCase,
