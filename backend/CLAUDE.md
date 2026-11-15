@@ -32,6 +32,14 @@
 - События: `portal.bug_reported`, `portal.bug_status_changed`, `portal.bug_comment_posted`; уведомления `bug.reported`, `bug.status-changed`, `bug.comment-added` (цель `bug`). Автору не шлются уведомления о собственных действиях.
 - Контракт с порталом: `interface/http/bug-contract.spec.ts` (фикстуры в `portal/src/test/contract/bug-*.json`, обновление `UPDATE_CONTRACT=1`).
 
+## Инструкции агентов и доступ продуктов (`src/modules/portal`)
+
+Инструкция агента (Markdown) и справочная пометка «Доступно: отделы» у продукта. Таблицы `portal_agent_guides`, `portal_product_departments` (миграция 038; откат: `DROP TABLE portal_product_departments; DROP TABLE portal_agent_guides;`).
+
+- Эндпоинты (префикс `/portal`): `GET /agents/:id/guide` (любой вошедший; архивный агент -> 404); `PUT /agents/:id/guide` `{ body }` (developer; trim, пусто -> удаление, >50000 -> 400, архив -> 409 `PORTAL_AGENT_ARCHIVED`); `PUT /products/:id/departments` `{ departmentIds }` (admin; замена набора целиком, id отделов текстовые, неизвестный отдел -> 404 `PORTAL_DEPARTMENT_NOT_FOUND`). `GET /catalog` отдаёт `departments` у продукта и у продуктов агента.
+- Пометка справочная: права по отделу не проверяются. Удаление отдела каскадно (`ON DELETE CASCADE`) снимает пометки.
+- Контракт с порталом: `interface/http/guides-contract.spec.ts` (фикстуры `portal/src/test/contract/{guide-responses,product-departments-response,catalog-departments-response}.json`, обновление `UPDATE_CONTRACT=1`).
+
 ## Прочее
 
 - Переменные окружения — только через `src/shared/config/env.schema.ts` и `.env.example`.

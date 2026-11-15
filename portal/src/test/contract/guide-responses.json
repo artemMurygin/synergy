@@ -1,0 +1,22 @@
+[
+  {
+    "name": "filled",
+    "response": {
+      "body": "# Заголовок\n\n- пункт\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>",
+      "updatedAt": "2026-11-10T09:00:00.000Z",
+      "updatedBy": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      }
+    }
+  },
+  {
+    "name": "empty",
+    "response": {
+      "body": null,
+      "updatedAt": null,
+      "updatedBy": null
+    }
+  }
+]
