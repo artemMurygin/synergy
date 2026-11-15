@@ -8,7 +8,7 @@ import { createTestClient, json, queryWrapper, stubFetch } from '@/test/helpers'
 import { editComment, listComments, postComment } from './comments.api'
 import { commentErrorMessage, COMMENT_EDIT_EXPIRED_MESSAGE, COMMENT_ERROR_FALLBACK } from './comments.errors'
 import { commentsQuery } from './comments.queries'
-import { commentFixture, developerCommentFixture } from './comments.fixtures'
+import { commentFixture, commentListResponseFixture, developerCommentFixture } from './comments.fixtures'
 import { commentListSchema, commentSchema } from './comments.schema'
 import { useEditComment } from './use-edit-comment'
 import { usePostComment } from './use-post-comment'
@@ -26,6 +26,7 @@ describe('comments.schema', () => {
   it('accepts a comment with editedAt null and a role enum', () => {
     expect(commentSchema.parse(commentFixture)).toEqual(commentFixture)
     expect(commentListSchema.parse({ items: [commentFixture] }).items).toHaveLength(1)
+    expect(commentListSchema.parse(commentListResponseFixture)).toEqual(commentListResponseFixture)
   })
 
   it('rejects an unknown authorRole', () => {

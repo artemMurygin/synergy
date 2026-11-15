@@ -417,4 +417,107 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         expect(changed.filter((n) => n.target_id === linked)).toHaveLength(1);
         expect(changed.filter((n) => [rejectedRequest, pending].includes(n.target_id))).toEqual([]);
     });
+    describe('request comments', () => {
+        const postComment = (
+            requestId: string,
+            by: string,
+            roles: Role[],
+            body: string,
+        ): Promise<Record<string, unknown>> =>
+            post(`/portal/requests/${requestId}/comments`, by, roles, { body });
+
+        async function addDeveloper(login: string, active = true): Promise<string> {
+            const id = await addUser(login);
+            await client.query(
+                "INSERT INTO auth_user_roles (user_id, role) VALUES ($1, 'developer')",
+                [id],
+            );
+            if (!active) {
+                await client.query('UPDATE auth_users SET is_active = false WHERE id = $1', [id]);
+            }
+            return id;
+        }
+
+        async function withDevelopers(
+            run: (devs: { active: string; other: string; inactive: string }) => Promise<void>,
+        ): Promise<void> {
+            const suffix = randomUUID().slice(0, 6);
+            const active = await addDeveloper(`dev-a-${suffix}`);
+            const other = await addDeveloper(`dev-b-${suffix}`);
+            const inactive = await addDeveloper(`dev-x-${suffix}`, false);
+            try {
+                await run({ active, other, inactive });
+            } finally {
+                await client.query('DELETE FROM auth_user_roles WHERE user_id = ANY($1::uuid[])', [
+                    [active, other, inactive],
+                ]);
+            }
+        }
+
+        const forRequest = async (requestId: string): Promise<StoredNotification[]> =>
+            (await stored('request.comment-added')).filter((n) => n.target_id === requestId);
+
+        it('notifies active developers, not the author nor a deactivated developer, when the author comments', async () => {
+            await withDevelopers(async ({ active, other, inactive }) => {
+                const requestId = await submit(anna, 'Комментарий автора');
+
+                await postComment(requestId, anna, [], 'Уточнение от автора');
+                await waitForOutboxIdle();
+
+                const notes = await forRequest(requestId);
+                const recipients = notes.map((n) => n.recipient_id);
+                expect(recipients).toContain(active);
+                expect(recipients).toContain(other);
+                expect(recipients).not.toContain(anna);
+                expect(recipients).not.toContain(inactive);
+                expect(new Set(recipients).size).toBe(recipients.length);
+                expect(notes.every((n) => n.actor_id === anna && n.target_type === 'request')).toBe(
+                    true,
+                );
+                expect(notes[0]?.title).toContain('Комментарий автора');
+                expect(notes[0]?.body).toContain('Уточнение от автора');
+            });
+        });
+
+        it('notifies only the author when a developer replies', async () => {
+            await withDevelopers(async ({ active, other }) => {
+                const requestId = await submit(anna, 'Ответ разработчика');
+
+                await postComment(requestId, active, ['developer'], 'Ответ по существу');
+                await waitForOutboxIdle();
+
+                const notes = await forRequest(requestId);
+                expect(notes.map((n) => n.recipient_id)).toEqual([anna]);
+                expect(notes[0]?.actor_id).toBe(active);
+                expect(notes.map((n) => n.recipient_id)).not.toContain(other);
+            });
+        });
+
+        it('creates no notifications when a comment is edited', async () => {
+            const requestId = await submit(anna, 'Правка комментария');
+            const created = await postComment(requestId, anna, [], 'Первая версия');
+            await waitForOutboxIdle();
+            const before = await forRequest(requestId);
+            const eventsBefore = await client.query<{ n: string }>(
+                "SELECT count(*) AS n FROM outbox_events WHERE event_type = 'portal.request_comment_posted'",
+            );
+
+            const response = await fetch(
+                `${base}/portal/requests/${requestId}/comments/${String(created.id)}`,
+                {
+                    method: 'PATCH',
+                    headers: { ...bearer(anna), 'content-type': 'application/json' },
+                    body: JSON.stringify({ body: 'Вторая версия' }),
+                },
+            );
+            expect(response.status).toBe(200);
+            await waitForOutboxIdle();
+
+            expect(await forRequest(requestId)).toEqual(before);
+            const eventsAfter = await client.query<{ n: string }>(
+                "SELECT count(*) AS n FROM outbox_events WHERE event_type = 'portal.request_comment_posted'",
+            );
+            expect(eventsAfter.rows[0]?.n).toBe(eventsBefore.rows[0]?.n);
+        });
+    });
 });
