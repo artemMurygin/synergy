@@ -18,7 +18,11 @@ export type RequestCommentPostedPayload = z.infer<typeof requestCommentPostedPay
 /** Выдержка из комментария: до 200 символов; при обрезке последний символ — «…». */
 export function commentExcerpt(body: string): string {
     if (body.length <= COMMENT_EXCERPT_LENGTH) return body;
-    return `${body.slice(0, COMMENT_EXCERPT_LENGTH - 1)}…`;
+    let cut = body.slice(0, COMMENT_EXCERPT_LENGTH - 1);
+    // Не оставляем одиночный high surrogate: JSONB его не принимает.
+    const last = cut.charCodeAt(cut.length - 1);
+    if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+    return `${cut}…`;
 }
 
 /** Добавлен комментарий к заявке; идентификатор агрегата равен идентификатору комментария. */

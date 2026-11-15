@@ -1,7 +1,18 @@
 import type { RequestCommentPostedEvent } from '../../portal/contracts/request-comment-posted.event';
-import { NotificationContent } from './notification-content';
+import { MAX_NOTIFICATION_TITLE_LENGTH, NotificationContent } from './notification-content';
 import type { NotificationDraft } from './notification-draft';
 import { NotificationTarget } from './notification-target';
+
+const TITLE_PREFIX = 'Новый комментарий к заявке: ';
+
+function fitTitle(requestTitle: string): string {
+    const room = MAX_NOTIFICATION_TITLE_LENGTH - TITLE_PREFIX.length;
+    if (requestTitle.length <= room) return `${TITLE_PREFIX}${requestTitle}`;
+    let cut = requestTitle.slice(0, room - 1);
+    const last = cut.charCodeAt(cut.length - 1);
+    if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+    return `${TITLE_PREFIX}${cut}…`;
+}
 
 /**
  * A comment on a request: when the author writes, every active developer except the author is
@@ -25,7 +36,7 @@ export class RequestCommentRule {
             recipientId,
             type: 'request.comment-added',
             content: NotificationContent.of({
-                title: `Новый комментарий к заявке: ${event.requestTitle}`,
+                title: fitTitle(event.requestTitle),
                 body: `${commenterName}: ${event.excerpt}`,
             }),
             target: NotificationTarget.of({ type: 'request', id: event.requestId }),

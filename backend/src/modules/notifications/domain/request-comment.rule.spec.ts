@@ -20,6 +20,21 @@ function posted(commenterId: string, requestAuthorId = 'anna-id'): RequestCommen
 describe('RequestCommentRule', () => {
     const rule = new RequestCommentRule();
 
+    it('truncates a long request title so the notification title fits the limit', () => {
+        const event = new RequestCommentPostedEvent({
+            aggregateId: 'comment-1',
+            requestId: REQUEST_ID,
+            requestAuthorId: 'anna-id',
+            commenterId: 'dev-1',
+            requestTitle: 'Т'.repeat(200),
+            excerpt: 'Нужны уточнения',
+            metadata,
+        });
+        const [draft] = rule.apply(event, 'Иван', ['dev-1']);
+        expect(draft.content.title.length).toBeLessThanOrEqual(200);
+        expect(draft.content.title.endsWith('…')).toBe(true);
+    });
+
     describe('recipients', () => {
         it('the author commenting notifies all developers except themselves', () => {
             expect(rule.recipients(posted('dev-1', 'dev-1'), ['dev-1', 'dev-2', 'dev-3'])).toEqual([

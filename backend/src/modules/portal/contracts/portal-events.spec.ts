@@ -461,6 +461,14 @@ describe('RequestCommentPosted contract', () => {
 });
 
 describe('commentExcerpt', () => {
+    it('does not split a surrogate pair at the cut point', () => {
+        const result = commentExcerpt(`${'a'.repeat(198)}😀${'b'.repeat(10)}`);
+        expect(result.length).toBeLessThanOrEqual(COMMENT_EXCERPT_LENGTH);
+        expect(JSON.parse(JSON.stringify(result))).toBe(result);
+        expect(result).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
+        expect(result.endsWith('…')).toBe(true);
+    });
+
     it('returns short text unchanged', () => {
         expect(commentExcerpt('abc')).toBe('abc');
     });
