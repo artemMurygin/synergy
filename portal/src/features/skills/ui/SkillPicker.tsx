@@ -1,4 +1,4 @@
-import type * as React from 'react'
+import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -35,7 +35,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 min-w-0 flex-1 basis-0 items-center justify-center whitespace-nowrap rounded-pill border px-2 font-sans text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'inline-flex h-9 min-w-0 items-center max-sm:w-full sm:flex-1 sm:basis-0 justify-center whitespace-nowrap rounded-pill border px-2 font-sans text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         active ? 'border-ink bg-ink text-surface' : 'border-border-strong bg-surface text-ink hover:bg-surface-alt'
       )}
     >
@@ -50,6 +50,7 @@ function leadingIcon(path: string) {
 }
 const CHEVRON_ICON = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237E7F81' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
 const SEARCH_ICON = leadingIcon("%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E")
+const PLUS_ICON = leadingIcon("%3Cpath d='M5 12h14'/%3E%3Cpath d='M12 5v14'/%3E")
 const BOT_ICON = leadingIcon(
   "%3Cpath d='M12 8V4H8'/%3E%3Crect width='16' height='12' x='4' y='8' rx='2'/%3E%3Cpath d='M2 14h2'/%3E%3Cpath d='M20 14h2'/%3E%3Cpath d='M15 13v2'/%3E%3Cpath d='M9 13v2'/%3E"
 )
@@ -64,11 +65,14 @@ function selectIconStyle(icon: string): React.CSSProperties {
 
 /* Group · Агент / Навык: surface-alt card, r-md, 16 padding, 14 gap; title 11/700 ink-60 */
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  const titleId = React.useId()
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3.5 rounded-md border-0 bg-surface-alt p-4">
-      <legend className="mb-3.5 p-0 font-sans text-[11px] font-bold leading-[1.17] tracking-[0.6px] text-ink-60">{title}</legend>
+    <div role="group" aria-labelledby={titleId} className="flex min-w-0 flex-col gap-3.5 rounded-md bg-surface-alt p-4">
+      <p id={titleId} className="font-sans text-[11px] font-bold leading-[1.17] tracking-[0.6px] text-ink-60">
+        {title}
+      </p>
       {children}
-    </fieldset>
+    </div>
   )
 }
 
@@ -133,8 +137,12 @@ export function SkillPicker({ value, onChange, errors = {}, products = [] }: Ski
             />
             <Input
               label="Новый продукт"
+              placeholder="Например, Портал бухгалтерии"
               hint="необязательно"
               hintClassName="text-ink-60"
+              hintEnd
+              className="pl-11"
+              style={{ backgroundImage: PLUS_ICON, backgroundPosition: 'left 16px center', backgroundSize: '18px 18px', backgroundRepeat: 'no-repeat' }}
               value={value.newProductName}
               error={errors.newProduct}
               onChange={(e) => onChange({ ...value, newProductName: e.target.value })}
@@ -151,6 +159,7 @@ export function SkillPicker({ value, onChange, errors = {}, products = [] }: Ski
               label="Что делает"
               hint="увидят авторы"
               hintClassName="text-ink-60"
+              hintEnd
               className="h-24 min-h-24 resize-none text-sm"
               value={value.description}
               error={errors.description}
@@ -185,6 +194,8 @@ export function SkillPicker({ value, onChange, errors = {}, products = [] }: Ski
           <Textarea
             label="Что делает"
             hint="увидят авторы"
+            hintClassName="text-ink-60"
+            hintEnd
             className="h-24 min-h-24 resize-none text-sm"
             value={value.description}
             error={errors.description}

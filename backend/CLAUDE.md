@@ -18,9 +18,9 @@
 
 - Vitest, файлы `*.spec.ts` рядом с кодом. Один файл: `npx vitest run src/modules/auth/application/x.spec.ts`.
 - Тесты с реальной БД (миграции, `postgres-*.repositories.spec.ts`) пропускаются без `PROGRAMS_ETL_TEST_ADMIN_URL`. Локально:
-  - поднять инфраструктуру: `npm run infra:up` (PostgreSQL на `127.0.0.1:5433`, пользователь `audit/audit`);
-  - запуск: `PROGRAMS_ETL_TEST_ADMIN_URL=postgresql://audit:audit@127.0.0.1:5433/postgres npx vitest run <путь>`.
-  - Если Docker не запущен — не подбирай другие URL: верни, что DB-тесты не прогнаны.
+  - PostgreSQL поднят локально на `localhost:5432`. Admin URL — `POSTGRES_URL` из `backend/.env` с базой `/postgres` вместо рабочей;
+  - запуск: `PROGRAMS_ETL_TEST_ADMIN_URL="$(grep '^POSTGRES_URL=' .env | cut -d= -f2- | sed -E 's#/[^/?]+(\?|$)#/postgres\1#')" npx vitest run <путь>`;
+  - Docker (`npm run infra:up`, порт 5433) для тестов не нужен. Если база на 5432 не отвечает — не подбирай другие URL: верни, что DB-тесты не прогнаны.
 - Порядок проверки: `npx vitest run <свои файлы>` → `npm run typecheck` → `npm run lint`; полный `npm test` — один раз в конце.
 
 ## Прочее

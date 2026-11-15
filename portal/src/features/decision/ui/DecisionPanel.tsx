@@ -9,7 +9,7 @@ import { SkillPicker, type SkillPickerErrors, type SkillPickerValue } from '@/fe
 import { ApiError } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { isArchiveConflict, isNameConflict } from '../model/decision-cache'
-import { decisionErrorMessage } from '../model/decision.queries'
+import { AGENT_NAME_TAKEN_MESSAGE, decisionErrorMessage } from '../model/decision.queries'
 import { useAcceptRequest } from '../model/use-accept-request'
 import { useRejectRequest } from '../model/use-reject-request'
 import type { AcceptTarget } from '../model/decision.api'
@@ -151,6 +151,8 @@ export function DecisionPanel({ request, products = [], onDecided }: DecisionPan
     active.error.kind === 'conflict' &&
     !isNameConflict(active.error) &&
     !isArchiveConflict(active.error)
+  const agentNameTaken =
+    mode === 'accept' && accept.error instanceof ApiError && accept.error.code === 'PORTAL_AGENT_NAME_TAKEN' && skill.mode === 'new_agent'
   const pickerErrors = mode === 'accept' ? { ...skillErrors, ...nameTakenErrors(accept.error) } : skillErrors
   const takenAt = request.takenAt ? new Date(request.takenAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : null
   const backClass = 'h-12 px-6 max-sm:order-last'
@@ -167,7 +169,6 @@ export function DecisionPanel({ request, products = [], onDecided }: DecisionPan
         <h2 id="decision-title" className="font-display text-lg font-bold leading-[1.26] text-ink">
           Решение по заявке
         </h2>
-        <p className="font-sans text-xs leading-[1.17] text-ink-60">Автор получит уведомление сразу после решения</p>
         {request.reviewer && takenAt ? (
           <div className="flex items-center gap-2 pt-1">
             <PersonAvatar fullName={request.reviewer.fullName} className="size-6 text-[10px]" />
@@ -179,8 +180,10 @@ export function DecisionPanel({ request, products = [], onDecided }: DecisionPan
       </div>
 
       {active.isError ? (
-        <Alert title={conflict ? 'Решение уже принято' : 'Решение не сохранено'}>
-          {decisionErrorMessage(active.error)}
+        <Alert title={conflict ? 'Решение уже принято' : agentNameTaken ? AGENT_NAME_TAKEN_MESSAGE : 'Решение не сохранено'}>
+          {agentNameTaken && skill.mode === 'new_agent'
+            ? `«${skill.agentName.trim()}» уже есть в каталоге. Выберите его в режиме «Новый навык» или задайте другое название. Введённые данные сохранены.`
+            : decisionErrorMessage(active.error)}
           {conflict ? (
             <button
               type="button"

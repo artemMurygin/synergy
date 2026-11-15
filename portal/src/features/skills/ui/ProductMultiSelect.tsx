@@ -26,7 +26,7 @@ export function ProductMultiSelect({ products, value, onChange, error }: Product
       aria-invalid={error ? true : undefined}
       className="flex min-w-0 flex-col gap-1 border-0 p-0"
     >
-      <legend className="mb-1 flex flex-wrap items-center gap-x-1.5 p-0 font-sans">
+      <legend className="mb-1 flex w-full items-center justify-between gap-x-1.5 p-0 font-sans">
         <span className="text-[13px] font-semibold leading-[1.17] text-ink">Продукты</span>
         <span id={hintId} className="text-xs leading-[1.17] text-ink-60">
           хотя бы один

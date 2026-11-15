@@ -7,6 +7,8 @@ export interface FieldProps {
   hint?: string
   /** Override of the hint colour (default ink-40; the DepartmentDialog frames use ink-60) */
   hintClassName?: string
+  /** Puts the hint at the right edge of the label row (decision forms of the mock-ups) */
+  hintEnd?: boolean
 }
 
 /** Wires a visible label, hint and error text to a control (label, aria-invalid, aria-describedby). */
@@ -24,6 +26,7 @@ export function FormField({
   controlId,
   hint,
   hintClassName,
+  hintEnd,
   hintId,
   error,
   errorId,
@@ -38,7 +41,11 @@ export function FormField({
 }) {
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
+      <div
+        className={cn(
+          hintEnd ? 'flex items-center justify-between gap-x-1.5' : 'flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5'
+        )}
+      >
         <label htmlFor={controlId} className="text-[13px] font-semibold leading-[1.17] text-ink">
           {label}
         </label>

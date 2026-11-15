@@ -52,7 +52,6 @@ export function RequestPage() {
             {reviewerName ? `${reviewerName} взял(а) её в работу. ` : ''}Решение может принять любой разработчик.
           </Alert>
         ) : null}
-        {reviewerName ? <p className="text-[13px] text-ink-60">В работе у {reviewerName}</p> : null}
         <DecisionPanel request={request} products={catalog.data?.products} onDecided={() => void query.refetch()} />
       </div>
     )

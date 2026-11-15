@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -72,6 +72,16 @@ describe('RequestPage', () => {
     api(() => json({ message: 'boom' }, 500))
     renderAt(`/requests/${ID}`)
     expect(await screen.findByRole('button', { name: 'Повторить' }, { timeout: 4000 })).toBeTruthy()
+  })
+
+  it('shows who took the request once, inside the decision panel', async () => {
+    useSessionStore.getState().signIn('t', developer)
+    api((c) => (c.path === `/portal/requests/${ID}` ? json(requestFixture) : undefined))
+    renderAt(`/requests/${ID}`)
+    await screen.findByRole('heading', { name: 'Решение по заявке' })
+    const panel = screen.getByTestId('decision-panel')
+    expect(within(panel).getAllByText(/В работе у/)).toHaveLength(1)
+    expect(screen.getAllByText(/^В работе у /)).toHaveLength(1)
   })
 
   it('shows the decision panel to a developer for a pending request and updates after the decision', async () => {

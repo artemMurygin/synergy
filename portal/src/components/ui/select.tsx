@@ -18,10 +18,10 @@ export const selectArrowClass = 'appearance-none bg-surface pr-11'
 
 export type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & FieldProps
 
-export function Select({ label, error, hint, id, className, style, children, ...props }: SelectProps) {
+export function Select({ label, error, hint, hintClassName, hintEnd, id, className, style, children, ...props }: SelectProps) {
   const ids = useFieldIds(id, { error, hint })
   return (
-    <FormField label={label} error={error} hint={hint} {...ids}>
+    <FormField label={label} error={error} hint={hint} hintClassName={hintClassName} hintEnd={hintEnd} {...ids}>
       <select
         id={ids.controlId}
         aria-invalid={ids.invalid}

@@ -193,8 +193,9 @@ function SkillCard({ request }: { request: IdeaRequest }) {
         </div>
         <div className="flex items-center gap-2 border-t border-border pt-3">
           <Svg size={15} className="shrink-0 text-ink-40">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
+            <line x1="10" x2="14" y1="2" y2="2" />
+            <line x1="12" x2="15" y1="14" y2="11" />
+            <circle cx="12" cy="14" r="8" />
           </Svg>
           <span className="min-w-0 flex-1 text-[13px] text-ink-60">Оценка разработчика</span>
           <span className="text-[13px] font-bold text-ink">{formatEffortHours(request.effortHours)}</span>
@@ -335,14 +336,14 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
     <article className="flex flex-col gap-3.5 min-[900px]:gap-6">
       <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 min-[900px]:grid-cols-[auto_auto_minmax(0,1fr)] min-[900px]:gap-x-3.5 min-[900px]:gap-y-2.5">
         <Link
-          to="/requests"
+          to={decision ? '/queue' : '/requests'}
           className="col-span-2 flex items-center gap-1.5 justify-self-start text-[13px] font-semibold leading-4 text-ink-60 hover:text-ink min-[900px]:col-span-3"
         >
           <Svg size={16}>
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </Svg>
-          Мои заявки
+          {decision ? 'Очередь заявок' : 'Мои заявки'}
         </Link>
         <h1 className="col-span-2 break-words font-display text-2xl font-bold leading-[1.2] tracking-[-0.4px] text-ink min-[900px]:col-span-1 min-[900px]:text-[30px] min-[900px]:leading-[38px] min-[900px]:tracking-[-0.6px]">
           {request.title}
@@ -357,7 +358,8 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
             {inWork}
           </span>
           <span className="hidden min-[900px]:inline">
-            Подана {longDate(request.createdAt)} · {request.author.fullName}
+            Подана {longDate(request.createdAt)}
+            {decision ? ` · ${request.author.fullName}` : ''}
             {waiting}
             {inWork}
           </span>
@@ -392,7 +394,7 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
               <Fact label="экономии в месяц" value={monthlySavings(request)} accent />
             </dl>
           </section>
-          {code === 'rejected' ? null : <History request={request} />}
+          {code === 'rejected' || decision ? null : <History request={request} />}
         </div>
 
         <div className="contents min-[900px]:flex min-[900px]:flex-col min-[900px]:gap-4">

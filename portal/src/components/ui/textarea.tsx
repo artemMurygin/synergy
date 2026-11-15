@@ -4,10 +4,10 @@ import { controlClass, FormField, useFieldIds, type FieldProps } from './form-fi
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps
 
-export function Textarea({ label, error, hint, id, className, ...props }: TextareaProps) {
+export function Textarea({ label, error, hint, hintClassName, hintEnd, id, className, ...props }: TextareaProps) {
   const ids = useFieldIds(id, { error, hint })
   return (
-    <FormField label={label} error={error} hint={hint} {...ids}>
+    <FormField label={label} error={error} hint={hint} hintClassName={hintClassName} hintEnd={hintEnd} {...ids}>
       <textarea
         id={ids.controlId}
         aria-invalid={ids.invalid}

@@ -132,6 +132,21 @@ describe('DecisionPanel', () => {
     expect(stub.calls.filter((c) => c.method === 'GET' && c.path === '/portal/requests')).toHaveLength(0)
   })
 
+  it('on 409 agent name taken explains how to continue, as in the mock-up', async () => {
+    const { user } = setup(() => json({ code: 'PORTAL_AGENT_NAME_TAKEN', message: 'x' }, 409))
+    await fillNewAgent(user, { agent: 'Свердщик', product: true })
+    await user.click(screen.getByRole('button', { name: 'Создать и принять' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('«Свердщик» уже есть в каталоге')
+    expect(alert.textContent).toContain('Введённые данные сохранены')
+  })
+
+  it('has no extra caption under the title and no unit suffix in the effort field', () => {
+    setup()
+    expect(screen.queryByText('Автор получит уведомление сразу после решения')).toBeNull()
+    expect(screen.getByLabelText(EFFORT).parentElement?.textContent).toBe('')
+  })
+
   it('on 409 archived refreshes skills and agents and keeps the panel usable', async () => {
     const { user, stub } = setup(() => json({ code: 'PORTAL_SKILL_ARCHIVED', message: 'x' }, 409))
     await screen.findByRole('option', { name: /Сводка встречи/ })

@@ -28,6 +28,17 @@ describe('RequestDetails', () => {
     expect(screen.queryByText(/Почему отклонена/)).toBeNull()
   })
 
+  it('for a developer (decision panel given) leads back to the queue and has no author history', () => {
+    renderDetails(requestFixture, <p>панель</p>)
+    expect(screen.getByRole('link', { name: 'Очередь заявок' }).getAttribute('href')).toBe('/queue')
+    expect(screen.queryByText('Вы подали заявку')).toBeNull()
+  })
+
+  it('does not repeat the author name in the meta line of the author own request', () => {
+    const { container } = renderDetails(requestFixture)
+    expect(container.querySelector('header p')?.textContent).not.toContain(requestFixture.author.fullName)
+  })
+
   it('shows the 6-step path with the current step marked', () => {
     renderDetails({ ...requestFixture, status: { code: 'in_dev', label: 'В разработке' } })
     const steps = within(screen.getByRole('list', { name: 'Путь заявки' })).getAllByRole('listitem')
