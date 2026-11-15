@@ -140,7 +140,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 | `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Голосовые Telegram и извлечение задач (не расшифровка встреч) |
 | `ELEVENLABS_API_KEY` | — | Секрет ключа ElevenLabs для расшифровки встреч |
 | `ELEVENLABS_BASE_URL` | `https://api.elevenlabs.io` | Адрес API ElevenLabs |
-| `MEETING_TRANSCRIPTION_MODEL` | `scribe_v2` | Модель STT с диаризацией |
+| `ELEVENLABS_STT_MODEL` | `scribe_v2` | model_id ElevenLabs STT с диаризацией (без `/`, не slug OpenRouter) |
 | `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` | `5400000` | Таймаут HTTP-запроса на всю запись; не больше дедлайна job'а |
 | `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` | `1073741824` | Предел размера сжатого файла; проверяется до отправки |
 | `MEETING_TRANSCRIPTION_LANGUAGE` | не задан | Код языка (например, `ru`); пусто — автоопределение |

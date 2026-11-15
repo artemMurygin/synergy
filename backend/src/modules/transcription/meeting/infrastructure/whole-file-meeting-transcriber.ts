@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, type Dirent } from 'node:fs';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -43,12 +43,22 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
     async onModuleInit(): Promise<void> {
         const root = this.tmpRoot();
         const now = Date.now();
-        for (const entry of await readdir(root, { withFileTypes: true })) {
+        let entries: Dirent[];
+        try {
+            entries = await readdir(root, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
             if (!entry.isDirectory() || !entry.name.startsWith(TMP_PREFIX)) continue;
             const path = join(root, entry.name);
-            const { mtimeMs } = await stat(path);
-            if (now - mtimeMs >= STALE_WORK_DIR_AGE_MS) {
-                await rm(path, { recursive: true, force: true });
+            try {
+                const { mtimeMs } = await stat(path);
+                if (now - mtimeMs >= STALE_WORK_DIR_AGE_MS) {
+                    await rm(path, { recursive: true, force: true });
+                }
+            } catch {
+                // Best-effort: папку мог удалить другой процесс или она чужая (EPERM).
             }
         }
     }

@@ -228,6 +228,10 @@ describe('WholeFileMeetingTranscriber', () => {
         ]);
     });
 
+    it('does not fail start when the temporary root cannot be read', async () => {
+        await expect(make(join(tmpRoot, 'missing')).onModuleInit()).resolves.toBeUndefined();
+    });
+
     it('does not use the legacy chunked pipeline', async () => {
         const source = await readFile(
             join(__dirname, 'whole-file-meeting-transcriber.ts'),

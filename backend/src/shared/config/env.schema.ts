@@ -150,6 +150,15 @@ export const envSchema = z
         ELEVENLABS_API_KEY: z.string().min(1).optional(),
         ELEVENLABS_BASE_URL: z.url().default('https://api.elevenlabs.io'),
         MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('scribe_v2'),
+        // model_id прямого API ElevenLabs; отдельно от MEETING_TRANSCRIPTION_MODEL (slug OpenRouter).
+        ELEVENLABS_STT_MODEL: z
+            .string()
+            .min(1)
+            .refine(
+                (v) => !v.includes('/'),
+                'ELEVENLABS_STT_MODEL must be a model_id like scribe_v2',
+            )
+            .default('scribe_v2'),
         // Таймаут одного HTTP-запроса на всю запись (90 мин); не больше дедлайна job'а
         MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(5_400_000),
         // Предел размера сжатого файла, байты (1 ГиБ); проверяется до отправки

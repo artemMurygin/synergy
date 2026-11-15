@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Agent } from 'undici';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silentLogger } from '../../../../files/application/test-doubles';
 import { recordingLogger } from '../../../application/test-doubles';
@@ -75,8 +76,16 @@ describe('WholeFileStt', () => {
     });
 
     describe('request', () => {
+        it('sends the request through a dispatcher with long timeouts', async () => {
+            fetchMock.mockResolvedValue(Response.json(okBody));
+            await new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal());
+            const init = fetchMock.mock.calls[0]?.[1] as { dispatcher?: unknown } | undefined;
+            expect(init?.dispatcher).toBeInstanceOf(Agent);
+        });
+
         it('posts one multipart request to /v1/speech-to-text with the whole file', async () => {
             fetchMock.mockResolvedValue(Response.json(okBody));
+
             await new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal());
 
             expect(fetchMock).toHaveBeenCalledTimes(1);

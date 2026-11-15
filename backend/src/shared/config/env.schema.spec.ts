@@ -489,10 +489,17 @@ describe('validateEnv meeting transcription settings', () => {
         ).toThrow('MEETING_TRANSCRIPTION_MAX_FILE_BYTES');
     });
 
+    it('rejects an OpenRouter slug in ELEVENLABS_STT_MODEL', () => {
+        expect(() =>
+            validateEnv({ ...REQUIRED_ENV, ELEVENLABS_STT_MODEL: 'elevenlabs/scribe-v2' }),
+        ).toThrow(/ELEVENLABS_STT_MODEL/);
+    });
+
     it('uses defaults from design', () => {
         const env = validateEnv(REQUIRED_ENV);
 
         expect(env.MEETING_TRANSCRIPTION_MODEL).toBe('scribe_v2');
+        expect(env.ELEVENLABS_STT_MODEL).toBe('scribe_v2');
         expect(env.ELEVENLABS_API_KEY).toBeUndefined();
         expect(env.ELEVENLABS_BASE_URL).toBe('https://api.elevenlabs.io');
         expect(env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS).toBe(5_400_000);

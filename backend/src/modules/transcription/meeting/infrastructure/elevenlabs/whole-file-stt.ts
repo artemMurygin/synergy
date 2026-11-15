@@ -3,6 +3,7 @@ import type { Env } from '../../../../../shared/config/env.schema';
 import { openAsBlob } from 'node:fs';
 import { basename } from 'node:path';
 import type { PinoLogger } from 'nestjs-pino';
+import { Agent } from 'undici';
 import { z } from 'zod';
 import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../../domain/errors';
 import type { PreparedMeetingAudio } from '../../domain/ports/meeting-audio-preparer.port';
@@ -62,11 +63,21 @@ export class WholeFileStt extends WholeFileSttPort {
         return {
             apiKey: config.get('ELEVENLABS_API_KEY', { infer: true }),
             baseUrl: config.get('ELEVENLABS_BASE_URL', { infer: true }),
-            model: config.get('MEETING_TRANSCRIPTION_MODEL', { infer: true }),
+            model: config.get('ELEVENLABS_STT_MODEL', { infer: true }),
             language: config.get('MEETING_TRANSCRIPTION_LANGUAGE', { infer: true }),
             timeoutMs: config.get('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS', { infer: true }),
             maxFileBytes: config.get('MEETING_TRANSCRIPTION_MAX_FILE_BYTES', { infer: true }),
         };
+    }
+
+    private agent: Agent | undefined;
+
+    private dispatcher(): Agent {
+        this.agent ??= new Agent({
+            headersTimeout: this.settings.timeoutMs,
+            bodyTimeout: this.settings.timeoutMs,
+        });
+        return this.agent;
     }
 
     async transcribe(
@@ -105,6 +116,8 @@ export class WholeFileStt extends WholeFileSttPort {
                 signal: AbortSignal.any([signal, timeout]),
                 headers: { 'xi-api-key': apiKey },
                 body,
+                // Дефолтные headersTimeout/bodyTimeout undici (300 с) короче обработки длинной записи.
+                dispatcher: this.dispatcher(),
             });
         } catch (error: unknown) {
             throw this.requestError(error, signal, timeout);
