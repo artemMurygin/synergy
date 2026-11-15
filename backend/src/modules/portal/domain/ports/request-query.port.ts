@@ -7,6 +7,8 @@ export interface RequestView {
     id: string;
     authorId: string;
     authorLogin: string;
+    /** Фамилия, имя, отчество автора; без ФИО (или без профиля) равно логину. */
+    authorFullName: string;
     title: string;
     description: string;
     frequency: { count: number; period: FrequencyPeriod };

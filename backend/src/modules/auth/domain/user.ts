@@ -65,6 +65,10 @@ export class User {
         this.props.isActive = false;
     }
 
+    activate(): void {
+        this.props.isActive = true;
+    }
+
     changePassword(hash: PasswordHash, now: Date): void {
         this.props.passwordHash = hash;
         this.props.mustChangePassword = false;

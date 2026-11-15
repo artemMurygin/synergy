@@ -13,6 +13,14 @@ export const AuthErrorCode = {
     ForbiddenOrigin: 'FORBIDDEN_ORIGIN',
     InvalidClientType: 'INVALID_CLIENT_TYPE',
     Forbidden: 'FORBIDDEN',
+    LastAdmin: 'LAST_ADMIN',
+    EmailTaken: 'EMAIL_TAKEN',
+    LoginTaken: 'LOGIN_TAKEN',
+    DepartmentNameTaken: 'DEPARTMENT_NAME_TAKEN',
+    DepartmentNotEmpty: 'DEPARTMENT_NOT_EMPTY',
+    EmployeeNotFound: 'EMPLOYEE_NOT_FOUND',
+    DepartmentNotFound: 'DEPARTMENT_NOT_FOUND',
+    ProfileIncomplete: 'PROFILE_INCOMPLETE',
 } as const;
 
 export class InvalidCredentialsError extends BaseError {
@@ -108,5 +116,69 @@ export class ForbiddenError extends BaseError {
 
     constructor() {
         super('Insufficient role');
+    }
+}
+
+export class LastAdminError extends BaseError {
+    readonly code = AuthErrorCode.LastAdmin;
+
+    constructor() {
+        super('The system must keep at least one active admin');
+    }
+}
+
+export class EmailTakenError extends BaseError {
+    readonly code = AuthErrorCode.EmailTaken;
+
+    constructor() {
+        super('Email is already used by another employee');
+    }
+}
+
+export class LoginTakenError extends BaseError {
+    readonly code = AuthErrorCode.LoginTaken;
+
+    constructor() {
+        super('Login is already taken');
+    }
+}
+
+export class DepartmentNameTakenError extends BaseError {
+    readonly code = AuthErrorCode.DepartmentNameTaken;
+
+    constructor() {
+        super('Department name is already taken');
+    }
+}
+
+export class DepartmentNotEmptyError extends BaseError {
+    readonly code = AuthErrorCode.DepartmentNotEmpty;
+
+    constructor() {
+        super('Department still has employees');
+    }
+}
+
+export class EmployeeNotFoundError extends BaseError {
+    readonly code = AuthErrorCode.EmployeeNotFound;
+
+    constructor() {
+        super('Employee not found');
+    }
+}
+
+export class DepartmentNotFoundError extends BaseError {
+    readonly code = AuthErrorCode.DepartmentNotFound;
+
+    constructor() {
+        super('Department not found');
+    }
+}
+
+export class ProfileIncompleteError extends BaseError {
+    readonly code = AuthErrorCode.ProfileIncomplete;
+
+    constructor() {
+        super('The employee has no profile yet: last name and first name are required');
     }
 }

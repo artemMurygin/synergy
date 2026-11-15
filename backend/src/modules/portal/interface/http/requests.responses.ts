@@ -27,6 +27,12 @@ class AuthorResponse {
 
     @ApiProperty({ example: 'anna' })
     readonly login!: string;
+
+    @ApiProperty({
+        example: 'Иванова Анна Петровна',
+        description: 'Фамилия, имя, отчество; если не заполнены, логин',
+    })
+    readonly fullName!: string;
 }
 
 class RequestSkillResponse {
@@ -82,7 +88,7 @@ export class RequestResponse {
         this.minutesPerRun = view.minutesPerRun;
         this.peopleCount = view.peopleCount;
         this.status = { code: view.status.code, label: view.status.label };
-        this.author = { id: view.authorId, login: view.authorLogin };
+        this.author = { id: view.authorId, login: view.authorLogin, fullName: view.authorFullName };
         this.rejectReason = view.rejectReason;
         this.skill = view.skill === null ? null : { ...view.skill };
         this.createdAt = view.createdAt.toISOString();

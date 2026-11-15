@@ -1,8 +1,8 @@
-export type Role = 'developer';
+export type Role = 'developer' | 'admin';
 
 export class InvalidRoleError extends Error {}
 
-const ALL: readonly Role[] = ['developer'];
+const ALL: readonly Role[] = ['developer', 'admin'];
 
 export const Role = {
     ALL,

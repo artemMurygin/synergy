@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PG_POOL } from '../../database/postgres/database.constants';
-import { SeedUsersUseCase } from './application/seed-users.use-case';
+import { SeedDirectoryUseCase } from './application/seed-users.use-case';
 import { AuthSeedModule } from './auth-seed.module';
 import { AUTH_REDIS } from './auth.tokens';
 
@@ -30,7 +30,7 @@ describe('AuthSeedModule', () => {
             .useValue({ status: 'end', disconnect: () => undefined })
             .compile();
 
-        expect(moduleRef.get(SeedUsersUseCase)).toBeInstanceOf(SeedUsersUseCase);
+        expect(moduleRef.get(SeedDirectoryUseCase)).toBeInstanceOf(SeedDirectoryUseCase);
         await moduleRef.close();
     });
 });

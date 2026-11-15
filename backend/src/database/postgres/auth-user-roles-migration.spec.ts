@@ -75,7 +75,7 @@ describe.skipIf(adminUrl === undefined)('027_auth_user_roles migration', () => {
 
     it('rejects a role outside the closed set', async () => {
         await expect(
-            query(`INSERT INTO auth_user_roles (user_id, role) VALUES ($1, 'admin')`, [userId]),
+            query(`INSERT INTO auth_user_roles (user_id, role) VALUES ($1, 'superuser')`, [userId]),
         ).rejects.toThrow(/check constraint/);
     });
 

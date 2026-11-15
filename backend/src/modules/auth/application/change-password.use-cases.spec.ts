@@ -15,6 +15,9 @@ import { ChangePasswordUseCase } from './change-password.use-case';
 import { GetCurrentUserUseCase } from './get-current-user.use-case';
 import {
     FakeSessions,
+    FakeDepartments,
+    FakeEmployeeQuery,
+    FakeProfiles,
     FakeUsers,
     NOW,
     REFRESH_TTL_MS,
@@ -51,6 +54,7 @@ function sessionOf(sessions: FakeSessions): AuthSession {
 
 function setup() {
     const users = new FakeUsers();
+    const profiles = new FakeProfiles();
     const sessions = new FakeSessions();
     const tokens = fakeTokens();
     users.byId.set(
@@ -77,8 +81,11 @@ function setup() {
         fakeSettings,
         fakeTx,
     );
-    const me = new GetCurrentUserUseCase(users);
-    return { change, me, users, sessions };
+    const me = new GetCurrentUserUseCase(
+        users,
+        new FakeEmployeeQuery(users, profiles, new FakeDepartments(profiles)),
+    );
+    return { change, me, users, sessions, tokens };
 }
 
 describe('ChangePasswordUseCase', () => {
@@ -100,6 +107,17 @@ describe('ChangePasswordUseCase', () => {
             mustChangePassword: false,
         });
         expect(sessions.byId.get('current')?.activeToken()?.tokenHash).toBe('h:secret1');
+    });
+
+    it('keeps the current roles in the fresh access token', async () => {
+        const { change, users, tokens } = setup();
+        users.roles.set('u1', ['admin']);
+
+        await change.execute('u1', 'current', 'temporary-1', 'brand-new-pass1');
+
+        expect(tokens.access.sign).toHaveBeenCalledWith(
+            expect.objectContaining({ sub: 'u1', rol: ['admin'] }),
+        );
     });
 
     it('locks the session row and does not read it without a lock', async () => {
@@ -174,11 +192,13 @@ describe('GetCurrentUserUseCase', () => {
     it('returns id, login and the flag without the hash', async () => {
         const { me } = setup();
         const result = await me.execute('u1', []);
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             id: 'u1',
             login: 'ivan',
             mustChangePassword: true,
             roles: [],
+            fullName: 'ivan',
         });
+        expect(result).not.toHaveProperty('passwordHash');
     });
 });

@@ -15,5 +15,13 @@ export function registerAuthErrorStatuses(): void {
         [AuthErrorCode.RateLimited]: HttpStatus.TOO_MANY_REQUESTS,
         [AuthErrorCode.ForbiddenOrigin]: HttpStatus.FORBIDDEN,
         [AuthErrorCode.Forbidden]: HttpStatus.FORBIDDEN,
+        [AuthErrorCode.LastAdmin]: HttpStatus.CONFLICT,
+        [AuthErrorCode.EmailTaken]: HttpStatus.CONFLICT,
+        [AuthErrorCode.LoginTaken]: HttpStatus.CONFLICT,
+        [AuthErrorCode.DepartmentNameTaken]: HttpStatus.CONFLICT,
+        [AuthErrorCode.DepartmentNotEmpty]: HttpStatus.CONFLICT,
+        [AuthErrorCode.EmployeeNotFound]: HttpStatus.NOT_FOUND,
+        [AuthErrorCode.DepartmentNotFound]: HttpStatus.NOT_FOUND,
+        [AuthErrorCode.ProfileIncomplete]: HttpStatus.BAD_REQUEST,
     });
 }

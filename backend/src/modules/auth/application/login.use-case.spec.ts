@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { User } from '../domain/user';
+import { InvalidCredentialsError } from '../domain/errors';
 import { LoginUseCase } from './login.use-case';
 import {
     FakeSessions,
@@ -59,5 +60,16 @@ describe('LoginUseCase roles', () => {
         await useCase.execute('ivan', 'secret-pass');
 
         expect(tokens.access.sign).toHaveBeenCalledWith(expect.objectContaining({ rol: [] }));
+    });
+});
+
+describe('LoginUseCase dismissed employee', () => {
+    it('refuses a dismissed employee with the right password', async () => {
+        const { useCase, users } = setup();
+        users.byId.get('u1')?.deactivate();
+
+        await expect(useCase.execute('ivan', 'secret-pass')).rejects.toBeInstanceOf(
+            InvalidCredentialsError,
+        );
     });
 });

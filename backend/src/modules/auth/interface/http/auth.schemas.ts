@@ -28,7 +28,15 @@ export const currentUserResponseSchema = z.object({
     id: z.string(),
     login: z.string(),
     mustChangePassword: z.boolean(),
-    roles: z.array(z.enum(['developer'])).describe('Roles from the access token; [] if none'),
+    roles: z
+        .array(z.enum(['developer', 'admin']))
+        .describe('Roles from the access token; [] if none'),
+    fullName: z.string().describe('The login for a user without a profile'),
+    lastName: z.string().nullable(),
+    firstName: z.string().nullable(),
+    middleName: z.string().nullable(),
+    position: z.string().nullable(),
+    department: z.object({ id: z.string(), name: z.string() }).nullable(),
 });
 
 export type TokensResponse = z.infer<typeof tokensResponseSchema>;

@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { CommonQueryMethods } from 'slonik';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd';
+import { formatFullName, type FullNameParts } from '../../../shared/people/full-name';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
 import type { Agent } from '../domain/agent';
 import { InvalidSkillTransitionError, RequestAlreadyDecidedError } from '../domain/errors';
@@ -254,6 +255,8 @@ function paginate<T>(all: T[], page: PageRequest): Page<T> {
 export class InMemoryRequestQuery extends RequestQuery {
     /** Логины авторов; по умолчанию логин равен идентификатору. */
     readonly logins = new Map<string, string>();
+    /** Части ФИО авторов; без записи полное имя равно логину. */
+    readonly profiles = new Map<string, FullNameParts>();
 
     constructor(
         private readonly requests: InMemoryRequestRepository,
@@ -270,6 +273,10 @@ export class InMemoryRequestQuery extends RequestQuery {
             id: request.id,
             authorId: request.authorId,
             authorLogin: this.logins.get(request.authorId) ?? request.authorId,
+            authorFullName: formatFullName(
+                this.profiles.get(request.authorId) ?? {},
+                this.logins.get(request.authorId) ?? request.authorId,
+            ),
             title: request.title.value,
             description: request.description,
             frequency: { count: request.frequency.count, period: request.frequency.period },

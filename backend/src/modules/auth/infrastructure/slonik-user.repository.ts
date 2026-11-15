@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { sql, type DatabasePool } from 'slonik';
+import { sql, UniqueIntegrityConstraintViolationError, type DatabasePool } from 'slonik';
 import { z } from 'zod';
 import { PG_POOL } from '../../../database/postgres/database.constants';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
+import { LoginTakenError } from '../domain/errors';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { UserRepository } from '../domain/ports/user-repository.port';
@@ -10,6 +11,8 @@ import { User } from '../domain/user';
 import { Role } from '../domain/role';
 import type { UserSearch } from '../domain/user-search';
 import type { UserSummary } from '../domain/user-summary';
+
+const LOGIN_INDEX = 'auth_users_login_lower_idx';
 
 const userRow = z.object({
     id: z.string(),
@@ -65,18 +68,28 @@ export class SlonikUserRepository extends UserRepository {
     }
 
     async save(user: User): Promise<void> {
-        await this.tx.executor().query(sql.unsafe`
-            INSERT INTO auth_users
-                (id, login, password_hash, must_change_password, is_active, created_at, password_changed_at)
-            VALUES (${user.id}, ${user.login.value}, ${user.passwordHash.value},
-                    ${user.mustChangePassword}, ${user.isActive},
-                    ${sql.timestamp(user.createdAt)}, ${sql.timestamp(user.passwordChangedAt)})
-            ON CONFLICT (id) DO UPDATE SET
-                login = EXCLUDED.login,
-                password_hash = EXCLUDED.password_hash,
-                must_change_password = EXCLUDED.must_change_password,
-                is_active = EXCLUDED.is_active,
-                password_changed_at = EXCLUDED.password_changed_at`);
+        try {
+            await this.tx.executor().query(sql.unsafe`
+                INSERT INTO auth_users
+                    (id, login, password_hash, must_change_password, is_active, created_at, password_changed_at)
+                VALUES (${user.id}, ${user.login.value}, ${user.passwordHash.value},
+                        ${user.mustChangePassword}, ${user.isActive},
+                        ${sql.timestamp(user.createdAt)}, ${sql.timestamp(user.passwordChangedAt)})
+                ON CONFLICT (id) DO UPDATE SET
+                    login = EXCLUDED.login,
+                    password_hash = EXCLUDED.password_hash,
+                    must_change_password = EXCLUDED.must_change_password,
+                    is_active = EXCLUDED.is_active,
+                    password_changed_at = EXCLUDED.password_changed_at`);
+        } catch (error) {
+            if (
+                error instanceof UniqueIntegrityConstraintViolationError &&
+                error.constraint === LOGIN_INDEX
+            ) {
+                throw new LoginTakenError();
+            }
+            throw error;
+        }
     }
 
     async findRoles(userId: string): Promise<Role[]> {
@@ -91,6 +104,28 @@ export class SlonikUserRepository extends UserRepository {
                 INSERT INTO auth_user_roles (user_id, role) VALUES (${userId}, ${role})
                 ON CONFLICT DO NOTHING`);
         }
+    }
+
+    async replaceRoles(userId: string, roles: Role[]): Promise<void> {
+        const executor = this.tx.executor();
+        await executor.query(sql.unsafe`DELETE FROM auth_user_roles WHERE user_id = ${userId}`);
+        for (const role of new Set(roles)) {
+            await executor.query(sql.unsafe`
+                INSERT INTO auth_user_roles (user_id, role) VALUES (${userId}, ${role})`);
+        }
+    }
+
+    async setActive(userId: string, active: boolean): Promise<void> {
+        await this.tx.executor().query(sql.unsafe`
+            UPDATE auth_users SET is_active = ${active} WHERE id = ${userId}`);
+    }
+
+    async countActiveAdmins(): Promise<number> {
+        const count = await this.tx.executor().oneFirst(sql.unsafe`
+            SELECT count(*)::int FROM auth_users u
+            WHERE u.is_active
+              AND EXISTS (SELECT 1 FROM auth_user_roles r WHERE r.user_id = u.id AND r.role = 'admin')`);
+        return z.number().parse(count);
     }
 
     async existsByLogin(login: Login): Promise<boolean> {

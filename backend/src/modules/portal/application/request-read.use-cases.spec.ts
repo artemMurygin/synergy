@@ -111,6 +111,50 @@ describe('GetRequestUseCase', () => {
         expect(view.id).toBe(created.id);
     });
 
+    it('отдаёт разработчику автора с идентификатором, логином и полным именем', async () => {
+        const { submit, get, requestQuery } = setup();
+        requestQuery.logins.set('user-1', 'ivan');
+        requestQuery.profiles.set('user-1', { lastName: 'Иванов', firstName: 'Иван' });
+        const created = await submit.execute(valid);
+
+        const view = await get.execute({
+            actorId: 'dev-1',
+            roles: ['developer'],
+            requestId: created.id,
+        });
+
+        expect(view).toMatchObject({
+            authorId: 'user-1',
+            authorLogin: 'ivan',
+            authorFullName: 'Иванов Иван',
+        });
+    });
+
+    it('для автора без ФИО полное имя равно логину', async () => {
+        const { submit, get, requestQuery } = setup();
+        requestQuery.logins.set('user-1', 'ivan');
+        const created = await submit.execute(valid);
+
+        const view = await get.execute({
+            actorId: 'dev-1',
+            roles: ['developer'],
+            requestId: created.id,
+        });
+
+        expect(view.authorFullName).toBe('ivan');
+    });
+
+    it('«Мои заявки» отдают автора с полным именем', async () => {
+        const { submit, listMine, requestQuery } = setup();
+        requestQuery.logins.set('user-1', 'ivan');
+        requestQuery.profiles.set('user-1', { lastName: 'Иванов', firstName: 'Иван' });
+        await submit.execute(valid);
+
+        const page = await listMine.execute({ authorId: 'user-1', limit: 10, page: 0 });
+
+        expect(page.items[0]?.authorFullName).toBe('Иванов Иван');
+    });
+
     it('скрывает чужую заявку от остальных как несуществующую', async () => {
         const { submit, get } = setup();
         const created = await submit.execute(valid);

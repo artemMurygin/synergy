@@ -155,6 +155,13 @@ describe('validateEnv auth settings', () => {
         );
     });
 
+    it('keeps AUTH_SEED_FILE optional and accepts a path', () => {
+        expect(validateEnv({ ...withAuth }).AUTH_SEED_FILE).toBeUndefined();
+        expect(
+            validateEnv({ ...withAuth, AUTH_SEED_FILE: './db/seeds/users.json' }).AUTH_SEED_FILE,
+        ).toBe('./db/seeds/users.json');
+    });
+
     it('accepts seed users without a password (the seeder generates one)', () => {
         const env = validateEnv({
             ...withAuth,

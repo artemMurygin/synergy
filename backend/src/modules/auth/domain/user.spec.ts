@@ -39,6 +39,23 @@ describe('User', () => {
         expect(u.canSignIn()).toBe(false);
     });
 
+    it('activate re-enables a deactivated user and is idempotent', () => {
+        const u = fresh();
+        u.deactivate();
+        u.activate();
+        expect(u.isActive).toBe(true);
+        expect(u.canSignIn()).toBe(true);
+        u.activate();
+        expect(u.isActive).toBe(true);
+    });
+
+    it('deactivate is idempotent', () => {
+        const u = fresh();
+        u.deactivate();
+        u.deactivate();
+        expect(u.isActive).toBe(false);
+    });
+
     it('restore keeps persisted state', () => {
         const u = User.restore({
             id: 'u2',

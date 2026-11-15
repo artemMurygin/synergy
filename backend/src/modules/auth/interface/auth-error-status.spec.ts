@@ -10,6 +10,14 @@ import {
     InvalidCredentialsError,
     ForbiddenError,
     ForbiddenOriginError,
+    LastAdminError,
+    EmailTakenError,
+    LoginTakenError,
+    DepartmentNameTakenError,
+    ProfileIncompleteError,
+    DepartmentNotEmptyError,
+    EmployeeNotFoundError,
+    DepartmentNotFoundError,
     InvalidRefreshTokenError,
     PasswordChangeRequiredError,
     RateLimitedError,
@@ -31,6 +39,14 @@ const FACTORIES: Record<string, () => Error> = {
     limited: () => new RateLimitedError(42),
     origin: () => new ForbiddenOriginError(),
     forbidden: () => new ForbiddenError(),
+    lastAdmin: () => new LastAdminError(),
+    emailTaken: () => new EmailTakenError(),
+    loginTaken: () => new LoginTakenError(),
+    departmentNameTaken: () => new DepartmentNameTakenError(),
+    departmentNotEmpty: () => new DepartmentNotEmptyError(),
+    employeeNotFound: () => new EmployeeNotFoundError(),
+    departmentNotFound: () => new DepartmentNotFoundError(),
+    profileIncomplete: () => new ProfileIncompleteError(),
 };
 
 @Controller('probe')
@@ -76,6 +92,14 @@ describe('auth domain errors over HTTP', () => {
         ['limited', 429, 'RATE_LIMITED'],
         ['origin', 403, 'FORBIDDEN_ORIGIN'],
         ['forbidden', 403, 'FORBIDDEN'],
+        ['lastAdmin', 409, 'LAST_ADMIN'],
+        ['emailTaken', 409, 'EMAIL_TAKEN'],
+        ['loginTaken', 409, 'LOGIN_TAKEN'],
+        ['departmentNameTaken', 409, 'DEPARTMENT_NAME_TAKEN'],
+        ['profileIncomplete', 400, 'PROFILE_INCOMPLETE'],
+        ['departmentNotEmpty', 409, 'DEPARTMENT_NOT_EMPTY'],
+        ['employeeNotFound', 404, 'EMPLOYEE_NOT_FOUND'],
+        ['departmentNotFound', 404, 'DEPARTMENT_NOT_FOUND'],
     ])('%s answers %i with code %s', async (kind, status, code) => {
         expect(FACTORIES[kind]()).toBeInstanceOf(BaseError);
 

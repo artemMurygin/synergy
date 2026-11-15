@@ -12,7 +12,7 @@ import { FakeSessions, FakeUsers } from './application/test-doubles';
 import { LoginAttemptStore } from './domain/ports/login-attempt-store.port';
 import { AuthSessionRepository } from './domain/ports/auth-session-repository.port';
 import { UserRepository } from './domain/ports/user-repository.port';
-import { SeedUsersUseCase } from './application/seed-users.use-case';
+import { SeedDirectoryUseCase } from './application/seed-users.use-case';
 import { AuthModule } from './auth.module';
 import { AUTH_REDIS } from './auth.tokens';
 import { InMemoryLoginAttemptStore } from './interface/http/testing/in-memory-login-attempt-store';
@@ -88,7 +88,10 @@ describe('AuthModule', () => {
         configureHttp(app as never, { allowedOrigins: [ORIGIN] });
         await app.listen(0);
         base = (await app.getUrl()).replace('[::1]', 'localhost');
-        await moduleRef.get(SeedUsersUseCase).execute([{ login: 'anna', password: 'temporary-1' }]);
+        await moduleRef.get(SeedDirectoryUseCase).execute({
+            departments: [],
+            users: [{ login: 'anna', password: 'temporary-1' }],
+        });
     });
 
     afterAll(async () => {

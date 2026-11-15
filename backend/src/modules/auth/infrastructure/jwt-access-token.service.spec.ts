@@ -45,7 +45,7 @@ describe('JwtAccessTokenService', () => {
 
     it('rejects a token with an unknown role', () => {
         const bad = new JwtService({ secret: SECRET }).sign(
-            { ...claims, rol: ['admin'], jti: 'j', exp: Math.floor(Date.now() / 1000) + 600 },
+            { ...claims, rol: ['root'], jti: 'j', exp: Math.floor(Date.now() / 1000) + 600 },
             { algorithm: 'HS256' },
         );
         expect(() => service().verify(bad)).toThrow(AccessTokenInvalidError);

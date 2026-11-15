@@ -118,6 +118,26 @@ describe('AuthApiClient', () => {
       expect(headers.get('authorization')).toBe(`Bearer ${access.value}`)
       expect(user).toEqual({ id: 'u1', login: 'anna' })
     })
+
+    it('reads the extended /auth/me profile without errors and keeps id and login', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(200, {
+          id: 'u1',
+          login: 'anna',
+          mustChangePassword: false,
+          roles: ['developer', 'admin'],
+          fullName: 'Иванова Анна Сергеевна',
+          lastName: 'Иванова',
+          firstName: 'Анна',
+          middleName: null,
+          position: 'Тимлид',
+          department: { id: 'd1', name: 'Разработка' }
+        })
+      )
+      const access = AccessToken.parse(makeJwt())
+
+      expect(await client.getCurrentUser(access)).toEqual({ id: 'u1', login: 'anna' })
+    })
   })
 
   describe('error mapping', () => {

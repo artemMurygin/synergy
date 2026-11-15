@@ -98,6 +98,24 @@ describe('auth-api', () => {
     expect(user).toEqual({ id: 'u1', login: 'ivan', mustChangePassword: false })
   })
 
+  it('me parses the extended profile without errors', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        id: 'u1',
+        login: 'ivan',
+        mustChangePassword: false,
+        roles: ['admin'],
+        fullName: 'Иванов Иван Петрович',
+        lastName: 'Иванов',
+        firstName: 'Иван',
+        middleName: 'Петрович',
+        position: null,
+        department: { id: 'd1', name: 'Разработка' },
+      }),
+    )
+    expect(await meRequest('tok')).toEqual({ id: 'u1', login: 'ivan', mustChangePassword: false })
+  })
+
   it('maps INVALID_CREDENTIALS', async () => {
     fetchMock.mockResolvedValue(json({ code: 'INVALID_CREDENTIALS', message: 'bad' }, 401))
     await expect(loginRequest('a', 'b')).rejects.toBeInstanceOf(InvalidCredentialsError)

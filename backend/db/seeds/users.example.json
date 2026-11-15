@@ -1,0 +1,38 @@
+{
+  "departments": [
+    { "id": "dev", "name": "Разработка", "head": "ivan" },
+    { "id": "qa", "name": "Тестирование", "head": "anna" }
+  ],
+  "users": [
+    {
+      "login": "ivan",
+      "lastName": "Иванов",
+      "firstName": "Иван",
+      "middleName": "Петрович",
+      "departmentId": "dev",
+      "position": "Руководитель разработки",
+      "email": "ivan@example.com",
+      "scrmEmployeeId": "scrm-1",
+      "password": "Temp-pass-1",
+      "roles": ["admin"]
+    },
+    {
+      "login": "anna",
+      "lastName": "Петрова",
+      "firstName": "Анна",
+      "departmentId": "qa",
+      "position": "Руководитель тестирования",
+      "email": "anna@example.com",
+      "scrmEmployeeId": "scrm-2"
+    },
+    {
+      "login": "boris",
+      "lastName": "Сидоров",
+      "firstName": "Борис",
+      "departmentId": "dev",
+      "position": "Разработчик",
+      "email": "boris@example.com",
+      "roles": ["developer"]
+    }
+  ]
+}

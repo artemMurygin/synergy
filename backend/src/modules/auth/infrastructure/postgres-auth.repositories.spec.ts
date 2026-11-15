@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrate } from '../../../database/postgres/migrator';
 import { TransactionRunner } from '../../../database/postgres/transaction-runner';
 import { AuthSession } from '../domain/auth-session';
+import { LoginTakenError } from '../domain/errors';
 import { Login } from '../domain/login';
 import { PasswordHash } from '../domain/password-hash';
 import { User } from '../domain/user';
@@ -130,6 +131,71 @@ describe.skipIf(adminUrl === undefined)('Slonik auth repositories', () => {
             expect(found?.mustChangePassword).toBe(false);
             expect(found?.isActive).toBe(false);
             expect(found?.passwordChangedAt.getTime()).toBe(later.getTime());
+        });
+
+        it('replaceRoles replaces the set; an empty set removes every role', async () => {
+            const user = newUser();
+            await users.save(user);
+            await users.assignRoles(user.id, ['developer']);
+            await users.replaceRoles(user.id, ['admin']);
+            expect(await users.findRoles(user.id)).toEqual(['admin']);
+            await users.replaceRoles(user.id, ['developer', 'admin', 'admin']);
+            expect(await users.findRoles(user.id)).toEqual(['admin', 'developer']);
+            await users.replaceRoles(user.id, []);
+            expect(await users.findRoles(user.id)).toEqual([]);
+        });
+
+        it('replaceRoles does not touch the roles of other users', async () => {
+            const user = newUser();
+            const other = newUser('petrov');
+            await users.save(user);
+            await users.save(other);
+            await users.assignRoles(other.id, ['developer']);
+            await users.replaceRoles(user.id, []);
+            expect(await users.findRoles(other.id)).toEqual(['developer']);
+        });
+
+        it('setActive changes only is_active and leaves the other columns untouched', async () => {
+            const user = newUser();
+            await users.save(user);
+            const before = await client.query('SELECT * FROM auth_users WHERE id = $1', [user.id]);
+            await users.setActive(user.id, false);
+            const after = await client.query('SELECT * FROM auth_users WHERE id = $1', [user.id]);
+            expect(after.rows[0]).toEqual({ ...before.rows[0], is_active: false });
+            await users.setActive(user.id, true);
+            expect((await users.findById(user.id))?.isActive).toBe(true);
+        });
+
+        it('setActive does not roll back a concurrent password change', async () => {
+            const user = newUser();
+            await users.save(user);
+            const changed = await users.findById(user.id);
+            if (changed === null) throw new Error('user missing');
+            changed.changePassword(PasswordHash.of('$argon2id$new'), new Date(T0.getTime() + HOUR));
+            await Promise.all([users.save(changed), users.setActive(user.id, false)]);
+            const found = await users.findById(user.id);
+            expect(found?.passwordHash.value).toBe('$argon2id$new');
+            expect(found?.mustChangePassword).toBe(false);
+            expect(found?.isActive).toBe(false);
+        });
+
+        it('countActiveAdmins ignores dismissed admins and non-admins', async () => {
+            const active = newUser('admin1');
+            const dismissed = newUser('admin2');
+            const dev = newUser('dev1');
+            for (const u of [active, dismissed, dev]) await users.save(u);
+            expect(await users.countActiveAdmins()).toBe(0);
+            await users.assignRoles(active.id, ['admin']);
+            await users.assignRoles(dismissed.id, ['admin']);
+            await users.assignRoles(dev.id, ['developer']);
+            expect(await users.countActiveAdmins()).toBe(2);
+            await users.setActive(dismissed.id, false);
+            expect(await users.countActiveAdmins()).toBe(1);
+        });
+
+        it('save maps a duplicate login (a lost race) to LoginTakenError', async () => {
+            await users.save(newUser('ivanov'));
+            await expect(users.save(newUser('IVANOV'))).rejects.toBeInstanceOf(LoginTakenError);
         });
 
         it('existsByLogin is case-insensitive', async () => {

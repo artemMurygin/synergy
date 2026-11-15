@@ -36,6 +36,41 @@ describe('ListQueueUseCase', () => {
     });
 });
 
+describe('ListQueueUseCase: автор', () => {
+    it('возвращает автору идентификатор, логин и полное имя', async () => {
+        const fx = createPortalFixture();
+        const submit = new SubmitRequestUseCase(fx.requests, fx.requestQuery, fx.clock);
+        const queue = new ListQueueUseCase(fx.requestQuery);
+        fx.requestQuery.logins.set('user-1', 'ivan');
+        fx.requestQuery.profiles.set('user-1', {
+            lastName: 'Иванов',
+            firstName: 'Иван',
+            middleName: 'Иванович',
+        });
+        await submit.execute(base);
+
+        const page = await queue.execute({ limit: 10, page: 0 });
+
+        expect(page.items[0]).toMatchObject({
+            authorId: 'user-1',
+            authorLogin: 'ivan',
+            authorFullName: 'Иванов Иван Иванович',
+        });
+    });
+
+    it('для автора без профиля полное имя равно логину', async () => {
+        const fx = createPortalFixture();
+        const submit = new SubmitRequestUseCase(fx.requests, fx.requestQuery, fx.clock);
+        const queue = new ListQueueUseCase(fx.requestQuery);
+        fx.requestQuery.logins.set('user-1', 'ivan');
+        await submit.execute(base);
+
+        const page = await queue.execute({ limit: 10, page: 0 });
+
+        expect(page.items[0]?.authorFullName).toBe('ivan');
+    });
+});
+
 describe('ListAgentsUseCase', () => {
     it('возвращает агентов вместе с продуктами', async () => {
         const fx = createPortalFixture();

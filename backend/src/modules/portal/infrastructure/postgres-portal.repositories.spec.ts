@@ -64,6 +64,16 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         return id;
     }
 
+    async function addProfile(
+        userId: string,
+        parts: { last?: string | null; first?: string | null; middle?: string | null },
+    ): Promise<void> {
+        await client.query(
+            'INSERT INTO auth_user_profiles (user_id, last_name, first_name, middle_name) VALUES ($1, $2, $3, $4)',
+            [userId, parts.last ?? null, parts.first ?? null, parts.middle ?? null],
+        );
+    }
+
     let seq = 0;
     function makeRequest(authorId = alice, createdAtOffsetSec = ++seq): IdeaRequest {
         return IdeaRequest.create({
@@ -130,6 +140,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         await client.query('DELETE FROM portal_skills');
         await client.query('DELETE FROM portal_agents');
         await client.query('DELETE FROM portal_products');
+        await client.query('DELETE FROM auth_user_profiles');
         await client.query('DELETE FROM auth_users');
         alice = await addUser('alice');
         bob = await addUser('bob');
@@ -430,6 +441,53 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             expect(page.total).toBe(2);
             expect(page.items.map((item) => item.id)).toEqual([older.id, newer.id]);
             expect(page.items.map((item) => item.authorLogin)).toEqual(['alice', 'bob']);
+        });
+
+        it('builds the author full name from the profile and falls back to the login', async () => {
+            await addProfile(alice, { last: 'Иванова', first: 'Анна', middle: 'Петровна' });
+            const withProfile = makeRequest(alice, 1);
+            const withoutProfile = makeRequest(bob, 2);
+            for (const request of [withProfile, withoutProfile]) await requests.save(request);
+
+            const page = await requestQuery.listPending({ limit: 50, page: 0 });
+            const card = await requestQuery.findView(withProfile.id);
+
+            expect(page.items.map((item) => item.authorFullName)).toEqual([
+                'Иванова Анна Петровна',
+                'bob',
+            ]);
+            expect(card?.authorFullName).toBe('Иванова Анна Петровна');
+            expect(card?.authorLogin).toBe('alice');
+        });
+
+        it('uses the login when the profile has no name parts', async () => {
+            await addProfile(alice, {});
+            const request = makeRequest(alice);
+            await requests.save(request);
+
+            expect((await requestQuery.findView(request.id))?.authorFullName).toBe('alice');
+        });
+
+        it('keeps the request of a dismissed author in the queue with the same full name', async () => {
+            await addProfile(alice, { last: 'Иванова', first: 'Анна' });
+            const request = makeRequest(alice);
+            await requests.save(request);
+            await client.query('UPDATE auth_users SET is_active = false WHERE id = $1', [alice]);
+
+            const page = await requestQuery.listPending({ limit: 50, page: 0 });
+
+            expect(page.total).toBe(1);
+            expect(page.items[0]?.authorFullName).toBe('Иванова Анна');
+        });
+
+        it('listByAuthor still works for an author with a profile', async () => {
+            await addProfile(alice, { last: 'Иванова', first: 'Анна' });
+            await requests.save(makeRequest(alice));
+
+            const page = await requestQuery.listByAuthor(alice, { limit: 50, page: 0 });
+
+            expect(page.total).toBe(1);
+            expect(page.items[0]?.authorFullName).toBe('Иванова Анна');
         });
 
         it('listPending paginates', async () => {

@@ -19,8 +19,25 @@ import { LoginThrottler, LoginThrottlerLimits } from './application/login-thrott
 import { LoginUseCase } from './application/login.use-case';
 import { LogoutUseCase } from './application/logout.use-case';
 import { RefreshSessionUseCase } from './application/refresh-session.use-case';
-import { SeedUsersUseCase } from './application/seed-users.use-case';
+import { ProvisionEmployee } from './application/provision-employee';
+import { SeedDirectoryUseCase } from './application/seed-users.use-case';
 import { AUTH_REDIS } from './auth.tokens';
+import { ActiveAdminGuard } from './application/active-admin-guard';
+import { CreateDepartmentUseCase } from './application/create-department.use-case';
+import { CreateEmployeeUseCase } from './application/create-employee.use-case';
+import { DeleteDepartmentUseCase } from './application/delete-department.use-case';
+import { DismissEmployeeUseCase } from './application/dismiss-employee.use-case';
+import { GetEmployeeUseCase } from './application/get-employee.use-case';
+import { ListDepartmentsUseCase } from './application/list-departments.use-case';
+import { ListEmployeesUseCase } from './application/list-employees.use-case';
+import { ReplaceEmployeeRolesUseCase } from './application/replace-employee-roles.use-case';
+import { RestoreEmployeeUseCase } from './application/restore-employee.use-case';
+import { UpdateDepartmentUseCase } from './application/update-department.use-case';
+import { UpdateEmployeeProfileUseCase } from './application/update-employee-profile.use-case';
+import { AdminLock } from './domain/ports/admin-lock.port';
+import { PgAdminLock } from './infrastructure/pg-admin-lock';
+import { AdminDepartmentsController } from './interface/http/admin-departments.controller';
+import { AdminEmployeesController } from './interface/http/admin-employees.controller';
 import { AccessTokenService } from './domain/ports/access-token-service.port';
 import { AuthSessionRepository } from './domain/ports/auth-session-repository.port';
 import { AuthSettings } from './domain/ports/auth-settings.port';
@@ -29,6 +46,9 @@ import { LoginAttemptStore } from './domain/ports/login-attempt-store.port';
 import { PasswordGenerator } from './domain/ports/password-generator.port';
 import { PasswordHasher } from './domain/ports/password-hasher.port';
 import { RefreshTokenFactory } from './domain/ports/refresh-token-factory.port';
+import { DepartmentRepository } from './domain/ports/department-repository.port';
+import { EmployeeQuery } from './domain/ports/employee-query.port';
+import { UserProfileRepository } from './domain/ports/user-profile-repository.port';
 import { UserRepository } from './domain/ports/user-repository.port';
 import { Argon2PasswordHasher } from './infrastructure/argon2-password-hasher';
 import { CryptoRefreshTokenFactory } from './infrastructure/crypto-refresh-token.factory';
@@ -41,6 +61,9 @@ import { JwtAccessTokenService } from './infrastructure/jwt-access-token.service
 import { RandomPasswordGenerator } from './infrastructure/random-password-generator';
 import { RedisLoginAttemptStore } from './infrastructure/redis-login-attempt-store';
 import { SlonikAuthSessionRepository } from './infrastructure/slonik-auth-session.repository';
+import { SlonikDepartmentRepository } from './infrastructure/slonik-department.repository';
+import { SlonikEmployeeQuery } from './infrastructure/slonik-employee.query';
+import { SlonikUserProfileRepository } from './infrastructure/slonik-user-profile.repository';
 import { SlonikUserRepository } from './infrastructure/slonik-user.repository';
 import { SystemClock } from './infrastructure/system-clock';
 import { registerAuthErrorStatuses } from './interface/auth-error-status';
@@ -66,7 +89,12 @@ class RedisLifecycle implements OnApplicationShutdown {
 
 @Module({
     imports: [PostgresModule],
-    controllers: [AuthController, UsersController],
+    controllers: [
+        AuthController,
+        UsersController,
+        AdminEmployeesController,
+        AdminDepartmentsController,
+    ],
     providers: [
         LoginUseCase,
         RefreshSessionUseCase,
@@ -75,13 +103,30 @@ class RedisLifecycle implements OnApplicationShutdown {
         GetCurrentUserUseCase,
         FindActiveUserUseCase,
         ListActiveUsersUseCase,
-        SeedUsersUseCase,
+        SeedDirectoryUseCase,
+        ProvisionEmployee,
+        ActiveAdminGuard,
+        ListEmployeesUseCase,
+        GetEmployeeUseCase,
+        CreateEmployeeUseCase,
+        UpdateEmployeeProfileUseCase,
+        ReplaceEmployeeRolesUseCase,
+        DismissEmployeeUseCase,
+        RestoreEmployeeUseCase,
+        ListDepartmentsUseCase,
+        CreateDepartmentUseCase,
+        UpdateDepartmentUseCase,
+        DeleteDepartmentUseCase,
         LoginThrottler,
         LoginThrottlerGuard,
         OriginGuard,
         RolesGuard,
         RefreshCookieService,
         { provide: UserRepository, useClass: SlonikUserRepository },
+        { provide: EmployeeQuery, useClass: SlonikEmployeeQuery },
+        { provide: DepartmentRepository, useClass: SlonikDepartmentRepository },
+        { provide: AdminLock, useClass: PgAdminLock },
+        { provide: UserProfileRepository, useClass: SlonikUserProfileRepository },
         { provide: AuthSessionRepository, useClass: SlonikAuthSessionRepository },
         { provide: PasswordHasher, useClass: Argon2PasswordHasher },
         { provide: RefreshTokenFactory, useClass: CryptoRefreshTokenFactory },

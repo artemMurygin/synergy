@@ -68,8 +68,10 @@ describe.skipIf(adminUrl === undefined)('013_auth migration', () => {
              WHERE table_schema = 'public' AND table_name LIKE 'auth\\_%'`,
         );
         expect(rows.map((r) => r.table_name).sort()).toEqual([
+            'auth_departments',
             'auth_refresh_tokens',
             'auth_sessions',
+            'auth_user_profiles',
             'auth_user_roles',
             'auth_users',
         ]);

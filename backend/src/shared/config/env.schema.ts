@@ -99,6 +99,7 @@ export const envSchema = z
                     .filter((o) => o !== ''),
             ),
         TRUST_PROXY: z.string().optional(),
+        AUTH_SEED_FILE: z.string().optional(),
         AUTH_SEED_USERS: z
             .string()
             .optional()

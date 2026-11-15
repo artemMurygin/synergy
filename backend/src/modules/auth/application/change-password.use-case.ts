@@ -69,7 +69,12 @@ export class ChangePasswordUseCase {
             await this.sessions.revokeAllForUser(userId, sessionId);
             await this.sessions.save(session);
 
-            const access = this.accessTokens.sign({ sub: user.id, sid: session.id, mcp: false });
+            const access = this.accessTokens.sign({
+                sub: user.id,
+                sid: session.id,
+                mcp: false,
+                rol: await this.users.findRoles(user.id),
+            });
             return {
                 access: access.token,
                 expiresIn: access.expiresIn,

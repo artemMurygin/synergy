@@ -25,6 +25,7 @@ import { LoginAttemptStore } from '../../domain/ports/login-attempt-store.port';
 import { JwtAccessTokenService } from '../../infrastructure/jwt-access-token.service';
 import { registerAuthErrorStatuses } from '../auth-error-status';
 import { AuthHttpSettings } from '../auth-http.settings';
+import type { Role } from '../../domain/role';
 import { AuthController } from './auth.controller';
 import { AllowPendingPasswordChange, Public } from './decorators';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -141,7 +142,7 @@ describe('AuthController', () => {
         });
     }
 
-    function bearer(opts: { mcp?: boolean; rol?: 'developer'[] } = {}): Record<string, string> {
+    function bearer(opts: { mcp?: boolean; rol?: Role[] } = {}): Record<string, string> {
         const { token } = tokens.sign({
             sub: 'u1',
             sid: 's1',
@@ -461,6 +462,27 @@ describe('AuthController', () => {
                 roles: [],
             });
             expect(currentUser.execute).toHaveBeenCalledWith('u1', []);
+        });
+
+        it('returns the profile fields of the use case', async () => {
+            const body = {
+                id: 'u1',
+                login: 'anna',
+                mustChangePassword: false,
+                roles: ['admin'],
+                fullName: 'Иванова Анна',
+                lastName: 'Иванова',
+                firstName: 'Анна',
+                middleName: null,
+                position: 'Аналитик',
+                department: { id: 'd1', name: 'Разработка' },
+            };
+            currentUser.execute.mockResolvedValue(body);
+
+            const response = await call('GET', '/auth/me', { headers: bearer({ rol: ['admin'] }) });
+
+            expect(response.status).toBe(200);
+            expect(await response.json()).toEqual(body);
         });
 
         it('passes the roles from the token claims to the use case', async () => {

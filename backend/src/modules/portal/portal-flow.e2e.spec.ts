@@ -123,6 +123,7 @@ describe('portal flow (PortalModule wired end to end)', () => {
         });
         const requestQuery = new InMemoryRequestQuery(requests, skills);
         requestQuery.logins.set(ANNA, 'anna');
+        requestQuery.profiles.set(ANNA, { lastName: 'Иванова', firstName: 'Анна' });
         const moduleRef = await Test.createTestingModule({
             imports: [AuthStubModule, OutboxStubModule, PortalModule],
         })
@@ -153,8 +154,13 @@ describe('portal flow (PortalModule wired end to end)', () => {
     interface Body {
         id: string;
         status: string | { code: string; label: string };
+        author: { id: string; login: string; fullName: string };
         total: number;
-        items: { id: string; status: { code: string; label: string } }[];
+        items: {
+            id: string;
+            status: { code: string; label: string };
+            author: { id: string; login: string; fullName: string };
+        }[];
         skill: { id: string; name: string } | null;
     }
 
@@ -215,6 +221,13 @@ describe('portal flow (PortalModule wired end to end)', () => {
         const queue = await json('GET', '/portal/queue', bearer(DEV, ['developer']));
         expect(queue.status).toBe(200);
         expect(queue.body.items.map((item) => item.id)).toEqual([requestId]);
+        expect(queue.body.items[0]?.author).toEqual({
+            id: ANNA,
+            login: 'anna',
+            fullName: 'Иванова Анна',
+        });
+        const card = await json('GET', `/portal/requests/${requestId}`, bearer(DEV, ['developer']));
+        expect(card.body.author).toEqual({ id: ANNA, login: 'anna', fullName: 'Иванова Анна' });
 
         const agents = await fetch(`${base}/portal/agents`, { headers: bearer(ANNA) });
         expect(agents.status).toBe(200);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql, type FragmentSqlToken } from 'slonik';
 import { z } from 'zod';
+import { formatFullName } from '../../../shared/people/full-name';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { Frequency } from '../domain/frequency';
 import type { Page, PageRequest } from '../domain/ports/page';
@@ -14,6 +15,9 @@ const viewRow = z.object({
     id: z.string(),
     author_id: z.string(),
     author_login: z.string(),
+    author_last_name: z.string().nullable(),
+    author_first_name: z.string().nullable(),
+    author_middle_name: z.string().nullable(),
     title: z.string(),
     description: z.string(),
     frequency_count: z.number(),
@@ -30,13 +34,16 @@ const viewRow = z.object({
 });
 
 const SELECT_VIEW = sql.fragment`
-    SELECT r.id, r.author_id, u.login AS author_login, r.title, r.description,
+    SELECT r.id, r.author_id, u.login AS author_login,
+           p.last_name AS author_last_name, p.first_name AS author_first_name,
+           p.middle_name AS author_middle_name, r.title, r.description,
            r.frequency_count, r.frequency_period, r.minutes_per_run, r.people_count,
            r.decision, r.skill_id, s.name AS skill_name, s.description AS skill_description,
            s.status AS skill_status, r.reject_reason,
            ${millis('r.created_at', 'created_at')}
     FROM portal_requests r
     JOIN auth_users u ON u.id = r.author_id
+    LEFT JOIN auth_user_profiles p ON p.user_id = r.author_id
     LEFT JOIN portal_skills s ON s.id = r.skill_id`;
 
 /** Статус для автора выводится политикой; решение собирается только для вывода статуса. */
@@ -61,6 +68,14 @@ function toView(raw: unknown): RequestView {
         id: row.id,
         authorId: row.author_id,
         authorLogin: row.author_login,
+        authorFullName: formatFullName(
+            {
+                lastName: row.author_last_name,
+                firstName: row.author_first_name,
+                middleName: row.author_middle_name,
+            },
+            row.author_login,
+        ),
         title: row.title,
         description: row.description,
         frequency: { count: frequency.count, period: frequency.period },
