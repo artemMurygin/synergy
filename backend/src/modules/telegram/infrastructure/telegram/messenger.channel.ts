@@ -23,6 +23,7 @@ import { TelegramSettingsPort } from '../../application/ports/telegram-settings.
 import { UserDirectoryPort } from '../../application/ports/user-directory.port';
 import { sendErrorReasonOf } from '../../application/send-error-reason';
 import { ClockPort } from '../../domain/ports/clock.port';
+import { portalBugUrl } from '../../domain/portal-bug-url';
 import { portalRequestUrl } from '../../domain/portal-request-url';
 import { TelegramDeliveryLogPort } from '../../domain/ports/telegram-delivery-log.port';
 import { TelegramLinkRepositoryPort } from '../../domain/ports/telegram-link-repository.port';
@@ -43,9 +44,16 @@ export function notificationMessage(notification: Notification, portalUrl: strin
     const body = notification.content.body;
     const text = body === '' ? title : `${title}\n${escapeHtml(body)}`;
     const target = notification.target;
-    if (portalUrl === null || target.type !== 'request') return text;
-    const href = escapeHtml(portalRequestUrl(portalUrl, target.id));
-    return `${text}\n<a href="${href}">Открыть заявку</a>`;
+    if (portalUrl === null) return text;
+    if (target.type === 'request') {
+        const href = escapeHtml(portalRequestUrl(portalUrl, target.id));
+        return `${text}\n<a href="${href}">Открыть заявку</a>`;
+    }
+    if (target.type === 'bug') {
+        const href = escapeHtml(portalBugUrl(portalUrl, target.id));
+        return `${text}\n<a href="${href}">Открыть обращение</a>`;
+    }
+    return text;
 }
 
 @Injectable()

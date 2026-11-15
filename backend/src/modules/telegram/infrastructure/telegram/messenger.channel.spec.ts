@@ -111,6 +111,37 @@ describe('notificationMessage', () => {
         );
     });
 
+    it('appends the bug link for a bug target when the portal url is set', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'Статус изменён', body: 'В работе' },
+            { type: 'bug', id: 'bug-1' },
+        );
+        expect(notificationMessage(notification, 'https://portal.example.com')).toBe(
+            '<b>Статус изменён</b>\nВ работе\n<a href="https://portal.example.com/bugs/bug-1">Открыть обращение</a>',
+        );
+    });
+
+    it('encodes and escapes the bug href', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'T', body: 'B' },
+            { type: 'bug', id: 'a"b' },
+        );
+        expect(notificationMessage(notification, 'https://p.example.com/?x=1&y=2')).toContain(
+            '<a href="https://p.example.com/?x=1&amp;y=2/bugs/a%22b">Открыть обращение</a>',
+        );
+    });
+
+    it('keeps the bug message unchanged without a portal url', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'T', body: 'B' },
+            { type: 'bug', id: 'bug-1' },
+        );
+        expect(notificationMessage(notification, null)).toBe('<b>T</b>\nB');
+    });
+
     it('keeps the message unchanged for task and chat targets', () => {
         for (const type of ['task', 'chat']) {
             const notification = notificationFor(
