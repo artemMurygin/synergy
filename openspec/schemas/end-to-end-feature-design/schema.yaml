@@ -1,6 +1,6 @@
-name: my-workflow
-version: 1
-description: Default OpenSpec workflow - proposal → specs → design → tasks
+name: end-to-end-feature-design
+version: 2
+description: Фича end-to-end - proposal → specs → design → architecture → ui-design → tasks → apply сохранённым workflow apply-openspec-change
 artifacts:
   - id: proposal
     generates: proposal.md
@@ -33,6 +33,12 @@ artifacts:
       implementation details belong in design.md.
 
       This is the foundation - specs, design, and tasks all build on this.
+
+      Размер change: рассчитывай на реализацию примерно до 40 задач в tasks.md
+      (до ~10 групп). Если фича больше - предложи пользователю разбить её на
+      несколько change (например, бэкенд и фронтенд отдельно, особенно если
+      макеты ещё не готовы; или вертикальными срезами - tracer bullet,
+      затем расширение) и зафиксируй разбиение в разделе What Changes.
     requires: []
 
   - id: specs
@@ -187,12 +193,14 @@ artifacts:
     instruction: |
       Спроектируй в Pencil экраны фичи, перечисленные в architecture.md
       ("Frontend — UI Model → Pages"), в общем файле дизайна проекта
-      `design/sallary-first-iteration.pen` — это единственный источник дизайна
-      iReports, не создавай новый .pen файл без явной просьбы пользователя.
-      Обязательно переиспользуй компоненты UI Kit (фрейм `uDEum` в этом же
-      файле) вместо создания элементов с нуля; работай с .pen файлом только
-      через mcp__pencil__* MCP-инструменты (файл зашифрован, Read/Grep/Edit
-      его не читают).
+      `design/synergy-design.pen` — это единственный источник дизайна проекта
+      (top-level фреймы приложений: Manager Helper, Control Center, Portal), не
+      создавай новый .pen файл без явной просьбы пользователя. Обязательно
+      переиспользуй мастер-компоненты UI Kit (reusable-компоненты вида
+      `Button / Master`, `Badge / Master`, `Field / Master` и др. в этом же
+      файле; их список даёт get_app_state) вместо создания элементов с нуля;
+      работай с .pen файлом только через mcp__pencil__* MCP-инструменты (файл
+      зашифрован, Read/Grep/Edit его не читают).
 
       Полный порядок действий (какие скиллы и инструменты загрузить, как
       проверять layout, в каком формате заполнять таблицы) — в HTML-комментарии
@@ -213,100 +221,113 @@ artifacts:
       would change what gets built, resolve them with the user first - do not
       bake an unstated assumption into the task list.
 
-      Обязательно учти architecture.md и ui-design.md — это основной источник
-      задач для этого шаблона, а не только proposal/design:
-      - Backend-группы задач формируй по таблицам architecture.md ("Backend —
-        Domain Model": Entities/Aggregates/Value Objects/Services/Method
-        Signatures) — под каждую новую сущность/сервис/метод заведи отдельную
-        задачу (или явно сгруппируй несколько мелких).
-      - Frontend-группы задач формируй по таблицам architecture.md ("Frontend —
-        UI Model": Pages/Features/UI-компоненты/Hooks) и по ui-design.md. Для
-        каждой строки таблицы "Экраны" ui-design.md заведи задачу(и) реализации
-        и укажи в описании Node ID соответствующего фрейма в
-        design/sallary-first-iteration.pen — исполнитель должен прочитать этот
-        фрейм через mcp__pencil__* (execute/Get), а не угадывать вёрстку по
-        словесному описанию. Отдельно заведи задачи на состояния из раздела
-        "Ключевые состояния экранов" (если они требуют отдельной логики, а не
-        только текста) и на новые компоненты из "Новые компоненты UI Kit"
-        (если такие есть в ui-design.md).
+      tasks.md исполняет сохранённый workflow `apply-openspec-change`
+      (.claude/workflows/apply-openspec-change.js). Каждый агент реализации
+      получает ТОЛЬКО свою группу и перечисленные в её метаданных требования и
+      строки architecture.md (плюс общий context-pack). Поэтому группа должна
+      быть самодостаточной: всё, что нужно исполнителю, указано в её
+      метаданных и тексте задач.
+
+      Формат группы (строго, workflow парсит его):
+      ```
+      ## 5. auth, домен: `EmployeeProfile`, `Department` и порты
+      > track: backend
+      > depends: 1, 2
+      > specs: employee-directory → «Профиль сотрудника»; employee-directory → «Отделы»
+      > arch: Entities/EmployeeProfile; Entities/Department; Services/EmployeeDirectoryPort
+      > files: backend/src/modules/auth/domain/**
+      > frames: —
+
+      - [ ] 5.1 TDD: профиль сотрудника валидирует ФИО и отдел. Тесты: backend/src/modules/auth/domain/employee-profile.spec.ts. Реализация: domain/employee-profile.ts
+      ```
+      - track: backend | portal | control-center | manager-helper |
+        integration | review. Одна группа - один пакет.
+      - depends: только реальные зависимости (номера групп). Независимые
+        группы выполняются параллельно волнами - не выстраивай их в цепочку
+        без причины. Фронтовые группы, которым нужен только контракт API,
+        зависят от группы с контрактом/схемами, а не от всего бэкенда.
+      - specs / arch / files / frames - как в комментарии шаблона tasks.md.
+
+      Источники задач:
+      - Backend-группы - по таблицам architecture.md ("Backend - Domain
+        Model"): под каждую новую сущность/сервис/метод - задача (мелкие можно
+        объединить в одну).
+      - Frontend-группы - по таблицам architecture.md ("Frontend - UI Model")
+        и ui-design.md. Для каждой строки таблицы "Экраны" ui-design.md -
+        задача(и) реализации с Node ID фрейма в `frames` и в тексте задачи;
+        сверка с макетом - часть этой же задачи (правило
+        frontend-ui-verification), отдельных задач "сверить с макетом" не
+        заводи. Отдельно - задачи на состояния из "Ключевые состояния экранов"
+        (если у них своя логика) и на новые компоненты из "Новые компоненты UI
+        Kit".
       - Если в architecture.md остались неотмеченные пункты Confirmation
         Checklist, или в ui-design.md заполнен раздел "Отклонения от
-        architecture.md" — останови работу и сначала согласуй это с
-        пользователем, прежде чем писать задачи по этим местам.
+        architecture.md" - останови работу и сначала согласуй это с
+        пользователем.
 
-      Порядок реализации — TDD, обязателен для каждой содержательной единицы
-      функциональности (юзкейс/сервис на бэкенде, компонент/хук с логикой на
-      фронте). Каждая такая группа задач разбивается на 4 ОТДЕЛЬНЫХ пункта
-      чек-листа (не сворачивай их в один, apply отслеживает прогресс по шагам):
-      1. Написать тест(ы) на ожидаемое поведение (из specs/architecture.md) - ДО реализации.
-      2. Прогнать эти тесты и зафиксировать, что они падают (red) по ожидаемой
-         причине (нет реализации), а не из-за ошибки в самом тесте.
-      3. Реализовать функциональность.
-      4. Прогнать те же тесты и зафиксировать, что они зелёные (green), и что
-         не сломались соседние тесты (регрессия).
-      Для чисто визуальной вёрстки без логики (нет ветвлений/данных/состояний)
-      тесты можно не заводить, но это исключение нужно явно обосновать в
-      описании задачи, а не молча пропустить. Полный шаблон группы — в
-      комментарии в начале tasks.md, следуй ему.
+      TDD: одна задача (чекбокс) = одна содержательная единица
+      функциональности (use case, сервис, репозиторий, компонент/хук с
+      логикой). Формулировка: `TDD: <поведение>. Тесты: <путь>. Реализация:
+      <файл>`. Цикл тест → red → реализация → green + typecheck исполнитель
+      проходит внутри задачи и прикладывает вывод red/green в отчёт. НЕ
+      разбивай цикл на 4 чекбокса. Задача без логики помечается
+      `без тестов: <обоснование>`.
 
-      Последней группой ВСЕГДА добавляй "Code review" (после всех задач
-      реализации): запуск code-review по всем изменениям фичи, исправление
-      замечаний, повторный review. Формулировки - из примера ниже и из
-      шаблона tasks.md; не удаляй эту группу и не помечай её выполненной без запуска
-      review.
+      Размер: группа - до ~5 задач и ~10 файлов; весь tasks.md - примерно до
+      40 задач. Если выходит больше - предложи пользователю разбить change.
 
-      **IMPORTANT: Follow the template below exactly.** The apply phase parses
-      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+      Последней группой ВСЕГДА добавляй "Code review" с `track: review`
+      (формулировки - из шаблона tasks.md). Её выполняет фаза Review
+      workflow; не удаляй группу.
 
-      Guidelines:
-      - Group related tasks under ## numbered headings
-      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
-      - Tasks should be small enough to complete in one session
-      - Order tasks by dependency (what must be done first?)
-      - Each task MUST state how to verify completion (a test, command,
-        observable behavior, or delivered artifact). Put the verification in
-        that task's checkbox description. Use a separate verification task only
-        when it checks broader integration or system behavior that spans
-        multiple implementation tasks.
+      Если в проекте ещё не было группы "Интеграционная проверка и
+      документация" - добавь её перед Code review с `track: integration`
+      (контракт фронт-бэк, README/.env.example, сквозной сценарий).
 
-      Example:
-      ```
-      ## 1. Setup
-
-      - [ ] 1.1 Create new module structure and verify expected files are present
-      - [ ] 1.2 Add dependencies to package.json and verify package installation succeeds
-
-      ## 2. Core Implementation (TDD)
-
-      - [ ] 2.1 Написать тесты на экспорт данных в CSV (по specs) и убедиться, что тест-раннер их видит
-      - [ ] 2.2 Прогнать тесты из 2.1 и зафиксировать, что они падают (red) - функции экспорта ещё нет
-      - [ ] 2.3 Implement data export function and CSV formatting utilities
-      - [ ] 2.4 Прогнать тесты из 2.1 и зафиксировать, что они зелёные (green), регрессий в соседних тестах нет
-
-      ## 3. UI (по ui-design.md)
-
-      - [ ] 3.1 Реализовать SalaryReportPage по фрейму t3QCM (design/sallary-first-iteration.pen, читать через mcp__pencil__execute/Get) и сверить со скриншотом
-
-      ## 3. Code review
-
-      - [ ] 3.1 Запустить code-review (скилл `code-review`) по всем изменениям фичи - от коммита, с которого начат change, до текущего HEAD: соответствие стандартам проекта и specs этого change
-      - [ ] 3.2 Исправить замечания ревью (блокирующие и существенные обязательно; остальные - исправить или явно отклонить с обоснованием), результат зафиксировать коммитом
-      - [ ] 3.3 Повторить code-review по правкам из 3.2 и убедиться, что блокирующих замечаний нет; прогнать тесты и зафиксировать, что они зелёные
-      ```
-
-      Reference specs for what needs to be built, design for how to build it,
-      architecture.md for the concrete backend/frontend structure to implement,
-      and ui-design.md for the exact screen node ids in the shared .pen file -
-      implementation tasks for UI should point agents to the concrete frame to
-      read via the Pencil MCP tools, not just to a page name.
+      **IMPORTANT: Follow the template exactly.** Каждая задача - чекбокс
+      `- [ ] X.Y ...`, иначе apply её не увидит. Each task MUST state how to
+      verify completion (тесты, команда, наблюдаемое поведение).
     requires: [proposal, design, architecture, ui-design]
 
 apply:
   requires: [ tasks ]
   tracks: tasks.md
   instruction: |
-    Запускай выполнение задач через проектирвоание workflow и после этого запускай его. Если фича большая, разбивай ее на несколько агентов. Создавай новую сессию если 
-    Запуск производи в отдельном worktree для того что бы было возможно запускать несколько реализаций фич паралельно.
-    Если есть возможность запустить задачи паралельно - делай это. Но если во время выполнения возникают спорные вопросы - задавай их пользователю через основную сессию.
-    После выполнения каждой фазы - делай коммит.
-    После выполнения всех задач реализации обязательно выполни группу "Code review" из tasks.md: запусти скилл code-review по всем изменениям фичи (от коммита начала change), исправь замечания, повтори review. Change не считается завершённым (и не архивируется), пока в review есть блокирующие замечания.
+    Реализация выполняется ТОЛЬКО сохранённым workflow `apply-openspec-change`
+    (.claude/workflows/apply-openspec-change.js). Не пиши свой workflow-скрипт
+    и не загружай workflow-authoring для этого.
+
+    Для этой schema НЕ выполняй шаги скилла openspec-apply-change "Read
+    context files" и "Implement tasks (loop)": не читай proposal, design,
+    architecture, ui-design и specs в основной сессии и не реализуй задачи
+    сам - контекст собирает и раздаёт агентам workflow. В основной сессии
+    достаточно заголовков групп tasks.md (grep -n "^## \|^> " tasks.md) и
+    Confirmation Checklist из ui-design.md.
+
+    Перед запуском:
+    1. Убедись, что ui-design.md подтверждён (все пункты Confirmation
+       Checklist отмечены). Если нет, а в change есть фронтовые группы, -
+       спроси пользователя: подтвердить дизайн или запустить только
+       бэкенд (`tracks: ["backend"]`). Без подтверждения workflow сам
+       пропустит группы с макетами.
+    2. Если у групп tasks.md нет строк метаданных `> track: ...` (старый
+       формат) - workflow выведет их сам, но лучше сначала дописать их.
+    3. Для группы с макетами нужен открытый Pencil.
+
+    Запуск (в текущем worktree, если пользователь не попросил отдельный):
+    Workflow({ name: "apply-openspec-change", args: { change: "<имя>" } })
+    Полезные args: tracks (["backend"]), onlyGroups ([15, 16]), commit
+    (false - без коммитов), review (false), baseCommit, maxParallel,
+    models ({ cheap, impl, review }).
+
+    Workflow сам: строит волны по depends, делает коммит после каждой волны,
+    гоняет регрессию один раз по затронутым пакетам, проводит ревью (не
+    больше 2 раундов, чинит blocking и major) и отмечает задачи в tasks.md.
+
+    После завершения: покажи пользователю итог - статусы групп, questions,
+    designDeviations, пропущенные группы и оставшиеся замечания ревью.
+    Спорные вопросы решай с пользователем, затем перезапусти workflow с
+    `onlyGroups` для доработки (уже отмеченные задачи он пропускает). Если
+    прогон прервался - перезапусти с `resumeFromRunId`.
+    Change не считается завершённым (и не архивируется), пока в ревью есть
+    blocking-замечания или группы со статусом blocked/partial.
