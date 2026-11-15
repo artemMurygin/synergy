@@ -75,9 +75,9 @@ describe("AppLayout", () => {
   });
 
   it("labels the roles as \"администратор\" and \"разработчик, администратор\"", () => {
-    expect(renderLayout({ ...base, roles: ["admin"] }).getByText("администратор")).toBeTruthy();
+    expect(renderLayout({ ...base, roles: ["admin"] }).getByTitle("администратор")).toBeTruthy();
     cleanup();
-    expect(renderLayout(both).getByText("разработчик, администратор")).toBeTruthy();
+    expect(renderLayout(both).getByTitle("разработчик, администратор")).toBeTruthy();
   });
 
   it("truncates a long name in the 360 px bar without breaking the layout", () => {
