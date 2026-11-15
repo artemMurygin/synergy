@@ -92,6 +92,7 @@ describe('RequestPage', () => {
     renderAt(`/requests/${ID}`)
     expect(await screen.findByRole('heading', { name: 'Решение по заявке' })).toBeTruthy()
     const user = userEvent.setup()
+    await user.type(screen.getByLabelText(/Оценка трудозатрат/), '12')
     await user.selectOptions(await screen.findByLabelText('Навык'), 's1')
     await user.click(screen.getByRole('button', { name: 'Принять заявку' }))
     await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Решение по заявке' })).toBeNull())
