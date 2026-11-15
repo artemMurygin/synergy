@@ -10,8 +10,8 @@ const SVG = { 'aria-hidden': true, viewBox: '0 0 24 24', fill: 'none', stroke: '
 
 const COLUMNS = 'min-[768px]:grid min-[768px]:grid-cols-[minmax(0,1fr)_160px_140px] min-[768px]:items-center min-[768px]:gap-4'
 
-/** Agent card: header (name, products one per row with their departments, derived status, `actions` slot) and the list of its skills. */
-export function AgentCard({ agent, actions }: { agent: CatalogAgent; actions?: ReactNode }) {
+/** Agent card: header (name, products one per row with their departments, derived status, `actions` slot), the `guide` slot above the skills and the list of its skills. */
+export function AgentCard({ agent, actions, guide }: { agent: CatalogAgent; actions?: ReactNode; guide?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 min-[768px]:gap-6">
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-3.5 rounded-lg border border-border bg-surface p-5 min-[768px]:grid-cols-[auto_1fr_auto] min-[768px]:gap-x-5 min-[768px]:gap-y-2 min-[768px]:p-6">
@@ -43,6 +43,8 @@ export function AgentCard({ agent, actions }: { agent: CatalogAgent; actions?: R
         </div>
         {actions ? <div className="col-span-2 min-[768px]:col-span-1 min-[768px]:col-start-3 min-[768px]:row-span-2 min-[768px]:row-start-1 min-[768px]:self-center">{actions}</div> : null}
       </div>
+
+      {guide}
 
       {agent.skills.length > 0 ? (
         <>

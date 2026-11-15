@@ -8,7 +8,10 @@ import {
 import { GetCatalogUseCase } from './get-catalog.use-case';
 
 class FakeCatalogQuery extends CatalogQuery {
-    constructor(private readonly rows: CatalogRow[]) {
+    constructor(
+        private readonly rows: CatalogRow[],
+        private readonly departments: ProductDepartmentRow[] = [],
+    ) {
         super();
     }
 
@@ -21,7 +24,7 @@ class FakeCatalogQuery extends CatalogQuery {
     }
 
     loadProductDepartments(): Promise<ProductDepartmentRow[]> {
-        return Promise.resolve([]);
+        return Promise.resolve(this.departments);
     }
 }
 
@@ -49,8 +52,8 @@ function skill(
     };
 }
 
-function build(rows: CatalogRow[]): GetCatalogUseCase {
-    return new GetCatalogUseCase(new FakeCatalogQuery(rows));
+function build(rows: CatalogRow[], departments: ProductDepartmentRow[] = []): GetCatalogUseCase {
+    return new GetCatalogUseCase(new FakeCatalogQuery(rows, departments));
 }
 
 describe('GetCatalogUseCase', () => {
@@ -128,5 +131,33 @@ describe('GetCatalogUseCase', () => {
 
     it('пустой каталог — пустой список продуктов', async () => {
         expect(await build([]).execute()).toEqual({ products: [] });
+    });
+
+    it('раскладывает отделы по продуктам и по продуктам каждого агента; без отделов пустой список', async () => {
+        const rows: CatalogRow[] = [
+            { product: bot, agent: assistant, skill: null },
+            { product: cc, agent: assistant, skill: null },
+            { product: web, agent: null, skill: null },
+        ];
+        const departments: ProductDepartmentRow[] = [
+            { productId: bot.id, id: 'd2', name: 'Аудит' },
+            { productId: bot.id, id: 'd1', name: 'Бухгалтерия' },
+            { productId: cc.id, id: 'd1', name: 'Бухгалтерия' },
+        ];
+
+        const view = await build(rows, departments).execute();
+
+        const [inBot, inCc, inWeb] = view.products;
+        expect(inBot.departments).toEqual([
+            { id: 'd2', name: 'Аудит' },
+            { id: 'd1', name: 'Бухгалтерия' },
+        ]);
+        expect(inCc.departments).toEqual([{ id: 'd1', name: 'Бухгалтерия' }]);
+        expect(inWeb.departments).toEqual([]);
+        const agentProducts = inBot.agents[0].products;
+        expect(agentProducts.map((p) => [p.slug, p.departments.map((d) => d.id)])).toEqual([
+            ['bot', ['d2', 'd1']],
+            ['control-center', ['d1']],
+        ]);
     });
 });

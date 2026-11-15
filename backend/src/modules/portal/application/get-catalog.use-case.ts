@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { AgentStatusPolicy, type AgentStatus } from '../domain/agent-status-policy';
-import { CatalogQuery, type CatalogRow, type ProductRef } from '../domain/ports/catalog-query.port';
+import {
+    CatalogQuery,
+    type CatalogRow,
+    type DepartmentRef,
+    type ProductRef,
+} from '../domain/ports/catalog-query.port';
 import { SkillStatus } from '../domain/skill-status';
 
 export interface CatalogSkillView {
@@ -12,16 +17,21 @@ export interface CatalogSkillView {
     nextStatuses: SkillStatus[];
 }
 
+/** Продукт агента в каталоге: с отделами, которым он доступен. */
+export interface CatalogProductRef extends ProductRef {
+    departments: DepartmentRef[];
+}
+
 export interface CatalogAgentView {
     id: string;
     slug: string;
     name: string;
     status: AgentStatus;
-    products: ProductRef[];
+    products: CatalogProductRef[];
     skills: CatalogSkillView[];
 }
 
-export interface CatalogProductView extends ProductRef {
+export interface CatalogProductView extends CatalogProductRef {
     agents: CatalogAgentView[];
 }
 
@@ -46,7 +56,20 @@ export class GetCatalogUseCase {
     constructor(private readonly query: CatalogQuery) {}
 
     async execute(): Promise<CatalogView> {
-        const rows = await this.query.loadVisible();
+        const [rows, departmentRows] = await Promise.all([
+            this.query.loadVisible(),
+            this.query.loadProductDepartments(),
+        ]);
+        const departmentsOf = new Map<string, DepartmentRef[]>();
+        for (const { productId, ...department } of departmentRows) {
+            const list = departmentsOf.get(productId) ?? [];
+            list.push(department);
+            departmentsOf.set(productId, list);
+        }
+        const refOf = (product: ProductRef): CatalogProductRef => ({
+            ...product,
+            departments: [...(departmentsOf.get(product.id) ?? [])],
+        });
         const products = new Map<string, ProductRef>();
         const productAgents = new Map<string, Set<string>>();
         const agents = new Map<string, AgentAccumulator>();
@@ -78,7 +101,7 @@ export class GetCatalogUseCase {
                 slug: agent.slug,
                 name: agent.name,
                 status: AgentStatusPolicy.statusOf(skills),
-                products: [...agent.products.values()].sort(bySlug),
+                products: [...agent.products.values()].sort(bySlug).map(refOf),
                 skills: skills.map((skill) => ({
                     id: skill.id,
                     name: skill.name,
@@ -92,7 +115,7 @@ export class GetCatalogUseCase {
 
         return {
             products: [...products.values()].sort(bySlug).map((product) => ({
-                ...product,
+                ...refOf(product),
                 agents: [...(productAgents.get(product.id) ?? [])]
                     .flatMap((id) => views.get(id) ?? [])
                     .sort(bySlug),

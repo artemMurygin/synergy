@@ -14,7 +14,17 @@ import {
 import { BugRepository } from '../domain/ports/bug-repository.port';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
 import { Agent } from '../domain/agent';
+import type { AgentGuide } from '../domain/agent-guide';
+import { AgentGuideQuery, type GuideRecord } from '../domain/ports/agent-guide-query.port';
+import { AgentGuideRepository } from '../domain/ports/agent-guide-repository.port';
+import { DepartmentLookupPort } from '../domain/ports/department-lookup.port';
 import {
+    ProductAccessRepository,
+    type ProductAccessView,
+} from '../domain/ports/product-access-repository.port';
+import type { ProductAccess } from '../domain/product-access';
+import {
+    DepartmentNotFoundError,
     AgentNameTakenError,
     InvalidSkillTransitionError,
     ProductNameTakenError,
@@ -909,6 +919,121 @@ export class InMemoryBugQuery extends BugQuery {
     }
 }
 
+/** Инструкции агентов в памяти; `query` строит read-модель с ФИО из `people`. */
+export class InMemoryAgentGuideRepository
+    extends AgentGuideRepository
+    implements TransactionParticipant
+{
+    readonly guides = new Map<string, AgentGuide>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.guides);
+        return () => {
+            this.guides.clear();
+            for (const [key, value] of saved) this.guides.set(key, value);
+        };
+    }
+
+    upsert(guide: AgentGuide): Promise<void> {
+        this.guides.set(guide.agentId, guide);
+        return Promise.resolve();
+    }
+
+    delete(agentId: string): Promise<void> {
+        this.guides.delete(agentId);
+        return Promise.resolve();
+    }
+}
+
+export class InMemoryAgentGuideQuery extends AgentGuideQuery {
+    constructor(private readonly repository: InMemoryAgentGuideRepository) {
+        super();
+    }
+
+    find(agentId: string): Promise<GuideRecord | null> {
+        const guide = this.repository.guides.get(agentId);
+        if (guide === undefined) return Promise.resolve(null);
+        return Promise.resolve({
+            body: guide.body.value,
+            updatedAt: guide.updatedAt,
+            updatedBy: {
+                id: guide.updatedBy,
+                login: `login-${guide.updatedBy}`,
+                fullName: `Имя ${guide.updatedBy}`,
+            },
+        });
+    }
+}
+
+/** Справочник отделов в памяти (`id` → название). */
+export class InMemoryDepartmentLookup extends DepartmentLookupPort {
+    readonly departments = new Map<string, string>();
+
+    findExistingIds(ids: readonly string[]): Promise<string[]> {
+        return Promise.resolve(ids.filter((id) => this.departments.has(id)));
+    }
+}
+
+/** Пометки доступности продуктов в памяти; отделы проверяет через `lookup`. */
+export class InMemoryProductAccessRepository
+    extends ProductAccessRepository
+    implements TransactionParticipant
+{
+    readonly access = new Map<string, string[]>();
+
+    readonly lockedIds: string[] = [];
+
+    readonly replaced: ProductAccess[] = [];
+
+    constructor(
+        private readonly catalog: InMemoryCatalogRepository,
+        private readonly lookup: InMemoryDepartmentLookup,
+    ) {
+        super();
+    }
+
+    snapshot(): () => void {
+        const saved = new Map<string, string[]>();
+        for (const [key, value] of this.access) saved.set(key, [...value]);
+        return () => {
+            this.access.clear();
+            for (const [key, value] of saved) this.access.set(key, value);
+        };
+    }
+
+    lockProduct(id: string): Promise<Product | null> {
+        this.lockedIds.push(id);
+        const product = [...this.catalog.products.values()].find((p) => p.id === id);
+        return Promise.resolve(product ?? null);
+    }
+
+    replace(access: ProductAccess): Promise<void> {
+        this.replaced.push(access);
+        const unknown = access.departmentIds.find((id) => !this.lookup.departments.has(id));
+        if (unknown !== undefined) return Promise.reject(new DepartmentNotFoundError(unknown));
+        this.access.set(access.productId, [...access.departmentIds]);
+        return Promise.resolve();
+    }
+
+    findProductWithDepartments(id: string): Promise<ProductAccessView | null> {
+        const product = [...this.catalog.products.values()].find((p) => p.id === id);
+        if (product === undefined) return Promise.resolve(null);
+        const departments = (this.access.get(id) ?? [])
+            .map((deptId) => ({ id: deptId, name: this.lookup.departments.get(deptId) ?? deptId }))
+            .sort(
+                (a, b) =>
+                    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) ||
+                    a.id.localeCompare(b.id),
+            );
+        return Promise.resolve({
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            departments,
+        });
+    }
+}
+
 export interface PortalFixture {
     clock: FakeClock;
     requests: InMemoryRequestRepository;
@@ -922,6 +1047,10 @@ export interface PortalFixture {
     commentQuery: InMemoryCommentQuery;
     bugs: InMemoryBugRepository;
     bugQuery: InMemoryBugQuery;
+    guides: InMemoryAgentGuideRepository;
+    guideQuery: InMemoryAgentGuideQuery;
+    departments: InMemoryDepartmentLookup;
+    productAccess: InMemoryProductAccessRepository;
 }
 
 /** Полный набор двойников для тестов use case'ов портала. */
@@ -932,6 +1061,9 @@ export function createPortalFixture(): PortalFixture {
     const catalog = new InMemoryCatalogRepository();
     const comments = new InMemoryCommentRepository();
     const bugs = new InMemoryBugRepository();
+    const guides = new InMemoryAgentGuideRepository();
+    const departments = new InMemoryDepartmentLookup();
+    const productAccess = new InMemoryProductAccessRepository(catalog, departments);
     // Раннер откатывает события, события спрашивают раннер: связываем через ссылку.
     const ref: { runner?: SnapshotTransactionRunner } = {};
     const events = new RecordingEventPublisher(() => {
@@ -944,6 +1076,8 @@ export function createPortalFixture(): PortalFixture {
         catalog,
         comments,
         bugs,
+        guides,
+        productAccess,
         events,
     ]);
     ref.runner = transactions;
@@ -960,5 +1094,9 @@ export function createPortalFixture(): PortalFixture {
         commentQuery: new InMemoryCommentQuery(comments, requests),
         bugs,
         bugQuery: new InMemoryBugQuery(bugs, catalog),
+        guides,
+        guideQuery: new InMemoryAgentGuideQuery(guides),
+        departments,
+        productAccess,
     };
 }

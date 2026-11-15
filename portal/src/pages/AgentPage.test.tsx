@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSessionStore } from '@/features/auth'
 import { catalogFixture } from '@/features/catalog/model/catalog.fixtures'
+import { emptyGuideFixture, guideFixture } from '@/features/guides/model/guides.fixtures'
 import type { Role } from '@/lib/schemas'
 import { createTestClient, json, queryWrapper, stubFetch } from '@/test/helpers'
 import { AgentPage } from './AgentPage'
@@ -17,6 +18,10 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
+
+function stubApi(guide: () => Response = () => json(guideFixture)) {
+  return stubFetch((call) => (call.path.endsWith('/guide') ? guide() : json(catalogFixture)))
+}
 
 function renderPage(id: string) {
   const Wrapper = queryWrapper(createTestClient())
@@ -34,7 +39,7 @@ function renderPage(id: string) {
 
 describe('AgentPage', () => {
   it('shows the agent with all its products, status and skills with badge and date', async () => {
-    stubFetch(() => json(catalogFixture))
+    stubApi()
     renderPage('a-assistant')
     expect(screen.getByText('Загружаем агента…')).toBeTruthy()
     expect(await screen.findByRole('heading', { name: 'Ассистент' })).toBeTruthy()
@@ -59,7 +64,7 @@ describe('AgentPage', () => {
   })
 
   it('shows "Агент не найден" with a link to the catalog for an unknown or archived id', async () => {
-    stubFetch(() => json(catalogFixture))
+    stubApi()
     renderPage('gone')
     expect(await screen.findByRole('heading', { name: 'Агент не найден' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'К каталогу' }).getAttribute('href')).toBe('/catalog')
@@ -73,7 +78,7 @@ describe('AgentPage', () => {
   })
 
   it('hides the archive action from an employee and shows it to a developer', async () => {
-    stubFetch(() => json(catalogFixture))
+    stubApi()
     renderPage('a-assistant')
     await screen.findByRole('heading', { name: 'Ассистент' })
     expect(screen.queryByRole('button', { name: 'Архивировать агента' })).toBeNull()
@@ -84,7 +89,7 @@ describe('AgentPage', () => {
   })
 
   it('offers "Сообщить о проблеме" to an employee and a developer, the link carries the agent', async () => {
-    stubFetch(() => json(catalogFixture))
+    stubApi()
     renderPage('a-assistant')
     const link = await screen.findByRole('link', { name: 'Сообщить о проблеме' })
     expect(link.getAttribute('href')).toBe('/bugs/new?agentId=a-assistant')
@@ -104,5 +109,40 @@ describe('AgentPage', () => {
     renderPage(encodeURIComponent('a b&c'))
     const link = await screen.findByRole('link', { name: 'Сообщить о проблеме' })
     expect(link.getAttribute('href')).toBe('/bugs/new?agentId=a%20b%26c')
+  })
+
+  it('shows the guide above the skills and keeps "Сообщить о проблеме" in the card actions', async () => {
+    stubApi()
+    renderPage('a-assistant')
+    const guide = await screen.findByRole('heading', { name: 'Как работать с агентом' })
+    const skills = screen.getByRole('heading', { name: 'Навыки' })
+    expect(guide.compareDocumentPosition(skills) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Сообщить о проблеме' })).toBeTruthy()
+  })
+
+  it('offers guide editing to a developer only', async () => {
+    stubApi()
+    renderPage('a-assistant')
+    await screen.findByRole('heading', { name: 'Как работать с агентом' })
+    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull()
+    cleanup()
+    signIn(['developer'])
+    renderPage('a-assistant')
+    expect(await screen.findByRole('button', { name: 'Изменить' })).toBeTruthy()
+  })
+
+  it('shows "Инструкции пока нет" for an empty guide', async () => {
+    stubApi(() => json(emptyGuideFixture))
+    renderPage('a-assistant')
+    expect(await screen.findByText('Инструкции пока нет')).toBeTruthy()
+    expect(screen.getByText('Сводка встречи')).toBeTruthy()
+  })
+
+  it('does not hide the skills when the guide fails to load', async () => {
+    stubApi(() => json({ message: 'x' }, 500))
+    renderPage('a-assistant')
+    expect(await screen.findByText('Не удалось загрузить инструкцию')).toBeTruthy()
+    expect(screen.getByText('Сводка встречи')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Ассистент' })).toBeTruthy()
   })
 })
