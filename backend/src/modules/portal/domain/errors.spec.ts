@@ -5,6 +5,9 @@ import { findErrorStatus } from '../../../shared/http/error-status.registry';
 import { registerPortalErrorStatuses } from '../interface/portal-error-status';
 import {
     AgentNameTakenError,
+    AgentNotInProductError,
+    BugNotFoundError,
+    InvalidBugTransitionError,
     CommentEditWindowExpiredError,
     CommentNotFoundError,
     CommentNotOwnedError,
@@ -64,5 +67,20 @@ describe('portal domain errors', () => {
         expect(findErrorStatus(PortalErrorCode.CommentNotFound)).toBe(HttpStatus.NOT_FOUND);
         expect(findErrorStatus(PortalErrorCode.CommentNotOwned)).toBe(HttpStatus.FORBIDDEN);
         expect(findErrorStatus(PortalErrorCode.CommentEditExpired)).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('bug errors carry their codes', () => {
+        expect(new BugNotFoundError('b1').code).toBe('PORTAL_BUG_NOT_FOUND');
+        expect(new InvalidBugTransitionError('open', 'resolved').code).toBe(
+            'PORTAL_BUG_INVALID_TRANSITION',
+        );
+        expect(new AgentNotInProductError('a1', 'p1').code).toBe('PORTAL_AGENT_NOT_IN_PRODUCT');
+    });
+
+    it('bug error codes are mapped to HTTP statuses', () => {
+        registerPortalErrorStatuses();
+        expect(findErrorStatus(PortalErrorCode.BugNotFound)).toBe(HttpStatus.NOT_FOUND);
+        expect(findErrorStatus(PortalErrorCode.InvalidBugTransition)).toBe(HttpStatus.CONFLICT);
+        expect(findErrorStatus(PortalErrorCode.AgentNotInProduct)).toBe(HttpStatus.BAD_REQUEST);
     });
 });

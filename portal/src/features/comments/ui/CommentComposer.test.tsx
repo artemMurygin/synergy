@@ -23,7 +23,7 @@ const field = () => screen.getByPlaceholderText('Напишите коммент
 const send = () => screen.getByRole('button', { name: /Отправить|Отправляем/ })
 
 function renderComposer() {
-  return render(<CommentComposer requestId="r1" />, { wrapper: queryWrapper(createTestClient()) })
+  return render(<CommentComposer subject="requests" subjectId="r1" />, { wrapper: queryWrapper(createTestClient()) })
 }
 
 describe('CommentComposer', () => {

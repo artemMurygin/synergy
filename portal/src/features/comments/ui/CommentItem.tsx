@@ -6,22 +6,23 @@ import { PersonAvatar } from '@/components/ui/person-avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDateTime } from '@/lib/format'
 import { COMMENT_EDIT_EXPIRED_MESSAGE, commentErrorMessage } from '../model/comments.errors'
-import type { Comment } from '../model/comments.schema'
+import type { Comment, CommentSubject } from '../model/comments.schema'
 import { useEditComment } from '../model/use-edit-comment'
 import { COMMENT_MAX_LENGTH, LIMIT_MESSAGE } from './comment-limits'
 
 const ROLE_MARK = {
   request_author: { label: 'Автор заявки', tone: 'neutral' },
+  bug_author: { label: 'Автор обращения', tone: 'neutral' },
   developer: { label: 'Разработчик', tone: 'info' }
 } as const
 
 /* Comment Item / Master: avatar 32, name 14/600, role mark, time 12 ink-60, text 14/1.55 ink-80 */
-export function CommentItem({ requestId, comment }: { requestId: string; comment: Comment }) {
+export function CommentItem({ subject, subjectId, comment }: { subject: CommentSubject; subjectId: string; comment: Comment }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(comment.body)
   const [expired, setExpired] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const edit = useEditComment(requestId)
+  const edit = useEditComment(subject, subjectId)
   const role = ROLE_MARK[comment.authorRole]
   const tooLong = draft.length > COMMENT_MAX_LENGTH
   const canSave = draft.trim().length > 0 && !tooLong && !edit.isPending

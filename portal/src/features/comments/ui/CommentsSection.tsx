@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import type { CommentSubject } from '../model/comments.schema'
 import { commentsQuery } from '../model/comments.queries'
 import { CommentComposer } from './CommentComposer'
 import { CommentList } from './CommentList'
@@ -32,15 +33,15 @@ function CommentsSkeleton() {
 }
 
 /* Comments card: padding 24 (20 on mobile), gap 20 (18), head with title and count */
-export function CommentsSection({ requestId }: { requestId: string }) {
-  const query = useQuery(commentsQuery(requestId))
+export function CommentsSection({ subject = 'requests', subjectId }: { subject?: CommentSubject; subjectId: string }) {
+  const query = useQuery(commentsQuery(subject, subjectId))
   const isInitialLoad = query.isPending
   const items = query.data?.items ?? []
 
   return (
-    <section aria-labelledby={`comments-${requestId}`} className="flex flex-col gap-[18px] rounded-lg border border-border bg-surface p-5 min-[900px]:gap-5 min-[900px]:p-6">
+    <section aria-labelledby={`comments-${subject}-${subjectId}`} className="flex flex-col gap-[18px] rounded-lg border border-border bg-surface p-5 min-[900px]:gap-5 min-[900px]:p-6">
       <div className="flex items-center gap-2">
-        <h2 id={`comments-${requestId}`} className="text-[13px] font-bold leading-[15px] text-ink">
+        <h2 id={`comments-${subject}-${subjectId}`} className="text-[13px] font-bold leading-[15px] text-ink">
           Комментарии
         </h2>
         {items.length > 0 ? <span className="text-[13px] font-semibold leading-[15px] text-ink-60">{items.length}</span> : null}
@@ -64,8 +65,8 @@ export function CommentsSection({ requestId }: { requestId: string }) {
           Комментариев пока нет. Задайте вопрос или уточните детали
         </p>
       ) : null}
-      {items.length > 0 ? <CommentList requestId={requestId} comments={items} /> : null}
-      <CommentComposer requestId={requestId} />
+      {items.length > 0 ? <CommentList subject={subject} subjectId={subjectId} comments={items} /> : null}
+      <CommentComposer subject={subject} subjectId={subjectId} />
     </section>
   )
 }

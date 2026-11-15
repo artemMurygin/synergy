@@ -25,7 +25,7 @@ function hasClasses(el: HTMLElement, ...names: string[]) {
 
 function renderItem(comment: Comment) {
   const Wrapper = queryWrapper(createTestClient())
-  return render(<CommentItem requestId={requestId} comment={comment} />, { wrapper: Wrapper })
+  return render(<CommentItem subject="requests" subjectId={requestId} comment={comment} />, { wrapper: Wrapper })
 }
 
 describe('CommentItem', () => {
@@ -36,6 +36,12 @@ describe('CommentItem', () => {
     expect(screen.getByText(formatDateTime(commentFixture.createdAt))).toBeTruthy()
     expect(screen.getByText('Первый комментарий')).toBeTruthy()
     expect(screen.queryByText(/изменено/)).toBeNull()
+  })
+
+  it('shows the bug author role mark with the same neutral tone', () => {
+    renderItem({ ...commentFixture, authorRole: 'bug_author' })
+    expect(screen.getByText('Автор обращения')).toBeTruthy()
+    expect(screen.queryByText('Автор заявки')).toBeNull()
   })
 
   it('shows the developer role mark', () => {

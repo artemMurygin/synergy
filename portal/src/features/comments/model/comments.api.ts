@@ -1,14 +1,18 @@
 import { authorizedRequest } from '@/features/auth'
-import { commentListSchema, commentSchema, type Comment, type CommentList } from './comments.schema'
+import { commentListSchema, commentSchema, type Comment, type CommentList, type CommentSubject } from './comments.schema'
 
-export function listComments(requestId: string): Promise<CommentList> {
-  return authorizedRequest(`/portal/requests/${requestId}/comments`, { schema: commentListSchema })
+function feedPath(subject: CommentSubject, subjectId: string): string {
+  return `/portal/${subject}/${subjectId}/comments`
 }
 
-export function postComment(requestId: string, body: string): Promise<Comment> {
-  return authorizedRequest(`/portal/requests/${requestId}/comments`, { method: 'POST', body: { body }, schema: commentSchema })
+export function listComments(subject: CommentSubject, subjectId: string): Promise<CommentList> {
+  return authorizedRequest(feedPath(subject, subjectId), { schema: commentListSchema })
 }
 
-export function editComment(requestId: string, commentId: string, body: string): Promise<Comment> {
-  return authorizedRequest(`/portal/requests/${requestId}/comments/${commentId}`, { method: 'PATCH', body: { body }, schema: commentSchema })
+export function postComment(subject: CommentSubject, subjectId: string, body: string): Promise<Comment> {
+  return authorizedRequest(feedPath(subject, subjectId), { method: 'POST', body: { body }, schema: commentSchema })
+}
+
+export function editComment(subject: CommentSubject, subjectId: string, commentId: string, body: string): Promise<Comment> {
+  return authorizedRequest(`${feedPath(subject, subjectId)}/${commentId}`, { method: 'PATCH', body: { body }, schema: commentSchema })
 }

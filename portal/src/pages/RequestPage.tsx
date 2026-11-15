@@ -59,5 +59,5 @@ export function RequestPage() {
   } else if (conflict) {
     decision = <Alert title="Не удалось взять заявку в работу">По заявке уже принято решение.</Alert>
   }
-  return <RequestDetails request={request} decision={decision} comments={<CommentsSection requestId={id} />} />
+  return <RequestDetails request={request} decision={decision} comments={<CommentsSection subject="requests" subjectId={id} />} />
 }

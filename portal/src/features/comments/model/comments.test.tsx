@@ -14,7 +14,7 @@ import { useEditComment } from './use-edit-comment'
 import { usePostComment } from './use-post-comment'
 
 const requestId = 'r1'
-const key = [...COMMENTS_KEY, requestId]
+const key = [...COMMENTS_KEY, 'requests', requestId]
 
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
@@ -41,26 +41,47 @@ describe('comments.schema', () => {
 describe('comments.api', () => {
   it('listComments asks the feed of the request', async () => {
     const { calls } = stubFetch(() => json({ items: [commentFixture] }))
-    expect(await listComments(requestId)).toEqual({ items: [commentFixture] })
+    expect(await listComments('requests', requestId)).toEqual({ items: [commentFixture] })
     expect(calls[0]).toMatchObject({ method: 'GET', path: `/portal/requests/${requestId}/comments` })
   })
 
   it('postComment posts the body', async () => {
     const { calls } = stubFetch(() => json(commentFixture, 201))
-    await postComment(requestId, 'текст')
+    await postComment('requests', requestId, 'текст')
     expect(calls[0]).toMatchObject({ method: 'POST', path: `/portal/requests/${requestId}/comments`, body: { body: 'текст' } })
   })
 
   it('editComment patches the comment', async () => {
     const { calls } = stubFetch(() => json(commentFixture))
-    await editComment(requestId, 'c1', 'новый')
+    await editComment('requests', requestId, 'c1', 'новый')
     expect(calls[0]).toMatchObject({ method: 'PATCH', path: `/portal/requests/${requestId}/comments/c1`, body: { body: 'новый' } })
+  })
+})
+
+describe('comments of a bug', () => {
+  const bugKey = [...COMMENTS_KEY, 'bugs', 'b1']
+
+  it('api builds /portal/bugs/:id/comments paths', async () => {
+    const { calls } = stubFetch((req) => (req.method === 'GET' ? json({ items: [commentFixture] }) : json(commentFixture)))
+    await listComments('bugs', 'b1')
+    await postComment('bugs', 'b1', 'текст')
+    await editComment('bugs', 'b1', 'c1', 'новый')
+    expect(calls.map((c) => c.path)).toEqual(['/portal/bugs/b1/comments', '/portal/bugs/b1/comments', '/portal/bugs/b1/comments/c1'])
+  })
+
+  it('cache key includes the subject', () => {
+    expect(commentsQuery('bugs', 'b1').queryKey).toEqual(bugKey)
+    expect(commentsQuery('bugs', 'x').queryKey).not.toEqual(commentsQuery('requests', 'x').queryKey)
+  })
+
+  it('schema accepts bug_author and rejects unknown roles', () => {
+    expect(commentSchema.safeParse({ ...commentFixture, authorRole: 'bug_author' }).success).toBe(true)
   })
 })
 
 describe('commentsQuery', () => {
   it('polls every 30 s only while the tab is visible', () => {
-    const options = commentsQuery(requestId)
+    const options = commentsQuery('requests', requestId)
     expect(options.queryKey).toEqual(key)
     expect(options.refetchInterval).toBe(30_000)
     expect(options.refetchOnWindowFocus).toBe(true)
@@ -69,7 +90,7 @@ describe('commentsQuery', () => {
 
   it('loads the list', async () => {
     stubFetch(() => json({ items: [commentFixture] }))
-    expect((await createTestClient().fetchQuery(commentsQuery(requestId))).items).toHaveLength(1)
+    expect((await createTestClient().fetchQuery(commentsQuery('requests', requestId))).items).toHaveLength(1)
   })
 })
 
@@ -85,7 +106,7 @@ describe('usePostComment', () => {
     client.setQueryData(key, { items: [commentFixture] })
     const invalidate = vi.spyOn(client, 'invalidateQueries')
     stubFetch(() => json(developerCommentFixture, 201))
-    const { result } = renderHook(() => usePostComment(requestId), { wrapper: queryWrapper(client) })
+    const { result } = renderHook(() => usePostComment('requests', requestId), { wrapper: queryWrapper(client) })
     await act(() => result.current.mutateAsync('Ответ'))
     expect(client.getQueryData<{ items: unknown[] }>(key)?.items).toEqual([commentFixture, developerCommentFixture])
     expect(invalidate).toHaveBeenCalledWith({ queryKey: key })
@@ -95,7 +116,7 @@ describe('usePostComment', () => {
     const client = createTestClient()
     client.setQueryData(key, { items: [commentFixture] })
     stubFetch(() => json({ message: 'x' }, 400))
-    const { result } = renderHook(() => usePostComment(requestId), { wrapper: queryWrapper(client) })
+    const { result } = renderHook(() => usePostComment('requests', requestId), { wrapper: queryWrapper(client) })
     await act(async () => {
       await result.current.mutateAsync('').catch(() => undefined)
     })
@@ -109,7 +130,7 @@ describe('useEditComment', () => {
     client.setQueryData(key, { items: [commentFixture, developerCommentFixture] })
     const edited = { ...commentFixture, body: 'правка', editedAt: '2026-11-14T12:45:00.000Z' }
     stubFetch(() => json(edited))
-    const { result } = renderHook(() => useEditComment(requestId), { wrapper: queryWrapper(client) })
+    const { result } = renderHook(() => useEditComment('requests', requestId), { wrapper: queryWrapper(client) })
     await act(() => result.current.mutateAsync({ commentId: 'c1', body: 'правка' }))
     expect(client.getQueryData<{ items: unknown[] }>(key)?.items).toEqual([edited, developerCommentFixture])
   })
@@ -119,7 +140,7 @@ describe('useEditComment', () => {
     client.setQueryData(key, { items: [commentFixture] })
     const invalidate = vi.spyOn(client, 'invalidateQueries')
     stubFetch(() => json({ message: 'x', code: 'C' }, status))
-    const { result } = renderHook(() => useEditComment(requestId), { wrapper: queryWrapper(client) })
+    const { result } = renderHook(() => useEditComment('requests', requestId), { wrapper: queryWrapper(client) })
     await act(async () => {
       await result.current.mutateAsync({ commentId: 'c1', body: 'a' }).catch(() => undefined)
     })
@@ -130,7 +151,7 @@ describe('useEditComment', () => {
     const client = createTestClient()
     const invalidate = vi.spyOn(client, 'invalidateQueries')
     stubFetch(() => json({ message: 'x' }, 400))
-    const { result } = renderHook(() => useEditComment(requestId), { wrapper: queryWrapper(client) })
+    const { result } = renderHook(() => useEditComment('requests', requestId), { wrapper: queryWrapper(client) })
     await act(async () => {
       await result.current.mutateAsync({ commentId: 'c1', body: 'a' }).catch(() => undefined)
     })

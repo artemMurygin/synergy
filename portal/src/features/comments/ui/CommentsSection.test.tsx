@@ -20,7 +20,7 @@ afterEach(() => {
 
 function renderSection(client = createTestClient()) {
   const Wrapper = queryWrapper(client)
-  return { client, ...render(<CommentsSection requestId={requestId} />, { wrapper: Wrapper }) }
+  return { client, ...render(<CommentsSection subject="requests" subjectId={requestId} />, { wrapper: Wrapper }) }
 }
 
 describe('CommentsSection', () => {
@@ -69,11 +69,22 @@ describe('CommentsSection', () => {
     await screen.findByText('Первый комментарий')
     await userEvent.type(screen.getByLabelText('Новый комментарий'), 'черновик')
     items = [commentFixture, developerCommentFixture]
-    const refetch = client.invalidateQueries({ queryKey: [...COMMENTS_KEY, requestId] })
+    const refetch = client.invalidateQueries({ queryKey: [...COMMENTS_KEY, 'requests', requestId] })
     expect(container.querySelector('[data-testid="comments-skeleton"]')).toBeNull()
     await refetch
     await waitFor(() => expect(screen.getByText('Ответ разработчика')).toBeTruthy())
     expect((screen.getByLabelText('Новый комментарий') as HTMLTextAreaElement).value).toBe('черновик')
     expect(screen.getByText('Первый комментарий')).toBeTruthy()
+  })
+})
+
+describe('CommentsSection for a bug', () => {
+  it('loads /portal/bugs/:id/comments and shows the bug hint', async () => {
+    const { calls } = stubFetch(() => json({ items: [{ ...commentFixture, authorRole: 'bug_author' }] }))
+    render(<CommentsSection subject="bugs" subjectId="b1" />, { wrapper: queryWrapper(createTestClient()) })
+    expect(await screen.findByText('Первый комментарий')).toBeTruthy()
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/portal/bugs/b1/comments' })
+    expect(screen.getByText('Автор обращения')).toBeTruthy()
+    expect(screen.getByText('Комментарий увидят автор обращения и разработчики')).toBeTruthy()
   })
 })

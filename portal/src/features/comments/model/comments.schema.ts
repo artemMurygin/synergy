@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
-export const commentAuthorRoleSchema = z.enum(['request_author', 'developer'])
+export const commentSubjectSchema = z.enum(['requests', 'bugs'])
+export type CommentSubject = z.infer<typeof commentSubjectSchema>
+
+export const commentAuthorRoleSchema = z.enum(['request_author', 'bug_author', 'developer'])
 
 export const commentSchema = z.object({
   id: z.string(),

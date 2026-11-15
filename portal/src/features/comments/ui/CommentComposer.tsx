@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import type { CommentSubject } from '../model/comments.schema'
 import { usePostComment } from '../model/use-post-comment'
 import { COMMENT_MAX_LENGTH, LIMIT_MESSAGE } from './comment-limits'
 
 /* Composer: top border, 20 top padding, textarea 96, footer with hint and send button (h-40) */
-export function CommentComposer({ requestId }: { requestId: string }) {
+export function CommentComposer({ subject, subjectId }: { subject: CommentSubject; subjectId: string }) {
   const [text, setText] = useState('')
   const [failed, setFailed] = useState(false)
-  const post = usePostComment(requestId)
+  const post = usePostComment(subject, subjectId)
   const tooLong = text.length > COMMENT_MAX_LENGTH
   const canSend = text.trim().length > 0 && !tooLong && !post.isPending
 
@@ -39,7 +40,7 @@ export function CommentComposer({ requestId }: { requestId: string }) {
         {tooLong ? (
           <p className="text-xs font-medium text-brand-red">{LIMIT_MESSAGE}</p>
         ) : null}
-        <p className="hidden text-xs text-ink-60 sm:block">Комментарий увидят автор заявки и разработчики</p>
+        <p className="hidden text-xs text-ink-60 sm:block">Комментарий увидят {subject === 'bugs' ? 'автор обращения' : 'автор заявки'} и разработчики</p>
         <div className="hidden flex-1 sm:block" />
         {tooLong ? (
           <span className="text-xs font-semibold text-brand-red">{`${text.length.toLocaleString('ru-RU')} / ${String(COMMENT_MAX_LENGTH)}`}</span>

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import type { ApiError } from '@/lib/errors'
 import { COMMENTS_KEY } from '@/lib/query-keys'
 import { editComment } from './comments.api'
-import type { Comment, CommentList } from './comments.schema'
+import type { Comment, CommentList, CommentSubject } from './comments.schema'
 
 export interface EditCommentVariables {
   commentId: string
@@ -10,11 +10,11 @@ export interface EditCommentVariables {
 }
 
 /** Edits a comment; on 409/403 the feed is refetched so canEdit reflects the server. */
-export function useEditComment(requestId: string): UseMutationResult<Comment, ApiError, EditCommentVariables> {
+export function useEditComment(subject: CommentSubject, subjectId: string): UseMutationResult<Comment, ApiError, EditCommentVariables> {
   const client = useQueryClient()
-  const key = [...COMMENTS_KEY, requestId]
+  const key = [...COMMENTS_KEY, subject, subjectId]
   return useMutation<Comment, ApiError, EditCommentVariables>({
-    mutationFn: ({ commentId, body }) => editComment(requestId, commentId, body),
+    mutationFn: ({ commentId, body }) => editComment(subject, subjectId, commentId, body),
     onSuccess: (comment) => {
       client.setQueryData<CommentList>(key, (old) => (old ? { items: old.items.map((c) => (c.id === comment.id ? comment : c)) } : old))
     },
