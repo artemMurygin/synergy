@@ -28,10 +28,7 @@ function registry(): DomainEventRegistry {
 function roundTrip(
     events: DomainEventRegistry,
     original:
-        | RequestAcceptedEvent
-        | RequestRejectedEvent
-        | RequestTakenEvent
-        | SkillStatusChangedEvent,
+        RequestAcceptedEvent | RequestRejectedEvent | RequestTakenEvent | SkillStatusChangedEvent,
 ): DomainEvent {
     const serialized = events.serialize(original);
     return events.restore({

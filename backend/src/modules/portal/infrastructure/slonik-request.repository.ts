@@ -104,7 +104,9 @@ export class SlonikRequestRepository extends RequestRepository {
         const executor = this.transactions.executor();
         if (expected === undefined) {
             if (request.decision.kind !== 'new') {
-                throw new Error(`Request ${request.id}: a decided request needs the expected status`);
+                throw new Error(
+                    `Request ${request.id}: a decided request needs the expected status`,
+                );
             }
             await executor.query(sql.unsafe`
                 INSERT INTO portal_requests
@@ -124,9 +126,13 @@ export class SlonikRequestRepository extends RequestRepository {
         const skillId = decision.kind === 'accepted' ? decision.skillId : null;
         const reason = decision.kind === 'rejected' ? decision.reason : null;
         const decidedBy =
-            decision.kind === 'accepted' || decision.kind === 'rejected' ? decision.decidedBy : null;
+            decision.kind === 'accepted' || decision.kind === 'rejected'
+                ? decision.decidedBy
+                : null;
         const decidedAt =
-            decision.kind === 'accepted' || decision.kind === 'rejected' ? decision.decidedAt : null;
+            decision.kind === 'accepted' || decision.kind === 'rejected'
+                ? decision.decidedAt
+                : null;
         const result = await executor.query(sql.unsafe`
             UPDATE portal_requests
             SET decision = ${decision.kind},

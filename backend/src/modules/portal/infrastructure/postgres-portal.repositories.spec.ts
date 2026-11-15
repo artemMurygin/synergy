@@ -430,7 +430,9 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             second.reject('Нет', dev, new Date(T0.getTime() + 11 * SECOND));
 
             await requests.save(first, 'new');
-            await expect(requests.save(second, 'new')).rejects.toBeInstanceOf(RequestAlreadyDecidedError);
+            await expect(requests.save(second, 'new')).rejects.toBeInstanceOf(
+                RequestAlreadyDecidedError,
+            );
 
             const found = await requests.findById(request.id);
             expect(found?.decision.kind).toBe('accepted');
@@ -500,7 +502,9 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             request.take(dev, new Date(T0.getTime() + 10 * SECOND));
             request.reject('Нет', dev, new Date(T0.getTime() + 10 * SECOND));
 
-            await expect(requests.save(request, 'new')).rejects.toBeInstanceOf(RequestNotFoundError);
+            await expect(requests.save(request, 'new')).rejects.toBeInstanceOf(
+                RequestNotFoundError,
+            );
         });
 
         it('listLinkedToSkill returns a snapshot of accepted requests of that skill only', async () => {
@@ -669,7 +673,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const view = await requestQuery.findView(underReview.id);
 
             expect(view).toMatchObject({
-                reviewer: { id: dev, login: expect.any(String), fullName: 'Петров Пётр' },
+                reviewer: { id: dev, login: expect.any(String) as string, fullName: 'Петров Пётр' },
                 effortHours: null,
             });
             expect(view?.takenAt?.getTime()).toBe(takenAt.getTime());
