@@ -3,21 +3,28 @@ import { useQuery } from '@tanstack/react-query'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import type { ProductRef } from '@/lib/schemas'
 import { cn } from '@/lib/utils'
 import { SKILL_STATUS_LABEL } from '@/lib/status-labels'
 import { agentsQuery } from '../model/catalog.queries'
 import { skillsQuery } from '../model/skills.queries'
+import { ProductMultiSelect } from './ProductMultiSelect'
 
 export type SkillPickerValue =
   | { mode: 'existing'; skillId: string }
   | { mode: 'new'; agentId: string; name: string; description: string }
+  | { mode: 'new_agent'; agentName: string; productIds: string[]; newProductName: string; name: string; description: string }
 
-export type SkillPickerErrors = Partial<Record<'skillId' | 'agentId' | 'name' | 'description', string>>
+export type SkillPickerErrors = Partial<
+  Record<'skillId' | 'agentId' | 'name' | 'description' | 'agentName' | 'products' | 'newProduct', string>
+>
 
 export interface SkillPickerProps {
   value: SkillPickerValue
   onChange: (value: SkillPickerValue) => void
   errors?: SkillPickerErrors
+  /** Products of the catalog for the "new agent" mode (the page passes them: features do not import each other). */
+  products?: ProductRef[]
 }
 
 /* Chip / Master at height 36: pill, 1px border-strong, 14/500; active chip is filled with ink */
@@ -55,7 +62,17 @@ function selectIconStyle(icon: string): React.CSSProperties {
   }
 }
 
-export function SkillPicker({ value, onChange, errors = {} }: SkillPickerProps) {
+/* Group · Агент / Навык: surface-alt card, r-md, 16 padding, 14 gap; title 11/700 ink-60 */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-3.5 rounded-md border-0 bg-surface-alt p-4">
+      <legend className="mb-3.5 p-0 font-sans text-[11px] font-bold leading-[1.17] tracking-[0.6px] text-ink-60">{title}</legend>
+      {children}
+    </fieldset>
+  )
+}
+
+export function SkillPicker({ value, onChange, errors = {}, products = [] }: SkillPickerProps) {
   const skills = useQuery({ ...skillsQuery(undefined, 0), enabled: value.mode === 'existing' })
   const agents = useQuery({ ...agentsQuery(), enabled: value.mode === 'new' })
   const skill = value.mode === 'existing' ? skills.data?.items.find((s) => s.id === value.skillId) : undefined
@@ -63,15 +80,23 @@ export function SkillPicker({ value, onChange, errors = {} }: SkillPickerProps) 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-2">
         <ModeButton active={value.mode === 'existing'} onClick={() => onChange({ mode: 'existing', skillId: '' })}>
-          Существующий навык
+          Существующий
         </ModeButton>
         <ModeButton
           active={value.mode === 'new'}
           onClick={() => onChange({ mode: 'new', agentId: '', name: '', description: '' })}
         >
           Новый навык
+        </ModeButton>
+        <ModeButton
+          active={value.mode === 'new_agent'}
+          onClick={() =>
+            onChange({ mode: 'new_agent', agentName: '', productIds: [], newProductName: '', name: '', description: '' })
+          }
+        >
+          Новый агент
         </ModeButton>
       </div>
 
@@ -91,6 +116,48 @@ export function SkillPicker({ value, onChange, errors = {} }: SkillPickerProps) 
             </option>
           ))}
         </Select>
+      ) : value.mode === 'new_agent' ? (
+        <>
+          <Group title="Новый агент">
+            <Input
+              label="Название агента"
+              value={value.agentName}
+              error={errors.agentName}
+              onChange={(e) => onChange({ ...value, agentName: e.target.value })}
+            />
+            <ProductMultiSelect
+              products={products}
+              value={value.productIds}
+              error={errors.products}
+              onChange={(productIds) => onChange({ ...value, productIds })}
+            />
+            <Input
+              label="Новый продукт"
+              hint="необязательно"
+              hintClassName="text-ink-60"
+              value={value.newProductName}
+              error={errors.newProduct}
+              onChange={(e) => onChange({ ...value, newProductName: e.target.value })}
+            />
+          </Group>
+          <Group title="Навык">
+            <Input
+              label="Название навыка"
+              value={value.name}
+              error={errors.name}
+              onChange={(e) => onChange({ ...value, name: e.target.value })}
+            />
+            <Textarea
+              label="Что делает"
+              hint="увидят авторы"
+              hintClassName="text-ink-60"
+              className="h-24 min-h-24 resize-none text-sm"
+              value={value.description}
+              error={errors.description}
+              onChange={(e) => onChange({ ...value, description: e.target.value })}
+            />
+          </Group>
+        </>
       ) : (
         <>
           <Select

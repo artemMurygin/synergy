@@ -40,6 +40,7 @@ function renderAt(path: string) {
 function api(handler: (c: FetchCall) => Response | undefined) {
   return stubFetch((c) => {
     if (c.path === '/portal/agents') return json([agentFixture])
+    if (c.path === '/portal/catalog') return json({ products: [] })
     if (c.path === '/portal/skills') return json(page([skillFixture]))
     return handler(c) ?? json({}, 404)
   })
@@ -95,6 +96,63 @@ describe('RequestPage', () => {
     await user.click(screen.getByRole('button', { name: 'Принять заявку' }))
     await vi.waitFor(() => expect(screen.queryByRole('heading', { name: 'Решение по заявке' })).toBeNull())
     expect(screen.getByText('Делает сводку')).toBeTruthy()
+  })
+
+  describe('developer, request not yet taken', () => {
+    const fresh = { ...requestFixture, status: { code: 'new' as const, label: 'Новая' }, reviewer: null, takenAt: null }
+
+    it('offers only "Взять в работу" for a new request', async () => {
+      useSessionStore.getState().signIn('t', developer)
+      api((c) => (c.path === `/portal/requests/${ID}` ? json(fresh) : undefined))
+      renderAt(`/requests/${ID}`)
+      expect(await screen.findByRole('button', { name: 'Взять в работу' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /Принять|Отклонить/ })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Решение по заявке' })).toBeNull()
+    })
+
+    it('does not offer taking to the author', async () => {
+      useSessionStore.getState().signIn('t', employee)
+      api((c) => (c.path === `/portal/requests/${ID}` ? json(fresh) : undefined))
+      renderAt(`/requests/${ID}`)
+      await screen.findByRole('heading', { name: 'Сверка актов' })
+      expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull()
+    })
+
+    it('after taking shows "На рассмотрении", the reviewer and the decision panel without a reload', async () => {
+      useSessionStore.getState().signIn('t', developer)
+      let taken = false
+      api((c) => {
+        if (c.method === 'POST' && c.path === `/portal/requests/${ID}/take`) {
+          taken = true
+          return json(requestFixture)
+        }
+        if (c.path === `/portal/requests/${ID}`) return json(taken ? requestFixture : fresh)
+      })
+      renderAt(`/requests/${ID}`)
+      await userEvent.click(await screen.findByRole('button', { name: 'Взять в работу' }))
+      expect(await screen.findByRole('heading', { name: 'Решение по заявке' })).toBeTruthy()
+      expect(screen.getAllByText('На рассмотрении').length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/Петров Пётр/).length).toBeGreaterThan(0)
+      expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull()
+    })
+
+    it('on 409 "already taken" shows the request under review with the reviewer and an Alert above the panel', async () => {
+      useSessionStore.getState().signIn('t', developer)
+      let taken = false
+      api((c) => {
+        if (c.method === 'POST' && c.path === `/portal/requests/${ID}/take`) {
+          taken = true
+          return json({ message: 'Заявку уже взяли', code: 'PORTAL_REQUEST_ALREADY_TAKEN' }, 409)
+        }
+        if (c.path === `/portal/requests/${ID}`) return json(taken ? requestFixture : fresh)
+      })
+      renderAt(`/requests/${ID}`)
+      await userEvent.click(await screen.findByRole('button', { name: 'Взять в работу' }))
+      expect(await screen.findByRole('heading', { name: 'Решение по заявке' })).toBeTruthy()
+      const alert = screen.getByRole('alert')
+      expect(alert.textContent).toContain('Заявку уже взяли в работу')
+      expect(alert.textContent).toContain('Петров Пётр')
+    })
   })
 
   it('does not show the panel to a developer for a decided request', async () => {

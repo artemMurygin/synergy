@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { formatEffortHours } from '@/lib/format'
 import { initials } from '@/lib/initials'
 import { REQUEST_STATUS_LABEL } from '@/lib/status-labels'
 import type { IdeaRequest, RequestStatusCode } from '@/lib/schemas'
 import { RequestStatusBadge } from './RequestStatusBadge'
 
-const FLOW: readonly RequestStatusCode[] = ['pending', 'planned', 'in_dev', 'testing', 'launched']
-const REJECTED_FLOW: readonly RequestStatusCode[] = ['pending', 'rejected']
+const FLOW: readonly RequestStatusCode[] = ['new', 'under_review', 'planned', 'in_dev', 'testing', 'launched']
+const REJECTED_FLOW: readonly RequestStatusCode[] = ['new', 'under_review', 'rejected']
+const AWAITING: readonly RequestStatusCode[] = ['new', 'under_review']
 const WEEKS_PER_MONTH = 4.3
 const DAYS_PER_MONTH = 30
 
@@ -155,7 +157,14 @@ function StatusSteps({ request }: { request: IdeaRequest }) {
         {flow.map((step, i) => {
           const state: StepState =
             step === 'rejected' ? 'rejected' : i < index || (finished && step === 'launched') ? 'done' : i === index ? 'current' : 'upcoming'
-          const meta = step === 'pending' ? dayMonth(request.createdAt) : step === 'rejected' ? 'причина ниже' : undefined
+          const meta =
+            step === 'new'
+              ? dayMonth(request.createdAt)
+              : step === 'under_review' && request.reviewer && request.takenAt
+                ? `${dayMonth(request.takenAt)} · ${request.reviewer.fullName}`
+                : step === 'rejected'
+                  ? 'причина ниже'
+                  : undefined
           return <Step key={step} title={REQUEST_STATUS_LABEL[step]} meta={meta} state={state} last={i === flow.length - 1} />
         })}
       </ol>
@@ -182,10 +191,18 @@ function SkillCard({ request }: { request: IdeaRequest }) {
             <p className="break-words text-xs text-ink-60">{request.skill.description}</p>
           </div>
         </div>
+        <div className="flex items-center gap-2 border-t border-border pt-3">
+          <Svg size={15} className="shrink-0 text-ink-40">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </Svg>
+          <span className="min-w-0 flex-1 text-[13px] text-ink-60">Оценка разработчика</span>
+          <span className="text-[13px] font-bold text-ink">{formatEffortHours(request.effortHours)}</span>
+        </div>
       </Card>
     )
   }
-  if (request.status.code !== 'pending') return null
+  if (!AWAITING.includes(request.status.code)) return null
   return (
     <Card title="Навык" className="gap-3.5">
       <p className="text-[13px] leading-[1.45] text-ink-60">
@@ -227,7 +244,7 @@ function Notice({ title, children, tone = 'info' }: { title: string; children: R
 }
 
 function StatusNotice({ code }: { code: RequestStatusCode }) {
-  if (code === 'pending') {
+  if (AWAITING.includes(code)) {
     return <Notice title="Решение придёт уведомлением">Обычно разработчик отвечает за 2–3 рабочих дня.</Notice>
   }
   if (code === 'rejected' || code === 'launched') return null
@@ -311,7 +328,8 @@ export interface RequestDetailsProps {
 
 export function RequestDetails({ request, decision }: RequestDetailsProps) {
   const code = request.status.code
-  const waiting = code === 'pending' ? ` · ждёт решения ${pluralDays(waitingDays(request.createdAt))}` : ''
+  const waiting = code === 'new' ? ` · ждёт решения ${pluralDays(waitingDays(request.createdAt))}` : ''
+  const inWork = request.reviewer && request.takenAt ? ` · в работе у ${request.reviewer.fullName} с ${shortDate(request.takenAt)}` : ''
   const frequency = request.frequency
   return (
     <article className="flex flex-col gap-3.5 min-[900px]:gap-6">
@@ -336,10 +354,12 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
           <span className="min-[900px]:hidden">
             {shortDate(request.createdAt)}
             {decision ? ` · ${request.author.fullName}` : ''}
+            {inWork}
           </span>
           <span className="hidden min-[900px]:inline">
             Подана {longDate(request.createdAt)} · {request.author.fullName}
             {waiting}
+            {inWork}
           </span>
         </p>
       </header>

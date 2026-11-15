@@ -2,3 +2,4 @@ export { QUEUE_KEY, queueQuery, decisionErrorMessage, DECISION_CONFLICT_MESSAGE 
 export { useAcceptRequest } from './model/use-accept-request'
 export { useRejectRequest } from './model/use-reject-request'
 export { DecisionPanel } from './ui/DecisionPanel'
+export { TakeRequestAction } from './ui/TakeRequestAction'

@@ -28,25 +28,45 @@ describe('RequestDetails', () => {
     expect(screen.queryByText(/Почему отклонена/)).toBeNull()
   })
 
-  it('shows the status path with the current step marked', () => {
+  it('shows the 6-step path with the current step marked', () => {
     renderDetails({ ...requestFixture, status: { code: 'in_dev', label: 'В разработке' } })
     const steps = within(screen.getByRole('list', { name: 'Путь заявки' })).getAllByRole('listitem')
     expect(steps.map((s) => s.textContent)).toEqual([
+      expect.stringContaining('Новая'),
       expect.stringContaining('На рассмотрении'),
       expect.stringContaining('Запланировано'),
       expect.stringContaining('В разработке'),
       expect.stringContaining('Тестируется'),
       expect.stringContaining('Запущено')
     ])
-    expect(steps[2]?.getAttribute('aria-current')).toBe('step')
-    expect(screen.getByText('шаг 3 из 5')).toBeTruthy()
+    expect(steps[3]?.getAttribute('aria-current')).toBe('step')
+    expect(screen.getByText('шаг 4 из 6')).toBeTruthy()
   })
 
-  it('shows the pending status with the waiting note and the status badge', () => {
+  it('shows the date of submission under "Новая" and the date and the name of the reviewer under "На рассмотрении"', () => {
     renderDetails(requestFixture)
-    expect(screen.getByText('шаг 1 из 5')).toBeTruthy()
+    const steps = within(screen.getByRole('list', { name: 'Путь заявки' })).getAllByRole('listitem')
+    expect(steps[0]?.textContent).toContain('10.11')
+    expect(steps[1]?.textContent).toContain('11.11 · Петров Пётр')
+    expect(steps[1]?.getAttribute('aria-current')).toBe('step')
+    expect(screen.getByText('шаг 2 из 6')).toBeTruthy()
+  })
+
+  it('marks "Новая" as the current step of a request nobody has taken', () => {
+    renderDetails({ ...requestFixture, status: { code: 'new', label: 'Новая' }, reviewer: null, takenAt: null })
+    const steps = within(screen.getByRole('list', { name: 'Путь заявки' })).getAllByRole('listitem')
+    expect(steps[0]?.getAttribute('aria-current')).toBe('step')
+    expect(steps[1]?.textContent).toBe('На рассмотрении')
+    expect(screen.getByText('шаг 1 из 6')).toBeTruthy()
     expect(screen.getByText(/ждёт решения/)).toBeTruthy()
+    expect(screen.queryByText(/в работе у/)).toBeNull()
     expect(screen.getByText('Решение придёт уведомлением')).toBeTruthy()
+  })
+
+  it('names the reviewer and the taking date in the meta line', () => {
+    renderDetails(requestFixture)
+    expect(screen.getAllByText(/в работе у Петров Пётр с 11 ноября/).length).toBeGreaterThan(0)
+    expect(screen.getByRole('heading', { name: 'Сверка актов' })).toBeTruthy()
   })
 
   it('shows the reject reason and a way to resubmit for a rejected request', () => {
@@ -66,6 +86,26 @@ describe('RequestDetails', () => {
     })
     expect(screen.getByText('Сверка')).toBeTruthy()
     expect(screen.getByText('Автоматически сверяет акты')).toBeTruthy()
+  })
+
+  it('shows the estimate of the developer in the skill card, a dash when there is none', () => {
+    const accepted = {
+      ...requestFixture,
+      status: { code: 'planned' as const, label: 'Запланировано' },
+      skill: { id: 's1', name: 'Сверка', description: 'Автоматически сверяет акты' }
+    }
+    renderDetails({ ...accepted, effortHours: 16 })
+    expect(screen.getByText('Оценка разработчика')).toBeTruthy()
+    expect(screen.getByText('16 ч')).toBeTruthy()
+    cleanup()
+    renderDetails({ ...accepted, effortHours: null })
+    expect(screen.getByText('Оценка разработчика')).toBeTruthy()
+    expect(screen.getByText('—')).toBeTruthy()
+  })
+
+  it('does not show the estimate before the decision', () => {
+    renderDetails({ ...requestFixture, effortHours: null })
+    expect(screen.queryByText('Оценка разработчика')).toBeNull()
   })
 
   it('puts the decision panel into the side column instead of the author cards', () => {

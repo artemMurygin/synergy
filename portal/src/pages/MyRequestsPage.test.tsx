@@ -39,6 +39,16 @@ describe('MyRequestsPage', () => {
     expect(screen.getByText('На рассмотрении')).toBeTruthy()
   })
 
+  it('shows a freshly submitted request as "Новая" without a reviewer', async () => {
+    const fresh = { ...requestFixture, status: { code: 'new' as const, label: 'Новая' }, reviewer: null, takenAt: null }
+    stubFetch(() => json(page([fresh])))
+    renderPage()
+    expect(await screen.findByText('Сверка актов')).toBeTruthy()
+    expect(screen.getByText('Новая')).toBeTruthy()
+    expect(screen.queryByText('На рассмотрении', { selector: 'span:not([role])' })).toBeNull()
+    expect(screen.queryByText(/Петров/)).toBeNull()
+  })
+
   it('shows the empty state with a link to submit an idea', async () => {
     stubFetch(() => json(page([])))
     renderPage()
@@ -57,7 +67,7 @@ describe('MyRequestsPage', () => {
   })
 
   it('reloads the actual status on every opening of the section', async () => {
-    let status: { code: 'pending' | 'in_dev'; label: string } = { code: 'pending', label: 'На рассмотрении' }
+    let status: { code: 'under_review' | 'in_dev'; label: string } = { code: 'under_review', label: 'На рассмотрении' }
     stubFetch(() => json(page([{ ...requestFixture, status }])))
     renderPage()
     expect(await screen.findByText('На рассмотрении')).toBeTruthy()

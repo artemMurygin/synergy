@@ -3,28 +3,75 @@ import { Link, useInRouterContext } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import type { IdeaRequest } from '@/lib/schemas'
+import { PersonAvatar } from '@/components/ui/person-avatar'
+import type { IdeaRequest, ProductRef } from '@/lib/schemas'
 import { SkillPicker, type SkillPickerErrors, type SkillPickerValue } from '@/features/skills'
 import { ApiError } from '@/lib/errors'
 import { cn } from '@/lib/utils'
+import { isArchiveConflict, isNameConflict } from '../model/decision-cache'
 import { decisionErrorMessage } from '../model/decision.queries'
 import { useAcceptRequest } from '../model/use-accept-request'
 import { useRejectRequest } from '../model/use-reject-request'
 import type { AcceptTarget } from '../model/decision.api'
+import { EffortField } from './EffortField'
 
 type Mode = 'accept' | 'reject'
 
+const MAX_EFFORT_HOURS = 2000
+const NAME_TAKEN = 'Название занято'
+
+function parseEffort(text: string): { effortHours: number } | { error: string } {
+  const trimmed = text.trim()
+  const hours = /^\d+$/.test(trimmed) ? Number(trimmed) : NaN
+  if (!Number.isInteger(hours) || hours < 1 || hours > MAX_EFFORT_HOURS) {
+    return { error: `Укажите целое число часов от 1 до ${String(MAX_EFFORT_HOURS)}` }
+  }
+  return { effortHours: hours }
+}
+
 function toTarget(value: SkillPickerValue): { target: AcceptTarget } | { errors: SkillPickerErrors } {
   if (value.mode === 'existing') {
-    return value.skillId ? { target: { skillId: value.skillId } } : { errors: { skillId: 'Выберите навык' } }
+    return value.skillId
+      ? { target: { kind: 'existing_skill', skillId: value.skillId } }
+      : { errors: { skillId: 'Выберите навык' } }
   }
   const name = value.name.trim()
   const description = value.description.trim()
   const errors: SkillPickerErrors = {}
-  if (!value.agentId) errors.agentId = 'Выберите агента'
+  if (value.mode === 'new') {
+    if (!value.agentId) errors.agentId = 'Выберите агента'
+  } else {
+    if (!value.agentName.trim()) errors.agentName = 'Введите название агента'
+    if (value.productIds.length === 0 && !value.newProductName.trim()) errors.products = 'Выберите хотя бы один продукт'
+  }
   if (!name) errors.name = 'Введите название навыка'
   if (!description) errors.description = 'Опишите навык'
-  return Object.keys(errors).length > 0 ? { errors } : { target: { agentId: value.agentId, name, description } }
+  if (Object.keys(errors).length > 0) return { errors }
+  if (value.mode === 'new') return { target: { kind: 'new_skill', agentId: value.agentId, name, description } }
+  const newProduct = value.newProductName.trim()
+  return {
+    target: {
+      kind: 'new_agent',
+      agent: {
+        name: value.agentName.trim(),
+        productIds: value.productIds,
+        ...(newProduct ? { newProduct: { name: newProduct } } : {})
+      },
+      skill: { name, description }
+    }
+  }
+}
+
+function nameTakenErrors(error: unknown): SkillPickerErrors {
+  if (!(error instanceof ApiError)) return {}
+  if (error.code === 'PORTAL_AGENT_NAME_TAKEN') return { agentName: NAME_TAKEN }
+  if (error.code === 'PORTAL_PRODUCT_NAME_TAKEN') return { newProduct: NAME_TAKEN }
+  return {}
+}
+
+function submitLabel(skill: SkillPickerValue): string {
+  if (skill.mode === 'new_agent') return 'Создать и принять'
+  return skill.mode === 'new' ? 'Создать навык и принять' : 'Принять заявку'
 }
 
 const QUICK_REASONS = ['Уже есть навык', 'Мало эффекта', 'Нельзя автоматизировать']
@@ -59,12 +106,16 @@ function SegmentButton({
 export interface DecisionPanelProps {
   request: IdeaRequest
   onDecided: (request: IdeaRequest) => void
+  /** Products of the catalog for the «new agent» form (used by the new-agent mode). */
+  products?: ProductRef[]
 }
 
-export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
+export function DecisionPanel({ request, products = [], onDecided }: DecisionPanelProps) {
   const [mode, setMode] = useState<Mode>('accept')
   const [skill, setSkill] = useState<SkillPickerValue>({ mode: 'existing', skillId: '' })
   const [skillErrors, setSkillErrors] = useState<SkillPickerErrors>({})
+  const [effort, setEffort] = useState('')
+  const [effortError, setEffortError] = useState<string | undefined>()
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState<string | undefined>()
   const accept = useAcceptRequest()
@@ -74,13 +125,15 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (mode === 'accept') {
+      const parsed = parseEffort(effort)
       const result = toTarget(skill)
-      if ('errors' in result) {
-        setSkillErrors(result.errors)
-        return
-      }
-      setSkillErrors({})
-      accept.mutate({ requestId: request.id, target: result.target }, { onSuccess: onDecided })
+      setEffortError('error' in parsed ? parsed.error : undefined)
+      setSkillErrors('errors' in result ? result.errors : {})
+      if ('error' in parsed || 'errors' in result) return
+      accept.mutate(
+        { requestId: request.id, effortHours: parsed.effortHours, target: result.target },
+        { onSuccess: onDecided }
+      )
       return
     }
     const trimmed = reason.trim()
@@ -93,8 +146,14 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
   }
 
   const inRouter = useInRouterContext()
-  const conflict = active.error instanceof ApiError && active.error.kind === 'conflict'
-  const backClass = 'h-12 px-6'
+  const conflict =
+    active.error instanceof ApiError &&
+    active.error.kind === 'conflict' &&
+    !isNameConflict(active.error) &&
+    !isArchiveConflict(active.error)
+  const pickerErrors = mode === 'accept' ? { ...skillErrors, ...nameTakenErrors(accept.error) } : skillErrors
+  const takenAt = request.takenAt ? new Date(request.takenAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : null
+  const backClass = 'h-12 px-6 max-sm:order-last'
 
   return (
     <form
@@ -109,6 +168,14 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
           Решение по заявке
         </h2>
         <p className="font-sans text-xs leading-[1.17] text-ink-60">Автор получит уведомление сразу после решения</p>
+        {request.reviewer && takenAt ? (
+          <div className="flex items-center gap-2 pt-1">
+            <PersonAvatar fullName={request.reviewer.fullName} className="size-6 text-[10px]" />
+            <p className="font-sans text-xs leading-[1.17] text-ink-60">
+              В работе у {request.reviewer.fullName} · с {takenAt}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {active.isError ? (
@@ -137,7 +204,10 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
         </div>
 
         {mode === 'accept' ? (
-          <SkillPicker value={skill} onChange={setSkill} errors={skillErrors} />
+          <>
+            <EffortField value={effort} onChange={setEffort} error={effortError} />
+            <SkillPicker value={skill} onChange={setSkill} errors={pickerErrors} products={products} />
+          </>
         ) : (
           <>
             <div className="flex flex-col gap-2">
@@ -171,7 +241,7 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
         )}
       </fieldset>
 
-      <div className={cn('flex gap-2.5', conflict && 'opacity-45')}>
+      <div className={cn('flex flex-col gap-2 sm:flex-row sm:gap-2.5', conflict && 'opacity-45')}>
         {inRouter ? (
           <Button asChild variant="outline" className={backClass}>
             <Link to="/queue">В очередь</Link>
@@ -184,9 +254,9 @@ export function DecisionPanel({ request, onDecided }: DecisionPanelProps) {
         <Button
           type="submit"
           disabled={active.isPending || conflict}
-          className={cn('flex-1', conflict && 'disabled:opacity-100', mode === 'reject' && 'bg-ink !shadow-none hover:bg-ink-80')}
+          className={cn('sm:flex-1', conflict && 'disabled:opacity-100', mode === 'reject' && 'bg-ink !shadow-none hover:bg-ink-80')}
         >
-          {mode === 'accept' ? (skill.mode === 'new' ? 'Создать навык и принять' : 'Принять заявку') : 'Отклонить заявку'}
+          {mode === 'accept' ? submitLabel(skill) : 'Отклонить заявку'}
         </Button>
       </div>
     </form>
