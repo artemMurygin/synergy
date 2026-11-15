@@ -21,3 +21,6 @@ npm-debug.log*
 # Local tooling
 .claude/settings.local.json
 .playwright-mcp/
+
+# OpenSpec apply: рабочие файлы workflow (context-pack)
+openspec/changes/**/.apply/

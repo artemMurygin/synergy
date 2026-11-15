@@ -47,3 +47,7 @@ src/modules/sheets-qa/data/tables/*.xlsx
 
 # Task attachments (local disk storage)
 storage/
+
+# Начальная загрузка: реальный файл с сотрудниками не коммитится
+db/seeds/*.json
+!db/seeds/users.example.json

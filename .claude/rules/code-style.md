@@ -1,7 +1,7 @@
 ---
 description: Правила код-стайла для NestJS backend (TypeScript)
 paths:
-  - "src/**/*.ts"
+  - "backend/src/**/*.ts"
 ---
 
 # NestJS: код-стайл

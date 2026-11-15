@@ -1,7 +1,7 @@
 ---
 description: Соглашение по логированию (pino, nestjs-pino, Loki) для NestJS backend
 paths:
-  - "src/**/*.ts"
+  - "backend/src/**/*.ts"
 ---
 
 # Логирование
