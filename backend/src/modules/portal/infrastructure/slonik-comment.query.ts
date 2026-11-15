@@ -4,9 +4,7 @@ import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { formatFullName } from '../../../shared/people/full-name';
 import { CommentQuery, type CommentRecord } from '../domain/ports/comment-query.port';
-import { millis, toDate } from './sql-helpers';
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { millis, toDate, UUID_PATTERN } from './sql-helpers';
 
 const commentViewRow = z.object({
     id: z.string(),

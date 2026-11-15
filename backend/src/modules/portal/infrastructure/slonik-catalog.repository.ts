@@ -12,7 +12,7 @@ import {
     type CatalogSeedResult,
 } from '../domain/ports/catalog-repository.port';
 import type { Product } from '../domain/product';
-import { millis, nullableTimestamp, toDate } from './sql-helpers';
+import { millis, nullableTimestamp, toDate, UUID_PATTERN } from './sql-helpers';
 
 const agentRow = z.object({
     id: z.string(),
@@ -23,8 +23,6 @@ const agentRow = z.object({
 });
 
 const productRow = z.object({ id: z.string(), slug: z.string(), name: z.string() });
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const idRow = z.object({ id: z.string() });
 

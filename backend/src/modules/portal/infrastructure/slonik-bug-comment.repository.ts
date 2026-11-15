@@ -5,9 +5,7 @@ import { TransactionRunnerPort } from '../../../database/postgres/transaction-ru
 import { BugComment } from '../domain/bug-comment';
 import { CommentBody } from '../domain/comment-body';
 import { BugCommentRepository } from '../domain/ports/bug-comment-repository.port';
-import { millis, nullableTimestamp, toDate } from './sql-helpers';
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { millis, nullableTimestamp, toDate, UUID_PATTERN } from './sql-helpers';
 
 const commentRow = z.object({
     id: z.string(),

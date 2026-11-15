@@ -11,9 +11,7 @@ import {
     type BugRecord,
 } from '../domain/ports/bug-query.port';
 import type { Page, PageRequest } from '../domain/ports/page';
-import { millis } from './sql-helpers';
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { millis, UUID_PATTERN } from './sql-helpers';
 
 const viewRow = z.object({
     id: z.string(),

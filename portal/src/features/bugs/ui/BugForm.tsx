@@ -43,6 +43,10 @@ export function BugForm({ products, initialAgentId, onReported, onCancel }: BugF
   const form = useBugForm(products, initialAgentId)
   const report = useReportBug()
   const { values, errors } = form
+  const agentName = products.flatMap((p) => p.agents).find((a) => a.id === values.agentId)?.name
+  const productHint = !values.productId && agentName
+    ? `${agentName} работает в нескольких продуктах. Выберите, где возникла проблема`
+    : undefined
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -70,20 +74,32 @@ export function BugForm({ products, initialAgentId, onReported, onCancel }: BugF
           </Alert>
         ) : null}
         <div className="grid grid-cols-1 gap-[18px] min-[640px]:grid-cols-2 min-[640px]:gap-4">
-          <Select
-            label="Продукт"
-            value={values.productId}
-            error={errors.productId}
-            onChange={(e) => form.setProduct(e.target.value)}
-            className="min-[640px]:h-[52px] max-[639px]:h-12"
-          >
-            <option value="">Выберите из списка</option>
-            {form.productOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
+          <div className="flex flex-col gap-2">
+            <Select
+              label="Продукт"
+              value={values.productId}
+              error={errors.productId}
+              onChange={(e) => form.setProduct(e.target.value)}
+              className="min-[640px]:h-[52px] max-[639px]:h-12"
+            >
+              <option value="">Выберите из списка</option>
+              {form.productOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            {productHint ? (
+              <p className="flex items-start gap-1.5 text-xs text-ink-60">
+                <Icon className="mt-0.5 size-3.5 shrink-0 text-ink-40">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4" />
+                  <path d="M12 8h.01" />
+                </Icon>
+                {productHint}
+              </p>
+            ) : null}
+          </div>
           <Select
             label="Агент"
             value={values.agentId}

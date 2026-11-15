@@ -11,6 +11,7 @@ import {
     ProductNotFoundError,
 } from '../../domain/errors';
 import { BugsController } from './bugs.controller';
+import { createPortalFixture } from '../../application/test-doubles';
 import { type HttpFixture, startHttpFixture, USER_ID } from './testing/http-fixture';
 
 const BUG_ID = '5f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
@@ -273,5 +274,56 @@ describe('BugsController', () => {
         const response = await call('GET', '/portal/bugs/my', undefined, {});
 
         expect(response.status).toBe(401);
+    });
+});
+
+describe('BugsController: некорректные id без мока use case', () => {
+    let fixture: HttpFixture;
+    let productId: string;
+    let agentId: string;
+
+    beforeAll(async () => {
+        const fx = createPortalFixture();
+        productId = fx.catalog.addProduct('crm', 'CRM').id;
+        agentId = fx.catalog.addAgent('crm', 'helper', 'Помощник').id;
+        const real = new ReportBugUseCase(
+            fx.bugs,
+            fx.catalog,
+            fx.bugQuery,
+            fx.clock,
+            fx.transactions,
+            fx.events,
+        );
+        fixture = await startHttpFixture({
+            controllers: [BugsController],
+            providers: [
+                { provide: ReportBugUseCase, useValue: real },
+                { provide: ListMyBugsUseCase, useValue: listMy },
+                { provide: ListBugQueueUseCase, useValue: queue },
+                { provide: GetBugUseCase, useValue: get },
+                { provide: ChangeBugStatusUseCase, useValue: change },
+            ],
+        });
+    });
+
+    afterAll(async () => {
+        await fixture.app.close();
+    });
+
+    const post = (body: unknown): Promise<Response> =>
+        fetch(`${fixture.base}/portal/bugs`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...fixture.bearer() },
+            body: JSON.stringify(body),
+        });
+
+    it('agentId не UUID даёт 404', async () => {
+        const response = await post({ ...validBody, productId, agentId: 'x' });
+        expect(response.status).toBe(404);
+    });
+
+    it('productId не UUID даёт 404', async () => {
+        const response = await post({ ...validBody, productId: 'x', agentId });
+        expect(response.status).toBe(404);
     });
 });

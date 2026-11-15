@@ -8,9 +8,7 @@ import { BUG_STATUSES, type BugStatus } from '../domain/bug-status';
 import { BugTitle } from '../domain/bug-title';
 import { BugRepository } from '../domain/ports/bug-repository.port';
 import { WontFixReason } from '../domain/wont-fix-reason';
-import { millis } from './sql-helpers';
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { millis, UUID_PATTERN } from './sql-helpers';
 
 const bugRow = z.object({
     id: z.string(),

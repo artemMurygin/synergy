@@ -96,6 +96,13 @@ describe('ReportBugUseCase', () => {
         );
     });
 
+    it('неизвестный агент даёт AgentNotFoundError', async () => {
+        const { useCase, input } = setup();
+        await expect(useCase.execute({ ...input, agentId: 'x' })).rejects.toBeInstanceOf(
+            AgentNotFoundError,
+        );
+    });
+
     it('агент не из продукта даёт AgentNotInProductError', async () => {
         const { fx, useCase, input, other } = setup();
         await expect(useCase.execute({ ...input, productId: other.id })).rejects.toBeInstanceOf(

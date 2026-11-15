@@ -89,4 +89,10 @@ describe('BugForm', () => {
     expect((screen.getByLabelText('Продукт') as HTMLSelectElement).value).toBe('p2')
     expect((screen.getByLabelText('Агент') as HTMLSelectElement).value).toBe('a2')
   })
+
+  it('explains the product choice when the agent belongs to several products', () => {
+    renderForm({ initialAgentId: 'a1' })
+    expect(screen.getByText('Ассистент работает в нескольких продуктах. Выберите, где возникла проблема')).toBeTruthy()
+    expect((screen.getByLabelText('Продукт') as HTMLSelectElement).value).toBe('')
+  })
 })

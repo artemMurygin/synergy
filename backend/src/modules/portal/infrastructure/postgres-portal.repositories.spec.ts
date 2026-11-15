@@ -1372,6 +1372,11 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             expect(await catalog.listAgents()).toEqual([]);
         });
 
+        it('findProductsByIds и findAgentForShare: не-UUID дают [] и null, а не ошибку БД', async () => {
+            expect(await catalog.findProductsByIds(['x'])).toEqual([]);
+            expect(await transactions.run(() => catalog.findAgentForShare('x'))).toBeNull();
+        });
+
         it('findAgent, findAgentForShare и findAgentForUpdate возвращают productIds и archivedAt', async () => {
             await catalog.seed(SHARED_SEED);
             const shared = must(
