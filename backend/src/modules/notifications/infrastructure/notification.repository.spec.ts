@@ -392,4 +392,27 @@ describe.skipIf(adminUrl === undefined)('UserDirectory', () => {
         expect(await directory.findLoginById(randomUUID())).toBeNull();
         expect(await directory.findLoginById('not-a-uuid')).toBeNull();
     });
+
+    it('returns the full name of the profile, or the login without one', async () => {
+        const full = await addUser('sidorov', true);
+        await client.query(
+            'INSERT INTO auth_user_profiles (user_id, last_name, first_name, middle_name) VALUES ($1, $2, $3, $4)',
+            [full, 'Сидоров', 'Пётр', 'Иванович'],
+        );
+        const partial = await addUser('kuznetsova', true);
+        await client.query(
+            'INSERT INTO auth_user_profiles (user_id, last_name, first_name) VALUES ($1, $2, $3)',
+            [partial, 'Кузнецова', 'Анна'],
+        );
+        const bare = await addUser('bare', true);
+
+        expect(await directory.findFullNameById(full)).toBe('Сидоров Пётр Иванович');
+        expect(await directory.findFullNameById(partial)).toBe('Кузнецова Анна');
+        expect(await directory.findFullNameById(bare)).toBe('bare');
+    });
+
+    it('returns null from findFullNameById for an unknown or malformed id', async () => {
+        expect(await directory.findFullNameById(randomUUID())).toBeNull();
+        expect(await directory.findFullNameById('not-a-uuid')).toBeNull();
+    });
 });

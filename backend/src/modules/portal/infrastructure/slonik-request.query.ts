@@ -24,7 +24,14 @@ const viewRow = z.object({
     frequency_period: z.string(),
     minutes_per_run: z.number(),
     people_count: z.number(),
-    decision: z.enum(['pending', 'accepted', 'rejected']),
+    decision: z.enum(['new', 'under_review', 'accepted', 'rejected']),
+    reviewer_id: z.string().nullable(),
+    reviewer_login: z.string().nullable(),
+    reviewer_last_name: z.string().nullable(),
+    reviewer_first_name: z.string().nullable(),
+    reviewer_middle_name: z.string().nullable(),
+    taken_at: z.number().nullable(),
+    effort_hours: z.number().nullable(),
     skill_id: z.string().nullable(),
     skill_name: z.string().nullable(),
     skill_description: z.string().nullable(),
@@ -38,23 +45,46 @@ const SELECT_VIEW = sql.fragment`
            p.last_name AS author_last_name, p.first_name AS author_first_name,
            p.middle_name AS author_middle_name, r.title, r.description,
            r.frequency_count, r.frequency_period, r.minutes_per_run, r.people_count,
-           r.decision, r.skill_id, s.name AS skill_name, s.description AS skill_description,
+           r.decision, r.reviewer_id, rv.login AS reviewer_login,
+           rp.last_name AS reviewer_last_name, rp.first_name AS reviewer_first_name,
+           rp.middle_name AS reviewer_middle_name, r.effort_hours,
+           ${millis('r.taken_at', 'taken_at')}, r.skill_id, s.name AS skill_name, s.description AS skill_description,
            s.status AS skill_status, r.reject_reason,
            ${millis('r.created_at', 'created_at')}
     FROM portal_requests r
     JOIN auth_users u ON u.id = r.author_id
     LEFT JOIN auth_user_profiles p ON p.user_id = r.author_id
+    LEFT JOIN auth_users rv ON rv.id = r.reviewer_id
+    LEFT JOIN auth_user_profiles rp ON rp.user_id = r.reviewer_id
     LEFT JOIN portal_skills s ON s.id = r.skill_id`;
 
 /** Статус для автора выводится политикой; решение собирается только для вывода статуса. */
 function toView(raw: unknown): RequestView {
     const row = viewRow.parse(raw);
+    const reviewerId = row.reviewer_id ?? '';
+    const takenAt = new Date(row.taken_at ?? 0);
+    const decided = new Date(0);
     const decision =
-        row.decision === 'pending'
+        row.decision === 'new'
             ? RequestDecision.new()
-            : row.decision === 'accepted'
-              ? RequestDecision.accepted('', new Date(0), row.skill_id ?? '', null, '', new Date(0))
-              : RequestDecision.rejected('', new Date(0), row.reject_reason ?? '', '', new Date(0));
+            : row.decision === 'under_review'
+              ? RequestDecision.underReview(reviewerId, takenAt)
+              : row.decision === 'accepted'
+                ? RequestDecision.accepted(
+                      reviewerId,
+                      takenAt,
+                      row.skill_id ?? '',
+                      row.effort_hours,
+                      reviewerId,
+                      decided,
+                  )
+                : RequestDecision.rejected(
+                      reviewerId,
+                      takenAt,
+                      row.reject_reason ?? '',
+                      reviewerId,
+                      decided,
+                  );
     const frequency = Frequency.of(row.frequency_count, row.frequency_period);
     const skill =
         row.skill_id === null
@@ -85,6 +115,23 @@ function toView(raw: unknown): RequestView {
             decision,
             row.skill_status === null ? null : SkillStatus.parse(row.skill_status),
         ),
+        reviewer:
+            row.reviewer_id === null || row.reviewer_login === null
+                ? null
+                : {
+                      id: row.reviewer_id,
+                      login: row.reviewer_login,
+                      fullName: formatFullName(
+                          {
+                              lastName: row.reviewer_last_name,
+                              firstName: row.reviewer_first_name,
+                              middleName: row.reviewer_middle_name,
+                          },
+                          row.reviewer_login,
+                      ),
+                  },
+        takenAt: row.taken_at === null ? null : new Date(row.taken_at),
+        effortHours: row.effort_hours,
         rejectReason: row.reject_reason,
         skill,
         createdAt: new Date(row.created_at),
@@ -107,7 +154,7 @@ export class SlonikRequestQuery extends RequestQuery {
 
     listPending(page: PageRequest): Promise<Page<RequestView>> {
         return this.list(
-            sql.fragment`r.decision = 'pending'`,
+            sql.fragment`r.decision IN ('new', 'under_review')`,
             sql.fragment`ORDER BY r.created_at ASC, r.id ASC`,
             page,
         );

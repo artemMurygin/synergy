@@ -8,9 +8,11 @@ import { TransactionRunner } from '../../../database/postgres/transaction-runner
 import {
     InvalidSkillTransitionError,
     RequestAlreadyDecidedError,
+    RequestAlreadyTakenError,
     RequestNotFoundError,
 } from '../domain/errors';
 import { Agent } from '../domain/agent';
+import { AgentNameTakenError, ProductNameTakenError, SlugTakenError } from '../domain/errors';
 import { Frequency } from '../domain/frequency';
 import { IdeaRequest } from '../domain/idea-request';
 import type { CatalogSeedProduct } from '../domain/ports/catalog-repository.port';
@@ -366,7 +368,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             expect(found?.frequency.period).toBe('week');
             expect(found?.minutesPerRun).toBe(20);
             expect(found?.peopleCount).toBe(3);
-            expect(found?.decision).toEqual({ kind: 'pending' });
+            expect(found?.decision).toEqual({ kind: 'new' });
             expect(found?.createdAt.getTime()).toBe(request.createdAt.getTime());
             expect(await requests.findById(randomUUID())).toBeNull();
         });
@@ -380,12 +382,15 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             request.take(dev, decidedAt);
             request.accept(skill.id, EffortHours.of(8), dev, decidedAt);
 
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const found = await requests.findById(request.id);
             expect(found?.decision).toEqual({
                 kind: 'accepted',
+                reviewerId: dev,
+                takenAt: decidedAt,
                 skillId: skill.id,
+                effortHours: 8,
                 decidedBy: dev,
                 decidedAt,
             });
@@ -398,11 +403,13 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             request.take(dev, decidedAt);
             request.reject('Уже есть в поставке', dev, decidedAt);
 
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const found = await requests.findById(request.id);
             expect(found?.decision).toEqual({
                 kind: 'rejected',
+                reviewerId: dev,
+                takenAt: decidedAt,
                 reason: 'Уже есть в поставке',
                 decidedBy: dev,
                 decidedAt,
@@ -422,11 +429,70 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             second.take(dev, new Date(T0.getTime() + 11 * SECOND));
             second.reject('Нет', dev, new Date(T0.getTime() + 11 * SECOND));
 
-            await requests.save(first);
-            await expect(requests.save(second)).rejects.toBeInstanceOf(RequestAlreadyDecidedError);
+            await requests.save(first, 'new');
+            await expect(requests.save(second, 'new')).rejects.toBeInstanceOf(RequestAlreadyDecidedError);
 
             const found = await requests.findById(request.id);
             expect(found?.decision.kind).toBe('accepted');
+        });
+
+        it('persists under_review with reviewer and takenAt', async () => {
+            const request = makeRequest();
+            await requests.save(request);
+            const takenAt = new Date(T0.getTime() + 40 * SECOND);
+            request.take(dev, takenAt);
+
+            await requests.save(request, 'new');
+
+            const found = await requests.findById(request.id);
+            expect(found?.decision).toEqual({ kind: 'under_review', reviewerId: dev, takenAt });
+        });
+
+        it('accepts from under_review and restores an accepted request without effort', async () => {
+            const skill = makeSkill();
+            await skills.save(skill);
+            const request = makeRequest();
+            await requests.save(request);
+            request.take(dev, T0);
+            await requests.save(request, 'new');
+            request.accept(skill.id, EffortHours.of(4), dev, T0);
+            await requests.save(request, 'under_review');
+            expect((await requests.findById(request.id))?.decision).toMatchObject({
+                kind: 'accepted',
+                effortHours: 4,
+            });
+
+            const legacy = makeRequest();
+            await requests.save(legacy);
+            await client.query(
+                `UPDATE portal_requests SET decision = 'accepted', reviewer_id = $2, taken_at = now(),
+                        decided_by = $2, decided_at = now(), skill_id = $3 WHERE id = $1`,
+                [legacy.id, dev, skill.id],
+            );
+            expect((await requests.findById(legacy.id))?.decision).toMatchObject({
+                kind: 'accepted',
+                effortHours: null,
+            });
+        });
+
+        it('of two parallel takes exactly one succeeds, the other gets RequestAlreadyTakenError', async () => {
+            const request = makeRequest();
+            await requests.save(request);
+            const first = must(await requests.findById(request.id));
+            const second = must(await requests.findById(request.id));
+            first.take(dev, new Date(T0.getTime() + 10 * SECOND));
+            second.take(bob, new Date(T0.getTime() + 11 * SECOND));
+
+            const results = await Promise.allSettled([
+                requests.save(first, 'new'),
+                requests.save(second, 'new'),
+            ]);
+
+            expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+            const rejected = results.find((r) => r.status === 'rejected');
+            expect(rejected?.status === 'rejected' && rejected.reason).toBeInstanceOf(
+                RequestAlreadyTakenError,
+            );
         });
 
         it('saving a decision for a missing request fails with RequestNotFoundError', async () => {
@@ -434,7 +500,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             request.take(dev, new Date(T0.getTime() + 10 * SECOND));
             request.reject('Нет', dev, new Date(T0.getTime() + 10 * SECOND));
 
-            await expect(requests.save(request)).rejects.toBeInstanceOf(RequestNotFoundError);
+            await expect(requests.save(request, 'new')).rejects.toBeInstanceOf(RequestNotFoundError);
         });
 
         it('listLinkedToSkill returns a snapshot of accepted requests of that skill only', async () => {
@@ -456,7 +522,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             toOther.accept(other.id, EffortHours.of(8), dev, T0);
             rejected.take(dev, T0);
             rejected.reject('Нет', dev, T0);
-            for (const request of [a, b, toOther, rejected]) await requests.save(request);
+            for (const request of [a, b, toOther, rejected]) await requests.save(request, 'new');
 
             const snapshot = await requests.listLinkedToSkill(skill.id);
 
@@ -486,7 +552,10 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
                 frequency: { count: 5, period: 'week' },
                 minutesPerRun: 20,
                 peopleCount: 3,
-                status: { code: 'pending', label: 'На рассмотрении' },
+                status: { code: 'new', label: 'Новая' },
+                reviewer: null,
+                takenAt: null,
+                effortHours: null,
                 rejectReason: null,
                 skill: null,
             });
@@ -513,7 +582,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await requests.save(request);
             request.take(dev, T0);
             request.accept(skill.id, EffortHours.of(8), dev, T0);
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const planned = await requestQuery.findView(request.id);
             await client.query(`UPDATE portal_skills SET status = 'in_dev' WHERE id = $1`, [
@@ -535,7 +604,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await requests.save(request);
             request.take(dev, T0);
             request.reject('Уже есть в поставке', dev, T0);
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const view = await requestQuery.findView(request.id);
 
@@ -555,13 +624,56 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             for (const request of [newer, older, decided]) await requests.save(request);
             decided.take(dev, T0);
             decided.reject('Нет', dev, T0);
-            await requests.save(decided);
+            await requests.save(decided, 'new');
 
             const page = await requestQuery.listPending({ limit: 50, page: 0 });
 
             expect(page.total).toBe(2);
             expect(page.items.map((item) => item.id)).toEqual([older.id, newer.id]);
             expect(page.items.map((item) => item.authorLogin)).toEqual(['alice', 'bob']);
+        });
+
+        it('listPending returns new and under_review, oldest first, without decided ones', async () => {
+            const taken = makeRequest(alice, 1);
+            const fresh = makeRequest(bob, 2);
+            const rejected = makeRequest(alice, 3);
+            for (const request of [taken, fresh, rejected]) await requests.save(request);
+            taken.take(dev, T0);
+            await requests.save(taken, 'new');
+            rejected.take(dev, T0);
+            rejected.reject('Нет', dev, T0);
+            await requests.save(rejected, 'new');
+
+            const page = await requestQuery.listPending({ limit: 50, page: 0 });
+
+            expect(page.total).toBe(2);
+            expect(page.items.map((item) => item.status.code)).toEqual(['under_review', 'new']);
+            expect(page.items.map((item) => item.id)).toEqual([taken.id, fresh.id]);
+        });
+
+        it('exposes reviewer with full name (login fallback), takenAt and effortHours', async () => {
+            await addProfile(dev, { last: 'Петров', first: 'Пётр' });
+            const skill = makeSkill();
+            await skills.save(skill);
+            const underReview = makeRequest(alice, 1);
+            const accepted = makeRequest(alice, 2);
+            for (const request of [underReview, accepted]) await requests.save(request);
+            const takenAt = new Date(T0.getTime() + 30 * SECOND);
+            underReview.take(dev, takenAt);
+            await requests.save(underReview, 'new');
+            accepted.take(dev, takenAt);
+            accepted.accept(skill.id, EffortHours.of(16), dev, takenAt);
+            await requests.save(accepted, 'new');
+
+            const own = await requestQuery.listByAuthor(alice, { limit: 50, page: 0 });
+            const view = await requestQuery.findView(underReview.id);
+
+            expect(view).toMatchObject({
+                reviewer: { id: dev, login: expect.any(String), fullName: 'Петров Пётр' },
+                effortHours: null,
+            });
+            expect(view?.takenAt?.getTime()).toBe(takenAt.getTime());
+            expect(own.items.find((item) => item.id === accepted.id)?.effortHours).toBe(16);
         });
 
         it('builds the author full name from the profile and falls back to the login', async () => {
@@ -904,7 +1016,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         it('seed creates products and agents and reports how many were created', async () => {
             const result = await catalog.seed(SEED);
 
-            expect(result).toEqual({ productsCreated: 2, agentsCreated: 1 });
+            expect(result).toEqual({ productsCreated: 2, agentsCreated: 1, skipped: [] });
             expect(await count('portal_products')).toBe(3);
             expect(await count('portal_agents')).toBe(2);
         });
@@ -922,7 +1034,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
 
             const again = await catalog.seed(changed);
 
-            expect(again).toEqual({ productsCreated: 0, agentsCreated: 0 });
+            expect(again).toEqual({ productsCreated: 0, agentsCreated: 0, skipped: [] });
             expect(await count('portal_products')).toBe(3);
             expect(await count('portal_agents')).toBe(2);
             const names = await client.query<{ name: string }>(
@@ -951,7 +1063,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         it('seed: агент с одним slug у двух продуктов — одна запись и две связи', async () => {
             const result = await catalog.seed(SHARED_SEED);
 
-            expect(result).toEqual({ productsCreated: 2, agentsCreated: 1 });
+            expect(result).toEqual({ productsCreated: 2, agentsCreated: 1, skipped: [] });
             expect(await count('portal_agents')).toBe(2);
             const links = await client.query<{ n: number }>(
                 `SELECT count(*)::int AS n FROM portal_agent_products ap
@@ -990,6 +1102,118 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             );
             expect(row.rows[0]?.name).toBe('Ассистент');
             expect(row.rows[0]?.archived_at).toEqual(before.rows[0]?.archived_at);
+        });
+
+        it('findProductByName и findAgentByName ищут по lower(btrim(name)), включая архивных', async () => {
+            await catalog.seed(SEED);
+            await client.query(
+                `UPDATE portal_agents SET archived_at = now() WHERE slug = 'audit-agent'`,
+            );
+
+            expect((await catalog.findProductByName('manager helper'))?.slug).toBe(
+                'manager-helper',
+            );
+            expect((await catalog.findAgentByName('аудит сделок'))?.slug).toBe('audit-agent');
+            expect(await catalog.findProductByName('нет такого')).toBeNull();
+            expect(await catalog.findAgentByName('нет такого')).toBeNull();
+        });
+
+        it('nextFreeSlug возвращает base, а при занятом - первый свободный base-N (с архивными)', async () => {
+            expect(await catalog.nextFreeSlug('agent', 'free-slug')).toBe('free-slug');
+            expect(await catalog.nextFreeSlug('agent', 'cc-tasks')).toBe('cc-tasks-2');
+            await client.query(
+                `INSERT INTO portal_agents (slug, name, archived_at)
+                 VALUES ('cc-tasks-2', 'Архивный', now())`,
+            );
+            expect(await catalog.nextFreeSlug('agent', 'cc-tasks')).toBe('cc-tasks-3');
+            expect(await catalog.nextFreeSlug('product', 'control-center')).toBe(
+                'control-center-2',
+            );
+            expect(await catalog.nextFreeSlug('product', 'cc-tasks')).toBe('cc-tasks');
+        });
+
+        it('insertProduct сохраняет продукт; занятые название и slug дают типизированные ошибки', async () => {
+            const id = randomUUID();
+            await catalog.insertProduct({ id, slug: 'crm', name: 'CRM' });
+
+            expect((await catalog.findProductsByIds([id]))[0]?.slug).toBe('crm');
+            await expect(
+                catalog.insertProduct({ id: randomUUID(), slug: 'crm-x', name: ' crm ' }),
+            ).rejects.toBeInstanceOf(ProductNameTakenError);
+            await expect(
+                catalog.insertProduct({ id: randomUUID(), slug: 'crm', name: 'Другое' }),
+            ).rejects.toBeInstanceOf(SlugTakenError);
+        });
+
+        it('insertAgent сохраняет агента со связями; занятые название и slug дают типизированные ошибки', async () => {
+            const agent = Agent.create({
+                id: randomUUID(),
+                slug: 'new-agent',
+                name: 'Новый агент',
+                productIds: [productId],
+                now: T0,
+            });
+            await catalog.insertAgent(agent);
+
+            const saved = must(await catalog.findAgent(agent.id));
+            expect(saved.slug).toBe('new-agent');
+            expect(saved.productIds).toEqual([productId]);
+            await expect(
+                catalog.insertAgent(
+                    Agent.create({
+                        id: randomUUID(),
+                        slug: 'other',
+                        name: ' НОВЫЙ агент',
+                        productIds: [productId],
+                        now: T0,
+                    }),
+                ),
+            ).rejects.toBeInstanceOf(AgentNameTakenError);
+            await expect(
+                catalog.insertAgent(
+                    Agent.create({
+                        id: randomUUID(),
+                        slug: 'new-agent',
+                        name: 'Иное',
+                        productIds: [productId],
+                        now: T0,
+                    }),
+                ),
+            ).rejects.toBeInstanceOf(SlugTakenError);
+            expect(await count('portal_agents')).toBe(2);
+        });
+
+        it('seed пропускает продукт и агента с занятым названием, сообщает об этом и не создаёт дублей', async () => {
+            const input: CatalogSeedProduct[] = [
+                {
+                    slug: 'other-cc',
+                    name: 'control CENTER',
+                    agents: [{ slug: 'x-agent', name: 'Агент икс' }],
+                },
+                {
+                    slug: 'fresh',
+                    name: 'Fresh',
+                    agents: [{ slug: 'other-tasks', name: 'ЗАДАЧИ' }],
+                },
+            ];
+
+            const result = await catalog.seed(input);
+
+            expect(result).toEqual({
+                productsCreated: 1,
+                agentsCreated: 0,
+                skipped: [
+                    { kind: 'product', slug: 'other-cc', name: 'control CENTER' },
+                    { kind: 'agent', slug: 'other-tasks', name: 'ЗАДАЧИ' },
+                ],
+            });
+            expect(await count('portal_products')).toBe(2);
+            expect(await count('portal_agents')).toBe(1);
+            const again = await catalog.seed(input);
+            expect(again.productsCreated).toBe(0);
+            expect(again.agentsCreated).toBe(0);
+            expect(await count('portal_products')).toBe(2);
+            expect(await count('portal_agents')).toBe(1);
         });
 
         it('listAgents скрывает архивных агентов', async () => {

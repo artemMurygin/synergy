@@ -7,6 +7,7 @@ export const NOTIFICATION_TYPES = [
     'meeting-transcript.failed',
     'request.accepted',
     'request.rejected',
+    'request.under-review',
     'request.status-changed',
 ] as const;
 

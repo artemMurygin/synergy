@@ -5,11 +5,21 @@ import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd'
 import { formatFullName, type FullNameParts } from '../../../shared/people/full-name';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
 import { Agent } from '../domain/agent';
-import { InvalidSkillTransitionError, RequestAlreadyDecidedError } from '../domain/errors';
+import {
+    AgentNameTakenError,
+    InvalidSkillTransitionError,
+    ProductNameTakenError,
+    RequestAlreadyDecidedError,
+    RequestAlreadyTakenError,
+    RequestNotFoundError,
+    RequestNotTakenError,
+    SlugTakenError,
+} from '../domain/errors';
 import type { IdeaRequest } from '../domain/idea-request';
 import {
     CatalogRepository,
     type AgentWithProducts,
+    type CatalogKind,
     type CatalogSeedProduct,
     type CatalogSeedResult,
 } from '../domain/ports/catalog-repository.port';
@@ -25,6 +35,7 @@ import { RequestRepository } from '../domain/ports/request-repository.port';
 import { SkillQuery, type SkillView } from '../domain/ports/skill-query.port';
 import { SkillRepository } from '../domain/ports/skill-repository.port';
 import type { Product } from '../domain/product';
+import type { RequestStatusKind } from '../domain/request-decision';
 import { RequestStatusPolicy } from '../domain/request-status-policy';
 import type { Skill } from '../domain/skill';
 import type { SkillStatus } from '../domain/skill-status';
@@ -122,26 +133,41 @@ export class RecordingEventPublisher
 
 export class InMemoryRequestRepository extends RequestRepository implements TransactionParticipant {
     readonly byId = new Map<string, IdeaRequest>();
+    /** Статус как он записан в «БД»: объекты в byId мутируются доменом до save. */
+    private readonly statuses = new Map<string, RequestStatusKind>();
 
     snapshot(): () => void {
         const saved = new Map(this.byId);
+        const savedStatuses = new Map(this.statuses);
         return () => {
             this.byId.clear();
             for (const [id, request] of saved) this.byId.set(id, request);
+            this.statuses.clear();
+            for (const [id, kind] of savedStatuses) this.statuses.set(id, kind);
         };
     }
 
-    save(request: IdeaRequest): Promise<void> {
+    save(request: IdeaRequest, expected?: RequestStatusKind): Promise<void> {
         const stored = this.byId.get(request.id);
-        if (
-            stored !== undefined &&
-            stored !== request &&
-            stored.decision.kind !== 'new' &&
-            stored.decision.kind !== 'under_review'
-        ) {
+        if (expected === undefined) {
+            if (stored === undefined) {
+                this.byId.set(request.id, request);
+                this.statuses.set(request.id, request.statusKind);
+            }
+            return Promise.resolve();
+        }
+        if (stored === undefined) return Promise.reject(new RequestNotFoundError(request.id));
+        // Как условный UPDATE: сравниваем с «записанным» статусом, а не с живым объектом.
+        const actual = this.statuses.get(request.id) ?? stored.statusKind;
+        if (actual !== expected) {
+            if (actual === 'under_review' && expected === 'new') {
+                return Promise.reject(new RequestAlreadyTakenError(request.id));
+            }
+            if (actual === 'new') return Promise.reject(new RequestNotTakenError(request.id));
             return Promise.reject(new RequestAlreadyDecidedError(request.id));
         }
         this.byId.set(request.id, request);
+        this.statuses.set(request.id, request.statusKind);
         return Promise.resolve();
     }
 
@@ -276,17 +302,83 @@ export class InMemoryCatalogRepository extends CatalogRepository {
         return Promise.resolve();
     }
 
+    findAgentByName(key: string): Promise<Agent | null> {
+        return Promise.resolve(this.agentByName(key));
+    }
+
+    findProductByName(key: string): Promise<Product | null> {
+        return Promise.resolve(this.productByName(key));
+    }
+
+    nextFreeSlug(kind: CatalogKind, base: string): Promise<string> {
+        const taken = new Set(
+            kind === 'product'
+                ? [...this.products.values()].map((p) => p.slug)
+                : [...this.agents.values()].map((a) => a.slug),
+        );
+        let slug = base;
+        for (let n = 2; taken.has(slug); n += 1) slug = `${base}-${String(n)}`;
+        return Promise.resolve(slug);
+    }
+
+    insertProduct(product: Product): Promise<void> {
+        if (this.productByName(product.name.trim().toLowerCase()) !== null) {
+            return Promise.reject(new ProductNameTakenError());
+        }
+        if (this.products.has(product.slug)) return Promise.reject(new SlugTakenError());
+        this.products.set(product.slug, product);
+        return Promise.resolve();
+    }
+
+    insertAgent(agent: Agent): Promise<void> {
+        if (this.agentByName(agent.name.trim().toLowerCase()) !== null) {
+            return Promise.reject(new AgentNameTakenError());
+        }
+        if ([...this.agents.values()].some((a) => a.slug === agent.slug)) {
+            return Promise.reject(new SlugTakenError());
+        }
+        this.agents.set(agent.id, agent);
+        return Promise.resolve();
+    }
+
+    private productByName(key: string): Product | null {
+        return [...this.products.values()].find((p) => p.name.trim().toLowerCase() === key) ?? null;
+    }
+
+    private agentByName(key: string): Agent | null {
+        return [...this.agents.values()].find((a) => a.name.trim().toLowerCase() === key) ?? null;
+    }
+
     seed(products: readonly CatalogSeedProduct[]): Promise<CatalogSeedResult> {
-        const result = { productsCreated: 0, agentsCreated: 0 };
+        const result: CatalogSeedResult = { productsCreated: 0, agentsCreated: 0, skipped: [] };
         for (const seedProduct of products) {
-            const existingProduct = this.products.get(seedProduct.slug);
-            const product = existingProduct ?? this.addProduct(seedProduct.slug, seedProduct.name);
-            if (existingProduct === undefined) result.productsCreated += 1;
+            let product = this.products.get(seedProduct.slug);
+            if (product === undefined) {
+                const holder = this.productByName(seedProduct.name.trim().toLowerCase());
+                if (holder !== null) {
+                    result.skipped.push({
+                        kind: 'product',
+                        slug: seedProduct.slug,
+                        name: seedProduct.name,
+                    });
+                    continue;
+                }
+                product = this.addProduct(seedProduct.slug, seedProduct.name);
+                result.productsCreated += 1;
+            }
             for (const seedAgent of seedProduct.agents) {
                 const existing = [...this.agents.values()].find(
                     (agent) => agent.slug === seedAgent.slug,
                 );
                 if (existing === undefined) {
+                    if (this.agentByName(seedAgent.name.trim().toLowerCase()) !== null) {
+                        result.skipped.push({
+                            kind: 'agent',
+                            slug: seedAgent.slug,
+                            name: seedAgent.name,
+                        });
+                        continue;
+                    }
                     this.addAgent(seedProduct.slug, seedAgent.slug, seedAgent.name);
                     result.agentsCreated += 1;
                 } else if (!existing.productIds.includes(product.id)) {
@@ -347,6 +439,19 @@ export class InMemoryRequestQuery extends RequestQuery {
             minutesPerRun: request.minutesPerRun,
             peopleCount: request.peopleCount,
             status: RequestStatusPolicy.statusOf(decision, skill?.status ?? null),
+            reviewer:
+                decision.kind === 'new'
+                    ? null
+                    : {
+                          id: decision.reviewerId,
+                          login: this.logins.get(decision.reviewerId) ?? decision.reviewerId,
+                          fullName: formatFullName(
+                              this.profiles.get(decision.reviewerId) ?? {},
+                              this.logins.get(decision.reviewerId) ?? decision.reviewerId,
+                          ),
+                      },
+            takenAt: decision.kind === 'new' ? null : decision.takenAt,
+            effortHours: decision.kind === 'accepted' ? decision.effortHours : null,
             rejectReason: decision.kind === 'rejected' ? decision.reason : null,
             skill:
                 skill === undefined

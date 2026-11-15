@@ -14,6 +14,7 @@ export const PortalErrorCode = {
     RequestIntegrity: 'PORTAL_REQUEST_INTEGRITY',
     AgentNameTaken: 'PORTAL_AGENT_NAME_TAKEN',
     ProductNameTaken: 'PORTAL_PRODUCT_NAME_TAKEN',
+    SlugTaken: 'PORTAL_SLUG_TAKEN',
 } as const;
 
 /** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
@@ -133,5 +134,14 @@ export class ProductNotFoundError extends BaseError {
 
     constructor(readonly productId: string) {
         super(`Product ${productId} not found`);
+    }
+}
+
+/** Slug агента или продукта занят (внутренняя ошибка: use-case повторяет подбор slug). */
+export class SlugTakenError extends BaseError {
+    readonly code = PortalErrorCode.SlugTaken;
+
+    constructor() {
+        super('slug is already taken');
     }
 }

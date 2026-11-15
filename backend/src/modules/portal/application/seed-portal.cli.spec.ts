@@ -18,9 +18,24 @@ const expectedAgents = PORTAL_CATALOG.reduce((sum, product) => sum + product.age
 
 describe('formatPortalSeedReport', () => {
     it('prints the number of created products and agents', () => {
-        expect(formatPortalSeedReport({ productsCreated: 4, agentsCreated: 6 })).toBe(
+        expect(formatPortalSeedReport({ productsCreated: 4, agentsCreated: 6, skipped: [] })).toBe(
             'products created: 4\nagents created: 6',
         );
+    });
+});
+
+describe('runSeedPortal: пропущенные записи', () => {
+    it('печатает предупреждение о пропущенных записях и завершается с кодом 0', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        catalog.addProduct('my-cc', 'Control Center');
+        const out = io();
+
+        const code = await runSeedPortal(new SeedPortalCatalogUseCase(catalog), out.sinks);
+
+        expect(code).toBe(0);
+        const warning = out.stderr.join('\n');
+        expect(warning).toContain('control-center');
+        expect(warning).toContain('Control Center');
     });
 });
 

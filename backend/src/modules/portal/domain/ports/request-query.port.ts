@@ -15,6 +15,11 @@ export interface RequestView {
     minutesPerRun: number;
     peopleCount: number;
     status: RequestStatus;
+    /** Взявший в работу; ФИО по правилам employee-directory, без ФИО — логин. */
+    reviewer: { id: string; login: string; fullName: string } | null;
+    takenAt: Date | null;
+    /** Оценка в часах; null у не принятых и у принятых до появления оценки. */
+    effortHours: number | null;
     rejectReason: string | null;
     skill: { id: string; name: string; description: string } | null;
     createdAt: Date;
@@ -23,7 +28,7 @@ export interface RequestView {
 export abstract class RequestQuery {
     /** Только свои заявки, новые первыми. */
     abstract listByAuthor(authorId: string, page: PageRequest): Promise<Page<RequestView>>;
-    /** Очередь: только `pending`, старые первыми. */
+    /** Очередь: `new` и `under_review`, старые первыми, с общим числом. */
     abstract listPending(page: PageRequest): Promise<Page<RequestView>>;
     abstract findView(id: string): Promise<RequestView | null>;
 }

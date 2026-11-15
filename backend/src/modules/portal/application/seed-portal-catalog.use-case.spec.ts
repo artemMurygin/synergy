@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { Agent } from '../domain/agent';
+import { AgentNameTakenError, ProductNameTakenError, SlugTakenError } from '../domain/errors';
 import { PORTAL_CATALOG } from './portal-catalog';
 import { SeedPortalCatalogUseCase } from './seed-portal-catalog.use-case';
 import { InMemoryCatalogRepository } from './test-doubles';
@@ -33,7 +35,7 @@ describe('SeedPortalCatalogUseCase', () => {
 
         const result = await new SeedPortalCatalogUseCase(catalog).execute();
 
-        expect(result).toEqual({ productsCreated: 4, agentsCreated: 6 });
+        expect(result).toEqual({ productsCreated: 4, agentsCreated: 6, skipped: [] });
         expect(catalog.products.size).toBe(4);
         expect(catalog.agents.size).toBe(6);
     });
@@ -46,7 +48,7 @@ describe('SeedPortalCatalogUseCase', () => {
 
         const second = await seed.execute();
 
-        expect(second).toEqual({ productsCreated: 0, agentsCreated: 0 });
+        expect(second).toEqual({ productsCreated: 0, agentsCreated: 0, skipped: [] });
         expect(catalog.products.size).toBe(4);
         expect(catalog.agents.size).toBe(6);
         for (const [id, agent] of before) expect(catalog.agents.get(id)).toBe(agent);
@@ -69,7 +71,7 @@ describe('SeedPortalCatalogUseCase', () => {
         it('агент с одним slug у двух продуктов — одна запись и две связи', async () => {
             const shared = await new InMemoryCatalogRepository().seed(SHARED);
 
-            expect(shared).toEqual({ productsCreated: 2, agentsCreated: 1 });
+            expect(shared).toEqual({ productsCreated: 2, agentsCreated: 1, skipped: [] });
         });
 
         it('связи агента с продуктами сохраняются в productIds', async () => {
@@ -100,5 +102,100 @@ describe('SeedPortalCatalogUseCase', () => {
             expect(after.name).toBe('Ассистент');
             expect(after.archivedAt).toEqual(archivedAt);
         });
+    });
+});
+
+describe('SeedPortalCatalogUseCase: занятые названия', () => {
+    it('пропускает продукт, чьё название занято записью с другим slug, вместе с его агентами', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        catalog.addProduct('my-cc', ' control CENTER ');
+        const seed = new SeedPortalCatalogUseCase(catalog);
+
+        const result = await seed.execute();
+
+        expect(result.skipped).toContainEqual({
+            kind: 'product',
+            slug: 'control-center',
+            name: 'Control Center',
+        });
+        expect(catalog.products.has('control-center')).toBe(false);
+        expect([...catalog.agents.values()].map((agent) => agent.slug)).not.toContain('assistant');
+        expect(result.productsCreated).toBe(3);
+    });
+
+    it('пропускает агента, чьё название занято другим slug, и не создаёт связей', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        catalog.addProduct('other', 'Other');
+        catalog.addAgent('other', 'my-assistant', 'АССИСТЕНТ');
+
+        const result = await new SeedPortalCatalogUseCase(catalog).execute();
+
+        expect(result.skipped).toContainEqual({
+            kind: 'agent',
+            slug: expect.any(String) as string,
+            name: 'Ассистент',
+        });
+        const taken = [...catalog.agents.values()].filter(
+            (agent) => agent.name.toLowerCase() === 'ассистент',
+        );
+        expect(taken).toHaveLength(1);
+        expect(taken[0]?.slug).toBe('my-assistant');
+        expect(taken[0]?.productIds).toEqual(['product-other']);
+    });
+
+    it('повторный запуск не создаёт дублей и повторно сообщает о пропуске', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        catalog.addProduct('my-cc', 'Control Center');
+        const seed = new SeedPortalCatalogUseCase(catalog);
+        const first = await seed.execute();
+        const productsBefore = catalog.products.size;
+        const agentsBefore = catalog.agents.size;
+
+        const second = await seed.execute();
+
+        expect(catalog.products.size).toBe(productsBefore);
+        expect(catalog.agents.size).toBe(agentsBefore);
+        expect(second.productsCreated).toBe(0);
+        expect(second.agentsCreated).toBe(0);
+        expect(second.skipped).toEqual(first.skipped);
+    });
+});
+
+describe('InMemoryCatalogRepository: вставка и поиск', () => {
+    it('nextFreeSlug возвращает base, а при занятом - первый свободный base-N', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        expect(await catalog.nextFreeSlug('product', 'crm')).toBe('crm');
+        catalog.addProduct('crm', 'CRM');
+        catalog.addProduct('crm-2', 'CRM 2');
+        expect(await catalog.nextFreeSlug('product', 'crm')).toBe('crm-3');
+        expect(await catalog.nextFreeSlug('agent', 'crm')).toBe('crm');
+    });
+
+    it('insertProduct бросает ProductNameTakenError и SlugTakenError', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        await catalog.insertProduct({ id: 'p1', slug: 'crm', name: 'CRM' });
+
+        await expect(
+            catalog.insertProduct({ id: 'p2', slug: 'other', name: ' crm ' }),
+        ).rejects.toBeInstanceOf(ProductNameTakenError);
+        await expect(
+            catalog.insertProduct({ id: 'p3', slug: 'crm', name: 'Другое' }),
+        ).rejects.toBeInstanceOf(SlugTakenError);
+        expect((await catalog.findProductByName('crm'))?.id).toBe('p1');
+    });
+
+    it('insertAgent бросает AgentNameTakenError и SlugTakenError, находит по названию', async () => {
+        const catalog = new InMemoryCatalogRepository();
+        const make = (id: string, slug: string, name: string): Agent =>
+            Agent.create({ id, slug, name, productIds: ['p1'], now: new Date() });
+        await catalog.insertAgent(make('a1', 'bot', 'Бот'));
+
+        await expect(catalog.insertAgent(make('a2', 'x', 'бот'))).rejects.toBeInstanceOf(
+            AgentNameTakenError,
+        );
+        await expect(catalog.insertAgent(make('a3', 'bot', 'Иной'))).rejects.toBeInstanceOf(
+            SlugTakenError,
+        );
+        expect((await catalog.findAgentByName('бот'))?.id).toBe('a1');
     });
 });

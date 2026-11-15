@@ -17,6 +17,7 @@ describe('NotificationType', () => {
         ['meeting-transcript.failed'],
         ['request.accepted'],
         ['request.rejected'],
+        ['request.under-review'],
         ['request.status-changed'],
     ])('knows the %s type', (raw) => {
         expect(NOTIFICATION_TYPES).toContain(raw);

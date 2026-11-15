@@ -15,6 +15,10 @@ import {
     RequestRejectedEvent,
 } from '../../portal/contracts/request-rejected.event';
 import {
+    REQUEST_TAKEN_EVENT_TYPE,
+    RequestTakenEvent,
+} from '../../portal/contracts/request-taken.event';
+import {
     SKILL_STATUS_CHANGED_EVENT_TYPE,
     SkillStatusChangedEvent,
 } from '../../portal/contracts/skill-status-changed.event';
@@ -39,6 +43,7 @@ import {
     REQUEST_REJECTED_SUBSCRIBER,
     RequestDecidedSubscriber,
 } from './request-decided.subscriber';
+import { REQUEST_TAKEN_SUBSCRIBER, RequestTakenSubscriber } from './request-taken.subscriber';
 import {
     SKILL_STATUS_CHANGED_SUBSCRIBER,
     SkillStatusChangedSubscriber,
@@ -74,6 +79,10 @@ function subscriber(): TaskCreatedSubscriber {
 
 function requestSubscriber(): RequestDecidedSubscriber {
     return new RequestDecidedSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function takenSubscriber(): RequestTakenSubscriber {
+    return new RequestTakenSubscriber(new FakeUserDirectory(), createNotifications());
 }
 
 function skillSubscriber(): SkillStatusChangedSubscriber {
@@ -126,6 +135,7 @@ describe('NotificationEventSubscriptions', () => {
             chatSubscriber(),
             requestSubscriber(),
             skillSubscriber(),
+            takenSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -159,6 +169,7 @@ describe('NotificationEventSubscriptions', () => {
             chatSystemMessageSubscriber,
             requestSubscriber(),
             skillSubscriber(),
+            takenSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -182,6 +193,7 @@ describe('NotificationEventSubscriptions', () => {
         registerPortalEvents(registry);
         const requests = requestSubscriber();
         const skills = skillSubscriber();
+        const taken = takenSubscriber();
 
         new NotificationEventSubscriptions(
             registry,
@@ -189,6 +201,7 @@ describe('NotificationEventSubscriptions', () => {
             chatSubscriber(),
             requests,
             skills,
+            taken,
         ).onModuleInit();
 
         expect(
@@ -203,7 +216,21 @@ describe('NotificationEventSubscriptions', () => {
                 SKILL_STATUS_CHANGED_SUBSCRIBER,
             ),
         ).toBe(skills);
+        expect(registry.findSubscriber(REQUEST_TAKEN_EVENT_TYPE, REQUEST_TAKEN_SUBSCRIBER)).toBe(
+            taken,
+        );
         const metadata = { timestamp: 1, correlationId: 'c' };
+        expect(
+            registry.serialize(
+                new RequestTakenEvent({
+                    aggregateId: 'r-1',
+                    authorId: 'a',
+                    reviewerId: 'd',
+                    requestTitle: 'З',
+                    metadata,
+                }),
+            ).subscribers,
+        ).toEqual([REQUEST_TAKEN_SUBSCRIBER]);
         expect(
             registry.serialize(
                 new RequestAcceptedEvent({

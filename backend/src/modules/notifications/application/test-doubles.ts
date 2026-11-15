@@ -186,9 +186,17 @@ export class InMemoryNotificationRepository extends NotificationRepositoryPort {
 export class FakeUserDirectory extends UserDirectoryPort {
     readonly loginById = new Map<string, string>();
 
+    readonly fullNameById = new Map<string, string>();
+
     readonly requestedIds: string[] = [];
 
     failure: Error | null = null;
+
+    findFullNameById(userId: string): Promise<string | null> {
+        this.requestedIds.push(userId);
+        if (this.failure !== null) return Promise.reject(this.failure);
+        return Promise.resolve(this.fullNameById.get(userId) ?? null);
+    }
 
     findLoginById(userId: string): Promise<string | null> {
         this.requestedIds.push(userId);

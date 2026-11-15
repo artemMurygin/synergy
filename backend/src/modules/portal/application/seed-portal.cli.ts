@@ -17,6 +17,11 @@ export async function runSeedPortal(
     try {
         const result = await seed.execute();
         sinks.stdout(`${formatPortalSeedReport(result)}\n`);
+        for (const item of result.skipped) {
+            sinks.stderr(
+                `warning: ${item.kind} "${item.name}" (${item.slug}) skipped: name is already taken by a record with another slug\n`,
+            );
+        }
         return 0;
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
