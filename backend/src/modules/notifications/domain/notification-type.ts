@@ -9,6 +9,7 @@ export const NOTIFICATION_TYPES = [
     'request.rejected',
     'request.under-review',
     'request.status-changed',
+    'request.comment-added',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

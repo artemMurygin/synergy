@@ -43,6 +43,11 @@ import {
     REQUEST_REJECTED_SUBSCRIBER,
     RequestDecidedSubscriber,
 } from './request-decided.subscriber';
+import {
+    REQUEST_COMMENT_POSTED_SUBSCRIBER,
+    RequestCommentPostedSubscriber,
+} from './request-comment-posted.subscriber';
+import { REQUEST_COMMENT_POSTED_EVENT_TYPE } from '../../portal/contracts/request-comment-posted.event';
 import { REQUEST_TAKEN_SUBSCRIBER, RequestTakenSubscriber } from './request-taken.subscriber';
 import {
     SKILL_STATUS_CHANGED_SUBSCRIBER,
@@ -83,6 +88,10 @@ function requestSubscriber(): RequestDecidedSubscriber {
 
 function takenSubscriber(): RequestTakenSubscriber {
     return new RequestTakenSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function commentSubscriber(): RequestCommentPostedSubscriber {
+    return new RequestCommentPostedSubscriber(new FakeUserDirectory(), createNotifications());
 }
 
 function skillSubscriber(): SkillStatusChangedSubscriber {
@@ -136,6 +145,7 @@ describe('NotificationEventSubscriptions', () => {
             requestSubscriber(),
             skillSubscriber(),
             takenSubscriber(),
+            commentSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -170,6 +180,7 @@ describe('NotificationEventSubscriptions', () => {
             requestSubscriber(),
             skillSubscriber(),
             takenSubscriber(),
+            commentSubscriber(),
         ).onModuleInit();
 
         expect(
@@ -194,6 +205,7 @@ describe('NotificationEventSubscriptions', () => {
         const requests = requestSubscriber();
         const skills = skillSubscriber();
         const taken = takenSubscriber();
+        const comments = commentSubscriber();
 
         new NotificationEventSubscriptions(
             registry,
@@ -202,7 +214,15 @@ describe('NotificationEventSubscriptions', () => {
             requests,
             skills,
             taken,
+            comments,
         ).onModuleInit();
+
+        expect(
+            registry.findSubscriber(
+                REQUEST_COMMENT_POSTED_EVENT_TYPE,
+                REQUEST_COMMENT_POSTED_SUBSCRIBER,
+            ),
+        ).toBe(comments);
 
         expect(
             registry.findSubscriber(REQUEST_ACCEPTED_EVENT_TYPE, REQUEST_ACCEPTED_SUBSCRIBER),

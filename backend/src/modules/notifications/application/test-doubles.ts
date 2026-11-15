@@ -205,7 +205,17 @@ export class FakeUserDirectory extends UserDirectoryPort {
 
     readonly requestedIds: string[] = [];
 
+    developerIds: string[] = [];
+
+    developersRequested = 0;
+
     failure: Error | null = null;
+
+    listActiveDeveloperIds(): Promise<string[]> {
+        this.developersRequested += 1;
+        if (this.failure !== null) return Promise.reject(this.failure);
+        return Promise.resolve([...this.developerIds]);
+    }
 
     findFullNameById(userId: string): Promise<string | null> {
         this.requestedIds.push(userId);

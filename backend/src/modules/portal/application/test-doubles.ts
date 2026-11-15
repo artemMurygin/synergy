@@ -28,7 +28,10 @@ import {
     type ArchiveRows,
     type CatalogRow,
 } from '../domain/ports/catalog-query.port';
+import { CommentQuery, type CommentRecord } from '../domain/ports/comment-query.port';
+import { CommentRepository } from '../domain/ports/comment-repository.port';
 import { Clock } from '../domain/ports/clock.port';
+import type { RequestComment } from '../domain/request-comment';
 import type { Page, PageRequest } from '../domain/ports/page';
 import { RequestQuery, type RequestView } from '../domain/ports/request-query.port';
 import { RequestRepository } from '../domain/ports/request-repository.port';
@@ -230,6 +233,81 @@ export class InMemoryRequestRepository extends RequestRepository implements Tran
                     title: request.title.value,
                 })),
         );
+    }
+}
+
+export class InMemoryCommentRepository extends CommentRepository implements TransactionParticipant {
+    readonly byId = new Map<string, RequestComment>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, comment] of saved) this.byId.set(id, comment);
+        };
+    }
+
+    insert(comment: RequestComment): Promise<void> {
+        this.byId.set(comment.id, comment);
+        return Promise.resolve();
+    }
+
+    findById(id: string): Promise<RequestComment | null> {
+        return Promise.resolve(this.byId.get(id) ?? null);
+    }
+
+    update(comment: RequestComment): Promise<void> {
+        this.byId.set(comment.id, comment);
+        return Promise.resolve();
+    }
+}
+
+/** Лента комментариев в памяти: порядок `createdAt`, затем `id`; метка роли по автору заявки. */
+export class InMemoryCommentQuery extends CommentQuery {
+    /** Логины авторов; по умолчанию логин равен идентификатору. */
+    readonly logins = new Map<string, string>();
+    /** Части ФИО авторов; без записи полное имя равно логину. */
+    readonly profiles = new Map<string, FullNameParts>();
+
+    constructor(
+        private readonly comments: InMemoryCommentRepository,
+        private readonly requests: InMemoryRequestRepository,
+    ) {
+        super();
+    }
+
+    private toRecord(comment: RequestComment): CommentRecord {
+        const login = this.logins.get(comment.authorId) ?? comment.authorId;
+        const request = this.requests.byId.get(comment.requestId);
+        return {
+            id: comment.id,
+            authorId: comment.authorId,
+            body: comment.body.value,
+            author: {
+                id: comment.authorId,
+                login,
+                fullName: formatFullName(this.profiles.get(comment.authorId) ?? {}, login),
+            },
+            authorRole: request?.authorId === comment.authorId ? 'request_author' : 'developer',
+            createdAt: comment.createdAt,
+            editedAt: comment.editedAt,
+        };
+    }
+
+    listByRequest(requestId: string): Promise<CommentRecord[]> {
+        const items = [...this.comments.byId.values()]
+            .filter((comment) => comment.requestId === requestId)
+            .sort(
+                (a, b) =>
+                    a.createdAt.getTime() - b.createdAt.getTime() ||
+                    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            );
+        return Promise.resolve(items.map((comment) => this.toRecord(comment)));
+    }
+
+    findView(id: string): Promise<CommentRecord | null> {
+        const comment = this.comments.byId.get(id);
+        return Promise.resolve(comment === undefined ? null : this.toRecord(comment));
     }
 }
 
@@ -697,6 +775,8 @@ export interface PortalFixture {
     events: RecordingEventPublisher;
     requestQuery: InMemoryRequestQuery;
     skillQuery: InMemorySkillQuery;
+    comments: InMemoryCommentRepository;
+    commentQuery: InMemoryCommentQuery;
 }
 
 /** Полный набор двойников для тестов use case'ов портала. */
@@ -705,13 +785,20 @@ export function createPortalFixture(): PortalFixture {
     const requests = new InMemoryRequestRepository();
     const skills = new InMemorySkillRepository();
     const catalog = new InMemoryCatalogRepository();
+    const comments = new InMemoryCommentRepository();
     // Раннер откатывает события, события спрашивают раннер: связываем через ссылку.
     const ref: { runner?: SnapshotTransactionRunner } = {};
     const events = new RecordingEventPublisher(() => {
         if (ref.runner === undefined) throw new Error('Fixture is not initialised');
         return ref.runner;
     });
-    const transactions = new SnapshotTransactionRunner([requests, skills, catalog, events]);
+    const transactions = new SnapshotTransactionRunner([
+        requests,
+        skills,
+        catalog,
+        comments,
+        events,
+    ]);
     ref.runner = transactions;
     return {
         clock,
@@ -722,5 +809,7 @@ export function createPortalFixture(): PortalFixture {
         events,
         requestQuery: new InMemoryRequestQuery(requests, skills),
         skillQuery: new InMemorySkillQuery(skills, requests, catalog),
+        comments,
+        commentQuery: new InMemoryCommentQuery(comments, requests),
     };
 }

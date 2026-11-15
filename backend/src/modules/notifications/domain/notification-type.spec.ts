@@ -19,6 +19,7 @@ describe('NotificationType', () => {
         ['request.rejected'],
         ['request.under-review'],
         ['request.status-changed'],
+        ['request.comment-added'],
     ])('knows the %s type', (raw) => {
         expect(NOTIFICATION_TYPES).toContain(raw);
         expect(NotificationType.parse(raw)).toBe(raw);
