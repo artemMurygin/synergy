@@ -1,5 +1,23 @@
 import type { DomainEventRegistry } from '../../../shared/outbox/application/domain-event-registry';
 import {
+    BUG_COMMENT_POSTED_EVENT_TYPE,
+    BugCommentPostedEvent,
+    bugCommentPostedPayloadSchema,
+    type BugCommentPostedPayload,
+} from './bug-comment-posted.event';
+import {
+    BUG_REPORTED_EVENT_TYPE,
+    BugReportedEvent,
+    bugReportedPayloadSchema,
+    type BugReportedPayload,
+} from './bug-reported.event';
+import {
+    BUG_STATUS_CHANGED_EVENT_TYPE,
+    BugStatusChangedEvent,
+    bugStatusChangedPayloadSchema,
+    type BugStatusChangedPayload,
+} from './bug-status-changed.event';
+import {
     REQUEST_ACCEPTED_EVENT_TYPE,
     RequestAcceptedEvent,
     requestAcceptedPayloadSchema,
@@ -99,5 +117,49 @@ export function registerPortalEvents(registry: DomainEventRegistry): void {
         }),
         fromRecord: ({ id, aggregateId, metadata, payload }) =>
             new SkillStatusChangedEvent({ id, aggregateId, metadata, ...payload }),
+    });
+    registry.registerEvent({
+        eventType: BUG_REPORTED_EVENT_TYPE,
+        eventClass: BugReportedEvent,
+        schema: bugReportedPayloadSchema,
+        toPayload: (event): BugReportedPayload => ({
+            bugId: event.bugId,
+            authorId: event.authorId,
+            title: event.title,
+            productName: event.productName,
+            agentName: event.agentName,
+        }),
+        fromRecord: ({ id, aggregateId, metadata, payload }) =>
+            new BugReportedEvent({ id, aggregateId, metadata, ...payload }),
+    });
+    registry.registerEvent({
+        eventType: BUG_STATUS_CHANGED_EVENT_TYPE,
+        eventClass: BugStatusChangedEvent,
+        schema: bugStatusChangedPayloadSchema,
+        toPayload: (event): BugStatusChangedPayload => ({
+            bugId: event.bugId,
+            authorId: event.authorId,
+            changedBy: event.changedBy,
+            title: event.title,
+            from: event.from,
+            to: event.to,
+            reason: event.reason,
+        }),
+        fromRecord: ({ id, aggregateId, metadata, payload }) =>
+            new BugStatusChangedEvent({ id, aggregateId, metadata, ...payload }),
+    });
+    registry.registerEvent({
+        eventType: BUG_COMMENT_POSTED_EVENT_TYPE,
+        eventClass: BugCommentPostedEvent,
+        schema: bugCommentPostedPayloadSchema,
+        toPayload: (event): BugCommentPostedPayload => ({
+            bugId: event.bugId,
+            bugAuthorId: event.bugAuthorId,
+            commenterId: event.commenterId,
+            bugTitle: event.bugTitle,
+            excerpt: event.excerpt,
+        }),
+        fromRecord: ({ id, aggregateId, metadata, payload }) =>
+            new BugCommentPostedEvent({ id, aggregateId, metadata, ...payload }),
     });
 }
