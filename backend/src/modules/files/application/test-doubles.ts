@@ -76,6 +76,21 @@ export class InMemoryTransactionRunner extends TransactionRunnerPort {
         }
     }
 
+    async savepoint<T>(work: () => Promise<T>): Promise<T> {
+        const parentCallbacks = this.storage.getStore();
+        if (parentCallbacks === undefined) return this.run(work);
+        const restores = this.participants.map((participant) => participant.snapshot());
+        const callbacks: (() => void)[] = [];
+        try {
+            const result = await this.storage.run(callbacks, work);
+            parentCallbacks.push(...callbacks);
+            return result;
+        } catch (error: unknown) {
+            for (const restore of restores) restore();
+            throw error;
+        }
+    }
+
     executor(): CommonQueryMethods {
         throw new Error('InMemoryTransactionRunner has no database connection');
     }

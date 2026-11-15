@@ -121,6 +121,25 @@ describe.skipIf(adminUrl === undefined)('TransactionRunner', () => {
 
             expect(await countMarks()).toBe(1);
         });
+
+        it('drops after-commit callbacks of a failed savepoint and keeps those of a successful one', async () => {
+            const calls: string[] = [];
+            await runner.run(async () => {
+                await expect(
+                    runner.savepoint(() => {
+                        runner.afterCommit(() => calls.push('failed'));
+                        return Promise.reject(new Error('savepoint failed'));
+                    }),
+                ).rejects.toThrow('savepoint failed');
+                await runner.savepoint(() => {
+                    runner.afterCommit(() => calls.push('succeeded'));
+                    return Promise.resolve();
+                });
+                expect(calls).toEqual([]);
+            });
+
+            expect(calls).toEqual(['succeeded']);
+        });
     });
 
     describe('executor', () => {

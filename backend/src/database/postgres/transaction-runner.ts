@@ -40,9 +40,12 @@ export class TransactionRunner extends TransactionRunnerPort {
     async savepoint<T>(work: () => Promise<T>): Promise<T> {
         const scope = this.storage.getStore();
         if (scope === undefined) return this.run(work);
-        return scope.connection.transaction((connection) =>
-            this.storage.run({ ...scope, connection }, work),
+        const savepointCallbacks: (() => void)[] = [];
+        const result = await scope.connection.transaction((connection) =>
+            this.storage.run({ connection, afterCommitCallbacks: savepointCallbacks }, work),
         );
+        scope.afterCommitCallbacks.push(...savepointCallbacks);
+        return result;
     }
 
     executor(): CommonQueryMethods {

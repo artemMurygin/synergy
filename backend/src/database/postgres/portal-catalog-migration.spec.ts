@@ -31,7 +31,7 @@ describe.skipIf(adminUrl === undefined)('028_portal_catalog migration', () => {
 
     const insertAgent = async (product: string, slug: string): Promise<string> => {
         const rows = await query(
-            `INSERT INTO portal_agents (slug, name) VALUES ($1, 'Агент') RETURNING id`,
+            `INSERT INTO portal_agents (slug, name) VALUES ($1, 'Агент ' || $1) RETURNING id`,
             [slug],
         );
         const id = String(rows[0]?.id);

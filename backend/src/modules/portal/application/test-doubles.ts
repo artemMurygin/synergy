@@ -60,9 +60,19 @@ export interface TransactionParticipant {
     snapshot(): () => void;
 }
 
-/** Фейковый `TransactionRunner`: при ошибке откатывает состояние участников. */
+interface SnapshotTransactionScope {
+    readonly callbacks: (() => void)[];
+    isAborted: boolean;
+}
+
+export class TransactionAbortedError extends Error {}
+
+/**
+ * Как PostgreSQL: ошибка из вложенного `run` (без SAVEPOINT), перехваченная кодом, прерывает
+ * всю транзакцию, и коммит падает. Откатить часть работы может только `savepoint`.
+ */
 export class SnapshotTransactionRunner extends TransactionRunnerPort {
-    private readonly storage = new AsyncLocalStorage<(() => void)[]>();
+    private readonly storage = new AsyncLocalStorage<SnapshotTransactionScope>();
 
     commits = 0;
 
@@ -75,26 +85,46 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
     }
 
     async run<T>(work: () => Promise<T>): Promise<T> {
-        if (this.storage.getStore() !== undefined) {
-            // Вложенный вызов — savepoint: при ошибке откатывает только свои изменения.
-            const nestedRestores = this.participants.map((participant) => participant.snapshot());
+        const parent = this.storage.getStore();
+        if (parent !== undefined) {
             try {
                 return await work();
             } catch (error: unknown) {
-                this.savepointRollbacks += 1;
-                for (const restore of nestedRestores) restore();
+                parent.isAborted = true;
                 throw error;
             }
         }
         const restores = this.participants.map((participant) => participant.snapshot());
-        const callbacks: (() => void)[] = [];
+        const scope: SnapshotTransactionScope = { callbacks: [], isAborted: false };
         try {
-            const result = await this.storage.run(callbacks, work);
+            const result = await this.storage.run(scope, work);
+            if (scope.isAborted) {
+                throw new TransactionAbortedError('current transaction is aborted');
+            }
             this.commits += 1;
-            for (const callback of callbacks) callback();
+            for (const callback of scope.callbacks) callback();
             return result;
         } catch (error: unknown) {
             this.rollbacks += 1;
+            for (const restore of restores) restore();
+            throw error;
+        }
+    }
+
+    async savepoint<T>(work: () => Promise<T>): Promise<T> {
+        const parent = this.storage.getStore();
+        if (parent === undefined) return this.run(work);
+        const restores = this.participants.map((participant) => participant.snapshot());
+        const scope: SnapshotTransactionScope = { callbacks: [], isAborted: false };
+        try {
+            const result = await this.storage.run(scope, work);
+            if (scope.isAborted) {
+                throw new TransactionAbortedError('current transaction is aborted');
+            }
+            parent.callbacks.push(...scope.callbacks);
+            return result;
+        } catch (error: unknown) {
+            this.savepointRollbacks += 1;
             for (const restore of restores) restore();
             throw error;
         }
@@ -105,10 +135,9 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
     }
 
     afterCommit(callback: () => void): void {
-        const callbacks = this.storage.getStore();
-        if (callbacks === undefined)
-            throw new Error('afterCommit was called outside a transaction');
-        callbacks.push(callback);
+        const scope = this.storage.getStore();
+        if (scope === undefined) throw new Error('afterCommit was called outside a transaction');
+        scope.callbacks.push(callback);
     }
 
     isInTransaction(): boolean {

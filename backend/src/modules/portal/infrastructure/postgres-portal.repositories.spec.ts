@@ -426,7 +426,6 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             first.take(dev, new Date(T0.getTime() + 10 * SECOND));
             second.take(dev, new Date(T0.getTime() + 10 * SECOND));
             first.accept(skill.id, EffortHours.of(8), dev, new Date(T0.getTime() + 10 * SECOND));
-            second.take(dev, new Date(T0.getTime() + 11 * SECOND));
             second.reject('Нет', dev, new Date(T0.getTime() + 11 * SECOND));
 
             await requests.save(first, 'new');
@@ -751,7 +750,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await requests.save(request);
             request.take(dev, T0);
             request.accept(first.id, EffortHours.of(8), dev, T0);
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const all = await skillQuery.list({}, { limit: 50, page: 0 });
             const inDev = await skillQuery.list({ status: 'in_dev' }, { limit: 50, page: 0 });

@@ -22,6 +22,8 @@ interface RequestOverrides {
     reject_reason?: string | null;
     decided_by?: string | null;
     decided_at?: string | null;
+    reviewer_id?: string | null;
+    taken_at?: string | null;
 }
 
 describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
@@ -48,19 +50,21 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
             frequency_period: 'week',
             minutes_per_run: 15,
             people_count: 2,
-            decision: 'pending',
+            decision: 'new',
             skill_id: null,
             reject_reason: null,
             decided_by: null,
             decided_at: null,
+            reviewer_id: null,
+            taken_at: null,
             ...o,
         };
         return query(
             `INSERT INTO portal_requests
                 (author_id, title, description, frequency_count, frequency_period,
                  minutes_per_run, people_count, decision, skill_id, reject_reason,
-                 decided_by, decided_at)
-             VALUES ($1, 'Заявка', 'Описание', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 decided_by, decided_at, reviewer_id, taken_at)
+             VALUES ($1, 'Заявка', 'Описание', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id`,
             [
                 authorId,
@@ -73,6 +77,8 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
                 v.reject_reason,
                 v.decided_by,
                 v.decided_at,
+                v.reviewer_id,
+                v.taken_at,
             ],
         );
     };
@@ -114,13 +120,13 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
         await admin.end();
     });
 
-    it('stores a pending request and fills created_at', async () => {
+    it('stores a new request and fills created_at', async () => {
         const [inserted] = await insertRequest();
         const [row] = await query(
             'SELECT decision, skill_id, reject_reason, created_at FROM portal_requests WHERE id = $1',
             [inserted.id],
         );
-        expect(row.decision).toBe('pending');
+        expect(row.decision).toBe('new');
         expect(row.skill_id).toBeNull();
         expect(row.reject_reason).toBeNull();
         expect(row.created_at).toBeInstanceOf(Date);
@@ -133,6 +139,8 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
                 skill_id: skillId,
                 decided_by: developerId,
                 decided_at: new Date().toISOString(),
+                reviewer_id: developerId,
+                taken_at: new Date().toISOString(),
             }),
         ).resolves.toHaveLength(1);
     });
@@ -144,6 +152,8 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
                 reject_reason: 'Дубликат',
                 decided_by: developerId,
                 decided_at: new Date().toISOString(),
+                reviewer_id: developerId,
+                taken_at: new Date().toISOString(),
             }),
         ).resolves.toHaveLength(1);
     });
@@ -198,6 +208,8 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
                 skill_id: randomUUID(),
                 decided_by: developerId,
                 decided_at: new Date().toISOString(),
+                reviewer_id: developerId,
+                taken_at: new Date().toISOString(),
             }),
         ).rejects.toThrow(/foreign key/);
     });
@@ -212,11 +224,11 @@ describe.skipIf(adminUrl === undefined)('029_portal_requests migration', () => {
         expect(columns).not.toContain('status');
     });
 
-    it('creates the author list index and the pending queue index', async () => {
+    it('creates the author list index and the queue index', async () => {
         const defs = (
             await query(`SELECT indexdef FROM pg_indexes WHERE tablename = 'portal_requests'`)
         ).map((r) => String(r.indexdef));
         expect(defs.some((d) => d.includes('(author_id, created_at DESC)'))).toBe(true);
-        expect(defs.some((d) => d.includes('decision') && d.includes("'pending'"))).toBe(true);
+        expect(defs.some((d) => d.includes('decision') && d.includes("'new'"))).toBe(true);
     });
 });
