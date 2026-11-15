@@ -15,5 +15,7 @@ export function registerPortalErrorStatuses(): void {
         [PortalErrorCode.RequestAlreadyTaken]: HttpStatus.CONFLICT,
         [PortalErrorCode.RequestNotTaken]: HttpStatus.CONFLICT,
         [PortalErrorCode.ProductNotFound]: HttpStatus.NOT_FOUND,
+        [PortalErrorCode.AgentNameTaken]: HttpStatus.CONFLICT,
+        [PortalErrorCode.ProductNameTaken]: HttpStatus.CONFLICT,
     });
 }

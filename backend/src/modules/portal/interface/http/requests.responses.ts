@@ -14,7 +14,10 @@ class FrequencyResponse {
 }
 
 class RequestStatusResponse {
-    @ApiProperty({ example: 'pending' })
+    @ApiProperty({
+        example: 'under_review',
+        description: 'new | under_review | rejected | статус навыка',
+    })
     readonly code!: RequestStatusCode;
 
     @ApiProperty({ example: 'На рассмотрении' })
@@ -32,6 +35,17 @@ class AuthorResponse {
         example: 'Иванова Анна Петровна',
         description: 'Фамилия, имя, отчество; если не заполнены, логин',
     })
+    readonly fullName!: string;
+}
+
+class ReviewerResponse {
+    @ApiProperty({ example: UUID_EXAMPLE })
+    readonly id!: string;
+
+    @ApiProperty({ example: 'petrov' })
+    readonly login!: string;
+
+    @ApiProperty({ example: 'Петров Пётр', description: 'ФИО; если не заполнено, логин' })
     readonly fullName!: string;
 }
 
@@ -71,6 +85,15 @@ export class RequestResponse {
     @ApiProperty({ type: AuthorResponse })
     readonly author: AuthorResponse;
 
+    @ApiProperty({ type: ReviewerResponse, nullable: true, description: 'Взявший в работу' })
+    readonly reviewer: ReviewerResponse | null;
+
+    @ApiProperty({ type: String, nullable: true, example: '2026-11-07T09:00:00.000Z' })
+    readonly takenAt: string | null;
+
+    @ApiProperty({ type: Number, nullable: true, description: 'Оценка в часах (у принятых)' })
+    readonly effortHours: number | null;
+
     @ApiProperty({ type: String, nullable: true })
     readonly rejectReason: string | null;
 
@@ -89,6 +112,9 @@ export class RequestResponse {
         this.peopleCount = view.peopleCount;
         this.status = { code: view.status.code, label: view.status.label };
         this.author = { id: view.authorId, login: view.authorLogin, fullName: view.authorFullName };
+        this.reviewer = view.reviewer === null ? null : { ...view.reviewer };
+        this.takenAt = view.takenAt === null ? null : view.takenAt.toISOString();
+        this.effortHours = view.effortHours;
         this.rejectReason = view.rejectReason;
         this.skill = view.skill === null ? null : { ...view.skill };
         this.createdAt = view.createdAt.toISOString();

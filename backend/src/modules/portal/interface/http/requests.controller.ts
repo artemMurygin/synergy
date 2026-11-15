@@ -24,6 +24,7 @@ import { ListMyRequestsUseCase } from '../../application/list-my-requests.use-ca
 import { ListQueueUseCase } from '../../application/list-queue.use-case';
 import { RejectRequestUseCase } from '../../application/reject-request.use-case';
 import { SubmitRequestUseCase } from '../../application/submit-request.use-case';
+import { TakeRequestUseCase } from '../../application/take-request.use-case';
 import { userOf } from './user-of';
 import { RequestListResponse, RequestResponse } from './requests.responses';
 import {
@@ -42,8 +43,11 @@ const errorResponse = (status: HttpStatus, description: string): MethodDecorator
 
 const unauthorized = errorResponse(HttpStatus.UNAUTHORIZED, 'Missing or invalid access token');
 const forbidden = errorResponse(HttpStatus.FORBIDDEN, 'Requires the developer role');
-const notFound = errorResponse(HttpStatus.NOT_FOUND, 'Request or skill not found');
-const conflict = errorResponse(HttpStatus.CONFLICT, 'The request already has a decision');
+const notFound = errorResponse(HttpStatus.NOT_FOUND, 'Request, skill, agent or product not found');
+const conflict = errorResponse(
+    HttpStatus.CONFLICT,
+    'The request was already taken or decided, is not taken yet, or the name/skill/agent is taken or archived (see code)',
+);
 const badRequest = errorResponse(HttpStatus.BAD_REQUEST, 'Invalid request');
 
 @ApiTags('portal')
@@ -57,6 +61,7 @@ export class RequestsController {
         private readonly listQueue: ListQueueUseCase,
         private readonly acceptRequest: AcceptRequestUseCase,
         private readonly rejectRequest: RejectRequestUseCase,
+        private readonly takeRequest: TakeRequestUseCase,
     ) {}
 
     @Post('requests')
@@ -118,7 +123,7 @@ export class RequestsController {
 
     @Get('queue')
     @Roles('developer')
-    @ApiOperation({ summary: 'Requests without a decision, oldest first (developer)' })
+    @ApiOperation({ summary: 'Requests in work (new and under review), oldest first (developer)' })
     @ApiResponse({ status: HttpStatus.OK, type: RequestListResponse })
     @badRequest
     @forbidden
@@ -130,10 +135,34 @@ export class RequestsController {
         return new RequestListResponse(result, query);
     }
 
+    @Post('requests/:id/take')
+    @Roles('developer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Take a new request into work: new -> under_review (developer)' })
+    @ApiResponse({ status: HttpStatus.OK, type: RequestResponse })
+    @badRequest
+    @forbidden
+    @notFound
+    @conflict
+    @unauthorized
+    async take(
+        @CurrentUser() user: AuthenticatedUser | undefined,
+        @Param('id', ParseUUIDPipe) id: string,
+    ): Promise<RequestResponse> {
+        const view = await this.takeRequest.execute({
+            requestId: id,
+            reviewerId: userOf(user).id,
+        });
+        return new RequestResponse(view);
+    }
+
     @Post('requests/:id/accept')
     @Roles('developer')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Accept into an existing skill or create a new one (developer)' })
+    @ApiOperation({
+        summary:
+            'Accept an in-work request with an estimate: into an existing skill, a new skill or a new agent (developer)',
+    })
     @ApiBody({ schema: zodToOpenApi(acceptRequestSchema) })
     @ApiResponse({ status: HttpStatus.OK, type: RequestResponse })
     @badRequest
@@ -149,7 +178,8 @@ export class RequestsController {
         const view = await this.acceptRequest.execute({
             requestId: id,
             decidedBy: userOf(user).id,
-            target: body,
+            effortHours: body.effortHours,
+            target: body.target,
         });
         return new RequestResponse(view);
     }
@@ -157,7 +187,7 @@ export class RequestsController {
     @Post('requests/:id/reject')
     @Roles('developer')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Reject with a required reason (developer)' })
+    @ApiOperation({ summary: 'Reject an in-work request with a required reason (developer)' })
     @ApiBody({ schema: zodToOpenApi(rejectRequestSchema) })
     @ApiResponse({ status: HttpStatus.OK, type: RequestResponse })
     @badRequest

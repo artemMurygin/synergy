@@ -132,6 +132,8 @@ describe('portal flow (PortalModule wired end to end)', () => {
         const requestQuery = new InMemoryRequestQuery(requests, skills);
         requestQuery.logins.set(ANNA, 'anna');
         requestQuery.profiles.set(ANNA, { lastName: 'Иванова', firstName: 'Анна' });
+        requestQuery.logins.set(DEV, 'petrov');
+        requestQuery.profiles.set(DEV, { lastName: 'Петров', firstName: 'Пётр' });
         const moduleRef = await Test.createTestingModule({
             imports: [AuthStubModule, OutboxStubModule, PortalModule],
         })
@@ -176,6 +178,10 @@ describe('portal flow (PortalModule wired end to end)', () => {
             author: { id: string; login: string; fullName: string };
         }[];
         skill: { id: string; name: string } | null;
+        reviewer: { id: string; login: string; fullName: string } | null;
+        takenAt: string | null;
+        effortHours: number | null;
+        code: string;
     }
 
     const json = async (
@@ -192,6 +198,16 @@ describe('portal flow (PortalModule wired end to end)', () => {
         const text = await response.text();
         return { status: response.status, body: (text === '' ? null : JSON.parse(text)) as Body };
     };
+
+    const accept = (
+        requestId: string,
+        target: unknown,
+        effortHours = 8,
+        headers: Record<string, string> = bearer(DEV, ['developer']),
+    ): ReturnType<typeof json> =>
+        json('POST', `/portal/requests/${requestId}/accept`, headers, { effortHours, target });
+    const take = (requestId: string): ReturnType<typeof json> =>
+        json('POST', `/portal/requests/${requestId}/take`, bearer(DEV, ['developer']));
 
     const idea = {
         title: 'Сверка актов',
@@ -218,23 +234,29 @@ describe('portal flow (PortalModule wired end to end)', () => {
         const submitted = await json('POST', '/portal/requests', bearer(ANNA), idea);
         expect(submitted.status).toBe(201);
         const requestId = submitted.body.id;
-        expect(submitted.body.status).toEqual({ code: 'pending', label: 'На рассмотрении' });
+        expect(submitted.body.status).toEqual({ code: 'new', label: 'Новая' });
 
         // Сотрудник без роли не видит очередь и не принимает решения.
         expect((await json('GET', '/portal/queue', bearer(ANNA))).status).toBe(403);
         expect(
             (
-                await json('POST', `/portal/requests/${requestId}/accept`, bearer(ANNA), {
-                    agentId: AGENT_ID,
-                    name: 'Сверка актов',
-                    description: '',
-                })
+                await accept(
+                    requestId,
+                    { kind: 'new_skill', agentId: AGENT_ID, name: 'Сверка актов', description: '' },
+                    8,
+                    bearer(ANNA),
+                )
             ).status,
+        ).toBe(403);
+        expect((await take(requestId.replace(/^./, '0'))).status).toBe(404);
+        expect(
+            (await json('POST', `/portal/requests/${requestId}/take`, bearer(ANNA))).status,
         ).toBe(403);
 
         const queue = await json('GET', '/portal/queue', bearer(DEV, ['developer']));
         expect(queue.status).toBe(200);
         expect(queue.body.items.map((item) => item.id)).toEqual([requestId]);
+        expect(queue.body.items[0]?.status.code).toBe('new');
         expect(queue.body.items[0]?.author).toEqual({
             id: ANNA,
             login: 'anna',
@@ -260,13 +282,86 @@ describe('portal flow (PortalModule wired end to end)', () => {
             },
         ]);
 
-        const accepted = await json(
-            'POST',
-            `/portal/requests/${requestId}/accept`,
-            bearer(DEV, ['developer']),
-            { agentId: AGENT_ID, name: 'Сверка актов', description: 'Авто-сверка' },
+        // Принять из `new` нельзя: сначала взять в работу.
+        const early = await accept(requestId, {
+            kind: 'new_skill',
+            agentId: AGENT_ID,
+            name: 'Сверка актов',
+            description: '',
+        });
+        expect(early.status).toBe(409);
+
+        const taken = await take(requestId);
+        expect(taken.status).toBe(200);
+        expect(taken.body.status).toEqual({ code: 'under_review', label: 'На рассмотрении' });
+        expect(taken.body.reviewer).toEqual({ id: DEV, login: 'petrov', fullName: 'Петров Пётр' });
+        expect(taken.body.takenAt).not.toBeNull();
+        expect((await take(requestId)).status).toBe(409);
+        const underReview = await json('GET', '/portal/requests/my', bearer(ANNA));
+        expect(underReview.body.items[0]?.status).toEqual({
+            code: 'under_review',
+            label: 'На рассмотрении',
+        });
+
+        // Принятие с новым агентом и новым продуктом; ошибка откатывает всё целиком.
+        const bad = await accept(requestId, {
+            kind: 'new_agent',
+            agent: { name: 'Агент закупок', productIds: [] },
+            skill: { name: 'Сверка актов', description: '' },
+        });
+        expect(bad.status).toBe(400);
+
+        const accepted = await accept(
+            requestId,
+            {
+                kind: 'new_agent',
+                agent: { name: 'Агент закупок', productIds: [], newProduct: { name: 'Закупки' } },
+                skill: { name: 'Сверка актов', description: 'Авто-сверка' },
+            },
+            24,
         );
         expect(accepted.status).toBe(200);
+        expect(accepted.body.effortHours).toBe(24);
+        expect(accepted.body.reviewer?.id).toBe(DEV);
+        const author = await json('GET', `/portal/requests/${requestId}`, bearer(ANNA));
+        expect(author.body.effortHours).toBe(24);
+        expect(author.body.reviewer?.fullName).toBe('Петров Пётр');
+        expect((author.body.status as { code: string }).code).toBe('planned');
+
+        const catalogBody = await fetch(`${base}/portal/catalog`, { headers: bearer(ANNA) });
+        const tree = (await catalogBody.json()) as {
+            products: { slug: string; name: string; agents: { name: string }[] }[];
+        };
+        const purchases = tree.products.find((p) => p.name === 'Закупки');
+        expect(purchases?.slug).toBe('zakupki');
+        expect(purchases?.agents.map((a) => a.name)).toEqual(['Агент закупок']);
+
+        // Повторное принятие и принятие под занятым названием.
+        expect((await accept(requestId, { kind: 'existing_skill', skillId: 'x' })).status).toBe(
+            400,
+        );
+        const dup = await json('POST', '/portal/requests', bearer(ANNA), idea);
+        await take(dup.body.id);
+        const clash = await accept(dup.body.id, {
+            kind: 'new_agent',
+            agent: { name: ' агент ЗАКУПОК ', productIds: [], newProduct: { name: 'Другой' } },
+            skill: { name: 'Навык', description: '' },
+        });
+        expect(clash.status).toBe(409);
+        const stillOpen = await json('GET', `/portal/requests/${dup.body.id}`, bearer(ANNA));
+        expect((stillOpen.body.status as { code: string }).code).toBe('under_review');
+        expect(
+            (
+                await json(
+                    'POST',
+                    `/portal/requests/${dup.body.id}/reject`,
+                    bearer(DEV, ['developer']),
+                    {
+                        reason: 'Дубль',
+                    },
+                )
+            ).status,
+        ).toBe(200);
         const skillId = accepted.body.skill?.id ?? '';
         expect(skillId).not.toBe('');
         expect(
@@ -391,9 +486,8 @@ describe('portal flow (PortalModule wired end to end)', () => {
         it('moves a skill testing -> launched -> rework -> testing, the agent stays working, the author sees the label', async () => {
             const submitted = await json('POST', '/portal/requests', bearer(ANNA), idea);
             requestId = submitted.body.id;
-            const accepted = await json('POST', `/portal/requests/${requestId}/accept`, dev(), {
-                skillId,
-            });
+            await take(requestId);
+            const accepted = await accept(requestId, { kind: 'existing_skill', skillId });
             expect(accepted.status).toBe(200);
 
             for (const status of ['in_dev', 'testing', 'launched']) {
@@ -462,10 +556,9 @@ describe('portal flow (PortalModule wired end to end)', () => {
 
             await json('POST', `/portal/skills/${skillId}/archive`, dev());
             const second = await json('POST', '/portal/requests', bearer(ANNA), idea);
-            const accept = await json('POST', `/portal/requests/${second.body.id}/accept`, dev(), {
-                skillId,
-            });
-            expect(accept.status).toBe(409);
+            await take(second.body.id);
+            const accepted = await accept(second.body.id, { kind: 'existing_skill', skillId });
+            expect(accepted.status).toBe(409);
             const queue = await json('GET', '/portal/queue', dev());
             expect(queue.body.items.map((i) => i.id)).toContain(second.body.id);
             expect((await setStatus('launched')).status).toBe(409);

@@ -6,10 +6,15 @@ import { ListQueueUseCase } from '../../application/list-queue.use-case';
 import { RejectRequestUseCase } from '../../application/reject-request.use-case';
 import type { RequestView } from '../../application/request-view';
 import { SubmitRequestUseCase } from '../../application/submit-request.use-case';
+import { TakeRequestUseCase } from '../../application/take-request.use-case';
 import {
+    AgentNameTakenError,
     InvalidRejectReasonError,
+    ProductNotFoundError,
     RequestAlreadyDecidedError,
+    RequestAlreadyTakenError,
     RequestNotFoundError,
+    RequestNotTakenError,
     SkillNotFoundError,
 } from '../../domain/errors';
 import { RequestsController } from './requests.controller';
@@ -25,6 +30,8 @@ const get = { execute: vi.fn() };
 const queue = { execute: vi.fn() };
 const accept = { execute: vi.fn() };
 const reject = { execute: vi.fn() };
+const take = { execute: vi.fn() };
+const PRODUCT_ID = '8f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
 
 const view: RequestView = {
     id: REQUEST_ID,
@@ -66,6 +73,7 @@ describe('RequestsController', () => {
                 { provide: ListQueueUseCase, useValue: queue },
                 { provide: AcceptRequestUseCase, useValue: accept },
                 { provide: RejectRequestUseCase, useValue: reject },
+                { provide: TakeRequestUseCase, useValue: take },
             ],
         });
     });
@@ -82,6 +90,7 @@ describe('RequestsController', () => {
         queue.execute.mockResolvedValue({ items: [view], total: 1 });
         accept.execute.mockResolvedValue(view);
         reject.execute.mockResolvedValue(view);
+        take.execute.mockResolvedValue(view);
     });
 
     function call(
@@ -113,6 +122,9 @@ describe('RequestsController', () => {
                 minutesPerRun: 20,
                 peopleCount: 3,
                 status: { code: 'new', label: 'Новая' },
+                reviewer: null,
+                takenAt: null,
+                effortHours: null,
                 author: { id: USER_ID, login: 'anna', fullName: 'Иванова Анна' },
                 rejectReason: null,
                 skill: null,
@@ -232,89 +244,237 @@ describe('RequestsController', () => {
         });
     });
 
+    describe('POST /portal/requests/:id/take', () => {
+        const dev = (): Record<string, string> => fixture.bearer(['developer']);
+        const url = `/portal/requests/${REQUEST_ID}/take`;
+
+        it('takes the request for the token user and answers 200 with reviewer fields', async () => {
+            take.execute.mockResolvedValue({
+                ...view,
+                status: { code: 'under_review', label: 'На рассмотрении' },
+                reviewer: { id: USER_ID, login: 'dev', fullName: 'Петров Пётр' },
+                takenAt: new Date('2026-11-07T09:00:00.000Z'),
+            });
+
+            const response = await call('POST', url, undefined, dev());
+
+            expect(response.status).toBe(200);
+            expect(await response.json()).toMatchObject({
+                status: { code: 'under_review', label: 'На рассмотрении' },
+                reviewer: { id: USER_ID, login: 'dev', fullName: 'Петров Пётр' },
+                takenAt: '2026-11-07T09:00:00.000Z',
+                effortHours: null,
+            });
+            expect(take.execute).toHaveBeenCalledWith({
+                requestId: REQUEST_ID,
+                reviewerId: USER_ID,
+            });
+        });
+
+        it('answers 401 without a token and 403 without the developer role', async () => {
+            expect((await call('POST', url, undefined, {})).status).toBe(401);
+            expect((await call('POST', url)).status).toBe(403);
+            expect(take.execute).not.toHaveBeenCalled();
+        });
+
+        it('answers 400 for a malformed id', async () => {
+            const response = await call('POST', '/portal/requests/nope/take', undefined, dev());
+            expect(response.status).toBe(400);
+            expect(take.execute).not.toHaveBeenCalled();
+        });
+
+        it('answers 404 for a missing request and 409 for taken or decided', async () => {
+            take.execute.mockRejectedValueOnce(new RequestNotFoundError(REQUEST_ID));
+            expect((await call('POST', url, undefined, dev())).status).toBe(404);
+
+            take.execute.mockRejectedValueOnce(new RequestAlreadyTakenError(REQUEST_ID));
+            const taken = await call('POST', url, undefined, dev());
+            expect(taken.status).toBe(409);
+            expect(await taken.json()).toMatchObject({ code: 'PORTAL_REQUEST_ALREADY_TAKEN' });
+
+            take.execute.mockRejectedValueOnce(new RequestAlreadyDecidedError(REQUEST_ID));
+            expect((await call('POST', url, undefined, dev())).status).toBe(409);
+        });
+    });
+
     describe('POST /portal/requests/:id/accept', () => {
         const dev = (): Record<string, string> => fixture.bearer(['developer']);
+        const url = `/portal/requests/${REQUEST_ID}/accept`;
+        const newAgent = {
+            kind: 'new_agent',
+            agent: { name: 'Агент закупок', productIds: [PRODUCT_ID] },
+            skill: { name: 'Сверка актов', description: 'Описание' },
+        };
 
-        it('accepts into an existing skill', async () => {
-            const response = await call(
-                'POST',
-                `/portal/requests/${REQUEST_ID}/accept`,
-                { skillId: SKILL_ID },
-                dev(),
-            );
+        it('accepts into an existing skill with an estimate', async () => {
+            const body = {
+                effortHours: 16,
+                target: { kind: 'existing_skill', skillId: SKILL_ID },
+            };
+            const response = await call('POST', url, body, dev());
 
             expect(response.status).toBe(200);
             expect(accept.execute).toHaveBeenCalledWith({
                 requestId: REQUEST_ID,
                 decidedBy: USER_ID,
-                target: { skillId: SKILL_ID },
+                effortHours: 16,
+                target: body.target,
             });
         });
 
         it('accepts with a new skill', async () => {
-            const body = { agentId: AGENT_ID, name: 'Сверка актов', description: 'Описание' };
-            const response = await call(
-                'POST',
-                `/portal/requests/${REQUEST_ID}/accept`,
-                body,
-                dev(),
-            );
+            const target = {
+                kind: 'new_skill',
+                agentId: AGENT_ID,
+                name: 'Сверка актов',
+                description: 'Описание',
+            };
+            const response = await call('POST', url, { effortHours: 8, target }, dev());
 
             expect(response.status).toBe(200);
             expect(accept.execute).toHaveBeenCalledWith({
                 requestId: REQUEST_ID,
                 decidedBy: USER_ID,
-                target: body,
+                effortHours: 8,
+                target,
             });
         });
 
+        it('accepts with a new agent and a new product', async () => {
+            const target = {
+                ...newAgent,
+                agent: {
+                    name: 'Агент закупок',
+                    productIds: [],
+                    newProduct: { name: 'Закупки' },
+                },
+            };
+            const response = await call('POST', url, { effortHours: 40, target }, dev());
+
+            expect(response.status).toBe(200);
+            expect(accept.execute).toHaveBeenCalledWith({
+                requestId: REQUEST_ID,
+                decidedBy: USER_ID,
+                effortHours: 40,
+                target,
+            });
+        });
+
+        it('accepts with a new agent over existing products', async () => {
+            const response = await call('POST', url, { effortHours: 40, target: newAgent }, dev());
+            expect(response.status).toBe(200);
+        });
+
+        const existing = { kind: 'existing_skill', skillId: SKILL_ID };
         it.each([
-            [
-                'mixed variants',
-                { skillId: SKILL_ID, agentId: AGENT_ID, name: 'x', description: '' },
-            ],
-            ['skillId with name', { skillId: SKILL_ID, name: 'x' }],
+            ['old top-level skillId', { skillId: SKILL_ID }],
+            ['old top-level new skill', { agentId: AGENT_ID, name: 'x', description: '' }],
             ['empty body', {}],
-            ['new skill without agent', { name: 'x', description: '' }],
-            ['blank skill name', { agentId: AGENT_ID, name: '  ', description: '' }],
-            ['malformed skill id', { skillId: 'nope' }],
+            ['missing target', { effortHours: 5 }],
+            ['missing effort', { target: existing }],
+            ['zero effort', { effortHours: 0, target: existing }],
+            ['negative effort', { effortHours: -3, target: existing }],
+            ['fractional effort', { effortHours: 1.5, target: existing }],
+            ['effort above 2000', { effortHours: 2001, target: existing }],
+            ['string effort', { effortHours: '5', target: existing }],
+            ['unknown kind', { effortHours: 5, target: { kind: 'other', skillId: SKILL_ID } }],
+            [
+                'malformed skill id',
+                { effortHours: 5, target: { kind: 'existing_skill', skillId: 'x' } },
+            ],
+            [
+                'new skill without agent',
+                { effortHours: 5, target: { kind: 'new_skill', name: 'x', description: '' } },
+            ],
+            [
+                'blank skill name',
+                {
+                    effortHours: 5,
+                    target: { kind: 'new_skill', agentId: AGENT_ID, name: '  ', description: '' },
+                },
+            ],
+            [
+                'new agent without products',
+                {
+                    effortHours: 5,
+                    target: { ...newAgent, agent: { name: 'A', productIds: [] } },
+                },
+            ],
+            [
+                'new agent with blank name',
+                {
+                    effortHours: 5,
+                    target: { ...newAgent, agent: { name: ' ', productIds: [PRODUCT_ID] } },
+                },
+            ],
+            [
+                'new agent with too long name',
+                {
+                    effortHours: 5,
+                    target: {
+                        ...newAgent,
+                        agent: { name: 'a'.repeat(101), productIds: [PRODUCT_ID] },
+                    },
+                },
+            ],
+            [
+                'new product with too long name',
+                {
+                    effortHours: 5,
+                    target: {
+                        ...newAgent,
+                        agent: {
+                            name: 'A',
+                            productIds: [],
+                            newProduct: { name: 'p'.repeat(101) },
+                        },
+                    },
+                },
+            ],
+            [
+                'new agent with malformed product id',
+                {
+                    effortHours: 5,
+                    target: { ...newAgent, agent: { name: 'A', productIds: ['nope'] } },
+                },
+            ],
+            [
+                'new agent without skill',
+                { effortHours: 5, target: { kind: 'new_agent', agent: newAgent.agent } },
+            ],
         ])('answers 400 for %s', async (_name, body) => {
-            const response = await call(
-                'POST',
-                `/portal/requests/${REQUEST_ID}/accept`,
-                body,
-                dev(),
-            );
+            const response = await call('POST', url, body, dev());
             expect(response.status).toBe(400);
             expect(accept.execute).not.toHaveBeenCalled();
         });
 
         it('answers 403 without the developer role', async () => {
-            const response = await call('POST', `/portal/requests/${REQUEST_ID}/accept`, {
-                skillId: SKILL_ID,
-            });
+            const response = await call('POST', url, { effortHours: 5, target: existing });
             expect(response.status).toBe(403);
             expect(accept.execute).not.toHaveBeenCalled();
         });
 
-        it('answers 404 for a missing skill and 409 for a decided request', async () => {
+        it('maps domain errors to 404 and 409', async () => {
+            const body = { effortHours: 5, target: existing };
+
             accept.execute.mockRejectedValueOnce(new SkillNotFoundError(SKILL_ID));
-            const notFound = await call(
-                'POST',
-                `/portal/requests/${REQUEST_ID}/accept`,
-                { skillId: SKILL_ID },
-                dev(),
-            );
-            expect(notFound.status).toBe(404);
+            expect((await call('POST', url, body, dev())).status).toBe(404);
+
+            accept.execute.mockRejectedValueOnce(new ProductNotFoundError(PRODUCT_ID));
+            expect((await call('POST', url, body, dev())).status).toBe(404);
 
             accept.execute.mockRejectedValueOnce(new RequestAlreadyDecidedError(REQUEST_ID));
-            const conflict = await call(
-                'POST',
-                `/portal/requests/${REQUEST_ID}/accept`,
-                { skillId: SKILL_ID },
-                dev(),
-            );
-            expect(conflict.status).toBe(409);
+            expect((await call('POST', url, body, dev())).status).toBe(409);
+
+            accept.execute.mockRejectedValueOnce(new RequestNotTakenError(REQUEST_ID));
+            const notTaken = await call('POST', url, body, dev());
+            expect(notTaken.status).toBe(409);
+            expect(await notTaken.json()).toMatchObject({ code: 'PORTAL_REQUEST_NOT_TAKEN' });
+
+            accept.execute.mockRejectedValueOnce(new AgentNameTakenError());
+            const taken = await call('POST', url, body, dev());
+            expect(taken.status).toBe(409);
+            expect(await taken.json()).toMatchObject({ code: 'PORTAL_AGENT_NAME_TAKEN' });
         });
     });
 
