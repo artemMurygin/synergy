@@ -8,13 +8,14 @@ const alertVariants = cva('flex items-start gap-2.5 rounded-md px-3.5 py-3 font-
     tone: {
       error: 'bg-brand-red-soft',
       info: 'bg-info-soft',
-      success: 'bg-success-soft'
+      success: 'bg-success-soft',
+      warning: 'bg-warning-soft'
     }
   },
   defaultVariants: { tone: 'error' }
 })
 
-const iconTone = { error: 'text-brand-red', info: 'text-info', success: 'text-success' } as const
+const iconTone = { error: 'text-brand-red', info: 'text-info', success: 'text-success', warning: 'text-warning' } as const
 
 export interface AlertProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>, VariantProps<typeof alertVariants> {
   title?: string
@@ -35,6 +36,8 @@ function AlertIcon({ tone }: { tone: keyof typeof iconTone }) {
       <circle cx="12" cy="12" r="10" />
       {tone === 'success' ? (
         <path d="m9 12 2 2 4-4" />
+      ) : tone === 'warning' ? (
+        <path d="M12 6v6l4 2" />
       ) : (
         <>
           <line x1="12" x2="12" y1={tone === 'info' ? '16' : '8'} y2={tone === 'info' ? '12' : '12'} />
