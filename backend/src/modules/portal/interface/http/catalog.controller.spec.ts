@@ -265,7 +265,7 @@ describe('CatalogController', () => {
             expect(setDepartments.execute).not.toHaveBeenCalled();
         });
 
-        it('answers 400 for invalid ids, too many items, a wrong shape or a malformed product id', async () => {
+        it('answers 400 for invalid ids, too many items, or a wrong shape', async () => {
             expect((await put({ departmentIds: [''] })).status).toBe(400);
             expect((await put({ departmentIds: ['   '] })).status).toBe(400);
             expect((await put({ departmentIds: ['a'.repeat(101)] })).status).toBe(400);
@@ -278,16 +278,17 @@ describe('CatalogController', () => {
             ).toBe(400);
             expect((await put({ departmentIds: 'sales' })).status).toBe(400);
             expect((await put({})).status).toBe(400);
-            expect(
-                (
-                    await put(
-                        { departmentIds: [] },
-                        fixture.bearer(['admin']),
-                        '/portal/products/nope/departments',
-                    )
-                ).status,
-            ).toBe(400);
             expect(setDepartments.execute).not.toHaveBeenCalled();
+        });
+
+        it('answers 404 for a malformed product id (the use case reports it as not found)', async () => {
+            setDepartments.execute.mockRejectedValueOnce(new ProductNotFoundError('nope'));
+            const response = await put(
+                { departmentIds: [] },
+                fixture.bearer(['admin']),
+                '/portal/products/nope/departments',
+            );
+            expect(response.status).toBe(404);
         });
 
         it('accepts exactly 100 departments', async () => {

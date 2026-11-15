@@ -101,12 +101,12 @@ export class CatalogController {
     })
     @ApiBody({ schema: zodToOpenApi(setProductDepartmentsSchema) })
     @ApiResponse({ status: HttpStatus.OK, type: ProductDepartmentsResponse })
-    @errorResponse(HttpStatus.BAD_REQUEST, 'Invalid product id or department ids')
+    @errorResponse(HttpStatus.BAD_REQUEST, 'Invalid department ids')
     @errorResponse(HttpStatus.FORBIDDEN, 'Requires the admin role')
     @errorResponse(HttpStatus.NOT_FOUND, 'Product or department not found')
     @unauthorized
     async setDepartments(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id') id: string,
         @Body(new ZodValidationPipe(setProductDepartmentsSchema)) body: SetProductDepartmentsBody,
     ): Promise<ProductDepartmentsResponse> {
         const view = await this.setProductDepartments.execute({

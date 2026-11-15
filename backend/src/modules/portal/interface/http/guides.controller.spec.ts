@@ -74,16 +74,17 @@ describe('GuidesController', () => {
             expect(await response.json()).toEqual({ body: null, updatedAt: null, updatedBy: null });
         });
 
-        it('answers 401 without a token, 404 for an unknown agent, 400 for a malformed id', async () => {
+        it('answers 401 without a token, 404 for an unknown agent or a malformed id', async () => {
             expect((await fetch(`${fixture.base}${PATH}`)).status).toBe(401);
             getGuide.execute.mockRejectedValueOnce(new AgentNotFoundError(AGENT_ID));
             expect(
                 (await fetch(`${fixture.base}${PATH}`, { headers: fixture.bearer() })).status,
             ).toBe(404);
+            getGuide.execute.mockRejectedValueOnce(new AgentNotFoundError('nope'));
             const bad = await fetch(`${fixture.base}/portal/agents/nope/guide`, {
                 headers: fixture.bearer(),
             });
-            expect(bad.status).toBe(400);
+            expect(bad.status).toBe(404);
         });
     });
 
@@ -115,16 +116,18 @@ describe('GuidesController', () => {
         it('answers 400 for a body over 200000 characters or a wrong shape', async () => {
             expect((await put({})).status).toBe(400);
             expect((await put({ body: 5 })).status).toBe(400);
-            expect(
-                (
-                    await put(
-                        { body: 'x' },
-                        fixture.bearer(['developer']),
-                        '/portal/agents/nope/guide',
-                    )
-                ).status,
-            ).toBe(400);
             expect(saveGuide.execute).not.toHaveBeenCalled();
+        });
+
+        it('answers 404 for a malformed id (the use case reports the agent as not found)', async () => {
+            saveGuide.execute.mockRejectedValueOnce(new AgentNotFoundError('nope'));
+            const response = await put(
+                { body: 'x' },
+                fixture.bearer(['developer']),
+                '/portal/agents/nope/guide',
+            );
+            expect(response.status).toBe(404);
+            expect(saveGuide.execute).toHaveBeenCalledWith(expect.objectContaining({ agentId: 'nope' }));
         });
 
         it('limits the schema to 200000 characters (the HTTP body parser limit applies earlier)', () => {

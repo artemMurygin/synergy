@@ -5,7 +5,6 @@ import {
     HttpCode,
     HttpStatus,
     Param,
-    ParseUUIDPipe,
     Put,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -29,7 +28,7 @@ const errorResponse = (status: HttpStatus, description: string): MethodDecorator
 const unauthorized = errorResponse(HttpStatus.UNAUTHORIZED, 'Missing or invalid access token');
 const forbidden = errorResponse(HttpStatus.FORBIDDEN, 'Requires the developer role');
 const notFound = errorResponse(HttpStatus.NOT_FOUND, 'Agent not found or archived');
-const badRequest = errorResponse(HttpStatus.BAD_REQUEST, 'Invalid agent id or guide body');
+const badRequest = errorResponse(HttpStatus.BAD_REQUEST, 'Invalid guide body');
 
 @ApiTags('portal')
 @ApiBearerAuth()
@@ -43,10 +42,9 @@ export class GuidesController {
     @Get()
     @ApiOperation({ summary: 'Agent guide in Markdown; empty fields if none (any signed-in user)' })
     @ApiResponse({ status: HttpStatus.OK, type: GuideResponse })
-    @badRequest
     @notFound
     @unauthorized
-    async read(@Param('id', ParseUUIDPipe) id: string): Promise<GuideResponse> {
+    async read(@Param('id') id: string): Promise<GuideResponse> {
         return new GuideResponse(await this.getGuide.execute({ agentId: id }));
     }
 
@@ -65,7 +63,7 @@ export class GuidesController {
     @unauthorized
     async write(
         @CurrentUser() user: AuthenticatedUser | undefined,
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id') id: string,
         @Body(new ZodValidationPipe(saveGuideSchema)) body: SaveGuideBody,
     ): Promise<GuideResponse> {
         const view = await this.saveGuide.execute({
