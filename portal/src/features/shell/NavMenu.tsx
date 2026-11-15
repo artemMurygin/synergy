@@ -23,6 +23,8 @@ const MAIN: Group = {
   items: [
     { to: "/ideas/new", label: "Новая идея" },
     { to: "/requests", label: "Мои заявки" },
+    { to: "/catalog", label: "Каталог" },
+    { to: "/roadmap", label: "Роадмап" },
   ],
 };
 const DEVELOPER: Group = {
@@ -31,6 +33,7 @@ const DEVELOPER: Group = {
   items: [
     { to: "/queue", label: "Очередь" },
     { to: "/skills", label: "Навыки" },
+    { to: "/archive", label: "Архив" },
   ],
 };
 const ADMIN: Group = {
@@ -106,9 +109,14 @@ function Avatar({ initials, size, className }: { initials: string; size: number;
   );
 }
 
-function CountBadge({ count }: { count: number }) {
+function CountBadge({ count, compact }: { count: number; compact?: boolean }) {
   return (
-    <span className="inline-flex h-5 items-center rounded-pill bg-brand-red px-[7px] text-[11px] font-bold text-white">
+    <span
+      className={cn(
+        "inline-flex items-center rounded-pill bg-brand-red font-bold text-white",
+        compact ? "h-[18px] px-1.5 text-[10px]" : "h-5 px-[7px] text-[11px]",
+      )}
+    >
       {count}
     </span>
   );
@@ -135,46 +143,45 @@ export function NavMenu() {
   const fullName = profile?.fullName || profile?.login || "";
   const initials = initialsFor(fullName);
 
-  const badge = (item: Item) =>
-    item.to === "/queue" && queueCount > 0 ? <CountBadge count={queueCount} /> : null;
+  const badge = (item: Item, compact = false) =>
+    item.to === "/queue" && queueCount > 0 ? <CountBadge count={queueCount} compact={compact} /> : null;
 
   return (
     <>
-      <div className="hidden h-16 items-center gap-6 px-6 lg:flex xl:gap-10 xl:px-8">
-        <div className="flex shrink-0 items-center gap-2.5">
-          <Mark size={32} icon={18} />
-          <div className="flex flex-col xl:min-w-[269px]">
-            <p className="font-display text-[17px] leading-[22px] font-bold whitespace-nowrap text-ink">
-              Портал разработки
-              <span className="hidden xl:inline"> ИИ-агентов</span>
-            </p>
-            <p className="text-[11px] leading-[13px] text-ink-60">Synergy</p>
-          </div>
-        </div>
+      <div className="hidden h-14 items-center gap-4 px-3 lg:flex">
+        <NavLink
+          to="/requests"
+          className={cn("flex h-10 shrink-0 items-center gap-2 rounded-md", FOCUS)}
+        >
+          <Mark size={28} icon={16} />
+          <span className="font-display text-[15px] leading-[19px] font-bold whitespace-nowrap text-ink">
+            Портал<span className="hidden xl:inline"> разработки</span>
+          </span>
+        </NavLink>
         <nav aria-label="Разделы" className="h-full min-w-0 flex-1">
-          <div className="flex h-full items-stretch gap-5 xl:gap-6">
+          <div className="flex h-full items-stretch gap-3">
             {groups.map((group, index) => (
               <Fragment key={group.key}>
                 {index > 0 ? (
                   <span aria-hidden="true" className="flex items-center">
-                    <span className="h-5 w-px bg-border" />
+                    <span className="h-4 w-px bg-border" />
                   </span>
                 ) : null}
-                <ul aria-label={group.caption ?? "Основное"} className="flex h-full gap-5 xl:gap-6">
+                <ul aria-label={group.caption ?? "Основное"} className="flex h-full gap-3">
                   {group.items.map((item) => (
                     <li key={item.to} className="h-full">
                       <NavLink
                         to={item.to}
                         className={({ isActive }) =>
                           cn(
-                            "relative box-border flex h-full items-center gap-2 border-b-2 border-transparent text-sm leading-4 font-semibold whitespace-nowrap text-ink-60 hover:text-ink",
+                            "relative box-border flex h-full items-center gap-1.5 border-b-2 border-transparent text-[13px] leading-4 font-semibold whitespace-nowrap text-ink-60 hover:text-ink",
                             FOCUS,
                             isActive && "border-brand-red text-ink",
                           )
                         }
                       >
                         {item.label}
-                        {badge(item)}
+                        {badge(item, true)}
                       </NavLink>
                     </li>
                   ))}
@@ -183,17 +190,14 @@ export function NavMenu() {
             ))}
           </div>
         </nav>
-        <div className="flex shrink-0 items-center gap-3">
-          <Avatar initials={initials} size={36} className="max-xl:hidden" />
-          <div className="flex flex-col gap-px">
+        <div className="flex shrink-0 items-center gap-2">
+          <div title={role} className="flex h-10 items-center gap-2">
+            <Avatar initials={initials} size={32} className="text-xs" />
             <span
               title={fullName}
-              className="max-w-[120px] truncate text-[13px] leading-[15px] font-semibold text-ink xl:max-w-40"
+              className="max-w-24 truncate text-[13px] leading-[15px] font-semibold text-ink xl:max-w-40"
             >
               {fullName}
-            </span>
-            <span className="max-w-[120px] truncate text-[11px] leading-[13px] text-ink-60 xl:max-w-40">
-              {role}
             </span>
           </div>
           <button
@@ -202,7 +206,7 @@ export function NavMenu() {
             title="Выйти"
             onClick={() => void logout()}
             className={cn(
-              "inline-flex size-9 items-center justify-center rounded-md text-ink-60 hover:bg-surface-sunken hover:text-ink",
+              "inline-flex size-10 items-center justify-center rounded-md text-ink-60 hover:bg-surface-sunken hover:text-ink",
               FOCUS,
             )}
           >

@@ -75,6 +75,28 @@ describe('routing', () => {
     expect(calls.some((c) => c.path === '/portal/skills')).toBe(false)
   })
 
+  it.each([
+    ['/catalog'],
+    ['/roadmap'],
+    ['/catalog/agents/a1']
+  ])('%s opens for a signed-in employee and the section is not "Мои заявки"', async (path) => {
+    renderApp(path, employee, (c) => (c.path === '/portal/catalog' ? json({ products: [] }) : undefined))
+    expect(await screen.findByRole('heading', { name: /Каталог|Роадмап|Агент не найден/ })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Мои заявки' })).toBeNull()
+  })
+
+  it('an employee opening /archive sees "Мои заявки" and the archive is not requested', async () => {
+    const { calls } = renderApp('/archive', employee)
+    expect(await screen.findByRole('heading', { name: 'Мои заявки' })).toBeTruthy()
+    expect(calls.some((c) => c.path === '/portal/archive')).toBe(false)
+  })
+
+  it('a developer opens /archive', async () => {
+    const { calls } = renderApp('/archive', developer, (c) => (c.path === '/portal/archive' ? json({ agents: [], skills: [] }) : undefined))
+    expect(await screen.findByRole('heading', { name: 'Архив' })).toBeTruthy()
+    expect(calls.some((c) => c.path === '/portal/archive')).toBe(true)
+  })
+
   it('a developer opens /queue and /skills', async () => {
     renderApp('/queue', developer)
     expect(await screen.findByRole('heading', { name: 'Очередь заявок' })).toBeTruthy()

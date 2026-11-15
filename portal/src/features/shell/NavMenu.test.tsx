@@ -51,12 +51,20 @@ function renderMenu(profile: Profile) {
 }
 
 const queuePage = { items: [], total: 6, limit: 20, page: 0 };
-const linkNames = () => screen.getAllByRole("link").map((l) => l.textContent);
+const isBrand = (l: HTMLElement) => l.textContent?.startsWith("Портал") ?? false;
+const linkNames = () =>
+  screen
+    .getAllByRole("link")
+    .filter((l) => !isBrand(l))
+    .map((l) => l.textContent);
 
 describe("NavMenu", () => {
-  it('shows only "Новая идея" and "Мои заявки" to a user without roles', () => {
+  it('shows "Новая идея", "Мои заявки", "Каталог" and "Роадмап" to a user without roles', () => {
     renderMenu(employee);
-    expect(linkNames()).toEqual(["Новая идея", "Мои заявки"]);
+    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап"]);
+    expect(screen.getByRole("link", { name: "Каталог" }).getAttribute("href")).toBe("/catalog");
+    expect(screen.getByRole("link", { name: "Роадмап" }).getAttribute("href")).toBe("/roadmap");
+    expect(screen.queryByRole("link", { name: "Архив" })).toBeNull();
     expect(
       screen
         .getByRole("link", { name: "Мои заявки" })
@@ -64,15 +72,19 @@ describe("NavMenu", () => {
     ).toBe("page");
   });
 
-  it('adds "Очередь" and "Навыки" for a developer', () => {
+  it('adds "Очередь", "Навыки" and "Архив" for a developer', () => {
     stubFetch(() => json(queuePage));
     renderMenu(developer);
     expect(linkNames()).toEqual([
       "Новая идея",
       "Мои заявки",
+      "Каталог",
+      "Роадмап",
       "Очередь",
       "Навыки",
+      "Архив",
     ]);
+    expect(screen.getByRole("link", { name: "Архив" }).getAttribute("href")).toBe("/archive");
     expect(
       screen.getByRole("link", { name: "Очередь" }).getAttribute("href"),
     ).toBe("/queue");
@@ -81,7 +93,7 @@ describe("NavMenu", () => {
   it("shows the user login and role", () => {
     renderMenu(employee);
     expect(screen.getAllByText("ivan").length).toBeGreaterThan(0);
-    expect(screen.getByText("сотрудник")).toBeTruthy();
+    expect(screen.getByTitle("сотрудник")).toBeTruthy();
   });
 
   it('shows the queue size next to "Очередь" for a developer and never asks an employee for the queue', async () => {
@@ -104,14 +116,18 @@ describe("NavMenu", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
     await userEvent.click(button);
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getAllByRole("link").map((l) => l.textContent)).toEqual([
+    expect(linkNames()).toEqual([
       "Новая идея",
       "Мои заявки",
+      "Каталог",
+      "Роадмап",
       "Новая идея",
       "Мои заявки",
+      "Каталог",
+      "Роадмап",
     ]);
     await userEvent.click(button);
-    expect(linkNames()).toEqual(["Новая идея", "Мои заявки"]);
+    expect(linkNames()).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап"]);
   });
 
   it("the logout button revokes the session on the server and clears the session", async () => {
@@ -130,6 +146,8 @@ describe("NavMenu", () => {
     expect(linkNames()).toEqual([
       "Новая идея",
       "Мои заявки",
+      "Каталог",
+      "Роадмап",
       "Сотрудники",
       "Отделы",
     ]);
@@ -141,6 +159,7 @@ describe("NavMenu", () => {
     ).toBe("/admin/departments");
     expect(screen.queryByRole("link", { name: "Очередь" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Навыки" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Архив" })).toBeNull();
     expect(calls).toHaveLength(0);
   });
 
@@ -150,8 +169,11 @@ describe("NavMenu", () => {
     expect(linkNames()).toEqual([
       "Новая идея",
       "Мои заявки",
+      "Каталог",
+      "Роадмап",
       "Очередь",
       "Навыки",
+      "Архив",
       "Сотрудники",
       "Отделы",
     ]);
@@ -207,7 +229,7 @@ describe("NavMenu", () => {
   ])("labels the role of %#", (profile, label) => {
     stubFetch(() => json(queuePage));
     renderMenu(profile);
-    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.getByTitle(label)).toBeTruthy();
   });
 
   it("truncates a long name in the 1440 bar and in the 360 bar", () => {
@@ -234,7 +256,7 @@ describe("NavMenu", () => {
     expect(menu.textContent).toContain("Администрирование");
     expect(
       Array.from(menu.querySelectorAll("a")).map((a) => a.textContent?.replace(/\d+$/, "")),
-    ).toEqual(["Новая идея", "Мои заявки", "Очередь", "Навыки", "Сотрудники", "Отделы"]);
+    ).toEqual(["Новая идея", "Мои заявки", "Каталог", "Роадмап", "Очередь", "Навыки", "Архив", "Сотрудники", "Отделы"]);
     expect(menu.querySelector("button")?.textContent).toContain("Выйти");
   });
 
@@ -244,5 +266,22 @@ describe("NavMenu", () => {
     const menu = document.getElementById("mobile-menu") as HTMLElement;
     expect(menu.textContent).toContain("Администрирование");
     expect(menu.textContent).not.toContain("Разработка");
+  });
+
+  it("the compact bar: 56 high, 13/600 tabs with a 12 step, brand without Synergy, role only in the title", () => {
+    stubFetch(() => json(queuePage));
+    renderMenu(both);
+    const bar = screen.getAllByRole("navigation", { name: "Разделы" })[0].parentElement as HTMLElement;
+    expect(bar.className).toContain("h-14");
+    expect(bar.className).toContain("px-3");
+    const tab = screen.getByRole("link", { name: "Роадмап" });
+    expect(tab.className).toContain("text-[13px]");
+    expect(tab.closest("ul")?.className).toContain("gap-3");
+    expect(screen.queryByText("Synergy")).toBeNull();
+    const brand = screen.getAllByRole("link").find(isBrand) as HTMLElement;
+    expect(brand.textContent).toBe("Портал разработки");
+    expect(brand.querySelector("span.hidden")?.className).toContain("xl:inline");
+    expect(screen.getByTitle("разработчик, администратор")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Выйти" }).className).toContain("size-10");
   });
 });

@@ -2,7 +2,9 @@ import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { RequireAuth, RequireRole } from '@/features/auth'
 import { NavMenu } from '@/features/shell'
 import { AppLayout } from '@/layouts/AppLayout'
+import { AgentPage } from '@/pages/AgentPage'
 import { ArchivePage } from '@/pages/ArchivePage'
+import { CatalogPage } from '@/pages/CatalogPage'
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { DepartmentsPage } from '@/pages/DepartmentsPage'
 import { EmployeeCreatePage } from '@/pages/EmployeeCreatePage'
@@ -14,6 +16,7 @@ import { NewIdeaPage } from '@/pages/NewIdeaPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { QueuePage } from '@/pages/QueuePage'
 import { RequestPage } from '@/pages/RequestPage'
+import { RoadmapPage } from '@/pages/RoadmapPage'
 import { SkillsPage } from '@/pages/SkillsPage'
 
 function Shell() {
@@ -31,6 +34,9 @@ export function AppRoutes() {
           <Route path="/ideas/new" element={<NewIdeaPage />} />
           <Route path="/requests" element={<MyRequestsPage />} />
           <Route path="/requests/:id" element={<RequestPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/catalog/agents/:id" element={<AgentPage />} />
+          <Route path="/roadmap" element={<RoadmapPage />} />
           <Route element={<RequireRole role="developer" />}>
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/skills" element={<SkillsPage />} />
