@@ -121,6 +121,6 @@ describe.skipIf(adminUrl === undefined)('036_portal_request_comments migration',
         const [row] = await query(
             `SELECT indexdef FROM pg_indexes WHERE indexname = 'portal_request_comments_request_idx'`,
         );
-        expect(String(row?.indexdef)).toMatch(/\(request_id, created_at, id\)/);
+        expect(String(row.indexdef)).toMatch(/\(request_id, created_at, id\)/);
     });
 });

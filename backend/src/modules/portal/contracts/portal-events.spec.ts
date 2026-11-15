@@ -448,7 +448,12 @@ describe('RequestCommentPosted contract', () => {
                 id: 'e1',
                 eventType: REQUEST_COMMENT_POSTED_EVENT_TYPE,
                 aggregateId: COMMENT_ID,
-                payload: { requestId: 'r', requestAuthorId: 'a', commenterId: 'c', requestTitle: 't' },
+                payload: {
+                    requestId: 'r',
+                    requestAuthorId: 'a',
+                    commenterId: 'c',
+                    requestTitle: 't',
+                },
                 metadata,
             }),
         ).toThrow(InvalidEventPayloadError);
