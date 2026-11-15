@@ -29,7 +29,11 @@ const tasks = { id: 'a-2', slug: 'tasks', name: 'Задачи' };
 const at = new Date('2026-02-01T10:00:00Z');
 const launchedAt = new Date('2026-01-15T10:00:00Z');
 
-function skill(id: string, status: 'planned' | 'testing' | 'launched' | 'rework', launched: Date | null) {
+function skill(
+    id: string,
+    status: 'planned' | 'testing' | 'launched' | 'rework',
+    launched: Date | null,
+): CatalogRow['skill'] {
     return {
         id,
         name: `Навык ${id}`,
@@ -68,7 +72,7 @@ describe('GetCatalogUseCase', () => {
                 { id: 'p-cc', slug: 'control-center', name: 'Control Center' },
             ],
         });
-        expect(inBot?.skills.map((s) => s.id)).toEqual(['s1', 's2']);
+        expect(inBot.skills.map((s) => s.id)).toEqual(['s1', 's2']);
     });
 
     it('агент без запущенных навыков в статусе in_development', async () => {
@@ -97,14 +101,14 @@ describe('GetCatalogUseCase', () => {
         ]).execute();
 
         const skills = view.products[0]?.agents[0]?.skills;
-        expect(skills?.[0]).toMatchObject({
+        expect(skills[0]).toMatchObject({
             id: 's1',
             description: 'Описание',
             status: 'testing',
             statusChangedAt: at,
             nextStatuses: ['launched', 'rework'],
         });
-        expect(skills?.[1]?.nextStatuses).toEqual(['rework']);
+        expect(skills[1].nextStatuses).toEqual(['rework']);
     });
 
     it('продукт без агентов и агент без навыков дают пустые списки', async () => {

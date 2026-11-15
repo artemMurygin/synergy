@@ -19,7 +19,7 @@ export class ArchiveSkillUseCase {
     ) {}
 
     archive(skillId: string): Promise<SkillView> {
-        return this.apply(skillId, async (skill) => skill.archive(this.clock.now()));
+        return this.apply(skillId, (skill) => Promise.resolve(skill.archive(this.clock.now())));
     }
 
     restore(skillId: string): Promise<SkillView> {

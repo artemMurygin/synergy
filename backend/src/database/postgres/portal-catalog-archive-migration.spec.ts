@@ -33,26 +33,6 @@ describe.skipIf(adminUrl === undefined)('034_portal_catalog_archive migration', 
     const query = async (sql: string, params: unknown[] = []): Promise<Record<string, unknown>[]> =>
         (await client.query<Record<string, unknown>>(sql, params)).rows;
 
-    const insertProduct = async (slug: string): Promise<string> =>
-        String(
-            (
-                await query(
-                    `INSERT INTO portal_products (slug, name) VALUES ($1, 'Продукт') RETURNING id`,
-                    [slug],
-                )
-            )[0]?.id,
-        );
-
-    const insertAgent = async (slug: string): Promise<string> =>
-        String(
-            (
-                await query(
-                    `INSERT INTO portal_agents (slug, name) VALUES ($1, 'Агент') RETURNING id`,
-                    [slug],
-                )
-            )[0]?.id,
-        );
-
     const link = (agent: string, product: string): Promise<unknown> =>
         query(`INSERT INTO portal_agent_products (agent_id, product_id) VALUES ($1, $2)`, [
             agent,

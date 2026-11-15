@@ -79,26 +79,26 @@ describe('SeedPortalCatalogUseCase', () => {
 
             expect(catalog.agents.size).toBe(1);
             const [agent] = [...catalog.agents.values()];
-            expect(agent?.productIds).toEqual(['product-control-center', 'product-telegram-bot']);
+            expect(agent.productIds).toEqual(['product-control-center', 'product-telegram-bot']);
         });
 
         it('повторный запуск добавляет недостающие связи и не меняет имя и archivedAt', async () => {
             const catalog = new InMemoryCatalogRepository();
-            await catalog.seed([SHARED[0] as (typeof SHARED)[number]]);
+            await catalog.seed([SHARED[0]]);
             const [first] = [...catalog.agents.values()];
-            first?.archive(new Date('2026-01-01T00:00:00Z'));
-            const archivedAt = first?.archivedAt;
+            first.archive(new Date('2026-01-01T00:00:00Z'));
+            const archivedAt = first.archivedAt;
 
             await catalog.seed([
                 { ...SHARED[0], agents: [{ slug: 'assistant', name: 'Другое имя' }] },
-                SHARED[1] as (typeof SHARED)[number],
+                SHARED[1],
             ]);
 
             expect(catalog.agents.size).toBe(1);
             const [after] = [...catalog.agents.values()];
-            expect(after?.productIds).toEqual(['product-control-center', 'product-telegram-bot']);
-            expect(after?.name).toBe('Ассистент');
-            expect(after?.archivedAt).toEqual(archivedAt);
+            expect(after.productIds).toEqual(['product-control-center', 'product-telegram-bot']);
+            expect(after.name).toBe('Ассистент');
+            expect(after.archivedAt).toEqual(archivedAt);
         });
     });
 });
