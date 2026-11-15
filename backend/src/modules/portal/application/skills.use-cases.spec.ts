@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ArgumentInvalidError } from '../../../shared/errors';
 import { AgentArchivedError, AgentNotFoundError } from '../domain/errors';
 import { Frequency } from '../domain/frequency';
@@ -27,7 +27,13 @@ function setup(): Setup {
         ...fx,
         tasks,
         audit,
-        create: new CreateSkillUseCase(fx.skills, fx.catalog, fx.skillQuery, fx.clock),
+        create: new CreateSkillUseCase(
+            fx.skills,
+            fx.catalog,
+            fx.skillQuery,
+            fx.clock,
+            fx.transactions,
+        ),
         list: new ListSkillsUseCase(fx.skillQuery),
     };
 }
@@ -79,6 +85,27 @@ describe('CreateSkillUseCase, архив', () => {
             create.execute({ agentId: tasks.id, name: 'Навык', description: '' }),
         ).rejects.toBeInstanceOf(AgentArchivedError);
         expect(skills.byId.size).toBe(0);
+    });
+});
+
+describe('CreateSkillUseCase, транзакция', () => {
+    it('читает агента под блокировкой и сохраняет навык внутри одной транзакции', async () => {
+        const { create, tasks, catalog, skills, transactions } = setup();
+        const inTransaction: boolean[] = [];
+        const findAgentForShare = catalog.findAgentForShare.bind(catalog);
+        vi.spyOn(catalog, 'findAgentForShare').mockImplementation((id) => {
+            inTransaction.push(transactions.isInTransaction());
+            return findAgentForShare(id);
+        });
+        const save = skills.save.bind(skills);
+        vi.spyOn(skills, 'save').mockImplementation((skill, from) => {
+            inTransaction.push(transactions.isInTransaction());
+            return save(skill, from);
+        });
+
+        await create.execute({ agentId: tasks.id, name: 'Навык', description: '' });
+
+        expect(inTransaction).toEqual([true, true]);
     });
 });
 

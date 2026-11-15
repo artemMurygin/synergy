@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { AgentNotFoundError } from '../domain/errors';
 import { CatalogRepository } from '../domain/ports/catalog-repository.port';
 import { Clock } from '../domain/ports/clock.port';
@@ -22,21 +23,25 @@ export class CreateSkillUseCase {
         private readonly catalog: CatalogRepository,
         private readonly query: SkillQuery,
         private readonly clock: Clock,
+        private readonly transactions: TransactionRunnerPort,
     ) {}
 
     async execute(input: CreateSkillInput): Promise<SkillView> {
         const name = SkillName.of(input.name);
-        const agent = await this.catalog.findAgentForShare(input.agentId);
-        if (agent === null) throw new AgentNotFoundError(input.agentId);
-        agent.ensureActive();
-        const skill = Skill.create({
-            id: randomUUID(),
-            agentId: agent.id,
-            name,
-            description: input.description,
-            now: this.clock.now(),
+        const skill = await this.transactions.run(async () => {
+            const agent = await this.catalog.findAgentForShare(input.agentId);
+            if (agent === null) throw new AgentNotFoundError(input.agentId);
+            agent.ensureActive();
+            const created = Skill.create({
+                id: randomUUID(),
+                agentId: agent.id,
+                name,
+                description: input.description,
+                now: this.clock.now(),
+            });
+            await this.skills.save(created);
+            return created;
         });
-        await this.skills.save(skill);
         const view = await this.query.findView(skill.id);
         if (view === null) throw new Error(`Skill ${skill.id} disappeared after save`);
         return toSkillView(view);
