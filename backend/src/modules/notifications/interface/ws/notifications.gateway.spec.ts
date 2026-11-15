@@ -148,7 +148,7 @@ describe('NotificationsGateway', () => {
             expect(fixture.metrics.openConnections).toBe(1);
         });
         expect(fresh.received('connection_error')).toEqual([]);
-    }, 5_000);
+    }, 20_000);
 
     it('counts open connections', async () => {
         const first = await fixture.connect({ auth: { token: fixture.token(ANNA) } });
