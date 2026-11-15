@@ -1,0 +1,6 @@
+[
+  { "name": "existing_skill", "body": { "effortHours": 8, "target": { "kind": "existing_skill", "skillId": "7f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f" } } },
+  { "name": "new_skill", "body": { "effortHours": 16, "target": { "kind": "new_skill", "agentId": "7f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f", "name": "Навык", "description": "Текст" } } },
+  { "name": "new_agent with products", "body": { "effortHours": 40, "target": { "kind": "new_agent", "agent": { "name": "Агент", "productIds": ["7f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f"] }, "skill": { "name": "Навык", "description": "Текст" } } } },
+  { "name": "new_agent with a new product", "body": { "effortHours": 40, "target": { "kind": "new_agent", "agent": { "name": "Агент", "productIds": [], "newProduct": { "name": "Продукт" } }, "skill": { "name": "Навык", "description": "Текст" } } } }
+]

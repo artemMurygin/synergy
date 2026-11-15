@@ -110,12 +110,29 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         return String(created.id);
     };
 
-    const accept = (
+    const take = (requestId: string, by: string): Promise<Record<string, unknown>> =>
+        post(`/portal/requests/${requestId}/take`, by, ['developer'], {});
+
+    /** Принятие по новой схеме: заявку сначала берут в работу, затем принимают с оценкой. */
+    const accept = async (
         requestId: string,
         by: string,
-        body: unknown,
-    ): Promise<Record<string, unknown>> =>
-        post(`/portal/requests/${requestId}/accept`, by, ['developer'], body);
+        target: unknown,
+    ): Promise<Record<string, unknown>> => {
+        await take(requestId, by);
+        return post(`/portal/requests/${requestId}/accept`, by, ['developer'], {
+            effortHours: 8,
+            target,
+        });
+    };
+
+    const newSkill = (name: string): unknown => ({
+        kind: 'new_skill',
+        agentId,
+        name,
+        description: '',
+    });
+    const existingSkill = (skillId: string): unknown => ({ kind: 'existing_skill', skillId });
 
     const changeStatus = (skillId: string, by: string, status: string): Promise<unknown> =>
         post(`/portal/skills/${skillId}/status`, by, ['developer'], { status });
@@ -225,7 +242,7 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('tells the author about an accepted request once, even when the event is handled again', async () => {
         const requestId = await submit(anna, 'Сверка актов');
 
-        await accept(requestId, dev, { agentId, name: 'Сверка актов', description: '' });
+        await accept(requestId, dev, newSkill('Сверка актов'));
         await waitForOutboxIdle();
         await replayPortalEvents();
 
@@ -242,9 +259,75 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         expect(accepted[0]?.body).toContain('Запланировано');
     });
 
+    it('tells the author when a developer takes the request, once even when replayed', async () => {
+        const requestId = await submit(anna, 'Взятие в работу');
+
+        await take(requestId, dev);
+        await waitForOutboxIdle();
+        await replayPortalEvents();
+
+        const taken = (await stored('request.under-review')).filter(
+            (n) => n.target_id === requestId,
+        );
+        expect(taken).toHaveLength(1);
+        expect(taken[0]).toMatchObject({
+            recipient_id: anna,
+            target_type: 'request',
+            actor_id: dev,
+        });
+        expect(taken[0]?.body).toContain('Взятие в работу');
+    });
+
+    it('does not notify a developer who takes their own request', async () => {
+        const requestId = await submit(dev, 'Своя заявка в работу');
+
+        await take(requestId, dev);
+        await waitForOutboxIdle();
+
+        const own = (await stored('request.under-review')).filter((n) => n.target_id === requestId);
+        expect(own).toEqual([]);
+    });
+
+    it('serves a backend response the portal fixture can parse (take, then accept with a new agent)', async () => {
+        const requestId = await submit(anna, 'Фикстура портала');
+
+        const taken = await take(requestId, dev);
+        expect(taken).toMatchObject({
+            status: { code: 'under_review', label: 'На рассмотрении' },
+            reviewer: { id: dev },
+            effortHours: null,
+        });
+        expect(typeof taken.takenAt).toBe('string');
+
+        const decided = await post(`/portal/requests/${requestId}/accept`, dev, ['developer'], {
+            effortHours: 24,
+            target: {
+                kind: 'new_agent',
+                agent: {
+                    name: 'Новый агент контракта',
+                    productIds: [],
+                    newProduct: { name: 'Новый продукт контракта' },
+                },
+                skill: { name: 'Навык контракта', description: 'Описание' },
+            },
+        });
+        expect(decided).toMatchObject({
+            status: { code: 'planned' },
+            effortHours: 24,
+            reviewer: { id: dev },
+        });
+        await waitForOutboxIdle();
+        const accepted = (await stored('request.accepted')).filter(
+            (n) => n.target_id === requestId,
+        );
+        expect(accepted).toHaveLength(1);
+        expect(accepted[0]?.recipient_id).toBe(anna);
+    });
+
     it('tells the author about a rejected request with the reason', async () => {
         const requestId = await submit(boris, 'Дубликат идеи');
 
+        await take(requestId, dev);
         await post(`/portal/requests/${requestId}/reject`, dev, ['developer'], {
             reason: 'Уже есть в поставке',
         });
@@ -261,13 +344,9 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('notifies each author of a linked request once when the skill status changes', async () => {
         const annaRequest = await submit(anna, 'Идея Анны');
         const borisRequest = await submit(boris, 'Идея Бориса');
-        const first = await accept(annaRequest, dev, {
-            agentId,
-            name: 'Общий навык',
-            description: '',
-        });
+        const first = await accept(annaRequest, dev, newSkill('Общий навык'));
         const skill = first.skill as { id: string };
-        await accept(borisRequest, dev, { skillId: skill.id });
+        await accept(borisRequest, dev, existingSkill(skill.id));
         await waitForOutboxIdle();
 
         await changeStatus(skill.id, dev, 'in_dev');
@@ -288,9 +367,9 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('creates one notification per request for two requests of the same author', async () => {
         const one = await submit(anna, 'Первая заявка Анны');
         const two = await submit(anna, 'Вторая заявка Анны');
-        const created = await accept(one, dev, { agentId, name: 'Навык Анны', description: '' });
+        const created = await accept(one, dev, newSkill('Навык Анны'));
         const skill = created.skill as { id: string };
-        await accept(two, dev, { skillId: skill.id });
+        await accept(two, dev, existingSkill(skill.id));
         await waitForOutboxIdle();
 
         await changeStatus(skill.id, dev, 'in_dev');
@@ -306,11 +385,7 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('creates no notification when the author is the developer', async () => {
         const requestId = await submit(dev, 'Своя заявка');
 
-        const created = await accept(requestId, dev, {
-            agentId,
-            name: 'Свой навык',
-            description: '',
-        });
+        const created = await accept(requestId, dev, newSkill('Свой навык'));
         await changeStatus((created.skill as { id: string }).id, dev, 'in_dev');
         await waitForOutboxIdle();
 
@@ -328,11 +403,8 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         const linked = await submit(anna, 'Привязанная');
         const rejectedRequest = await submit(boris, 'Отклонённая');
         const pending = await submit(boris, 'Непривязанная');
-        const created = await accept(linked, dev, {
-            agentId,
-            name: 'Навык снимка',
-            description: '',
-        });
+        const created = await accept(linked, dev, newSkill('Навык снимка'));
+        await take(rejectedRequest, dev);
         await post(`/portal/requests/${rejectedRequest}/reject`, dev, ['developer'], {
             reason: 'Нет',
         });

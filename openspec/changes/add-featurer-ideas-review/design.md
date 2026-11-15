@@ -136,7 +136,15 @@ Zod: `z.discriminatedUnion('kind', …)`, а у `new_agent` — `refine(productI
 
 ## Migration Plan
 
-1. Выполнить проверочный запрос на дубли названий агентов и продуктов (`GROUP BY lower(btrim(name)) HAVING count(*) > 1`). При наличии дублей переименовать их вручную до выката.
+1. Выполнить проверочный запрос на дубли названий агентов и продуктов. При непустом результате переименовать дубли вручную до выката (миграция 035 иначе прервётся с `RAISE EXCEPTION`):
+
+   ```sql
+   SELECT 'agent' AS kind, lower(btrim(name)) AS key, count(*) AS duplicates
+   FROM portal_agents GROUP BY lower(btrim(name)) HAVING count(*) > 1
+   UNION ALL
+   SELECT 'product', lower(btrim(name)), count(*)
+   FROM portal_products GROUP BY lower(btrim(name)) HAVING count(*) > 1;
+   ```
 2. Миграция 035 (одна транзакция): снять старые CHECK `decision`, `UPDATE decision = 'new' WHERE decision = 'pending'`, добавить колонки, заполнить `reviewer_id`/`taken_at` у решённых из `decided_by`/`decided_at`, новые CHECK, пересоздать индекс очереди, уникальные индексы названий.
 3. Выкатить бэкенд и портал одновременно. Зарегистрировать новый тип события до запуска outbox-воркера (он регистрируется при старте модуля).
 4. Откат: обратная миграция — `DROP INDEX` названий, `UPDATE decision = 'pending' WHERE decision IN ('new','under_review')`, удалить колонки, вернуть CHECK и индекс. Взятия в работу и оценки при откате теряются, решения сохраняются. Невыданные события `portal.request_taken` в outbox помечаются обработанными вручную.
