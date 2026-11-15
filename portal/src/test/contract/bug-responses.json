@@ -1,0 +1,160 @@
+[
+  {
+    "name": "open",
+    "response": {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "open",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-06T10:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "description": "Нажал «Отправить», ответа нет",
+      "statusChangedBy": null,
+      "wontFixReason": null,
+      "nextStatuses": [
+        "in_progress",
+        "wont_fix"
+      ]
+    }
+  },
+  {
+    "name": "in_progress",
+    "response": {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "in_progress",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-07T09:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "description": "Нажал «Отправить», ответа нет",
+      "statusChangedBy": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "wontFixReason": null,
+      "nextStatuses": [
+        "resolved",
+        "wont_fix",
+        "open"
+      ]
+    }
+  },
+  {
+    "name": "resolved",
+    "response": {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "resolved",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-07T09:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "description": "Нажал «Отправить», ответа нет",
+      "statusChangedBy": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "wontFixReason": null,
+      "nextStatuses": [
+        "in_progress"
+      ]
+    }
+  },
+  {
+    "name": "wont_fix",
+    "response": {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "wont_fix",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-07T09:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "description": "Нажал «Отправить», ответа нет",
+      "statusChangedBy": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "wontFixReason": "Дубль\nпервого бага",
+      "nextStatuses": [
+        "in_progress"
+      ]
+    }
+  },
+  {
+    "name": "open for a non-developer",
+    "response": {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "open",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-06T10:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "description": "Нажал «Отправить», ответа нет",
+      "statusChangedBy": null,
+      "wontFixReason": null,
+      "nextStatuses": []
+    }
+  }
+]

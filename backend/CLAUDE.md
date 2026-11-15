@@ -23,6 +23,15 @@
   - Docker (`npm run infra:up`, порт 5433) для тестов не нужен. Если база на 5432 не отвечает — не подбирай другие URL: верни, что DB-тесты не прогнаны.
 - Порядок проверки: `npx vitest run <свои файлы>` → `npm run typecheck` → `npm run lint`; полный `npm test` — один раз в конце.
 
+## Баги портала (`src/modules/portal`)
+
+Сотрудник сообщает о проблеме агента, разработчик ведёт баг по статусам. Таблицы `portal_bugs`, `portal_bug_comments` (миграция 037; откат: `DROP TABLE portal_bug_comments; DROP TABLE portal_bugs;`).
+
+- Статусы: `open`, `in_progress`, `resolved`, `wont_fix`. Переходы — `BUG_TRANSITIONS` в `domain/bug-status.ts`: open -> in_progress, wont_fix; in_progress -> resolved, wont_fix, open; resolved и wont_fix -> in_progress. `wont_fix` требует причину (1-2000 символов), при уходе из него причина очищается. Гонка смены статуса -> 409.
+- Эндпоинты (префикс `/portal`): `POST /bugs`; `GET /bugs/my`; `GET /bugs/queue?status` (developer); `GET /bugs/:id` (автор или developer, чужой -> 404); `POST /bugs/:id/status` (developer); `GET|POST /bugs/:id/comments`; `PATCH /bugs/:id/comments/:commentId` (автор комментария, окно 15 минут). `my` и `queue` объявлены до `:id`.
+- События: `portal.bug_reported`, `portal.bug_status_changed`, `portal.bug_comment_posted`; уведомления `bug.reported`, `bug.status-changed`, `bug.comment-added` (цель `bug`). Автору не шлются уведомления о собственных действиях.
+- Контракт с порталом: `interface/http/bug-contract.spec.ts` (фикстуры в `portal/src/test/contract/bug-*.json`, обновление `UPDATE_CONTRACT=1`).
+
 ## Прочее
 
 - Переменные окружения — только через `src/shared/config/env.schema.ts` и `.env.example`.
