@@ -18,6 +18,7 @@ import {
     Roles,
     type AuthenticatedUser,
 } from '../../../auth/interface/http/decorators';
+import { ArchiveSkillUseCase } from '../../application/archive-skill.use-case';
 import { ChangeSkillStatusUseCase } from '../../application/change-skill-status.use-case';
 import { CreateSkillUseCase } from '../../application/create-skill.use-case';
 import { ListAgentsUseCase } from '../../application/list-agents.use-case';
@@ -50,20 +51,23 @@ export class SkillsController {
         private readonly listSkillsUseCase: ListSkillsUseCase,
         private readonly createSkillUseCase: CreateSkillUseCase,
         private readonly changeSkillStatus: ChangeSkillStatusUseCase,
+        private readonly archiveSkill: ArchiveSkillUseCase,
     ) {}
 
     @Get('agents')
-    @ApiOperation({ summary: 'Agents with their products (any signed-in user)' })
+    @ApiOperation({ summary: 'Active agents with their products (any signed-in user)' })
     @ApiResponse({ status: HttpStatus.OK, type: [AgentResponse] })
     @unauthorized
     async agents(): Promise<AgentResponse[]> {
         const agents = await this.listAgentsUseCase.execute();
-        return agents.map((item) => new AgentResponse(item));
+        return agents.map((item) => AgentResponse.fromListItem(item));
     }
 
     @Get('skills')
     @Roles('developer')
-    @ApiOperation({ summary: 'Skills with an optional status filter (developer)' })
+    @ApiOperation({
+        summary: 'Active skills with an optional status filter, incl. rework (developer)',
+    })
     @ApiResponse({ status: HttpStatus.OK, type: SkillListResponse })
     @badRequest
     @forbidden
@@ -97,13 +101,18 @@ export class SkillsController {
     @Post('skills/:id/status')
     @Roles('developer')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Move a skill to the next status (developer)' })
+    @ApiOperation({
+        summary: 'Move a skill to an allowed next status, see nextStatuses (developer)',
+    })
     @ApiBody({ schema: zodToOpenApi(changeSkillStatusSchema) })
     @ApiResponse({ status: HttpStatus.OK, type: SkillResponse })
     @badRequest
     @forbidden
     @notFound
-    @errorResponse(HttpStatus.CONFLICT, 'Only the adjacent forward transition is allowed')
+    @errorResponse(
+        HttpStatus.CONFLICT,
+        'Transition not allowed, or the skill or its agent is archived',
+    )
     @unauthorized
     async changeStatus(
         @CurrentUser() user: AuthenticatedUser | undefined,
@@ -116,5 +125,32 @@ export class SkillsController {
             changedBy: userOf(user).id,
         });
         return new SkillResponse(view);
+    }
+
+    @Post('skills/:id/archive')
+    @Roles('developer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Archive a skill; repeating is a no-op (developer)' })
+    @ApiResponse({ status: HttpStatus.OK, type: SkillResponse })
+    @badRequest
+    @forbidden
+    @notFound
+    @unauthorized
+    async archive(@Param('id', ParseUUIDPipe) id: string): Promise<SkillResponse> {
+        return new SkillResponse(await this.archiveSkill.archive(id));
+    }
+
+    @Post('skills/:id/restore')
+    @Roles('developer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Restore a skill; repeating is a no-op (developer)' })
+    @ApiResponse({ status: HttpStatus.OK, type: SkillResponse })
+    @badRequest
+    @forbidden
+    @notFound
+    @errorResponse(HttpStatus.CONFLICT, 'The skill agent is archived: restore the agent first')
+    @unauthorized
+    async restore(@Param('id', ParseUUIDPipe) id: string): Promise<SkillResponse> {
+        return new SkillResponse(await this.archiveSkill.restore(id));
     }
 }

@@ -13,6 +13,11 @@ import {
     type CatalogSeedProduct,
     type CatalogSeedResult,
 } from '../domain/ports/catalog-repository.port';
+import {
+    CatalogQuery,
+    type ArchiveRows,
+    type CatalogRow,
+} from '../domain/ports/catalog-query.port';
 import { Clock } from '../domain/ports/clock.port';
 import type { Page, PageRequest } from '../domain/ports/page';
 import { RequestQuery, type RequestView } from '../domain/ports/request-query.port';
@@ -414,6 +419,12 @@ export class InMemorySkillQuery extends SkillQuery {
     list(filter: { status?: SkillStatus }, page: PageRequest): Promise<Page<SkillView>> {
         const views = [...this.skills.byId.values()]
             .filter((skill) => filter.status === undefined || skill.status === filter.status)
+            // Условие видимости как в SlonikSkillQuery: ни навык, ни его агент не в архиве.
+            .filter(
+                (skill) =>
+                    skill.archivedAt === null &&
+                    this.catalog.agents.get(skill.agentId)?.archivedAt === null,
+            )
             .sort((a, b) => b.statusChangedAt.getTime() - a.statusChangedAt.getTime())
             .map((skill) => this.toView(skill))
             .filter((view): view is SkillView => view !== null);
@@ -423,6 +434,92 @@ export class InMemorySkillQuery extends SkillQuery {
     findView(id: string): Promise<SkillView | null> {
         const skill = this.skills.byId.get(id);
         return Promise.resolve(skill === undefined ? null : this.toView(skill));
+    }
+}
+
+/** Каталог и архив в памяти: собирает плоские строки из in-memory репозиториев. */
+export class InMemoryCatalogQuery extends CatalogQuery {
+    constructor(
+        private readonly skills: InMemorySkillRepository,
+        private readonly catalog: InMemoryCatalogRepository,
+    ) {
+        super();
+    }
+
+    private productsOf(agent: Agent): Product[] {
+        return [...this.catalog.products.values()]
+            .filter((product) => agent.productIds.includes(product.id))
+            .sort((a, b) => a.slug.localeCompare(b.slug));
+    }
+
+    loadVisible(): Promise<CatalogRow[]> {
+        const rows: CatalogRow[] = [];
+        const products = [...this.catalog.products.values()].sort((a, b) =>
+            a.slug.localeCompare(b.slug),
+        );
+        for (const product of products) {
+            const agents = [...this.catalog.agents.values()]
+                .filter(
+                    (agent) => agent.archivedAt === null && agent.productIds.includes(product.id),
+                )
+                .sort((a, b) => a.slug.localeCompare(b.slug));
+            if (agents.length === 0) rows.push({ product, agent: null, skill: null });
+            for (const agent of agents) {
+                const own = [...this.skills.byId.values()].filter(
+                    (skill) => skill.agentId === agent.id && skill.archivedAt === null,
+                );
+                const ref = { id: agent.id, slug: agent.slug, name: agent.name };
+                if (own.length === 0) rows.push({ product, agent: ref, skill: null });
+                for (const skill of own) {
+                    rows.push({
+                        product,
+                        agent: ref,
+                        skill: {
+                            id: skill.id,
+                            name: skill.name.value,
+                            description: skill.description,
+                            status: skill.status,
+                            statusChangedAt: skill.statusChangedAt,
+                            launchedAt: skill.launchedAt,
+                        },
+                    });
+                }
+            }
+        }
+        return Promise.resolve(rows);
+    }
+
+    loadArchive(): Promise<ArchiveRows> {
+        const agents = [...this.catalog.agents.values()].flatMap((agent) =>
+            agent.archivedAt === null
+                ? []
+                : [
+                      {
+                          id: agent.id,
+                          name: agent.name,
+                          products: this.productsOf(agent),
+                          skillsCount: [...this.skills.byId.values()].filter(
+                              (skill) => skill.agentId === agent.id && skill.archivedAt === null,
+                          ).length,
+                          archivedAt: agent.archivedAt,
+                      },
+                  ],
+        );
+        const skills = [...this.skills.byId.values()].flatMap((skill) => {
+            const agent = this.catalog.agents.get(skill.agentId);
+            if (skill.archivedAt === null || agent === undefined) return [];
+            return [
+                {
+                    id: skill.id,
+                    name: skill.name.value,
+                    agent: { id: agent.id, name: agent.name },
+                    products: this.productsOf(agent),
+                    status: skill.status,
+                    archivedAt: skill.archivedAt,
+                },
+            ];
+        });
+        return Promise.resolve({ agents, skills });
     }
 }
 

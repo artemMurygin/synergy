@@ -1,12 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateSkillUseCase } from '../../application/create-skill.use-case';
 import { ChangeSkillStatusUseCase } from '../../application/change-skill-status.use-case';
+import { ArchiveSkillUseCase } from '../../application/archive-skill.use-case';
 import { ListAgentsUseCase } from '../../application/list-agents.use-case';
 import { ListSkillsUseCase } from '../../application/list-skills.use-case';
 import type { SkillView } from '../../application/skill-view';
 import {
+    AgentArchivedError,
     AgentNotFoundError,
     InvalidSkillTransitionError,
+    SkillArchivedError,
     SkillNotFoundError,
 } from '../../domain/errors';
 import { SkillsController } from './skills.controller';
@@ -20,6 +23,7 @@ const listAgents = { execute: vi.fn() };
 const listSkills = { execute: vi.fn() };
 const createSkill = { execute: vi.fn() };
 const changeStatus = { execute: vi.fn() };
+const archiveSkill = { archive: vi.fn(), restore: vi.fn() };
 
 const skill: SkillView = {
     id: SKILL_ID,
@@ -27,10 +31,13 @@ const skill: SkillView = {
     description: 'Описание',
     status: 'planned',
     agent: { id: AGENT_ID, name: 'Ассистент' },
-    product: { id: 'p1', name: 'Control Center' },
+    products: [{ id: 'p1', slug: 'control-center', name: 'Control Center' }],
+    nextStatuses: ['in_dev'],
     linkedRequestCount: 2,
     createdAt: new Date('2026-11-06T10:00:00.000Z'),
     statusChangedAt: new Date('2026-11-06T11:00:00.000Z'),
+    launchedAt: null,
+    archivedAt: null,
 };
 
 describe('SkillsController', () => {
@@ -44,6 +51,7 @@ describe('SkillsController', () => {
                 { provide: ListSkillsUseCase, useValue: listSkills },
                 { provide: CreateSkillUseCase, useValue: createSkill },
                 { provide: ChangeSkillStatusUseCase, useValue: changeStatus },
+                { provide: ArchiveSkillUseCase, useValue: archiveSkill },
             ],
         });
     });
@@ -56,13 +64,27 @@ describe('SkillsController', () => {
         vi.resetAllMocks();
         listAgents.execute.mockResolvedValue([
             {
-                agent: { id: AGENT_ID, productIds: ['p1'], slug: 'assistant', name: 'Ассистент' },
-                products: [{ id: 'p1', slug: 'control-center', name: 'Control Center' }],
+                agent: {
+                    id: AGENT_ID,
+                    productIds: ['p1', 'p2'],
+                    slug: 'assistant',
+                    name: 'Ассистент',
+                    archivedAt: null,
+                },
+                products: [
+                    { id: 'p1', slug: 'control-center', name: 'Control Center' },
+                    { id: 'p2', slug: 'telegram', name: 'Telegram-бот' },
+                ],
             },
         ]);
         listSkills.execute.mockResolvedValue({ items: [skill], total: 1 });
         createSkill.execute.mockResolvedValue(skill);
         changeStatus.execute.mockResolvedValue({ ...skill, status: 'in_dev' });
+        archiveSkill.archive.mockResolvedValue({
+            ...skill,
+            archivedAt: new Date('2026-11-06T12:00:00.000Z'),
+        });
+        archiveSkill.restore.mockResolvedValue(skill);
     });
 
     const dev = (): Record<string, string> => fixture.bearer(['developer']);
@@ -89,7 +111,11 @@ describe('SkillsController', () => {
                 {
                     id: AGENT_ID,
                     name: 'Ассистент',
-                    product: { id: 'p1', name: 'Control Center' },
+                    products: [
+                        { id: 'p1', slug: 'control-center', name: 'Control Center' },
+                        { id: 'p2', slug: 'telegram', name: 'Telegram-бот' },
+                    ],
+                    archivedAt: null,
                 },
             ]);
         });
@@ -112,16 +138,28 @@ describe('SkillsController', () => {
                 description: 'Описание',
                 status: 'planned',
                 agent: { id: AGENT_ID, name: 'Ассистент' },
-                product: { id: 'p1', name: 'Control Center' },
+                products: [{ id: 'p1', slug: 'control-center', name: 'Control Center' }],
+                nextStatuses: ['in_dev'],
                 requestsCount: 2,
                 createdAt: '2026-11-06T10:00:00.000Z',
                 statusChangedAt: '2026-11-06T11:00:00.000Z',
+                launchedAt: null,
+                archivedAt: null,
             });
             expect(listSkills.execute).toHaveBeenCalledWith({
                 status: 'in_dev',
                 limit: 10,
                 page: 1,
             });
+        });
+
+        it('accepts the rework status filter', async () => {
+            const response = await call('GET', '/portal/skills?status=rework');
+
+            expect(response.status).toBe(200);
+            expect(listSkills.execute).toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'rework' }),
+            );
         });
 
         it('answers 400 for an unknown status filter or bad pagination', async () => {
@@ -202,6 +240,30 @@ describe('SkillsController', () => {
             });
         });
 
+        it('accepts rework as a target status', async () => {
+            const response = await call('POST', `/portal/skills/${SKILL_ID}/status`, {
+                status: 'rework',
+            });
+            expect(response.status).toBe(200);
+        });
+
+        it('maps 409 for an archived skill or agent', async () => {
+            changeStatus.execute.mockRejectedValueOnce(new SkillArchivedError(SKILL_ID));
+            const url = `/portal/skills/${SKILL_ID}/status`;
+            const skillArchived = await call('POST', url, { status: 'in_dev' });
+            expect(skillArchived.status).toBe(409);
+            expect(((await skillArchived.json()) as { code: string }).code).toBe(
+                'PORTAL_SKILL_ARCHIVED',
+            );
+
+            changeStatus.execute.mockRejectedValueOnce(new AgentArchivedError(AGENT_ID));
+            const agentArchived = await call('POST', url, { status: 'in_dev' });
+            expect(agentArchived.status).toBe(409);
+            expect(((await agentArchived.json()) as { code: string }).code).toBe(
+                'PORTAL_AGENT_ARCHIVED',
+            );
+        });
+
         it('answers 400 for an unknown status or a malformed id', async () => {
             expect(
                 (await call('POST', `/portal/skills/${SKILL_ID}/status`, { status: 'done' }))
@@ -239,5 +301,38 @@ describe('SkillsController', () => {
                 401,
             );
         });
+    });
+
+    describe.each(['archive', 'restore'] as const)('POST /portal/skills/:id/%s', (action) => {
+        const path = `/portal/skills/${SKILL_ID}/${action}`;
+
+        it('answers 200 with the skill', async () => {
+            const response = await call('POST', path);
+
+            expect(response.status).toBe(200);
+            expect(archiveSkill[action]).toHaveBeenCalledWith(SKILL_ID);
+            const body = (await response.json()) as { id: string; archivedAt: string | null };
+            expect(body.id).toBe(SKILL_ID);
+            expect(body.archivedAt).toBe(action === 'archive' ? '2026-11-06T12:00:00.000Z' : null);
+        });
+
+        it('answers 403 for an employee and 401 without a token', async () => {
+            expect((await call('POST', path, undefined, fixture.bearer())).status).toBe(403);
+            expect((await call('POST', path, undefined, {})).status).toBe(401);
+            expect(archiveSkill[action]).not.toHaveBeenCalled();
+        });
+
+        it('answers 404 for an unknown skill and 400 for a malformed id', async () => {
+            archiveSkill[action].mockRejectedValueOnce(new SkillNotFoundError(SKILL_ID));
+            expect((await call('POST', path)).status).toBe(404);
+            expect((await call('POST', `/portal/skills/nope/${action}`)).status).toBe(400);
+        });
+    });
+
+    it('answers 409 when restoring a skill of an archived agent', async () => {
+        archiveSkill.restore.mockRejectedValueOnce(new AgentArchivedError(AGENT_ID));
+        const response = await call('POST', `/portal/skills/${SKILL_ID}/restore`);
+        expect(response.status).toBe(409);
+        expect(((await response.json()) as { code: string }).code).toBe('PORTAL_AGENT_ARCHIVED');
     });
 });

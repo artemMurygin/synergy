@@ -25,6 +25,7 @@ import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { RolesGuard } from '../auth/interface/http/roles.guard';
 import {
+    InMemoryCatalogQuery,
     InMemoryCatalogRepository,
     InMemoryRequestQuery,
     InMemoryRequestRepository,
@@ -33,6 +34,7 @@ import {
 } from './application/test-doubles';
 import { REQUEST_ACCEPTED_EVENT_TYPE } from './contracts/request-accepted.event';
 import { SKILL_STATUS_CHANGED_EVENT_TYPE } from './contracts/skill-status-changed.event';
+import { CatalogQuery } from './domain/ports/catalog-query.port';
 import { CatalogRepository } from './domain/ports/catalog-repository.port';
 import { RequestQuery } from './domain/ports/request-query.port';
 import { RequestRepository } from './domain/ports/request-repository.port';
@@ -100,6 +102,7 @@ class AuthStubModule {}
 describe('portal flow (PortalModule wired end to end)', () => {
     let app: INestApplication;
     let base: string;
+    let catalog: InMemoryCatalogRepository;
     const tokens = new JwtAccessTokenService({
         secret: SECRET,
         ttlSeconds: 900,
@@ -114,7 +117,7 @@ describe('portal flow (PortalModule wired end to end)', () => {
         registerAuthErrorStatuses();
         const requests = new InMemoryRequestRepository();
         const skills = new InMemorySkillRepository();
-        const catalog = new InMemoryCatalogRepository();
+        catalog = new InMemoryCatalogRepository();
         const product = catalog.addProduct('control-center', 'Control Center');
         catalog.agents.set(
             AGENT_ID,
@@ -142,6 +145,8 @@ describe('portal flow (PortalModule wired end to end)', () => {
             .useValue(catalog)
             .overrideProvider(RequestQuery)
             .useValue(requestQuery)
+            .overrideProvider(CatalogQuery)
+            .useValue(new InMemoryCatalogQuery(skills, catalog))
             .overrideProvider(SkillQuery)
             .useValue(new InMemorySkillQuery(skills, requests, catalog))
             .compile();
@@ -159,6 +164,10 @@ describe('portal flow (PortalModule wired end to end)', () => {
     interface Body {
         id: string;
         status: string | { code: string; label: string };
+        archivedAt: string | null;
+        nextStatuses: string[];
+        products: { id: string; slug: string; name: string }[];
+        agents: { id: string; status: { code: string }; skills: { id: string }[] }[];
         author: { id: string; login: string; fullName: string };
         total: number;
         items: {
@@ -240,7 +249,14 @@ describe('portal flow (PortalModule wired end to end)', () => {
             {
                 id: AGENT_ID,
                 name: 'Ассистент',
-                product: { id: 'product-control-center', name: 'Control Center' },
+                products: [
+                    {
+                        id: 'product-control-center',
+                        slug: 'control-center',
+                        name: 'Control Center',
+                    },
+                ],
+                archivedAt: null,
             },
         ]);
 
@@ -304,5 +320,155 @@ describe('portal flow (PortalModule wired end to end)', () => {
 
         const queueAfter = await json('GET', '/portal/queue', bearer(DEV, ['developer']));
         expect(queueAfter.body.total).toBe(0);
+    });
+
+    describe('catalog, rework and archive', () => {
+        const dev = (): Record<string, string> => bearer(DEV, ['developer']);
+        let agent2: string;
+        let skillId: string;
+        let requestId: string;
+
+        interface CatalogBody {
+            products: {
+                slug: string;
+                agents: { id: string; status: { code: string }; skills: { id: string }[] }[];
+            }[];
+        }
+        const catalogOf = async (headers = bearer(ANNA)): Promise<CatalogBody> => {
+            const response = await fetch(`${base}/portal/catalog`, { headers });
+            expect(response.status).toBe(200);
+            return (await response.json()) as CatalogBody;
+        };
+        const agentIn = (
+            body: CatalogBody,
+            product: string,
+        ): CatalogBody['products'][0]['agents'][0] | undefined =>
+            body.products.find((p) => p.slug === product)?.agents.find((a) => a.id === agent2);
+        const setStatus = (status: string): ReturnType<typeof json> =>
+            json('POST', `/portal/skills/${skillId}/status`, dev(), { status });
+
+        beforeAll(() => {
+            const telegram = catalog.addProduct('telegram', 'Telegram-бот');
+            const control = catalog.products.get('control-center');
+            agent2 = '8b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
+            catalog.agents.set(
+                agent2,
+                Agent.create({
+                    id: agent2,
+                    slug: 'multi',
+                    name: 'Мультиагент',
+                    productIds: [control?.id ?? '', telegram.id],
+                    now: new Date(),
+                }),
+            );
+        });
+
+        it('shows an agent of two products in both catalog branches and once in the agents list', async () => {
+            const created = await json('POST', '/portal/skills', dev(), {
+                agentId: agent2,
+                name: 'Мультинавык',
+            });
+            expect(created.status).toBe(201);
+            skillId = created.body.id;
+
+            const body = await catalogOf();
+            for (const slug of ['control-center', 'telegram']) {
+                const found = agentIn(body, slug);
+                expect(found?.status.code, slug).toBe('in_development');
+                expect(
+                    found?.skills.map((s) => s.id),
+                    slug,
+                ).toEqual([skillId]);
+            }
+
+            const agents = await fetch(`${base}/portal/agents`, { headers: bearer(ANNA) });
+            const list = (await agents.json()) as { id: string; products: { slug: string }[] }[];
+            const matches = list.filter((a) => a.id === agent2);
+            expect(matches).toHaveLength(1);
+            expect(matches[0]?.products.map((p) => p.slug)).toEqual(['control-center', 'telegram']);
+        });
+
+        it('moves a skill testing -> launched -> rework -> testing, the agent stays working, the author sees the label', async () => {
+            const submitted = await json('POST', '/portal/requests', bearer(ANNA), idea);
+            requestId = submitted.body.id;
+            const accepted = await json('POST', `/portal/requests/${requestId}/accept`, dev(), {
+                skillId,
+            });
+            expect(accepted.status).toBe(200);
+
+            for (const status of ['in_dev', 'testing', 'launched']) {
+                expect((await setStatus(status)).status, status).toBe(200);
+            }
+            expect(agentIn(await catalogOf(), 'telegram')?.status.code).toBe('working');
+
+            const rework = await setStatus('rework');
+            expect(rework.status).toBe(200);
+            expect(rework.body.nextStatuses).toEqual(['testing']);
+            expect(agentIn(await catalogOf(), 'telegram')?.status.code).toBe('working');
+            const mine = await json('GET', '/portal/requests/my', bearer(ANNA));
+            expect(mine.body.items.find((item) => item.id === requestId)?.status).toEqual({
+                code: 'rework',
+                label: 'Доработка',
+            });
+
+            expect((await setStatus('testing')).status).toBe(200);
+            expect(agentIn(await catalogOf(), 'telegram')?.status.code).toBe('working');
+            const listed = await json('GET', '/portal/skills?status=testing', dev());
+            expect(listed.body.items.map((i) => i.id)).toContain(skillId);
+        });
+
+        it('hides an archived skill, and agent restore does not bring it back', async () => {
+            const archived = await json('POST', `/portal/skills/${skillId}/archive`, dev());
+            expect(archived.status).toBe(200);
+            expect(archived.body.archivedAt).not.toBeNull();
+            expect(agentIn(await catalogOf(), 'telegram')?.skills).toEqual([]);
+            const listed = await json('GET', '/portal/skills', dev());
+            expect(listed.body.items.map((i) => i.id)).not.toContain(skillId);
+            // Автор по-прежнему видит последний статус заявки.
+            const mine = await json('GET', '/portal/requests/my', bearer(ANNA));
+            expect(mine.body.items.find((item) => item.id === requestId)?.status.code).toBe(
+                'testing',
+            );
+
+            expect((await json('POST', `/portal/agents/${agent2}/archive`, dev())).status).toBe(
+                200,
+            );
+            expect(agentIn(await catalogOf(), 'control-center')).toBeUndefined();
+            expect(agentIn(await catalogOf(), 'telegram')).toBeUndefined();
+            const archive = await json('GET', '/portal/archive', dev());
+            expect(archive.status).toBe(200);
+
+            expect((await json('POST', `/portal/agents/${agent2}/restore`, dev())).status).toBe(
+                200,
+            );
+            expect(agentIn(await catalogOf(), 'telegram')?.skills).toEqual([]);
+
+            expect((await json('POST', `/portal/skills/${skillId}/restore`, dev())).status).toBe(
+                200,
+            );
+            expect(agentIn(await catalogOf(), 'telegram')?.skills.map((s) => s.id)).toEqual([
+                skillId,
+            ]);
+        });
+
+        it('rejects archiving routes for an employee and answers 409 when accepting into an archived skill', async () => {
+            expect(
+                (await json('POST', `/portal/skills/${skillId}/archive`, bearer(ANNA))).status,
+            ).toBe(403);
+            expect(
+                (await json('POST', `/portal/agents/${agent2}/archive`, bearer(ANNA))).status,
+            ).toBe(403);
+            expect((await json('GET', '/portal/archive', bearer(ANNA))).status).toBe(403);
+
+            await json('POST', `/portal/skills/${skillId}/archive`, dev());
+            const second = await json('POST', '/portal/requests', bearer(ANNA), idea);
+            const accept = await json('POST', `/portal/requests/${second.body.id}/accept`, dev(), {
+                skillId,
+            });
+            expect(accept.status).toBe(409);
+            const queue = await json('GET', '/portal/queue', dev());
+            expect(queue.body.items.map((i) => i.id)).toContain(second.body.id);
+            expect((await setStatus('launched')).status).toBe(409);
+        });
     });
 });

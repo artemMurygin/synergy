@@ -9,6 +9,8 @@ export function registerPortalErrorStatuses(): void {
         [PortalErrorCode.SkillNotFound]: HttpStatus.NOT_FOUND,
         [PortalErrorCode.AgentNotFound]: HttpStatus.NOT_FOUND,
         [PortalErrorCode.InvalidSkillTransition]: HttpStatus.CONFLICT,
+        [PortalErrorCode.SkillArchived]: HttpStatus.CONFLICT,
+        [PortalErrorCode.AgentArchived]: HttpStatus.CONFLICT,
         [PortalErrorCode.RequestAlreadyDecided]: HttpStatus.CONFLICT,
     });
 }

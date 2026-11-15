@@ -14,3 +14,8 @@ export function skillsCount(n: number): string {
 export function agentsCount(n: number): string {
   return n === 0 ? 'Агентов нет' : `${n} ${pick(n, 'агент', 'агента', 'агентов')}`
 }
+
+/** "с 1 навыком", "с 3 навыками" (instrumental case). */
+export function withSkills(n: number): string {
+  return `${n} ${pick(n, 'навыком', 'навыками', 'навыками')}`
+}

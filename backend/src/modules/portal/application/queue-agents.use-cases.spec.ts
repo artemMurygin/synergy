@@ -81,6 +81,6 @@ describe('ListAgentsUseCase', () => {
 
         expect(result).toHaveLength(1);
         expect(result[0]?.agent.id).toBe(agent.id);
-        expect(result[0]?.product.name).toBe('Control Center');
+        expect(result[0]?.products[0]?.name).toBe('Control Center');
     });
 });
