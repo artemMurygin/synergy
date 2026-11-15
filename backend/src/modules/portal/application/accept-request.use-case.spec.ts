@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RequestAcceptedEvent } from '../contracts/request-accepted.event';
 import {
+    AgentArchivedError,
     AgentNotFoundError,
+    SkillArchivedError,
     RequestAlreadyDecidedError,
     SkillNotFoundError,
 } from '../domain/errors';
@@ -169,5 +171,68 @@ describe('AcceptRequestUseCase', () => {
 
         expect(await requests.listLinkedToSkill(skill.id)).toHaveLength(2);
         expect(events.published).toHaveLength(2);
+    });
+
+    describe('архив', () => {
+        it('архивный навык даёт SkillArchivedError, заявка остаётся pending', async () => {
+            const { accept, request, skill, requests, events } = await setup();
+            skill.archive(new Date('2026-01-05T00:00:00Z'));
+
+            await expect(
+                accept.execute({
+                    requestId: request.id,
+                    decidedBy: 'dev-1',
+                    target: { skillId: skill.id },
+                }),
+            ).rejects.toBeInstanceOf(SkillArchivedError);
+
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(events.published).toHaveLength(0);
+        });
+
+        it('навык архивного агента даёт AgentArchivedError, заявка остаётся pending', async () => {
+            const { accept, request, skill, agent, requests, events } = await setup();
+            agent.archive(new Date('2026-01-05T00:00:00Z'));
+
+            await expect(
+                accept.execute({
+                    requestId: request.id,
+                    decidedBy: 'dev-1',
+                    target: { skillId: skill.id },
+                }),
+            ).rejects.toBeInstanceOf(AgentArchivedError);
+
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(events.published).toHaveLength(0);
+        });
+
+        it('создание навыка у архивного агента даёт AgentArchivedError без навыка', async () => {
+            const { accept, request, agent, skills, requests, events } = await setup();
+            agent.archive(new Date('2026-01-05T00:00:00Z'));
+
+            await expect(
+                accept.execute({
+                    requestId: request.id,
+                    decidedBy: 'dev-1',
+                    target: { agentId: agent.id, name: 'Новый', description: '' },
+                }),
+            ).rejects.toBeInstanceOf(AgentArchivedError);
+
+            expect(skills.byId.size).toBe(1);
+            expect(requests.byId.get(request.id)?.decision.kind).toBe('pending');
+            expect(events.published).toHaveLength(0);
+        });
+
+        it('проверяет агента через findAgentForShare', async () => {
+            const { accept, request, skill, agent, catalog } = await setup();
+
+            await accept.execute({
+                requestId: request.id,
+                decidedBy: 'dev-1',
+                target: { skillId: skill.id },
+            });
+
+            expect(catalog.sharedIds).toEqual([agent.id]);
+        });
     });
 });

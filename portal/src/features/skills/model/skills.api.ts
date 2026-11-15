@@ -25,6 +25,10 @@ export function changeSkillStatus(skillId: string, to: SkillStatus): Promise<Ski
   })
 }
 
+export function archiveSkill(skillId: string): Promise<Skill> {
+  return authorizedRequest(`/portal/skills/${encodeURIComponent(skillId)}/archive`, { method: 'POST', schema: skillSchema })
+}
+
 export function listAgents(): Promise<Agent[]> {
   return authorizedRequest('/portal/agents', { query: { limit: 100 }, schema: agentsAnswerSchema })
 }

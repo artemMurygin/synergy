@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ApiError } from '@/lib/errors'
 import { formatDate } from '@/lib/format'
-import { skillStatusSchema, type Skill, type SkillStatus } from '@/lib/schemas'
+import { type Skill, type SkillStatus } from '@/lib/schemas'
 import { SKILL_STATUS_LABEL } from '@/lib/status-labels'
 import { cn } from '@/lib/utils'
 import { agentsQuery } from '../model/catalog.queries'
 import { skillErrorMessage } from '../model/use-change-skill-status'
+import { ArchiveSkillAction } from './ArchiveSkillAction'
 import { SkillAction, SkillStatusBadge, useSkillStatus } from './SkillStatusAction'
 
 export interface SkillCounts {
@@ -43,16 +44,20 @@ function Icon({ className, children }: { className: string; children: React.Reac
   )
 }
 
+/* Order of the chips and tiles in the design: "Доработка" sits between "Тестируется" and "Запущено" */
+const STATUS_ORDER: SkillStatus[] = ['planned', 'in_dev', 'testing', 'rework', 'launched']
+
 const TILES: { status: SkillStatus; label: string; note: string; value: string }[] = [
   { status: 'planned', label: 'Запланировано', note: 'ждут старта', value: 'text-ink-80' },
   { status: 'in_dev', label: 'В разработке', note: 'в работе у команды', value: 'text-info' },
   { status: 'testing', label: 'Тестируется', note: 'проверяем с авторами', value: 'text-ink' },
+  { status: 'rework', label: 'Доработка', note: 'вернули после проверки', value: 'text-ink-80' },
   { status: 'launched', label: 'Запущено', note: 'уже работают', value: 'text-success' }
 ]
 
 function SummaryTiles({ counts }: { counts: SkillCounts }) {
   return (
-    <ul aria-label="Сводка по статусам" className="grid grid-cols-2 gap-4 min-[900px]:grid-cols-4">
+    <ul aria-label="Сводка по статусам" className="grid grid-cols-2 gap-4 min-[900px]:grid-cols-5">
       {TILES.map((tile) => (
         <li key={tile.status} className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-[19px]">
           <span className={`font-display text-[32px] font-medium leading-none tracking-[-1.4px] ${tile.value}`}>{counts.byStatus[tile.status]}</span>
@@ -73,12 +78,12 @@ interface Notice {
 
 function SkillRow({
   skill,
-  product,
+  products,
   highlighted,
   onError
 }: {
   skill: Skill
-  product: string
+  products: string
   highlighted: boolean
   onError: (skill: Skill, error: ApiError) => void
 }) {
@@ -108,7 +113,7 @@ function SkillRow({
       <TableCell className="px-0 py-0 pr-4">
         <div className="flex flex-col gap-0.5">
           <span className="text-[13px] font-medium leading-[15px] text-ink">{skill.agent.name}</span>
-          <span className="text-xs leading-[14px] text-ink-60">{product}</span>
+          <span className="text-xs leading-[14px] text-ink-60">{products}</span>
         </div>
       </TableCell>
       <TableCell className="px-0 py-0 pr-4">
@@ -129,7 +134,10 @@ function SkillRow({
       <TableCell className="px-0 py-0 pr-4 text-[13px] leading-[15px] text-ink-60">{formatDate(skill.statusChangedAt)}</TableCell>
       <TableCell className="px-0 py-0 pr-5 text-right">
         <div className="flex justify-end">
-          <SkillAction skill={skill} state={state} onError={(error) => onError(skill, error)} />
+          <div className="flex items-center gap-2">
+            <SkillAction skill={skill} state={state} onError={(error) => onError(skill, error)} />
+            <ArchiveSkillAction skillId={skill.id} skillName={skill.name} />
+          </div>
         </div>
       </TableCell>
     </TableRow>
@@ -139,18 +147,18 @@ function SkillRow({
 export function SkillsTable({ items, filter, onFilterChange, counts, search = '', product, onProductChange, onReset }: SkillsTableProps) {
   const agents = useQuery(agentsQuery())
   const [notice, setNotice] = useState<Notice | null>(null)
-  const productOf = (agentId: string) => agents.data?.find((a) => a.id === agentId)?.product
-  const products = [...new Map((agents.data ?? []).map((a) => [a.product.id, a.product.name])).entries()]
+  const productsOf = (skill: Skill) => agents.data?.find((a) => a.id === skill.agent.id)?.products ?? skill.products
+  const products = [...new Map([...(agents.data ?? []).flatMap((a) => a.products), ...items.flatMap((s) => s.products)].map((p) => [p.id, p.name])).entries()]
 
   const query = search.trim().toLowerCase()
   const visible = items.filter((skill) => {
-    if (product && productOf(skill.agent.id)?.id !== product) return false
+    if (product && !productsOf(skill).some((p) => p.id === product)) return false
     return !query || skill.name.toLowerCase().includes(query) || skill.agent.name.toLowerCase().includes(query)
   })
 
   const chips: { value: SkillStatus | undefined; label: string; count: number | undefined }[] = [
     { value: undefined, label: 'Все', count: counts?.total },
-    ...skillStatusSchema.options.map((s) => ({ value: s, label: SKILL_STATUS_LABEL[s], count: counts?.byStatus[s] }))
+    ...STATUS_ORDER.map((s) => ({ value: s, label: SKILL_STATUS_LABEL[s], count: counts?.byStatus[s] }))
   ]
 
   const onError = (skill: Skill, error: ApiError) => {
@@ -222,14 +230,14 @@ export function SkillsTable({ items, filter, onFilterChange, counts, search = ''
           </div>
         </div>
 
-        <Table className="min-w-[1084px] table-fixed">
+        <Table className="min-w-[1234px] table-fixed">
           <colgroup>
             <col />
             <col className="w-[216px]" />
             <col className="w-[166px]" />
             <col className="w-[96px]" />
             <col className="w-[116px]" />
-            <col className="w-[190px]" />
+            <col className="w-[340px]" />
           </colgroup>
           <TableHeader className="border-t border-border">
             <TableRow className="hover:bg-transparent">
@@ -249,7 +257,7 @@ export function SkillsTable({ items, filter, onFilterChange, counts, search = ''
                 <SkillRow
                   key={skill.id}
                   skill={skill}
-                  product={productOf(skill.agent.id)?.name ?? '—'}
+                  products={productsOf(skill).map((p) => p.name).join(', ') || '—'}
                   highlighted={notice?.conflict === true && notice.skillId === skill.id}
                   onError={onError}
                 />

@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SkillStatusChangedEvent } from '../contracts/skill-status-changed.event';
+import type { Agent } from '../domain/agent';
 import { Frequency } from '../domain/frequency';
 import { IdeaRequest } from '../domain/idea-request';
-import { InvalidSkillTransitionError, SkillNotFoundError } from '../domain/errors';
+import {
+    AgentArchivedError,
+    InvalidSkillTransitionError,
+    SkillArchivedError,
+    SkillNotFoundError,
+} from '../domain/errors';
 import { RequestTitle } from '../domain/request-title';
 import { Skill } from '../domain/skill';
 import { SkillName } from '../domain/skill-name';
@@ -13,6 +19,7 @@ import { createPortalFixture, type PortalFixture } from './test-doubles';
 interface Setup extends PortalFixture {
     change: ChangeSkillStatusUseCase;
     skill: Skill;
+    agent: Agent;
     link: (id: string, authorId: string) => Promise<void>;
 }
 
@@ -35,6 +42,7 @@ async function setup(initial: SkillStatus = 'planned'): Promise<Setup> {
     await fx.skills.save(skill);
     const change = new ChangeSkillStatusUseCase(
         fx.skills,
+        fx.catalog,
         fx.requests,
         fx.skillQuery,
         fx.clock,
@@ -55,7 +63,7 @@ async function setup(initial: SkillStatus = 'planned'): Promise<Setup> {
         request.accept(skill.id, 'dev-1', fx.clock.now());
         await fx.requests.save(request);
     };
-    return { ...fx, change, skill, link };
+    return { ...fx, change, skill, agent, link };
 }
 
 describe('ChangeSkillStatusUseCase', () => {
@@ -145,6 +153,49 @@ describe('ChangeSkillStatusUseCase', () => {
             change.execute({ skillId: skill.id, to: 'in_dev', changedBy: 'dev-1' }),
         ).rejects.toBeInstanceOf(InvalidSkillTransitionError);
 
+        expect(events.published).toHaveLength(0);
+    });
+
+    it('блокирует навык, затем агента с FOR SHARE', async () => {
+        const { change, catalog, skills, skill, agent } = await setup();
+
+        await change.execute({ skillId: skill.id, to: 'in_dev', changedBy: 'dev-1' });
+
+        expect(skills.lockedIds).toEqual([skill.id]);
+        expect(catalog.sharedIds).toEqual([agent.id]);
+    });
+
+    it('переход в rework пишет событие с from/to', async () => {
+        const { change, events, skill } = await setup('testing');
+
+        const view = await change.execute({ skillId: skill.id, to: 'rework', changedBy: 'dev-1' });
+
+        expect(view.status).toBe('rework');
+        expect(events.published).toHaveLength(1);
+        expect(events.published[0]).toMatchObject({ from: 'testing', to: 'rework' });
+    });
+
+    it('архивный навык даёт SkillArchivedError без изменений и события', async () => {
+        const { change, events, skills, skill } = await setup();
+        skill.archive(new Date('2026-01-05T00:00:00Z'));
+
+        await expect(
+            change.execute({ skillId: skill.id, to: 'in_dev', changedBy: 'dev-1' }),
+        ).rejects.toBeInstanceOf(SkillArchivedError);
+
+        expect(skills.byId.get(skill.id)?.status).toBe('planned');
+        expect(events.published).toHaveLength(0);
+    });
+
+    it('навык архивного агента даёт AgentArchivedError без события', async () => {
+        const { change, events, agent, skill } = await setup();
+        agent.archive(new Date('2026-01-05T00:00:00Z'));
+
+        await expect(
+            change.execute({ skillId: skill.id, to: 'in_dev', changedBy: 'dev-1' }),
+        ).rejects.toBeInstanceOf(AgentArchivedError);
+
+        expect(skill.status).toBe('planned');
         expect(events.published).toHaveLength(0);
     });
 });

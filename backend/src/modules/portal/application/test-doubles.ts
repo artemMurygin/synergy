@@ -9,7 +9,7 @@ import { InvalidSkillTransitionError, RequestAlreadyDecidedError } from '../doma
 import type { IdeaRequest } from '../domain/idea-request';
 import {
     CatalogRepository,
-    type AgentWithProduct,
+    type AgentWithProducts,
     type CatalogSeedProduct,
     type CatalogSeedResult,
 } from '../domain/ports/catalog-repository.port';
@@ -219,13 +219,14 @@ export class InMemoryCatalogRepository extends CatalogRepository {
         return agent;
     }
 
-    listAgents(): Promise<AgentWithProduct[]> {
-        const items: AgentWithProduct[] = [];
+    listAgents(): Promise<AgentWithProducts[]> {
+        const items: AgentWithProducts[] = [];
         for (const agent of this.agents.values()) {
-            const product = [...this.products.values()].find((p) =>
-                agent.productIds.includes(p.id),
-            );
-            if (product !== undefined) items.push({ agent, product });
+            if (agent.archivedAt !== null) continue;
+            const products = [...this.products.values()]
+                .filter((p) => agent.productIds.includes(p.id))
+                .sort((x, y) => x.slug.localeCompare(y.slug));
+            if (products.length > 0) items.push({ agent, products });
         }
         return Promise.resolve(items);
     }
@@ -234,20 +235,65 @@ export class InMemoryCatalogRepository extends CatalogRepository {
         return Promise.resolve(this.agents.get(id) ?? null);
     }
 
+    /** Идентификаторы агентов, прочитанных с `FOR SHARE` / `FOR UPDATE`. */
+    readonly sharedIds: string[] = [];
+
+    readonly lockedIds: string[] = [];
+
+    readonly savedAgents: Agent[] = [];
+
+    findProductsByIds(ids: readonly string[]): Promise<Product[]> {
+        return Promise.resolve(
+            [...this.products.values()]
+                .filter((p) => ids.includes(p.id))
+                .sort((x, y) => x.slug.localeCompare(y.slug)),
+        );
+    }
+
+    findAgentForShare(id: string): Promise<Agent | null> {
+        this.sharedIds.push(id);
+        return this.findAgent(id);
+    }
+
+    findAgentForUpdate(id: string): Promise<Agent | null> {
+        this.lockedIds.push(id);
+        return this.findAgent(id);
+    }
+
+    saveAgent(agent: Agent): Promise<void> {
+        this.savedAgents.push(agent);
+        this.agents.set(agent.id, agent);
+        return Promise.resolve();
+    }
+
     seed(products: readonly CatalogSeedProduct[]): Promise<CatalogSeedResult> {
         const result = { productsCreated: 0, agentsCreated: 0 };
         for (const seedProduct of products) {
-            if (!this.products.has(seedProduct.slug)) {
-                this.addProduct(seedProduct.slug, seedProduct.name);
-                result.productsCreated += 1;
-            }
+            const existingProduct = this.products.get(seedProduct.slug);
+            const product = existingProduct ?? this.addProduct(seedProduct.slug, seedProduct.name);
+            if (existingProduct === undefined) result.productsCreated += 1;
             for (const seedAgent of seedProduct.agents) {
-                const exists = [...this.agents.values()].some(
+                const existing = [...this.agents.values()].find(
                     (agent) => agent.slug === seedAgent.slug,
                 );
-                if (exists) continue;
-                this.addAgent(seedProduct.slug, seedAgent.slug, seedAgent.name);
-                result.agentsCreated += 1;
+                if (existing === undefined) {
+                    this.addAgent(seedProduct.slug, seedAgent.slug, seedAgent.name);
+                    result.agentsCreated += 1;
+                } else if (!existing.productIds.includes(product.id)) {
+                    // Добавляем недостающую связь; имя и archivedAt не меняются.
+                    this.agents.set(
+                        existing.id,
+                        Agent.restore({
+                            id: existing.id,
+                            slug: existing.slug,
+                            name: existing.name,
+                            productIds: [...existing.productIds, product.id],
+                            archivedAt: existing.archivedAt,
+                            createdAt: existing.createdAt,
+                            updatedAt: existing.updatedAt,
+                        }),
+                    );
+                }
             }
         }
         return Promise.resolve(result);
@@ -341,10 +387,11 @@ export class InMemorySkillQuery extends SkillQuery {
 
     private toView(skill: Skill): SkillView | null {
         const agent = this.catalog.agents.get(skill.agentId);
-        const product = [...this.catalog.products.values()].find(
-            (p) => agent?.productIds.includes(p.id) === true,
-        );
-        if (agent === undefined || product === undefined) return null;
+        const products = [...this.catalog.products.values()]
+            .filter((p) => agent?.productIds.includes(p.id) === true)
+            .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
+            .map((p) => ({ id: p.id, slug: p.slug, name: p.name }));
+        if (agent === undefined || products.length === 0) return null;
         const linkedRequestCount = [...this.requests.byId.values()].filter(
             (request) =>
                 request.decision.kind === 'accepted' && request.decision.skillId === skill.id,
@@ -355,10 +402,12 @@ export class InMemorySkillQuery extends SkillQuery {
             description: skill.description,
             status: skill.status,
             agent: { id: agent.id, name: agent.name },
-            product: { id: product.id, name: product.name },
+            products,
             linkedRequestCount,
             createdAt: skill.createdAt,
             statusChangedAt: skill.statusChangedAt,
+            launchedAt: skill.launchedAt,
+            archivedAt: skill.archivedAt,
         };
     }
 

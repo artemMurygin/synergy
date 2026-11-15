@@ -1,14 +1,19 @@
-import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query'
+import { useMutation, useQueryClient, type QueryClient, type UseMutationResult } from '@tanstack/react-query'
 import { ApiError } from '@/lib/errors'
 import type { Skill, SkillStatus } from '@/lib/schemas'
 import { changeSkillStatus } from './skills.api'
-import { SKILLS_KEY } from '@/lib/query-keys'
+import { AGENTS_KEY, ARCHIVE_KEY, CATALOG_KEY, SKILLS_KEY } from '@/lib/query-keys'
 
 export const SKILL_CONFLICT_MESSAGE = 'Статус навыка уже изменён. Показано актуальное состояние.'
 
 export function skillErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.kind === 'conflict' ? SKILL_CONFLICT_MESSAGE : error.message
   return 'Не удалось изменить статус'
+}
+
+/** Every view that shows a skill: the list, the catalog (and the roadmap built from it), the agents and the archive. */
+export function reloadSkillViews(client: QueryClient): Promise<unknown> {
+  return Promise.all([SKILLS_KEY, CATALOG_KEY, AGENTS_KEY, ARCHIVE_KEY].map((queryKey) => client.invalidateQueries({ queryKey })))
 }
 
 export interface ChangeSkillStatusInput {
@@ -21,9 +26,9 @@ export function useChangeSkillStatus(): UseMutationResult<Skill, ApiError, Chang
   const client = useQueryClient()
   return useMutation<Skill, ApiError, ChangeSkillStatusInput>({
     mutationFn: ({ skillId, to }) => changeSkillStatus(skillId, to),
-    onSuccess: () => client.invalidateQueries({ queryKey: SKILLS_KEY }),
+    onSuccess: () => reloadSkillViews(client),
     onError: (error) => {
-      if (error.kind === 'conflict') return client.invalidateQueries({ queryKey: SKILLS_KEY })
+      if (error.kind === 'conflict') return reloadSkillViews(client)
     }
   })
 }

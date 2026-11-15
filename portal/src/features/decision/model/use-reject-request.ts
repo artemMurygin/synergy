@@ -15,7 +15,7 @@ export function useRejectRequest(): UseMutationResult<IdeaRequest, ApiError, Rej
     mutationFn: ({ requestId, reason }) => rejectRequest(requestId, reason),
     onSuccess: (decided) => applyDecision(client, decided),
     onError: (error) => {
-      if (error.kind === 'conflict') return refreshAfterConflict(client)
+      if (error.kind === 'conflict') return refreshAfterConflict(client, error)
     }
   })
 }

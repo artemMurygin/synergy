@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ArgumentInvalidError } from '../../../shared/errors';
-import { AgentNotFoundError } from '../domain/errors';
+import { AgentArchivedError, AgentNotFoundError } from '../domain/errors';
 import { Frequency } from '../domain/frequency';
 import { IdeaRequest } from '../domain/idea-request';
 import { RequestTitle } from '../domain/request-title';
 import { CreateSkillUseCase } from './create-skill.use-case';
 import { ListSkillsUseCase } from './list-skills.use-case';
 import type { Agent } from '../domain/agent';
+import { toSkillView } from './skill-view';
 import { createPortalFixture, type PortalFixture } from './test-doubles';
 
 interface Setup extends PortalFixture {
@@ -44,8 +45,9 @@ describe('CreateSkillUseCase', () => {
         expect(view.status).toBe('planned');
         expect(view.name).toBe('Напоминания');
         expect(view.agent.id).toBe(tasks.id);
-        expect(view.product.name).toBe('Control Center');
+        expect(view.products.map((p) => p.name)).toEqual(['Control Center']);
         expect(view.statusChangedAt).toEqual(clock.now());
+        expect(view.nextStatuses).toEqual(['in_dev']);
         expect(skills.byId.size).toBe(1);
     });
 
@@ -68,6 +70,18 @@ describe('CreateSkillUseCase', () => {
     });
 });
 
+describe('CreateSkillUseCase, архив', () => {
+    it('создание навыка у архивного агента даёт AgentArchivedError без навыка', async () => {
+        const { create, tasks, skills } = setup();
+        tasks.archive(new Date('2026-01-05T00:00:00Z'));
+
+        await expect(
+            create.execute({ agentId: tasks.id, name: 'Навык', description: '' }),
+        ).rejects.toBeInstanceOf(AgentArchivedError);
+        expect(skills.byId.size).toBe(0);
+    });
+});
+
 describe('ListSkillsUseCase', () => {
     it('фильтрует по статусу и возвращает агента, продукт и число заявок', async () => {
         const { create, list, tasks, audit, skills } = setup();
@@ -82,9 +96,11 @@ describe('ListSkillsUseCase', () => {
         expect(onlyPlanned.items.map((item) => item.id)).toEqual([planned.id]);
         expect(onlyPlanned.items[0]).toMatchObject({
             agent: { id: tasks.id, name: 'Задачи' },
-            product: { name: 'Control Center' },
+            products: [{ name: 'Control Center' }],
             linkedRequestCount: 0,
+            nextStatuses: ['in_dev'],
         });
+        expect(all.items.find((item) => item.id === other.id)?.nextStatuses).toEqual(['testing']);
     });
 
     it('считает привязанные заявки', async () => {
@@ -108,5 +124,30 @@ describe('ListSkillsUseCase', () => {
         const page = await list.execute({ limit: 10, page: 0 });
 
         expect(page.items[0]?.linkedRequestCount).toBe(2);
+    });
+});
+
+describe('toSkillView', () => {
+    it.each([
+        ['planned', ['in_dev']],
+        ['testing', ['launched', 'rework']],
+        ['launched', ['rework']],
+        ['rework', ['testing']],
+    ] as const)('для статуса %s отдаёт nextStatuses из SkillStatus.allowedNext', (status, next) => {
+        const row = {
+            id: 's',
+            name: 'N',
+            description: '',
+            status,
+            agent: { id: 'a', name: 'A' },
+            products: [{ id: 'p', slug: 'p', name: 'P' }],
+            launchedAt: null,
+            archivedAt: null,
+            linkedRequestCount: 0,
+            createdAt: new Date(),
+            statusChangedAt: new Date(),
+        };
+
+        expect(toSkillView(row).nextStatuses).toEqual(next);
     });
 });

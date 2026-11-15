@@ -15,7 +15,14 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const agent = { id: 'a1', name: 'Ассистент', product: { id: 'p1', name: 'Manager Helper' } }
+const agent = {
+  id: 'a1',
+  name: 'Ассистент',
+  products: [
+    { id: 'p1', slug: 'control-center', name: 'Control Center' },
+    { id: 'p2', slug: 'telegram', name: 'Telegram-бот' }
+  ]
+}
 const items = [
   { ...skillFixture, id: 's1', name: 'Сводка встречи', requestsCount: 2 },
   { ...skillFixture, id: 's2', name: 'Сверка актов', status: 'in_dev' as const, requestsCount: 0 }
@@ -48,16 +55,16 @@ describe('SkillsTable', () => {
 
   it('shows a row per skill with agent, product and count', async () => {
     renderTable()
-    await screen.findAllByText('Manager Helper')
+    await screen.findAllByText('Control Center, Telegram-бот')
     const row = screen.getByText('Сводка встречи').closest('tr') as HTMLElement
     expect(within(row).getByText('Ассистент')).toBeTruthy()
-    expect(within(row).getByText('Manager Helper')).toBeTruthy()
+    expect(within(row).getByText('Control Center, Telegram-бот')).toBeTruthy()
     expect(within(row).getByText('2')).toBeTruthy()
     expect(within(row).getByText('Запланировано')).toBeTruthy()
   })
 
   it('calls onFilterChange with the chosen status chip and undefined for all', async () => {
-    const onFilterChange = renderTable({ filter: 'in_dev', counts: { total: 40, byStatus: { planned: 3, in_dev: 2, testing: 1, launched: 34 } } })
+    const onFilterChange = renderTable({ filter: 'in_dev', counts: { total: 40, byStatus: { planned: 3, in_dev: 2, testing: 1, launched: 34, rework: 1 } } })
     const user = userEvent.setup()
     const group = screen.getByRole('group', { name: 'Статус навыка' })
     expect(within(group).getByRole('button', { name: 'В разработке · 2' }).getAttribute('aria-pressed')).toBe('true')
@@ -69,11 +76,40 @@ describe('SkillsTable', () => {
 
   it('filters by search text and by product on the client', async () => {
     const view = renderTable({ search: 'сверка' })
-    await screen.findAllByText('Manager Helper')
+    await screen.findAllByText('Control Center, Telegram-бот')
     expect(screen.getByText('Сверка актов')).toBeTruthy()
     expect(screen.queryByText('Сводка встречи')).toBeNull()
+    view.rerender({ search: 'ассистент', product: 'p2' })
+    expect((await screen.findAllByText('Сверка актов')).length).toBeGreaterThan(0)
     view.rerender({ search: 'ассистент', product: 'other' })
     expect(await screen.findByText('Ничего не нашлось')).toBeTruthy()
+  })
+
+  it('keeps a skill whose agent has the chosen product among several', async () => {
+    renderTable({ product: 'p1' })
+    expect(await screen.findByText('Сводка встречи')).toBeTruthy()
+    expect(screen.getByText('Сверка актов')).toBeTruthy()
+  })
+
+  it('has chips in the order of the design with "Доработка" between "Тестируется" and "Запущено"', () => {
+    renderTable({ counts: { total: 5, byStatus: { planned: 1, in_dev: 1, testing: 1, launched: 1, rework: 1 } } })
+    const group = screen.getByRole('group', { name: 'Статус навыка' })
+    expect(within(group).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Все · 5', 'Запланировано · 1', 'В разработке · 1', 'Тестируется · 1', 'Доработка · 1', 'Запущено · 1'
+    ])
+  })
+
+  it('shows the "Доработка" summary tile', () => {
+    renderTable({ counts: { total: 5, byStatus: { planned: 1, in_dev: 1, testing: 1, launched: 1, rework: 1 } } })
+    const tiles = within(screen.getByRole('list', { name: 'Сводка по статусам' }))
+    expect(tiles.getByText('Доработка')).toBeTruthy()
+    expect(tiles.getByText('вернули после проверки')).toBeTruthy()
+  })
+
+  it('puts an archive icon button into every row', () => {
+    renderTable()
+    const row = screen.getByText('Сводка встречи').closest('tr') as HTMLElement
+    expect(within(row).getByRole('button', { name: 'Архивировать навык «Сводка встречи»' })).toBeTruthy()
   })
 
   it('shows the empty result with the filter in the text and a reset', async () => {

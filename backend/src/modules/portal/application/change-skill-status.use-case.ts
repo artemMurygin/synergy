@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { DomainEventPublisherPort } from '../../../shared/ddd';
 import { SkillStatusChangedEvent } from '../contracts/skill-status-changed.event';
-import { SkillNotFoundError } from '../domain/errors';
+import { AgentNotFoundError, SkillNotFoundError } from '../domain/errors';
+import { CatalogRepository } from '../domain/ports/catalog-repository.port';
 import { Clock } from '../domain/ports/clock.port';
 import { RequestRepository } from '../domain/ports/request-repository.port';
 import { SkillQuery } from '../domain/ports/skill-query.port';
 import { SkillRepository } from '../domain/ports/skill-repository.port';
 import type { SkillStatus } from '../domain/skill-status';
-import type { SkillView } from './skill-view';
+import { toSkillView, type SkillView } from './skill-view';
 
 export interface ChangeSkillStatusInput {
     skillId: string;
@@ -20,6 +21,7 @@ export interface ChangeSkillStatusInput {
 export class ChangeSkillStatusUseCase {
     constructor(
         private readonly skills: SkillRepository,
+        private readonly catalog: CatalogRepository,
         private readonly requests: RequestRepository,
         private readonly query: SkillQuery,
         private readonly clock: Clock,
@@ -31,6 +33,10 @@ export class ChangeSkillStatusUseCase {
         await this.transactions.run(async () => {
             const skill = await this.skills.findForUpdate(input.skillId);
             if (skill === null) throw new SkillNotFoundError(input.skillId);
+            // Порядок блокировок: навык (FOR UPDATE) -> агент (FOR SHARE).
+            const agent = await this.catalog.findAgentForShare(skill.agentId);
+            if (agent === null) throw new AgentNotFoundError(skill.agentId);
+            agent.ensureActive();
             const from = skill.status;
             skill.changeStatus(input.to, this.clock.now());
             const linked = await this.requests.listLinkedToSkill(skill.id);
@@ -49,6 +55,6 @@ export class ChangeSkillStatusUseCase {
         });
         const view = await this.query.findView(input.skillId);
         if (view === null) throw new SkillNotFoundError(input.skillId);
-        return view;
+        return toSkillView(view);
     }
 }

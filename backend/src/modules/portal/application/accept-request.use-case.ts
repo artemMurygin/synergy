@@ -7,6 +7,7 @@ import {
     AgentNotFoundError,
     RequestAlreadyDecidedError,
     RequestNotFoundError,
+    SkillArchivedError,
     SkillNotFoundError,
 } from '../domain/errors';
 import { CatalogRepository } from '../domain/ports/catalog-repository.port';
@@ -72,11 +73,16 @@ export class AcceptRequestUseCase {
         if ('skillId' in target) {
             const existing = await this.skills.findForUpdate(target.skillId);
             if (existing === null) throw new SkillNotFoundError(target.skillId);
+            if (existing.archivedAt !== null) throw new SkillArchivedError(existing.id);
+            const owner = await this.catalog.findAgentForShare(existing.agentId);
+            if (owner === null) throw new AgentNotFoundError(existing.agentId);
+            owner.ensureActive();
             return existing;
         }
         const name = SkillName.of(target.name);
-        const agent = await this.catalog.findAgent(target.agentId);
+        const agent = await this.catalog.findAgentForShare(target.agentId);
         if (agent === null) throw new AgentNotFoundError(target.agentId);
+        agent.ensureActive();
         const skill = Skill.create({
             id: randomUUID(),
             agentId: agent.id,

@@ -99,7 +99,7 @@ export function SkillPicker({ value, onChange, errors = {} }: SkillPickerProps) 
             style={selectIconStyle(BOT_ICON)}
             value={value.agentId}
             error={errors.agentId ?? (agents.isError ? 'Не удалось загрузить агентов' : undefined)}
-            hint={agent ? `Продукт: ${agent.product.name}` : undefined}
+            hint={agent ? `Продукты: ${agent.products.map((p) => p.name).join(', ')}` : undefined}
             onChange={(e) => onChange({ ...value, agentId: e.target.value })}
           >
             <option value="">{agents.isPending ? 'Загружаем…' : 'Выберите агента'}</option>

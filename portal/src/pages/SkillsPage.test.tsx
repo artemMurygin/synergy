@@ -92,6 +92,37 @@ describe('SkillsPage', () => {
     await vi.waitFor(() => expect(within(screen.getByText('Сводка встречи').closest('tr')!).getByText('Тестируется')).toBeTruthy())
   })
 
+  it('the product filter keeps a skill when one of the agent products is chosen', async () => {
+    stubFetch((c) =>
+      c.path === '/portal/agents'
+        ? json([{ ...agentFixture, products: [...agentFixture.products, { id: 'p2', slug: 'telegram', name: 'Telegram-бот' }] }])
+        : json(page([planned, inDev]))
+    )
+    renderPage()
+    await screen.findByText('Сводка встречи')
+    await vi.waitFor(() => expect(screen.getAllByText('Manager Helper, Telegram-бот').length).toBe(2))
+    await userEvent.selectOptions(screen.getByLabelText('Продукт'), 'p2')
+    expect(screen.getByText('Сводка встречи')).toBeTruthy()
+    expect(screen.getByText('Сверка актов')).toBeTruthy()
+  })
+
+  it('archives a skill after confirmation and it disappears from the list', async () => {
+    let archived = false
+    const { calls } = api((c) => {
+      if (c.method === 'POST' && c.path === '/portal/skills/s1/archive') {
+        archived = true
+        return json({ ...planned, archivedAt: '2026-11-10T09:00:00.000Z' })
+      }
+      if (archived && c.path === '/portal/skills') return json(page([inDev]))
+    })
+    renderPage()
+    await screen.findByText('Сводка встречи')
+    await userEvent.click(screen.getByRole('button', { name: 'Архивировать навык «Сводка встречи»' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Архивировать' }))
+    await vi.waitFor(() => expect(screen.queryByText('Сводка встречи')).toBeNull())
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/portal/skills/s1/archive')).toBe(true)
+  })
+
   it('shows an error with a retry', async () => {
     stubFetch((c) => (c.path === '/portal/agents' ? json([agentFixture]) : json({ message: 'Сбой' }, 500)))
     renderPage()

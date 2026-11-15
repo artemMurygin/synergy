@@ -4,24 +4,28 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ApiError } from '@/lib/errors'
 import type { Skill, SkillStatus } from '@/lib/schemas'
-import { nextSkillStatus, SKILL_STATUS_FLOW, SKILL_STATUS_LABEL } from '@/lib/status-labels'
+import { SKILL_BADGE_CLASS, SKILL_STATUS_LABEL } from '@/lib/status-labels'
 import { skillErrorMessage, useChangeSkillStatus } from '../model/use-change-skill-status'
 
-const ACTION_LABEL: Record<Exclude<SkillStatus, 'planned'>, string> = {
+/* The transition buttons are named by the target status; "rework" always comes first, as in the design */
+const ACTION_LABEL: Record<SkillStatus, string> = {
+  planned: 'Запланировано',
   in_dev: 'В разработку',
   testing: 'На тестирование',
-  launched: 'Запустить'
+  launched: 'Запустить',
+  rework: 'На доработку'
 }
 
-/* Status / Master colours of the skills screen: background, label and the (separately coloured) dot */
-const BADGE_CLASS: Record<SkillStatus, string> = {
-  planned: 'bg-surface-sunken text-ink-80 [&>span:first-child]:bg-info',
-  in_dev: 'bg-info-soft text-info [&>span:first-child]:bg-info',
-  testing: 'bg-info-soft text-info [&>span:first-child]:bg-warning',
-  launched: 'bg-success-soft text-success [&>span:first-child]:bg-success'
-}
+const time = (iso: string) => new Date(iso).getTime()
 
-const order = (s: SkillStatus) => SKILL_STATUS_FLOW.indexOf(s)
+function Undo() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+    </svg>
+  )
+}
 
 function ArrowRight() {
   return (
@@ -33,20 +37,21 @@ function ArrowRight() {
 }
 
 export function SkillStatusBadge({ status }: { status: SkillStatus }) {
-  return <Badge tone="neutral" className={BADGE_CLASS[status]}>{SKILL_STATUS_LABEL[status]}</Badge>
+  return <Badge tone="neutral" className={SKILL_BADGE_CLASS[status]}>{SKILL_STATUS_LABEL[status]}</Badge>
 }
 
-/** The skill's current status (the server state wins whenever it is ahead) and the one allowed next step. */
+/** The skill as the user should see it: the server answer of this session counts only if it is not older than the list. */
 export function useSkillStatus(skill: Skill) {
   const change = useChangeSkillStatus()
-  const changed = change.isSuccess && change.data.id === skill.id ? change.data.status : null
-  const status = changed && order(changed) >= order(skill.status) ? changed : skill.status
-  return { change, status, next: nextSkillStatus(status) }
+  const answer = change.isSuccess && change.data.id === skill.id ? change.data : null
+  const actual = answer && time(answer.statusChangedAt) >= time(skill.statusChangedAt) ? answer : skill
+  const next = [...actual.nextStatuses].sort((a, b) => Number(b === 'rework') - Number(a === 'rework'))
+  return { change, status: actual.status, next }
 }
 
 export type SkillStatusState = ReturnType<typeof useSkillStatus>
 
-/** The action column: the single allowed next step, or the "final status" label for a launched skill. */
+/** The action column: one button per status from `nextStatuses`; nothing when no transition is allowed. */
 export function SkillAction({
   skill,
   state,
@@ -57,27 +62,23 @@ export function SkillAction({
   onError?: (error: ApiError) => void
 }): ReactNode {
   const { change, next } = state
-  if (!next) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[13px] leading-4 text-ink-60">
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4 text-success" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="m9 12 2 2 4-4" />
-        </svg>
-        Финальный статус
-      </span>
-    )
-  }
+  if (next.length === 0) return null
   return (
-    <Button
-      size="sm"
-      variant={next === 'launched' ? 'default' : 'outline'}
-      disabled={change.isPending}
-      onClick={() => change.mutate({ skillId: skill.id, to: next }, { onError })}
-    >
-      {ACTION_LABEL[next as Exclude<SkillStatus, 'planned'>]}
-      <ArrowRight />
-    </Button>
+    <div className="flex flex-col items-stretch gap-2 min-[900px]:flex-row min-[900px]:items-center">
+      {next.map((to) => (
+        <Button
+          key={to}
+          size="sm"
+          variant={to === 'launched' ? 'default' : 'outline'}
+          className="h-11 min-[900px]:h-9"
+          disabled={change.isPending}
+          onClick={() => change.mutate({ skillId: skill.id, to }, { onError })}
+        >
+          {ACTION_LABEL[to]}
+          {to === 'rework' ? <Undo /> : <ArrowRight />}
+        </Button>
+      ))}
+    </div>
   )
 }
 

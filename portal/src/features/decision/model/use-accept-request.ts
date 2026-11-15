@@ -15,7 +15,7 @@ export function useAcceptRequest(): UseMutationResult<IdeaRequest, ApiError, Acc
     mutationFn: ({ requestId, target }) => acceptRequest(requestId, target),
     onSuccess: (decided) => applyDecision(client, decided),
     onError: (error) => {
-      if (error.kind === 'conflict') return refreshAfterConflict(client)
+      if (error.kind === 'conflict') return refreshAfterConflict(client, error)
     }
   })
 }

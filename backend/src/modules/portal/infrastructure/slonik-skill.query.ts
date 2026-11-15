@@ -5,7 +5,7 @@ import { TransactionRunnerPort } from '../../../database/postgres/transaction-ru
 import type { Page, PageRequest } from '../domain/ports/page';
 import { SkillQuery, type SkillView } from '../domain/ports/skill-query.port';
 import { SkillStatus } from '../domain/skill-status';
-import { millis } from './sql-helpers';
+import { millis, toDate } from './sql-helpers';
 
 const viewRow = z.object({
     id: z.string(),
@@ -14,23 +14,32 @@ const viewRow = z.object({
     status: z.string(),
     agent_id: z.string(),
     agent_name: z.string(),
-    product_id: z.string(),
-    product_name: z.string(),
+    products: z.array(z.object({ id: z.string(), slug: z.string(), name: z.string() })),
     linked_request_count: z.number(),
     created_at: z.number(),
     status_changed_at: z.number(),
+    launched_at: z.number().nullable(),
+    archived_at: z.number().nullable(),
 });
 
 const SELECT_VIEW = sql.fragment`
     SELECT s.id, s.name, s.description, s.status,
-           a.id AS agent_id, a.name AS agent_name, p.id AS product_id, p.name AS product_name,
+           a.id AS agent_id, a.name AS agent_name,
+           COALESCE((SELECT json_agg(json_build_object('id', p.id, 'slug', p.slug, 'name', p.name)
+                                     ORDER BY p.slug)
+                       FROM portal_agent_products ap
+                       JOIN portal_products p ON p.id = ap.product_id
+                      WHERE ap.agent_id = a.id), '[]'::json) AS products,
            (SELECT count(*)::int FROM portal_requests r
              WHERE r.skill_id = s.id AND r.decision = 'accepted') AS linked_request_count,
            ${millis('s.created_at', 'created_at')},
-           ${millis('s.status_changed_at', 'status_changed_at')}
+           ${millis('s.status_changed_at', 'status_changed_at')},
+           ${millis('s.launched_at', 'launched_at')},
+           ${millis('s.archived_at', 'archived_at')}
     FROM portal_skills s
-    JOIN portal_agents a ON a.id = s.agent_id
-    JOIN portal_products p ON p.id = a.product_id`;
+    JOIN portal_agents a ON a.id = s.agent_id`;
+
+const VISIBLE = sql.fragment`s.archived_at IS NULL AND a.archived_at IS NULL`;
 
 function toView(raw: unknown): SkillView {
     const row = viewRow.parse(raw);
@@ -40,10 +49,12 @@ function toView(raw: unknown): SkillView {
         description: row.description,
         status: SkillStatus.parse(row.status),
         agent: { id: row.agent_id, name: row.agent_name },
-        product: { id: row.product_id, name: row.product_name },
+        products: row.products,
         linkedRequestCount: row.linked_request_count,
         createdAt: new Date(row.created_at),
         statusChangedAt: new Date(row.status_changed_at),
+        launchedAt: toDate(row.launched_at),
+        archivedAt: toDate(row.archived_at),
     };
 }
 
@@ -56,12 +67,14 @@ export class SlonikSkillQuery extends SkillQuery {
     async list(filter: { status?: SkillStatus }, page: PageRequest): Promise<Page<SkillView>> {
         const where: FragmentSqlToken =
             filter.status === undefined
-                ? sql.fragment`TRUE`
-                : sql.fragment`s.status = ${filter.status}`;
+                ? VISIBLE
+                : sql.fragment`${VISIBLE} AND s.status = ${filter.status}`;
         const executor = this.transactions.executor();
         const total = await executor.oneFirst(
             sql.type(z.object({ count: z.number() }))`
-                SELECT count(*)::int AS count FROM portal_skills s WHERE ${where}`,
+                SELECT count(*)::int AS count
+                  FROM portal_skills s JOIN portal_agents a ON a.id = s.agent_id
+                 WHERE ${where}`,
         );
         const rows = await executor.any(sql.unsafe`
             ${SELECT_VIEW} WHERE ${where}

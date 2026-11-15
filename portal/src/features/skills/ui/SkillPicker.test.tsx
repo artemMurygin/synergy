@@ -9,7 +9,7 @@ import { SkillPicker, type SkillPickerValue } from './SkillPicker'
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
   useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'], fullName: 'dev', lastName: null, firstName: null, middleName: null, position: null, department: null })
-  stubFetch(({ path }) => (path === '/portal/agents' ? json([agentFixture]) : json(page([skillFixture]))))
+  stubFetch(({ path }) => (path === '/portal/agents' ? json([{ ...agentFixture, products: [...agentFixture.products, { id: 'p2', slug: 'telegram', name: 'Telegram-бот' }] }]) : json(page([skillFixture]))))
 })
 afterEach(() => {
   cleanup()
@@ -50,12 +50,12 @@ describe('SkillPicker', () => {
     expect(onChange).toHaveBeenLastCalledWith({ mode: 'existing', skillId: 's1' })
   })
 
-  it('creates a new skill with an agent, showing the agent product', async () => {
+  it('creates a new skill with an agent, showing all agent products', async () => {
     const onChange = renderPicker()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Новый навык' }))
     await user.selectOptions(await screen.findByLabelText('Агент'), 'a1')
-    expect(screen.getByText(/Manager Helper/)).toBeTruthy()
+    expect(screen.getByText('Продукты: Manager Helper, Telegram-бот')).toBeTruthy()
     await user.type(screen.getByLabelText('Название навыка'), 'Сверка')
     await user.type(screen.getByLabelText('Что делает'), 'Опис')
     expect(onChange).toHaveBeenLastCalledWith({ mode: 'new', agentId: 'a1', name: 'Сверка', description: 'Опис' })

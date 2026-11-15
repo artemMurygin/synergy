@@ -56,8 +56,8 @@ describe('SkillsController', () => {
         vi.resetAllMocks();
         listAgents.execute.mockResolvedValue([
             {
-                agent: { id: AGENT_ID, productId: 'p1', slug: 'assistant', name: 'Ассистент' },
-                product: { id: 'p1', slug: 'control-center', name: 'Control Center' },
+                agent: { id: AGENT_ID, productIds: ['p1'], slug: 'assistant', name: 'Ассистент' },
+                products: [{ id: 'p1', slug: 'control-center', name: 'Control Center' }],
             },
         ]);
         listSkills.execute.mockResolvedValue({ items: [skill], total: 1 });

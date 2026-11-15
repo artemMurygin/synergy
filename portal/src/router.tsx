@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { RequireAuth, RequireRole } from '@/features/auth'
 import { NavMenu } from '@/features/shell'
 import { AppLayout } from '@/layouts/AppLayout'
+import { ArchivePage } from '@/pages/ArchivePage'
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { DepartmentsPage } from '@/pages/DepartmentsPage'
 import { EmployeeCreatePage } from '@/pages/EmployeeCreatePage'
@@ -33,6 +34,7 @@ export function AppRoutes() {
           <Route element={<RequireRole role="developer" />}>
             <Route path="/queue" element={<QueuePage />} />
             <Route path="/skills" element={<SkillsPage />} />
+            <Route path="/archive" element={<ArchivePage />} />
           </Route>
           <Route element={<RequireRole role="admin" />}>
             <Route path="/admin/employees" element={<EmployeesPage />} />

@@ -7,7 +7,7 @@ import { SkillQuery } from '../domain/ports/skill-query.port';
 import { SkillRepository } from '../domain/ports/skill-repository.port';
 import { Skill } from '../domain/skill';
 import { SkillName } from '../domain/skill-name';
-import type { SkillView } from './skill-view';
+import { toSkillView, type SkillView } from './skill-view';
 
 export interface CreateSkillInput {
     agentId: string;
@@ -26,8 +26,9 @@ export class CreateSkillUseCase {
 
     async execute(input: CreateSkillInput): Promise<SkillView> {
         const name = SkillName.of(input.name);
-        const agent = await this.catalog.findAgent(input.agentId);
+        const agent = await this.catalog.findAgentForShare(input.agentId);
         if (agent === null) throw new AgentNotFoundError(input.agentId);
+        agent.ensureActive();
         const skill = Skill.create({
             id: randomUUID(),
             agentId: agent.id,
@@ -38,6 +39,6 @@ export class CreateSkillUseCase {
         await this.skills.save(skill);
         const view = await this.query.findView(skill.id);
         if (view === null) throw new Error(`Skill ${skill.id} disappeared after save`);
-        return view;
+        return toSkillView(view);
     }
 }

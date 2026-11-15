@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { REQUESTS_KEY } from '@/features/requests'
-import { SKILLS_KEY } from '@/lib/query-keys'
+import { ApiError } from '@/lib/errors'
+import { AGENTS_KEY, CATALOG_KEY, SKILLS_KEY } from '@/lib/query-keys'
 import type { IdeaRequest } from '@/lib/schemas'
 import type { QueuePage } from './decision.api'
 import { QUEUE_KEY } from './decision.queries'
@@ -19,8 +20,20 @@ export async function applyDecision(client: QueryClient, decided: IdeaRequest): 
   ])
 }
 
-/** A 409 means somebody decided first: reload the queue and the request. */
-export async function refreshAfterConflict(client: QueryClient): Promise<void> {
+export const ARCHIVE_ERROR_CODES = ['PORTAL_SKILL_ARCHIVED', 'PORTAL_AGENT_ARCHIVED'] as const
+
+export const isArchiveConflict = (error: unknown): boolean =>
+  error instanceof ApiError && error.code !== null && (ARCHIVE_ERROR_CODES as readonly string[]).includes(error.code)
+
+/**
+ * A 409 means the decision could not be taken. A request that is already decided: reload the queue and the request.
+ * The skill or its agent went to the archive: the request stays pending on screen, only skills and agents are reloaded.
+ */
+export async function refreshAfterConflict(client: QueryClient, error?: unknown): Promise<void> {
+  if (isArchiveConflict(error)) {
+    await Promise.all([SKILLS_KEY, AGENTS_KEY, CATALOG_KEY].map((queryKey) => client.invalidateQueries({ queryKey })))
+    return
+  }
   await Promise.all([
     client.invalidateQueries({ queryKey: QUEUE_KEY }),
     client.invalidateQueries({ queryKey: REQUESTS_KEY })

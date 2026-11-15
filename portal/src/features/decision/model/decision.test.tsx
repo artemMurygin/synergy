@@ -95,3 +95,24 @@ describe.each([
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['queue'] }))
   })
 })
+
+describe.each([
+  ['PORTAL_SKILL_ARCHIVED', /архив/i],
+  ['PORTAL_AGENT_ARCHIVED', /архив/i]
+] as const)('useAcceptRequest on 409 %s', (code, pattern) => {
+  it('shows the archive message, reloads skills and agents and keeps the request in the queue', async () => {
+    stubFetch(() => json({ message: 'x', code }, 409))
+    const client = createTestClient()
+    client.setQueryData(queueQuery(0).queryKey, page([requestFixture]))
+    const spy = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useAcceptRequest(), { wrapper: queryWrapper(client) })
+    act(() => result.current.mutate({ requestId: id, target: { skillId: 's1' } }))
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    const message = decisionErrorMessage(result.current.error)
+    expect(message).toMatch(pattern)
+    expect(message).not.toBe(DECISION_CONFLICT_MESSAGE)
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['skills'] }))
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['agents'] }))
+    expect(client.getQueryData<{ items: unknown[] }>(queueQuery(0).queryKey)?.items).toHaveLength(1)
+  })
+})

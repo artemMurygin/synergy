@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { Page } from '../../application/request-view';
 import type { SkillView } from '../../application/skill-view';
-import type { AgentWithProduct } from '../../domain/ports/catalog-repository.port';
+import type { AgentWithProducts } from '../../domain/ports/catalog-repository.port';
 import { SKILL_STATUSES, type SkillStatus } from '../../domain/skill-status';
 
 const UUID_EXAMPLE = '2cdc8ab1-6d50-49cc-ba14-54e4ac7ec231';
@@ -24,10 +24,12 @@ export class AgentResponse {
     @ApiProperty({ type: RefResponse })
     readonly product: RefResponse;
 
-    constructor({ agent, product }: AgentWithProduct) {
+    // Временно: контракт `products[]` вводит группа контроллеров; пока отдаём первый продукт.
+    constructor({ agent, products }: AgentWithProducts) {
+        const [product] = products;
         this.id = agent.id;
         this.name = agent.name;
-        this.product = { id: product.id, name: product.name };
+        this.product = { id: product?.id ?? '', name: product?.name ?? '' };
     }
 }
 

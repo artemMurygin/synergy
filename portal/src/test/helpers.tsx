@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement, ReactNode } from 'react'
 import { vi } from 'vitest'
+import type { SkillStatus } from '@/lib/schemas'
 
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -63,9 +64,12 @@ export const skillFixture = {
   agent: { id: 'a1', name: 'Ассистент' },
   requestsCount: 2,
   createdAt: '2026-11-01T09:00:00.000Z',
-  statusChangedAt: '2026-11-02T09:00:00.000Z'
+  statusChangedAt: '2026-11-02T09:00:00.000Z',
+  products: [{ id: 'p1', slug: 'manager-helper', name: 'Manager Helper' }],
+  nextStatuses: ['in_dev' as SkillStatus],
+  archivedAt: null as string | null
 }
 
-export const agentFixture = { id: 'a1', name: 'Ассистент', product: { id: 'p1', name: 'Manager Helper' } }
+export const agentFixture = { id: 'a1', name: 'Ассистент', products: [{ id: 'p1', slug: 'manager-helper', name: 'Manager Helper' }] }
 
 export const page = <T,>(items: T[], pageNo = 0) => ({ items, total: items.length, limit: 20, page: pageNo })
