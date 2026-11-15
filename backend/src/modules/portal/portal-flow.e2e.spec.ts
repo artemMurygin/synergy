@@ -27,15 +27,20 @@ import { RolesGuard } from '../auth/interface/http/roles.guard';
 import {
     InMemoryCatalogQuery,
     InMemoryCatalogRepository,
+    InMemoryCommentQuery,
+    InMemoryCommentRepository,
     InMemoryRequestQuery,
     InMemoryRequestRepository,
     InMemorySkillQuery,
     InMemorySkillRepository,
 } from './application/test-doubles';
 import { REQUEST_ACCEPTED_EVENT_TYPE } from './contracts/request-accepted.event';
+import { REQUEST_COMMENT_POSTED_EVENT_TYPE } from './contracts/request-comment-posted.event';
 import { SKILL_STATUS_CHANGED_EVENT_TYPE } from './contracts/skill-status-changed.event';
 import { CatalogQuery } from './domain/ports/catalog-query.port';
 import { CatalogRepository } from './domain/ports/catalog-repository.port';
+import { CommentQuery } from './domain/ports/comment-query.port';
+import { CommentRepository } from './domain/ports/comment-repository.port';
 import { RequestQuery } from './domain/ports/request-query.port';
 import { RequestRepository } from './domain/ports/request-repository.port';
 import { SkillQuery } from './domain/ports/skill-query.port';
@@ -43,6 +48,7 @@ import { SkillRepository } from './domain/ports/skill-repository.port';
 import { PortalModule } from './portal.module';
 
 const ANNA = '0b9a7c2e-1d3f-4a5b-8c6d-7e8f90a1b2c3';
+const STRANGER = '9c3e7d2b-1a4f-4b6c-8d5e-0f1a2b3c4d5e';
 const DEV = '5d2f6c1a-9b8e-4c7d-a1f0-3e4b5c6d7e8f';
 const AGENT_ID = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
 const SECRET = 's'.repeat(40);
@@ -134,6 +140,12 @@ describe('portal flow (PortalModule wired end to end)', () => {
         requestQuery.profiles.set(ANNA, { lastName: 'Иванова', firstName: 'Анна' });
         requestQuery.logins.set(DEV, 'petrov');
         requestQuery.profiles.set(DEV, { lastName: 'Петров', firstName: 'Пётр' });
+        const comments = new InMemoryCommentRepository();
+        const commentQuery = new InMemoryCommentQuery(comments, requests);
+        commentQuery.logins.set(ANNA, 'anna');
+        commentQuery.profiles.set(ANNA, { lastName: 'Иванова', firstName: 'Анна' });
+        commentQuery.logins.set(DEV, 'petrov');
+        commentQuery.profiles.set(DEV, { lastName: 'Петров', firstName: 'Пётр' });
         const moduleRef = await Test.createTestingModule({
             imports: [AuthStubModule, OutboxStubModule, PortalModule],
         })
@@ -147,6 +159,10 @@ describe('portal flow (PortalModule wired end to end)', () => {
             .useValue(catalog)
             .overrideProvider(RequestQuery)
             .useValue(requestQuery)
+            .overrideProvider(CommentRepository)
+            .useValue(comments)
+            .overrideProvider(CommentQuery)
+            .useValue(commentQuery)
             .overrideProvider(CatalogQuery)
             .useValue(new InMemoryCatalogQuery(skills, catalog))
             .overrideProvider(SkillQuery)
@@ -176,12 +192,19 @@ describe('portal flow (PortalModule wired end to end)', () => {
             id: string;
             status: { code: string; label: string };
             author: { id: string; login: string; fullName: string };
+            body: string;
+            authorRole: string;
+            canEdit: boolean;
         }[];
         skill: { id: string; name: string } | null;
         reviewer: { id: string; login: string; fullName: string } | null;
         takenAt: string | null;
         effortHours: number | null;
         code: string;
+        body?: string;
+        authorRole?: string;
+        editedAt?: string | null;
+        canEdit?: boolean;
     }
 
     const json = async (
@@ -562,6 +585,64 @@ describe('portal flow (PortalModule wired end to end)', () => {
             const queue = await json('GET', '/portal/queue', dev());
             expect(queue.body.items.map((i) => i.id)).toContain(second.body.id);
             expect((await setStatus('launched')).status).toBe(409);
+        });
+    });
+    describe('comments feed', () => {
+        const commentsOf = (id: string, headers: Record<string, string>): ReturnType<typeof json> =>
+            json('GET', `/portal/requests/${id}/comments`, headers);
+        const commentEvents = (): unknown[] =>
+            [...outbox.events.values()].filter(
+                (e) => e.eventType === REQUEST_COMMENT_POSTED_EVENT_TYPE,
+            );
+
+        it('lets the author and a developer talk, hides the feed from outsiders and marks edits', async () => {
+            const submitted = await json('POST', '/portal/requests', bearer(ANNA), idea);
+            const requestId = submitted.body.id;
+            const path = `/portal/requests/${requestId}/comments`;
+            const dev = bearer(DEV, ['developer']);
+            const before = commentEvents().length;
+
+            const first = await json('POST', path, bearer(ANNA), { body: 'Нужны выгрузки' });
+            expect(first.status).toBe(201);
+            expect(first.body.authorRole).toBe('request_author');
+            expect(first.body.canEdit).toBe(true);
+            expect(first.body.editedAt).toBeNull();
+
+            // Разработчик видит комментарий автора и отвечает.
+            const seenByDev = await commentsOf(requestId, dev);
+            expect(seenByDev.status).toBe(200);
+            expect(seenByDev.body.items.map((c) => c.id)).toEqual([first.body.id]);
+            const reply = await json('POST', path, dev, { body: 'Пришлите пример' });
+            expect(reply.status).toBe(201);
+            expect(reply.body.authorRole).toBe('developer');
+
+            const feed = await commentsOf(requestId, bearer(ANNA));
+            expect(feed.status).toBe(200);
+            expect(feed.body.items.map((c) => [c.body, c.authorRole, c.canEdit])).toEqual([
+                ['Нужны выгрузки', 'request_author', true],
+                ['Пришлите пример', 'developer', false],
+            ]);
+
+            // Посторонний сотрудник не видит заявку и ленту.
+            expect((await commentsOf(requestId, bearer(STRANGER))).status).toBe(404);
+            expect((await json('POST', path, bearer(STRANGER), { body: 'Я тоже' })).status).toBe(
+                404,
+            );
+
+            // Правка своего комментария ставит editedAt; чужой править нельзя.
+            const edited = await json('PATCH', `${path}/${first.body.id}`, bearer(ANNA), {
+                body: 'Нужны выгрузки за год',
+            });
+            expect(edited.status).toBe(200);
+            expect(edited.body.body).toBe('Нужны выгрузки за год');
+            expect(edited.body.editedAt).not.toBeNull();
+            expect(
+                (await json('PATCH', `${path}/${first.body.id}`, dev, { body: 'Взлом' })).status,
+            ).toBe(403);
+            expect((await json('POST', path, bearer(ANNA), { body: '   ' })).status).toBe(400);
+
+            // Событие на каждый добавленный комментарий, правка событий не создаёт.
+            expect(commentEvents()).toHaveLength(before + 2);
         });
     });
 });

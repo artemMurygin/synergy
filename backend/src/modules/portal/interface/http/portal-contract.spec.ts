@@ -1,7 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { CommentView } from '../../application/comment-view';
 import type { RequestView } from '../../application/request-view';
+import { CommentListResponse } from './comments.responses';
 import { acceptRequestSchema } from './requests.schemas';
 import { RequestResponse } from './requests.responses';
 
@@ -9,6 +11,7 @@ import { RequestResponse } from './requests.responses';
 // с реальным RequestResponse (UPDATE_CONTRACT=1 перезаписывает их), портал разбирает их своими Zod-схемами.
 const CONTRACT_DIR = resolve(process.cwd(), '../portal/src/test/contract');
 const RESPONSES_FILE = resolve(CONTRACT_DIR, 'request-responses.json');
+const COMMENTS_FILE = resolve(CONTRACT_DIR, 'comment-responses.json');
 const BODIES_FILE = resolve(CONTRACT_DIR, 'accept-bodies.json');
 
 const AUTHOR = { id: 'a1', login: 'anna', fullName: 'Иванова Анна' };
@@ -130,5 +133,52 @@ describe('portal accept body passes acceptRequestSchema', () => {
 
     it('rejects the old top-level shape', () => {
         expect(acceptRequestSchema.safeParse({ skillId: uuid }).success).toBe(false);
+    });
+});
+
+describe('CommentListResponse contract fixture', () => {
+    const base: CommentView = {
+        id: 'c1',
+        authorId: AUTHOR.id,
+        body: 'Нужны выгрузки',
+        author: AUTHOR,
+        authorRole: 'request_author',
+        createdAt: new Date('2026-11-06T10:00:00.000Z'),
+        editedAt: null,
+        canEdit: true,
+    };
+    const comments: CommentView[] = [
+        base,
+        {
+            ...base,
+            id: 'c2',
+            authorId: REVIEWER.id,
+            body: 'Уточню\nу коллег',
+            author: REVIEWER,
+            authorRole: 'developer',
+            createdAt: new Date('2026-11-06T10:03:00.000Z'),
+            editedAt: new Date('2026-11-06T10:05:00.000Z'),
+            canEdit: false,
+        },
+    ];
+    const actual = JSON.parse(JSON.stringify(new CommentListResponse(comments))) as unknown;
+
+    if (process.env.UPDATE_CONTRACT === '1') {
+        writeFileSync(COMMENTS_FILE, `${JSON.stringify(actual, null, 2)}\n`);
+    }
+
+    it('portal fixture equals the real backend response', () => {
+        expect(existsSync(COMMENTS_FILE)).toBe(true);
+        expect(JSON.parse(readFileSync(COMMENTS_FILE, 'utf8'))).toEqual(actual);
+    });
+
+    it('has the documented shape with ISO dates and both roles', () => {
+        const { items } = actual as { items: Record<string, unknown>[] };
+        expect(Object.keys(items[0] ?? {}).sort()).toEqual(
+            ['author', 'authorRole', 'body', 'canEdit', 'createdAt', 'editedAt', 'id'].sort(),
+        );
+        expect(items.map((item) => item.authorRole)).toEqual(['request_author', 'developer']);
+        expect(items.map((item) => item.editedAt)).toEqual([null, '2026-11-06T10:05:00.000Z']);
+        expect(items[0]?.createdAt).toBe('2026-11-06T10:00:00.000Z');
     });
 });
