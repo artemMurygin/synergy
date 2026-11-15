@@ -66,7 +66,7 @@
 > depends: 3, 4, 5
 > specs: featurer-bug-reports → «Подача бага»; featurer-bug-reports → «Поля бага»; featurer-bug-reports → «Доступ к багу»; featurer-bug-reports → «Мои обращения»; featurer-bug-reports → «Очередь багов разработчика»; featurer-bug-reports → «Жизненный цикл бага»
 > arch: Services/BugsController
-> files: backend/src/modules/portal/interface/http/bugs.controller.ts; bugs.schemas.ts; bugs.responses.ts (+ *.spec.ts); backend/src/modules/portal/portal.module.ts
+> files: backend/src/modules/portal/interface/http/bugs.controller.ts; bugs.schemas.ts; bugs.responses.ts (+ *.spec.ts); backend/src/modules/portal/portal.module.ts; backend/src/modules/portal/infrastructure/slonik-catalog.repository.ts; sql-helpers.ts; slonik-*.ts; postgres-portal.repositories.spec.ts
 > frames: —
 
 - [x] 6.1 TDD: `bugs.schemas.ts` (подача с грубыми верхними границами, `status ∈ BUG_STATUSES`, `reason?`, фильтр очереди + страница; недопустимый фильтр → 400) и `bugs.responses.ts` (`BugResponse`, `BugListItem` по design.md §4). Тесты: interface/http/bugs.schemas.spec.ts. Реализация: interface/http/bugs.schemas.ts, bugs.responses.ts
@@ -128,6 +128,8 @@
 > files: portal/src/features/bugs/ui/BugForm.tsx; BugList.tsx; BugStatusBadge.tsx (+ *.test.tsx); portal/src/pages/NewBugPage.tsx; MyBugsPage.tsx; use-my-bugs.ts (+ *.test.tsx)
 > frames: B6ODY; XCnCr; mNNIU; YPHfA; yng7h; ULAhT; FHS21; Evurv; e1Zr5f; kGdVz; VEOdq; SEMML; LuTBN
 
+> Повторный прогон: код и тесты групп 11–12 уже есть. Цель — скриншотная сверка каждого экрана с указанными фреймами в браузере (маршруты `/bugs`, `/bugs/new`, `/bugs/:id` зарегистрированы в группе 13; запуск как в группе 14: бэкенд на порту 3100 с `AUTH_ALLOWED_ORIGINS=http://localhost:5180`, vite портала на 5180 с `VITE_API_URL=http://localhost:3100`, данные на локальной БД 5432) и исправление расхождений с тестом там, где меняется логика. Задача считается выполненной только после сверки скриншотом.
+
 - [x] 11.1 TDD: `BugForm` — поле «Агент» недоступно до выбора продукта, ошибки у полей, кнопка недоступна при отправке, 409 показывает `Alert` и очищает агента с сохранением текста. Тесты: features/bugs/ui/BugForm.test.tsx. Вёрстка по фреймам `B6ODY`, `YPHfA`, `yng7h`, `ULAhT`, сверка с макетом в этой же задаче
 - [x] 11.2 TDD: `NewBugPage` (`/bugs/new?agentId=`) берёт продукты из `use-catalog.ts`, предвыбирает агента, после успеха ведёт на `/bugs/:id`. Тесты: pages/NewBugPage.test.tsx. Вёрстка по фреймам `XCnCr` (1440 из карточки агента) и `mNNIU` (360)
 - [x] 11.3 TDD: `BugStatusBadge` (тоны по `LuTBN`, `className="text-ink-80"` для «Открыт», общий `Badge` не меняется), `BugList` (таблица 1440, карточки 360, колонка автора по флагу, пагинация) и `MyBugsPage` (`/bugs`: «Сообщить о проблеме», пустое состояние, скелет первой загрузки, ошибка с «Повторить»). Тесты: ui/BugList.test.tsx, pages/MyBugsPage.test.tsx. Вёрстка по фреймам `FHS21`, `Evurv`, `e1Zr5f`, `kGdVz`, `VEOdq`, `SEMML`
@@ -139,6 +141,8 @@
 > arch: Pages/BugPage; UI-компоненты/BugDetails; UI-компоненты/BugStatusActions; UI-компоненты/WontFixDialog
 > files: portal/src/features/bugs/ui/BugDetails.tsx; BugStatusActions.tsx; WontFixDialog.tsx (+ *.test.tsx); portal/src/pages/BugPage.tsx; use-bug.ts; BugPage.test.tsx
 > frames: RXMHC; X4232n; SFgNl; F7L8G; lUeNl; p1xLSJ; bQ9C2; IQ09F; LCYiw; kc6Fg
+
+> Повторный прогон: код и тесты групп 11–12 уже есть. Цель — скриншотная сверка каждого экрана с указанными фреймами в браузере (маршруты `/bugs`, `/bugs/new`, `/bugs/:id` зарегистрированы в группе 13; запуск как в группе 14: бэкенд на порту 3100 с `AUTH_ALLOWED_ORIGINS=http://localhost:5180`, vite портала на 5180 с `VITE_API_URL=http://localhost:3100`, данные на локальной БД 5432) и исправление расхождений с тестом там, где меняется логика. Задача считается выполненной только после сверки скриншотом.
 
 - [x] 12.1 TDD: `BugDetails` — статус, продукт, агент ссылкой (если не в архиве), автор, дата, описание как текст с переносами, причина для `wont_fix`, слоты `actions` и `comments`. Тесты: features/bugs/ui/BugDetails.test.tsx. Вёрстка по фреймам `RXMHC` (1440) и `SFgNl` (360)
 - [x] 12.2 TDD: `BugStatusActions` — кнопки только по `nextStatuses` («Взять в работу», «Исправлен», «Не будет исправлен», «Вернуть в очередь», «Переоткрыть»), недоступны во время запроса, 409 → `Alert` «Статус бага уже изменился»; `WontFixDialog` — причина 1–2000, подтверждение недоступно при пустой. Тесты: ui/BugStatusActions.test.tsx, ui/WontFixDialog.test.tsx. Вёрстка по фреймам `X4232n` (блок `BvkYa`), `F7L8G`, `lUeNl`, `p1xLSJ`, `bQ9C2`, `LCYiw`, `kc6Fg`
@@ -169,5 +173,5 @@
 > track: review
 > depends: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 
-- [ ] 15.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
-- [ ] 15.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
+- [x] 15.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
+- [x] 15.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
