@@ -10,8 +10,9 @@ const MAX_RAW_REASON_LENGTH = 10000;
 export const reportBugSchema = z.object({
     title: z.string().max(MAX_RAW_TITLE_LENGTH),
     description: z.string().max(MAX_RAW_DESCRIPTION_LENGTH),
-    productId: z.uuid(),
-    agentId: z.uuid(),
+    // Формат не проверяем: неизвестный/некорректный идентификатор — 404 из use case, а не 400.
+    productId: z.string().min(1).max(100),
+    agentId: z.string().min(1).max(100),
 });
 export type ReportBugBody = z.infer<typeof reportBugSchema>;
 

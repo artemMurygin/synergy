@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { BugList } from '@/features/bugs'
-import { BUGS_PAGE_SIZE } from '@/features/bugs/model/bugs.api'
+import { BugList, BUGS_PAGE_SIZE } from '@/features/bugs'
 import { useMyBugs } from './use-my-bugs'
 
 function ReportButton({ className }: { className?: string }) {

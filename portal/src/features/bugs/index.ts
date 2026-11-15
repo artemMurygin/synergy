@@ -1,5 +1,6 @@
 export { BUGS_KEY } from '@/lib/query-keys'
 export { myBugsQuery, bugQueueQuery, bugQuery, isBugNotFound } from './model/bugs.queries'
+export { BUGS_PAGE_SIZE } from './model/bugs.api'
 export { useReportBug } from './model/use-report-bug'
 export { useChangeBugStatus } from './model/use-change-bug-status'
 export { bugErrorMessage } from './model/bugs.errors'

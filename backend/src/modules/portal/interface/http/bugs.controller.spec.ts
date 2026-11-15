@@ -5,7 +5,11 @@ import { GetBugUseCase } from '../../application/get-bug.use-case';
 import { ListBugQueueUseCase } from '../../application/list-bug-queue.use-case';
 import { ListMyBugsUseCase } from '../../application/list-my-bugs.use-case';
 import { ReportBugUseCase } from '../../application/report-bug.use-case';
-import { BugNotFoundError, InvalidBugTransitionError } from '../../domain/errors';
+import {
+    BugNotFoundError,
+    InvalidBugTransitionError,
+    ProductNotFoundError,
+} from '../../domain/errors';
 import { BugsController } from './bugs.controller';
 import { type HttpFixture, startHttpFixture, USER_ID } from './testing/http-fixture';
 
@@ -104,11 +108,12 @@ describe('BugsController', () => {
         expect(report.execute).toHaveBeenCalledWith({ actorId: USER_ID, roles: [], ...validBody });
     });
 
-    it('POST /portal/bugs answers 400 for a non-uuid product', async () => {
+    it('POST /portal/bugs passes a non-uuid product to the use case (404 comes from it, not 400)', async () => {
+        report.execute.mockRejectedValueOnce(new ProductNotFoundError('x'));
         const response = await call('POST', '/portal/bugs', { ...validBody, productId: 'x' });
 
-        expect(response.status).toBe(400);
-        expect(report.execute).not.toHaveBeenCalled();
+        expect(response.status).toBe(404);
+        expect(report.execute).toHaveBeenCalled();
     });
 
     it('GET /portal/bugs/my goes to the list, not to :id', async () => {

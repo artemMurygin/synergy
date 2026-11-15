@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { BugList, BugQueueFilter, type BugQueueFilterValue } from '@/features/bugs'
-import { BUGS_PAGE_SIZE } from '@/features/bugs/model/bugs.api'
+import { BugList, BugQueueFilter, BUGS_PAGE_SIZE, type BugQueueFilterValue } from '@/features/bugs'
 import { useBugQueue } from './use-bug-queue'
 
 const EMPTY_TEXT: Record<BugQueueFilterValue, { title: string; hint: string }> = {
