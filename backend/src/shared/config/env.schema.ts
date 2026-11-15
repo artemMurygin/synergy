@@ -146,7 +146,14 @@ export const envSchema = z
         FILES_DOWNLOAD_TOKEN_SECRET: z.string().min(32).optional(),
         FILES_DOWNLOAD_LINK_TTL_SEC: positiveInt(300),
 
-        MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('elevenlabs/scribe-v2'),
+        // Расшифровка встреч целым файлом: прямой ElevenLabs STT, ключ — отдельный секрет
+        ELEVENLABS_API_KEY: z.string().min(1).optional(),
+        ELEVENLABS_BASE_URL: z.url().default('https://api.elevenlabs.io'),
+        MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('scribe_v2'),
+        // Таймаут одного HTTP-запроса на всю запись (90 мин); не больше дедлайна job'а
+        MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(5_400_000),
+        // Предел размера сжатого файла, байты (1 ГиБ); проверяется до отправки
+        MEETING_TRANSCRIPTION_MAX_FILE_BYTES: positiveInt(1_073_741_824),
         // Пусто: язык определяет модель
         MEETING_TRANSCRIPTION_LANGUAGE: z.string().min(1).optional(),
         MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(14400),
@@ -199,6 +206,15 @@ export const envSchema = z
             path: ['MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC'],
             message:
                 'MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC must be less than MEETING_TRANSCRIPTION_CHUNK_SEC',
+        },
+    )
+    .refine(
+        (env) =>
+            env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS <= env.MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS,
+        {
+            path: ['MEETING_TRANSCRIPTION_STT_TIMEOUT_MS'],
+            message:
+                'MEETING_TRANSCRIPTION_STT_TIMEOUT_MS must not exceed MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS',
         },
     )
     .superRefine((env, ctx) => {

@@ -1,3 +1,5 @@
+import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../../../shared/config/env.schema';
 import { openAsBlob } from 'node:fs';
 import { basename } from 'node:path';
 import type { PinoLogger } from 'nestjs-pino';
@@ -54,6 +56,17 @@ export class WholeFileStt extends WholeFileSttPort {
     ) {
         super();
         this.logger.setContext(WholeFileStt.name);
+    }
+
+    static settingsFromConfig(config: ConfigService<Env, true>): WholeFileSttSettings {
+        return {
+            apiKey: config.get('ELEVENLABS_API_KEY', { infer: true }),
+            baseUrl: config.get('ELEVENLABS_BASE_URL', { infer: true }),
+            model: config.get('MEETING_TRANSCRIPTION_MODEL', { infer: true }),
+            language: config.get('MEETING_TRANSCRIPTION_LANGUAGE', { infer: true }),
+            timeoutMs: config.get('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS', { infer: true }),
+            maxFileBytes: config.get('MEETING_TRANSCRIPTION_MAX_FILE_BYTES', { infer: true }),
+        };
     }
 
     async transcribe(

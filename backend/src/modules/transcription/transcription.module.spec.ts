@@ -36,11 +36,16 @@ import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TaskExtractor } from './meeting/infrastructure/openrouter/task-extractor';
 import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-meeting-transcription.use-case';
 import { START_MEETING_TRANSCRIPTION_SUBSCRIBER } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
+import { MeetingAudioPreparerPort } from './meeting/domain/ports/meeting-audio-preparer.port';
+import { WholeFileSttPort } from './meeting/domain/ports/whole-file-stt.port';
+import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
+import { WholeFileStt } from './meeting/infrastructure/elevenlabs/whole-file-stt';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
+import { WholeFileMeetingTranscriber } from './meeting/infrastructure/whole-file-meeting-transcriber';
 import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
 import { MeetingTranscriptionQueue } from './meeting/infrastructure/queue/meeting-transcription.queue';
 import { MEETING_TRANSCRIPTION_QUEUE_NAME } from './meeting/infrastructure/queue/meeting-transcription-queue.constants';
@@ -55,7 +60,11 @@ const values: Record<string, unknown> = {
     OPENROUTER_API_KEY: 'sk-or-test',
     OPENROUTER_BASE_URL: 'https://openrouter.test/api/v1',
     TRANSCRIPTION_MODEL: 'google/gemini-3.1-flash-lite',
-    MEETING_TRANSCRIPTION_MODEL: 'elevenlabs/scribe-v2',
+    ELEVENLABS_API_KEY: 'xi-test',
+    ELEVENLABS_BASE_URL: 'https://elevenlabs.test',
+    MEETING_TRANSCRIPTION_MODEL: 'scribe_v2',
+    MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: 5_400_000,
+    MEETING_TRANSCRIPTION_MAX_FILE_BYTES: 1_073_741_824,
     MEETING_TRANSCRIPTION_MAX_DURATION_SEC: 14400,
     MEETING_TRANSCRIPTION_CHUNK_SEC: 600,
     MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: 30,
@@ -199,11 +208,28 @@ describe('TranscriptionModule', () => {
         expect(app.get(FailMeetingTranscriptionUseCase)).toBeInstanceOf(
             FailMeetingTranscriptionUseCase,
         );
-        expect(app.get(MeetingTranscriberPort)).toBeInstanceOf(ChunkedMeetingTranscriber);
+        expect(app.get(MeetingTranscriberPort)).toBeInstanceOf(WholeFileMeetingTranscriber);
+        expect(app.get(MeetingTranscriberPort)).not.toBeInstanceOf(ChunkedMeetingTranscriber);
         expect(app.get(MeetingTranscriptRepositoryPort)).toBeInstanceOf(
             MeetingTranscriptRepository,
         );
         expect(app.get(MeetingTranscriptionQueuePort)).toBeInstanceOf(MeetingTranscriptionQueue);
+    });
+
+    it('builds the whole-file adapters from the ElevenLabs key and timeouts', async () => {
+        app = await createApp();
+
+        expect(app.get(WholeFileSttPort)).toBeInstanceOf(WholeFileStt);
+        expect(app.get(MeetingAudioPreparerPort)).toBeInstanceOf(FfmpegMeetingAudioPreparer);
+        expect(app.get(WholeFileSttPort)).toMatchObject({
+            settings: {
+                apiKey: 'xi-test',
+                baseUrl: 'https://elevenlabs.test',
+                model: 'scribe_v2',
+                timeoutMs: 5_400_000,
+                maxFileBytes: 1_073_741_824,
+            },
+        });
     });
 
     it('provides the meetings agent capability for the assistant', async () => {

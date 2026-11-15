@@ -24,18 +24,18 @@ import { RenameSpeakersUseCase } from './meeting/application/rename-speakers.use
 import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-meeting-transcription.use-case';
 import { StartMeetingTranscriptionOnFileUploaded } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
-import { AudioChunkerPort } from './meeting/domain/ports/audio-chunker.port';
-import { ChunkTranscriberPort } from './meeting/domain/ports/chunk-transcriber.port';
+import { MeetingAudioPreparerPort } from './meeting/domain/ports/meeting-audio-preparer.port';
+import { WholeFileSttPort } from './meeting/domain/ports/whole-file-stt.port';
 import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
 import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
-import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
-import { AudioChunker } from './meeting/infrastructure/ffmpeg/audio-chunker';
+import { WholeFileStt } from './meeting/infrastructure/elevenlabs/whole-file-stt';
+import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
+import { WholeFileMeetingTranscriber } from './meeting/infrastructure/whole-file-meeting-transcriber';
 import { MeetingFiles } from './meeting/infrastructure/files/meeting-files';
-import { ChunkTranscriber } from './meeting/infrastructure/openrouter/chunk-transcriber';
 import { TaskExtractor } from './meeting/infrastructure/openrouter/task-extractor';
 import {
     meetingTasksExtractionSettingsFromConfig,
@@ -129,33 +129,33 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         { provide: TranscriptSegmentRepositoryPort, useClass: TranscriptSegmentRepository },
         { provide: MeetingTranscriptionQueuePort, useClass: MeetingTranscriptionQueue },
         {
-            provide: AudioChunkerPort,
-            inject: [ConfigService, PinoLogger],
-            useFactory: (config: ConfigService<Env, true>, logger: PinoLogger): AudioChunkerPort =>
-                new AudioChunker(AudioChunker.settingsFromConfig(config), { logger }),
-        },
-        {
-            provide: ChunkTranscriberPort,
+            provide: MeetingAudioPreparerPort,
             inject: [ConfigService, PinoLogger],
             useFactory: (
                 config: ConfigService<Env, true>,
                 logger: PinoLogger,
-            ): ChunkTranscriberPort =>
-                new ChunkTranscriber(ChunkTranscriber.settingsFromConfig(config), logger),
+            ): MeetingAudioPreparerPort =>
+                new FfmpegMeetingAudioPreparer(
+                    FfmpegMeetingAudioPreparer.settingsFromConfig(
+                        config,
+                        config.get('MEETING_TRANSCRIPTION_MAX_FILE_BYTES', { infer: true }),
+                    ),
+                    { logger },
+                ),
+        },
+        {
+            provide: WholeFileSttPort,
+            inject: [ConfigService, PinoLogger],
+            useFactory: (config: ConfigService<Env, true>, logger: PinoLogger): WholeFileSttPort =>
+                new WholeFileStt(WholeFileStt.settingsFromConfig(config), logger),
         },
         {
             provide: MeetingTranscriberPort,
-            inject: [AudioChunkerPort, ChunkTranscriberPort, ConfigService],
+            inject: [MeetingAudioPreparerPort, WholeFileSttPort],
             useFactory: (
-                chunker: AudioChunkerPort,
-                provider: ChunkTranscriberPort,
-                config: ConfigService<Env, true>,
-            ): MeetingTranscriberPort =>
-                new ChunkedMeetingTranscriber(
-                    chunker,
-                    provider,
-                    ChunkedMeetingTranscriber.settingsFromConfig(config),
-                ),
+                preparer: MeetingAudioPreparerPort,
+                stt: WholeFileSttPort,
+            ): MeetingTranscriberPort => new WholeFileMeetingTranscriber(preparer, stt),
         },
     ],
     exports: [

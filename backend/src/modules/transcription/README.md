@@ -113,19 +113,19 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 2. `completed` — новый документ расшифровки (`issueTranscript`) и текст «Расшифровка готова: N спикеров, чч:мм:сс…» с подсказками про имена и задачи. `no_speech` и `failed` — понятная причина; для `provider-unavailable` и `timeout` — предложение повторить, если запись ещё хранится, иначе просьба загрузить заново. `failed('file-deleted')` (запись удалил владелец) ничего не даёт. Тексты — `transcript-finished-texts.ts`.
 3. Сообщение уходит через `MeetingChatPort.post` (адаптер `AssistantMeetingChat` → `PostSystemMessagePort` модуля `assistant`) с ключом идемпотентности, равным id события, темой `meeting-transcript.ready` или `meeting-transcript.failed` и объектом `{ fileId, fileName }` для уведомлений. Доставка асинхронная: сообщение ждёт окончания текущего ответа в чате (см. `../assistant/README.md`, «Сообщения системы»).
 
-### Как режется длинная запись
+### Целая запись одним запросом
 
-`ChunkedMeetingTranscriber`:
+`WholeFileMeetingTranscriber`:
 
-- поток из S3 пишется во временную папку (`mkdtemp` в `os.tmpdir()`), `ffprobe` даёт длительность. Запись длиннее `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` дают `failed('too-long')`, нечитаемый файл — `failed('unsupported-media')`;
-- запись делится на куски по `MEETING_TRANSCRIPTION_CHUNK_SEC` с перекрытием `MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC`. `ffmpeg` перекодирует каждый кусок в mono 16 кГц opus 32 кбит/с, видео отбрасывается. Так часовой WAV не упирается в лимит тела OpenRouter (25 МБ) и в обрыв апстрима через 60 с;
-- куски идут последовательно. В начало каждого следующего куска подклеиваются образцы голоса уже известных спикеров (до `MEETING_TRANSCRIPTION_MAX_EXEMPLARS` по `MEETING_TRANSCRIPTION_EXEMPLAR_SEC` с), и `SpeakerRegistry` по ним сопоставляет метки куска со сквозными «Спикер N». Запасной путь — совпадение слов в зоне перекрытия. Сопоставление — «лучшее усилие»: неузнанный голос получает новую метку;
-- `TranscriptMerger` режет стык по середине перекрытия, группирует слова в сегменты по смене спикера и нумерует спикеров по первому появлению;
-- временная папка удаляется всегда.
+- поток из S3 пишется во временную папку (`mkdtemp` в `os.tmpdir()`), `ffprobe` даёт длительность. Запись длиннее `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` или сжатый файл больше `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` дают `failed('too-long')` до обращения к провайдеру, нечитаемый файл — `failed('unsupported-media')`;
+- `ffmpeg` один раз перекодирует всю дорожку в mono 16 кГц opus 32 кбит/с (видео отбрасывается), без нарезки;
+- один `POST {ELEVENLABS_BASE_URL}/v1/speech-to-text` (multipart `file` с диска, `scribe_v2`, диаризация, слова), без повторной диаризации и без fallback на куски. Тайминги отсчитываются от начала всей записи;
+- слова превращаются в сегменты по смене спикера, спикеры нумеруются по первому появлению;
+- временная папка удаляется всегда. Параметры нарезки (`CHUNK_*`, `MAX_EXEMPLARS`, `EXEMPLAR_SEC`) на обработку встреч больше не влияют.
 
 ### Сбои и повторы
 
-- Кусок: таймаут `MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS`, до 2 повторов внутри попытки. 429, 5xx, таймаут, 401 и 403 — временные ошибки (401/403 пишутся в лог как ошибка конфигурации ключа); 400, 413, 422 — постоянные.
+- Запрос: таймаут `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS`, повторы только на уровне job'а. Сеть, 429, 5xx и таймаут — временные ошибки; 401/403 — сбой конфигурации ключа (лог без значения ключа); остальные 4xx — постоянные.
 - Job: `MEETING_TRANSCRIPTION_ATTEMPTS` попыток, backoff экспоненциальный от 30 с. Постоянная ошибка или последняя попытка дают `failed`, событие `meeting-transcript.failed` и снятие удержания. Постоянная ошибка не повторяется (`UnrecoverableError`).
 - Попытка ограничена дедлайном `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` (2 ч): по нему прерываются `ffmpeg`, `ffprobe` и запросы к провайдеру, расшифровка сразу получает `failed('timeout')` без повторов.
 - Если job окончательно упал вне use case (ошибка БД при смене статуса, сбой сохранения, воркер упал и job завис сверх `maxStalledCount`), процессор переводит незавершённую расшифровку в `failed('provider-unavailable')` и снимает удержание (`FailMeetingTranscriptionUseCase`).
@@ -137,16 +137,14 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 | Переменная | По умолчанию | Назначение |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Общие с голосовым сценарием |
-| `MEETING_TRANSCRIPTION_MODEL` | `elevenlabs/scribe-v2` | Модель STT с диаризацией |
+| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Голосовые Telegram и извлечение задач (не расшифровка встреч) |
+| `ELEVENLABS_API_KEY` | — | Секрет ключа ElevenLabs для расшифровки встреч |
+| `ELEVENLABS_BASE_URL` | `https://api.elevenlabs.io` | Адрес API ElevenLabs |
+| `MEETING_TRANSCRIPTION_MODEL` | `scribe_v2` | Модель STT с диаризацией |
+| `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` | `5400000` | Таймаут HTTP-запроса на всю запись; не больше дедлайна job'а |
+| `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` | `1073741824` | Предел размера сжатого файла; проверяется до отправки |
 | `MEETING_TRANSCRIPTION_LANGUAGE` | не задан | Код языка (например, `ru`); пусто — автоопределение |
 | `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` | `14400` | Максимум длительности записи (4 ч) |
-| `MEETING_TRANSCRIPTION_CHUNK_SEC` | `600` | Длина куска |
-| `MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC` | `30` | Перекрытие соседних кусков, меньше длины куска |
-| `MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES` | `20971520` | Предел размера куска после перекодирования; превышение — ошибка конфигурации |
-| `MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS` | `90000` | Таймаут запроса на кусок |
-| `MEETING_TRANSCRIPTION_MAX_EXEMPLARS` | `8` | Сколько образцов голоса подклеивать |
-| `MEETING_TRANSCRIPTION_EXEMPLAR_SEC` | `10` | Длина одного образца |
 | `MEETING_TRANSCRIPTION_ATTEMPTS` | `3` | Попытки job'а |
 | `MEETING_TRANSCRIPTION_CONCURRENCY` | `2` | Записи, которые воркер обрабатывает параллельно |
 | `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` | `7200000` | Дедлайн одной попытки; по истечении — `failed('timeout')` |
@@ -157,20 +155,20 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 ### Требования к окружению
 
 - `ffmpeg` и `ffprobe` в образе: `Dockerfile.dev` ставит их через `apk add --no-cache ffmpeg` (прод-образу нужно то же). При старте модуль проверяет `ffmpeg -version`; если команды нет, в лог пишется ошибка, а записи получают `failed('provider-unavailable')`.
-- Свободное место во временной папке: около 2 × `FILES_MAX_RECORDING_MB` × `MEETING_TRANSCRIPTION_CONCURRENCY` (исходная запись плюс куски), при значениях по умолчанию — около 4 ГБ. Каждый кусок удаляется сразу после ответа провайдера, папка попытки — в конце. Папки `meeting-transcription-*` старше суток (остались от упавшего процесса) удаляются при старте модуля.
+- Свободное место во временной папке: около 2 × `FILES_MAX_RECORDING_MB` × `MEETING_TRANSCRIPTION_CONCURRENCY` (исходная запись плюс сжатая копия), при значениях по умолчанию — около 4 ГБ. Папка попытки удаляется в конце. Папки `meeting-transcription-*` старше суток (остались от упавшего процесса) удаляются при старте модуля.
 - Reverse proxy перед бэкендом должен пропускать большие тела запросов: `client_max_body_size` у nginx не меньше лимита записи (см. `../files/README.md`).
 
 ### Куда уходят записи
 
-Куски записи (перекодированные в opus, вместе с образцами голоса) отправляются в OpenRouter (`POST {OPENROUTER_BASE_URL}/audio/transcriptions`), а OpenRouter передаёт их провайдеру модели — ElevenLabs (`elevenlabs/scribe-v2`). Прямого обращения к ElevenLabs нет. Запрет логирования запросов настраивается в настройках приватности аккаунта OpenRouter. Исходная запись хранится только в нашем S3 и удаляется по сроку.
+Сжатая запись целиком отправляется напрямую в ElevenLabs (`POST {ELEVENLABS_BASE_URL}/v1/speech-to-text`) с отдельным ключом `ELEVENLABS_API_KEY`; ключ и текст в логи не попадают. Исходная запись хранится только в нашем S3 и удаляется по сроку.
 
 В лог пишутся `fileId`, размер, длительность, число спикеров, число попыток, время, исход и код ошибки. Текст расшифровки, аудио и имя файла в лог не попадают.
 
 ### Структура `meeting/`
 
-- `domain`: `MeetingTranscript` (агрегат), `planChunks`, `SpeakerRegistry`, `TranscriptMerger`, `DiarizedTranscript`, сегменты, статусы, события, `SpeakerName`, `SpeakerNames`, `SpeakerAssignment`, `SpeakerSummary`, `MeetingDocumentKind`, `EvidenceValidator`, `MeetingDueDateResolver`, `ExtractedMeetingTask`, порты (`AudioChunkerPort`, `ChunkTranscriberPort`, `MeetingTranscriberPort`, `MeetingTranscriptRepositoryPort`, `TranscriptSegmentRepositoryPort`, `MeetingTranscriptionQueuePort`, `TaskExtractorPort`, `MeetingChatPort`).
+- `domain`: `MeetingTranscript` (агрегат), `DiarizedTranscript`, сегменты, статусы, события, `SpeakerName`, `SpeakerNames`, `SpeakerAssignment`, `SpeakerSummary`, `MeetingDocumentKind`, `EvidenceValidator`, `MeetingDueDateResolver`, `ExtractedMeetingTask`, порты (`MeetingAudioPreparerPort`, `WholeFileSttPort`, `MeetingTranscriberPort`, `MeetingTranscriptRepositoryPort`, `TranscriptSegmentRepositoryPort`, `MeetingTranscriptionQueuePort`, `TaskExtractorPort`, `MeetingChatPort`).
 - `application`: подписчики на `file.uploaded` и `file.deleted`, `TranscribeMeetingUseCase`, `FailMeetingTranscriptionUseCase`, `GetMeetingTranscriptUseCase`, `RetryMeetingTranscriptionUseCase`, `RenameSpeakersUseCase`, `GetSpeakerSamplesUseCase`, `ExtractMeetingTasksUseCase`, `MeetingDocuments`, подписчик `NotifyChatOnTranscriptFinished`.
-- `infrastructure`: `ChunkedMeetingTranscriber`, `AudioChunker`, `ChunkTranscriber`, `TaskExtractor`, `MeetingTranscriptRepository`, `TranscriptSegmentRepository`, `AssistantMeetingChat`, очередь `meeting-transcription` (`MeetingTranscriptionQueue`, `MeetingTranscriptionProcessor`).
+- `infrastructure`: `WholeFileMeetingTranscriber`, `FfmpegMeetingAudioPreparer`, `WholeFileStt`, `TaskExtractor`, `MeetingTranscriptRepository`, `TranscriptSegmentRepository`, `AssistantMeetingChat`, очередь `meeting-transcription` (`MeetingTranscriptionQueue`, `MeetingTranscriptionProcessor`).
 - `interface`: `MeetingTranscriptsController`, коды ошибок → HTTP-статусы, `agent/` — специалист по встречам (`MeetingsAgentCapability`, инструменты, промпт, модель).
 - `meeting-chat.module.ts`: `MeetingChatModule` — сообщение в чат о результате.
 - `contracts`: регистрация событий `meeting-transcript.completed` и `meeting-transcript.failed`.
