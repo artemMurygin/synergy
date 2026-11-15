@@ -9,14 +9,15 @@ describe('reportBugSchema', () => {
         expect(reportBugSchema.parse({ ...valid, title: ' Падает ' }).title).toBe(' Падает ');
     });
 
-    it('rejects too long raw input and non-uuid ids', () => {
+    it('rejects too long raw input and empty or missing ids (id format is checked by the use case, not here)', () => {
         expect(reportBugSchema.safeParse({ ...valid, title: 'a'.repeat(1001) }).success).toBe(
             false,
         );
         expect(
             reportBugSchema.safeParse({ ...valid, description: 'a'.repeat(20001) }).success,
         ).toBe(false);
-        expect(reportBugSchema.safeParse({ ...valid, productId: 'x' }).success).toBe(false);
+        expect(reportBugSchema.safeParse({ ...valid, productId: '' }).success).toBe(false);
+        expect(reportBugSchema.safeParse({ ...valid, productId: 'x' }).success).toBe(true);
         expect(reportBugSchema.safeParse({ ...valid, agentId: undefined }).success).toBe(false);
     });
 });
