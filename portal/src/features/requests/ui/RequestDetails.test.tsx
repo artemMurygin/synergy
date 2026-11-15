@@ -124,4 +124,44 @@ describe('RequestDetails', () => {
     expect(screen.getByText('decision-slot')).toBeTruthy()
     expect(screen.queryByRole('list', { name: 'Путь заявки' })).toBeNull()
   })
+
+  it('renders the comments slot as the last card of the main column, before the status notice', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <RequestDetails request={requestFixture} comments={<section data-testid="comments-slot">лента</section>} />
+      </MemoryRouter>
+    )
+    const slot = screen.getByTestId('comments-slot')
+    const process = screen.getByRole('heading', { name: 'Описание процесса' }).closest('section')!
+    const history = screen.getByRole('heading', { name: 'История' }).closest('section')!
+    const main = slot.parentElement!.parentElement!
+    expect(main.contains(process)).toBe(true)
+    expect(main.contains(history)).toBe(true)
+    expect(main.lastElementChild).toBe(slot.parentElement)
+    expect(slot.compareDocumentPosition(process) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    const notice = screen.getByText('Решение придёт уведомлением')
+    expect(container.contains(notice)).toBe(true)
+  })
+
+  it('on mobile orders the comments after the process description and before the notice', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <RequestDetails
+          request={{ ...requestFixture, status: { code: 'in_dev', label: 'В разработке' } }}
+          comments={<section data-testid="comments-slot2">лента</section>}
+        />
+      </MemoryRouter>
+    )
+    const wrap = container.querySelector('[data-testid="comments-slot2"]')!.parentElement!
+    const notice = screen.getByText('Следим за статусом за вас').closest('[class*="order-"]')!
+    const orderOf = (el: Element) => Number(/(?:^|\s)order-(\d)/.exec(el.className)?.[1])
+    expect(orderOf(wrap)).toBeGreaterThan(3)
+    expect(orderOf(wrap)).toBeLessThanOrEqual(orderOf(notice))
+    expect(wrap.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('renders nothing extra without the comments slot', () => {
+    renderDetails(requestFixture)
+    expect(screen.queryByTestId('comments-slot')).toBeNull()
+  })
 })

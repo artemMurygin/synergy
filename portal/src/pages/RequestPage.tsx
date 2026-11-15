@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/auth'
 import { catalogQuery } from '@/features/catalog'
+import { CommentsSection } from '@/features/comments'
 import { DecisionPanel, TakeRequestAction } from '@/features/decision'
 import { RequestDetails } from '@/features/requests'
 import { NotFoundView } from './NotFoundView'
@@ -58,5 +59,5 @@ export function RequestPage() {
   } else if (conflict) {
     decision = <Alert title="Не удалось взять заявку в работу">По заявке уже принято решение.</Alert>
   }
-  return <RequestDetails request={request} decision={decision} />
+  return <RequestDetails request={request} decision={decision} comments={<CommentsSection requestId={id} />} />
 }

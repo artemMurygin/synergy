@@ -325,9 +325,11 @@ export interface RequestDetailsProps {
   request: IdeaRequest
   /** Developer decision panel; when given it takes the place of the author's side cards. */
   decision?: ReactNode
+  /** Comments feed; the last card of the main column. */
+  comments?: ReactNode
 }
 
-export function RequestDetails({ request, decision }: RequestDetailsProps) {
+export function RequestDetails({ request, decision, comments }: RequestDetailsProps) {
   const code = request.status.code
   const waiting = code === 'new' ? ` · ждёт решения ${pluralDays(waitingDays(request.createdAt))}` : ''
   const inWork = request.reviewer && request.takenAt ? ` · в работе у ${request.reviewer.fullName} с ${shortDate(request.takenAt)}` : ''
@@ -395,6 +397,7 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
             </dl>
           </section>
           {code === 'rejected' || decision ? null : <History request={request} />}
+          {comments ? <div className="order-4 min-[900px]:order-none">{comments}</div> : null}
         </div>
 
         <div className="contents min-[900px]:flex min-[900px]:flex-col min-[900px]:gap-4">

@@ -42,6 +42,7 @@ function api(handler: (c: FetchCall) => Response | undefined) {
     if (c.path === '/portal/agents') return json([agentFixture])
     if (c.path === '/portal/catalog') return json({ products: [] })
     if (c.path === '/portal/skills') return json(page([skillFixture]))
+    if (c.path.endsWith('/comments')) return json({ items: [] })
     return handler(c) ?? json({}, 404)
   })
 }
@@ -224,5 +225,24 @@ describe('RequestPage', () => {
     renderAt(`/requests/${ID}`)
     await screen.findByRole('heading', { name: 'Сверка актов' })
     expect(screen.getAllByText(/user10/).length).toBeGreaterThan(0)
+  })
+
+  it.each([
+    ['author', employee, 'new' as const],
+    ['developer', developer, 'under_review' as const],
+    ['author of a launched request', employee, 'launched' as const],
+    ['developer of a rejected request', developer, 'rejected' as const]
+  ])('shows the comments feed to the %s', async (_name, profile, code) => {
+    useSessionStore.getState().signIn('t', profile)
+    const calls = api((c) => {
+      if (c.path === `/portal/requests/${ID}`) return json({ ...requestFixture, status: { code, label: code } })
+      if (c.path === `/portal/requests/${ID}/comments`) return json({ items: [] })
+      return undefined
+    })
+    renderAt(`/requests/${ID}`)
+    expect(await screen.findByRole('heading', { name: 'Комментарии' })).toBeTruthy()
+    expect(await screen.findByText(/Комментариев пока нет/)).toBeTruthy()
+    expect(screen.getByLabelText('Новый комментарий')).toBeTruthy()
+    expect(calls.calls.some((c) => c.path === `/portal/requests/${ID}/comments`)).toBe(true)
   })
 })
