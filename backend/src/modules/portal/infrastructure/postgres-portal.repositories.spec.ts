@@ -180,6 +180,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
     beforeEach(async () => {
         await client.query('DELETE FROM portal_requests');
         await client.query('DELETE FROM portal_skills');
+        await client.query('DELETE FROM portal_agent_products');
         await client.query('DELETE FROM portal_agents');
         await client.query('DELETE FROM portal_products');
         await client.query('DELETE FROM auth_user_profiles');
@@ -760,9 +761,9 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const inCc = rows.filter((row) => row.product.slug === 'control-center');
             expect(inCc.map((row) => row.agent?.slug)).toEqual([
                 'a-beta',
-                'cc-tasks',
-                'cc-tasks',
                 'a-zeta',
+                'cc-tasks',
+                'cc-tasks',
             ]);
             expect(zeta).toBeDefined();
             expect(inCc.find((row) => row.skill !== null)?.skill).toMatchObject({

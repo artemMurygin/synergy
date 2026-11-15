@@ -102,10 +102,11 @@ describe.skipIf(adminUrl === undefined)('028_portal_catalog migration', () => {
 
     it('accepts every known status', async () => {
         for (const status of ['planned', 'in_dev', 'testing', 'launched']) {
-            await query(`INSERT INTO portal_skills (agent_id, name, status) VALUES ($1, 'Н', $2)`, [
-                agentId,
-                status,
-            ]);
+            await query(
+                `INSERT INTO portal_skills (agent_id, name, status, launched_at)
+                 VALUES ($1, 'Н', $2, CASE WHEN $2 = 'launched' THEN now() END)`,
+                [agentId, status],
+            );
         }
     });
 

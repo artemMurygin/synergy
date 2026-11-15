@@ -204,10 +204,13 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
             "INSERT INTO portal_products (slug, name) VALUES ('cc', 'Control Center') RETURNING id",
         );
         const agent = await client.query<{ id: string }>(
-            "INSERT INTO portal_agents (product_id, slug, name) VALUES ($1, 'assistant', 'Ассистент') RETURNING id",
-            [product.rows[0]?.id],
+            "INSERT INTO portal_agents (slug, name) VALUES ('assistant', 'Ассистент') RETURNING id",
         );
         agentId = agent.rows[0]?.id ?? '';
+        await client.query(
+            'INSERT INTO portal_agent_products (agent_id, product_id) VALUES ($1, $2)',
+            [agentId, product.rows[0]?.id],
+        );
     }, 60_000);
 
     afterAll(async () => {
