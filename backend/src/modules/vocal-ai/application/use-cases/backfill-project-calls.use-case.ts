@@ -24,6 +24,12 @@ export class BackfillProjectCallsUseCase {
         this.logger.setContext(BackfillProjectCallsUseCase.name);
     }
 
+    /**
+     * Advances the cursor to the end of each page right after that page is upserted, instead of
+     * once at the very end: a failure partway through leaves the cursor at the last completed
+     * page, so the next scheduled cycle resumes as a normal incremental sync from there instead
+     * of restarting the whole history from the epoch.
+     */
     async execute(projectId: string): Promise<BackfillResult> {
         const now = new Date();
         let syncedCallsCount = 0;
@@ -34,17 +40,17 @@ export class BackfillProjectCallsUseCase {
                 Math.min(pageFromAt.getTime() + this.pageWindowMs, now.getTime()),
             );
             const window = new SyncWindow({ fromAt: pageFromAt, toAt: pageToAt });
-            const pageDtos = await this.vocalAiGateway.listCalls(projectId, window);
+            const pageDtos = await this.vocalAiGateway.listCalls(projectId, window, 'callWindow');
 
             if (pageDtos.length > 0) {
                 await this.callRepository.upsertMany(pageDtos.map(toCall));
                 syncedCallsCount += pageDtos.length;
             }
 
+            await this.cursorRepository.set(projectId, pageToAt);
             pageFromAt = pageToAt;
         }
 
-        await this.cursorRepository.set(projectId, now);
         this.logger.info({ projectId, syncedCallsCount }, 'Project backfill completed');
         return { syncedCallsCount };
     }

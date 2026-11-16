@@ -95,15 +95,15 @@ describe('SyncProjectCallsUseCase', () => {
         expect(result).toEqual({ syncedCallsCount: 42 });
     });
 
-    it('queries the call window and the score window for the same [lastSyncedAt, now) range', async () => {
+    it('queries the call window and the score window separately for the same [lastSyncedAt, now) range', async () => {
         const { gateway, useCase } = createFixture(lastSyncedAt);
         const window = new SyncWindow({ fromAt: lastSyncedAt, toAt: now });
 
         await useCase.execute(PROJECT_ID, now);
 
         expect(gateway.listCalls).toHaveBeenCalledTimes(2);
-        expect(gateway.listCalls).toHaveBeenNthCalledWith(1, PROJECT_ID, window);
-        expect(gateway.listCalls).toHaveBeenNthCalledWith(2, PROJECT_ID, window);
+        expect(gateway.listCalls).toHaveBeenNthCalledWith(1, PROJECT_ID, window, 'callWindow');
+        expect(gateway.listCalls).toHaveBeenNthCalledWith(2, PROJECT_ID, window, 'scoreWindow');
     });
 
     it('deduplicates calls returned by both windows by callId before upserting', async () => {

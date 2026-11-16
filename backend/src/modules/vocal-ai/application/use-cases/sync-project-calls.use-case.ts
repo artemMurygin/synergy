@@ -35,8 +35,8 @@ export class SyncProjectCallsUseCase {
 
         const window = new SyncWindow({ fromAt: lastSyncedAt, toAt: now });
         const [callWindowDtos, scoreWindowDtos] = await Promise.all([
-            this.vocalAiGateway.listCalls(projectId, window),
-            this.vocalAiGateway.listCalls(projectId, window),
+            this.vocalAiGateway.listCalls(projectId, window, 'callWindow'),
+            this.vocalAiGateway.listCalls(projectId, window, 'scoreWindow'),
         ]);
 
         const calls = deduplicateByCallId([...callWindowDtos, ...scoreWindowDtos].map(toCall));

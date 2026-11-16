@@ -11,6 +11,8 @@ export interface CallFilter {
     totalScoreMax?: number;
     tagId?: string;
     metricId?: string;
+    /** Caps the number of matching calls returned; capped again by the repository at its hard maximum. */
+    limit?: number;
 }
 
 export interface CallStats {

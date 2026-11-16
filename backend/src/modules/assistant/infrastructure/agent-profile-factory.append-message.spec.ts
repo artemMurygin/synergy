@@ -59,6 +59,7 @@ describe.skipIf(adminUrl === undefined)('AgentProfileFactory.appendAssistantMess
             sheetsQa: capability('sheets_qa'),
             tasks: capability('tasks'),
             meetings: capability('meetings'),
+            vocalAi: capability('vocal-ai'),
             orchestratorModel: model,
             checkpointer: saver,
         });

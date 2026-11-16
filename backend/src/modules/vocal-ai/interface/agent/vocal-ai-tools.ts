@@ -54,6 +54,9 @@ function explain(error: unknown): string {
         switch (error.code) {
             case VocalAiErrorCode.CallNotFound:
                 return 'Звонок не найден в локальном хранилище';
+            case VocalAiErrorCode.RequestFailed:
+            case VocalAiErrorCode.AuthenticationFailed:
+                return 'Не удалось загрузить транскрипцию из VocalAI, попробуйте ещё раз позже';
             default:
                 if (error instanceof ArgumentInvalidError) {
                     return `Некорректное значение: ${error.message}`;

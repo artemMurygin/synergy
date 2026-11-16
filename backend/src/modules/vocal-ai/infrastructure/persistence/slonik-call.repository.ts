@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { sql, type FragmentSqlToken } from 'slonik';
 import { z } from 'zod';
 import { TransactionRunnerPort } from '../../../../database/postgres/transaction-runner.port';
@@ -14,6 +15,8 @@ import { CallTag } from '../../domain/entities/call-tag.entity';
 import { CallId } from '../../domain/value-objects/call-id.value-object';
 
 const PROBLEMATIC_SCORE_RATIO_THRESHOLD = 0.5;
+const DEFAULT_FIND_BY_FILTER_LIMIT = 200;
+const MAX_FIND_BY_FILTER_LIMIT = 500;
 
 const CALL_COLUMN_TYPES = [
     'int8',
@@ -252,13 +255,34 @@ function buildWhere(filter: CallFilter): FragmentSqlToken {
 
 @Injectable()
 export class CallRepository extends CallRepositoryPort {
-    constructor(private readonly transactions: TransactionRunnerPort) {
+    constructor(
+        private readonly transactions: TransactionRunnerPort,
+        private readonly logger: PinoLogger,
+    ) {
         super();
+        this.logger.setContext(CallRepository.name);
     }
 
+    /**
+     * Upserts each call in its own transaction: a failure on one call leaves the others, already
+     * committed in this batch, saved. The failed call is logged and left for the next sync cycle.
+     */
     async upsertMany(calls: Call[]): Promise<void> {
         if (calls.length === 0) return;
 
+        for (const call of calls) {
+            try {
+                await this.upsertOne(call);
+            } catch (error: unknown) {
+                this.logger.error(
+                    { err: error, callId: call.callId.value },
+                    'Vocal AI call upsert failed, will retry on the next sync cycle',
+                );
+            }
+        }
+    }
+
+    private async upsertOne(call: Call): Promise<void> {
         await this.transactions.run(async () => {
             const executor = this.transactions.executor();
 
@@ -270,7 +294,7 @@ export class CallRepository extends CallRepositoryPort {
                 SELECT c.call_id, c.project_id, c.manager, c.client, c.call_type,
                        c.call_created_at, c.call_completed_at, c.scored_at, c.rescored_at,
                        c.duration_seconds, c.total_score, c.max_score, now()
-                FROM ${sql.unnest(calls.map(toCallRow), [...CALL_COLUMN_TYPES])} AS c (
+                FROM ${sql.unnest([toCallRow(call)], [...CALL_COLUMN_TYPES])} AS c (
                     call_id, project_id, manager, client, call_type, call_created_at,
                     call_completed_at, scored_at, rescored_at, duration_seconds, total_score,
                     max_score
@@ -289,47 +313,40 @@ export class CallRepository extends CallRepositoryPort {
                     max_score = EXCLUDED.max_score,
                     updated_at = EXCLUDED.updated_at`);
 
-            const callIds = sql.array(
-                calls.map((call) => call.callId.value),
-                'int8',
+            await executor.query(
+                sql.unsafe`DELETE FROM vocal_ai_call_metric_scores WHERE call_id = ${call.callId.value}`,
             );
             await executor.query(
-                sql.unsafe`DELETE FROM vocal_ai_call_metric_scores WHERE call_id = ANY(${callIds})`,
+                sql.unsafe`DELETE FROM vocal_ai_call_tags WHERE call_id = ${call.callId.value}`,
             );
             await executor.query(
-                sql.unsafe`DELETE FROM vocal_ai_call_tags WHERE call_id = ANY(${callIds})`,
-            );
-            await executor.query(
-                sql.unsafe`DELETE FROM vocal_ai_call_summaries WHERE call_id = ANY(${callIds})`,
+                sql.unsafe`DELETE FROM vocal_ai_call_summaries WHERE call_id = ${call.callId.value}`,
             );
 
-            const metricScores = calls.flatMap((call) => call.metricScores);
-            if (metricScores.length > 0) {
+            if (call.metricScores.length > 0) {
                 await executor.query(sql.unsafe`
                     INSERT INTO vocal_ai_call_metric_scores
                         (call_id, metric_id, metric_title, score_value, max_score, reason,
                          recommendations, is_exception)
-                    SELECT * FROM ${sql.unnest(metricScores.map(toMetricScoreRow), [
+                    SELECT * FROM ${sql.unnest(call.metricScores.map(toMetricScoreRow), [
                         ...METRIC_SCORE_COLUMN_TYPES,
                     ])} AS m (call_id, metric_id, metric_title, score_value, max_score, reason,
                               recommendations, is_exception)`);
             }
 
-            const tags = calls.flatMap((call) => call.tags);
-            if (tags.length > 0) {
+            if (call.tags.length > 0) {
                 await executor.query(sql.unsafe`
                     INSERT INTO vocal_ai_call_tags
                         (call_id, tag_id, tag_title, value, value_description)
-                    SELECT * FROM ${sql.unnest(tags.map(toTagRow), [
+                    SELECT * FROM ${sql.unnest(call.tags.map(toTagRow), [
                         ...TAG_COLUMN_TYPES,
                     ])} AS t (call_id, tag_id, tag_title, value, value_description)`);
             }
 
-            const summaries = calls.flatMap((call) => call.summaries);
-            if (summaries.length > 0) {
+            if (call.summaries.length > 0) {
                 await executor.query(sql.unsafe`
                     INSERT INTO vocal_ai_call_summaries (call_id, summary_title, summary_text)
-                    SELECT * FROM ${sql.unnest(summaries.map(toSummaryRow), [
+                    SELECT * FROM ${sql.unnest(call.summaries.map(toSummaryRow), [
                         ...SUMMARY_COLUMN_TYPES,
                     ])} AS s (call_id, summary_title, summary_text)`);
             }
@@ -339,13 +356,18 @@ export class CallRepository extends CallRepositoryPort {
     async findByFilter(filter: CallFilter): Promise<Call[]> {
         const executor = this.transactions.executor();
         const where = buildWhere(filter);
+        const limit = Math.min(
+            filter.limit ?? DEFAULT_FIND_BY_FILTER_LIMIT,
+            MAX_FIND_BY_FILTER_LIMIT,
+        );
         const rows = await executor.any(sql.unsafe`
             SELECT c.call_id, c.project_id, c.manager, c.client, c.call_type, c.call_created_at,
                    c.call_completed_at, c.scored_at, c.rescored_at, c.duration_seconds,
                    c.total_score, c.max_score
             FROM vocal_ai_calls c
             WHERE ${where}
-            ORDER BY c.call_id`);
+            ORDER BY c.call_id
+            LIMIT ${limit}`);
         const parsedRows = rows.map((row) => callRow.parse(row));
         const callIds = parsedRows.map((row) => row.call_id);
         const [metricScoresByCall, tagsByCall, summariesByCall] = await Promise.all([

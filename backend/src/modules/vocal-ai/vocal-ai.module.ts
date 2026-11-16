@@ -28,7 +28,7 @@ import { CallTranscriptRepository } from './infrastructure/persistence/slonik-ca
 import { SyncCursorRepository } from './infrastructure/persistence/slonik-sync-cursor.repository';
 import { VocalAiAgentCapability } from './interface/agent/vocal-ai-agent.capability';
 import { VocalAiSyncProcessor } from './interface/queue/vocal-ai-sync.processor';
-import { VOCAL_AI_AGENT_CAPABILITY } from './vocal-ai.tokens';
+import { VOCAL_AI_AGENT_CAPABILITY } from '../../shared/agent-capability';
 
 const BACKFILL_PAGE_WINDOW_DAYS = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;

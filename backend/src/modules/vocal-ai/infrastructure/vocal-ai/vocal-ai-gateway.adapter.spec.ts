@@ -187,7 +187,7 @@ describe('VocalAiGateway', () => {
                 fromAt: new Date('2026-11-01T00:00:00Z'),
                 toAt: new Date('2026-11-16T00:00:00Z'),
             });
-            const calls = await gateway.listCalls(PROJECT_ID, window);
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'callWindow');
 
             expect(calls).toHaveLength(1);
             expect(httpClient.send).toHaveBeenCalledTimes(3);
@@ -278,7 +278,7 @@ describe('VocalAiGateway', () => {
     });
 
     describe('listCalls', () => {
-        it('отправляет POST с окном для callWindow и дублирующими полями для scoreWindow', async () => {
+        it('для callWindow фильтрует только по дате звонка, не по дате оценки', async () => {
             httpClient.send
                 .mockResolvedValueOnce(ssoLoginResponse())
                 .mockResolvedValueOnce(providerLoginResponse())
@@ -288,7 +288,7 @@ describe('VocalAiGateway', () => {
             const toAt = new Date('2026-11-16T00:00:00.000Z');
             const window = new SyncWindow({ fromAt, toAt });
 
-            const calls = await gateway.listCalls(PROJECT_ID, window);
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'callWindow');
 
             expect(calls).toHaveLength(1);
             const [call] = calls;
@@ -310,11 +310,109 @@ describe('VocalAiGateway', () => {
             expect(listRequest.body).toMatchObject({
                 startDate: fromAt.toISOString(),
                 endDate: toAt.toISOString(),
+                scoreStartDate: null,
+                scoreEndDate: null,
+                dateFromScore: null,
+                dateToScore: null,
+            });
+        });
+
+        it('для scoreWindow фильтрует только по дате оценки, не по дате звонка', async () => {
+            httpClient.send
+                .mockResolvedValueOnce(ssoLoginResponse())
+                .mockResolvedValueOnce(providerLoginResponse())
+                .mockResolvedValueOnce(jsonResponse(200, { items: [callItem()] }));
+
+            const fromAt = new Date('2026-11-01T00:00:00.000Z');
+            const toAt = new Date('2026-11-16T00:00:00.000Z');
+            const window = new SyncWindow({ fromAt, toAt });
+
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'scoreWindow');
+
+            expect(calls).toHaveLength(1);
+            const listRequest = httpClient.send.mock.calls[2][0] as {
+                body: Record<string, unknown>;
+            };
+            expect(listRequest.body).toMatchObject({
+                startDate: null,
+                endDate: null,
                 scoreStartDate: fromAt.toISOString(),
                 scoreEndDate: toAt.toISOString(),
                 dateFromScore: fromAt.toISOString(),
                 dateToScore: toAt.toISOString(),
             });
+        });
+
+        it('запрашивает первую страницу с limit/offset', async () => {
+            httpClient.send
+                .mockResolvedValueOnce(ssoLoginResponse())
+                .mockResolvedValueOnce(providerLoginResponse())
+                .mockResolvedValueOnce(jsonResponse(200, { items: [callItem()] }));
+
+            const window = new SyncWindow({
+                fromAt: new Date('2026-11-01T00:00:00Z'),
+                toAt: new Date('2026-11-16T00:00:00Z'),
+            });
+            await gateway.listCalls(PROJECT_ID, window, 'callWindow');
+
+            const listRequest = httpClient.send.mock.calls[2][0] as {
+                query?: Record<string, string>;
+            };
+            expect(listRequest.query).toEqual({ limit: '100', offset: '0' });
+        });
+
+        it('забирает все страницы, когда звонков больше, чем вмещает одна страница', async () => {
+            const firstPageItems = Array.from({ length: 100 }, (_unused, index) =>
+                callItem({ id: index + 1 }),
+            );
+            const secondPageItems = [callItem({ id: 101 }), callItem({ id: 102 })];
+            httpClient.send
+                .mockResolvedValueOnce(ssoLoginResponse())
+                .mockResolvedValueOnce(providerLoginResponse())
+                .mockResolvedValueOnce(
+                    jsonResponse(200, {
+                        offset: 0,
+                        limit: 100,
+                        totalCalls: 102,
+                        items: firstPageItems,
+                    }),
+                )
+                .mockResolvedValueOnce(
+                    jsonResponse(200, {
+                        offset: 100,
+                        limit: 100,
+                        totalCalls: 102,
+                        items: secondPageItems,
+                    }),
+                );
+
+            const window = new SyncWindow({
+                fromAt: new Date('2026-11-01T00:00:00Z'),
+                toAt: new Date('2026-11-16T00:00:00Z'),
+            });
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'callWindow');
+
+            expect(calls).toHaveLength(102);
+            const secondRequest = httpClient.send.mock.calls[3][0] as {
+                query?: Record<string, string>;
+            };
+            expect(secondRequest.query).toEqual({ limit: '100', offset: '100' });
+        });
+
+        it('останавливается после страницы короче лимита', async () => {
+            httpClient.send
+                .mockResolvedValueOnce(ssoLoginResponse())
+                .mockResolvedValueOnce(providerLoginResponse())
+                .mockResolvedValueOnce(jsonResponse(200, { items: [callItem()] }));
+
+            const window = new SyncWindow({
+                fromAt: new Date('2026-11-01T00:00:00Z'),
+                toAt: new Date('2026-11-16T00:00:00Z'),
+            });
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'callWindow');
+
+            expect(calls).toHaveLength(1);
+            expect(httpClient.send).toHaveBeenCalledTimes(3);
         });
     });
 
@@ -376,7 +474,7 @@ describe('VocalAiGateway', () => {
                 fromAt: new Date('2026-11-01T00:00:00Z'),
                 toAt: new Date('2026-11-16T00:00:00Z'),
             });
-            const calls = await gateway.listCalls(PROJECT_ID, window);
+            const calls = await gateway.listCalls(PROJECT_ID, window, 'callWindow');
 
             expect(calls).toHaveLength(1);
             expect(httpClient.send).toHaveBeenCalledTimes(4);
@@ -396,7 +494,7 @@ describe('VocalAiGateway', () => {
                 toAt: new Date('2026-11-16T00:00:00Z'),
             });
 
-            const error = await rejectionOf(gateway.listCalls(PROJECT_ID, window));
+            const error = await rejectionOf(gateway.listCalls(PROJECT_ID, window, 'callWindow'));
             expect(error).toBeInstanceOf(VocalAiRequestError);
             expect(httpClient.send).toHaveBeenCalledTimes(5);
         });
@@ -415,7 +513,7 @@ describe('VocalAiGateway', () => {
                 toAt: new Date('2026-11-16T00:00:00Z'),
             });
 
-            const error = await rejectionOf(gateway.listCalls(PROJECT_ID, window));
+            const error = await rejectionOf(gateway.listCalls(PROJECT_ID, window, 'callWindow'));
             expect(error).toBeInstanceOf(VocalAiRequestError);
         });
     });

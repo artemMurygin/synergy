@@ -16,6 +16,7 @@ import { CallTranscriptLine } from './domain/entities/call-transcript-line.entit
 import type {
     VocalAiCallDetailDto,
     VocalAiCallSummaryDto,
+    VocalAiListCallsWindowKind,
     VocalAiLoginCredentials,
     VocalAiSession,
 } from './domain/ports/vocal-ai-gateway.port';
@@ -119,7 +120,11 @@ class FakeVocalAiGateway extends VocalAiGatewayPort {
         throw new Error('refreshToken must not be called in this scenario');
     }
 
-    listCalls(_projectId: string, _window: SyncWindow): Promise<VocalAiCallSummaryDto[]> {
+    listCalls(
+        _projectId: string,
+        _window: SyncWindow,
+        _windowKind: VocalAiListCallsWindowKind,
+    ): Promise<VocalAiCallSummaryDto[]> {
         return Promise.resolve([buildCallSummaryFixture()]);
     }
 
@@ -165,7 +170,10 @@ describe.skipIf(adminUrl === undefined)('vocal-ai module integration', () => {
     });
 
     it('backfills calls, exposes them through list/stats, and lazily caches the transcript', async () => {
-        const callRepository = new CallRepository(transactions);
+        const callRepository = new CallRepository(
+            transactions,
+            new PinoLogger({ pinoHttp: { level: 'silent' } }),
+        );
         const transcriptRepository = new CallTranscriptRepository(transactions);
         const cursorRepository = new SyncCursorRepository(transactions);
         const gateway = new FakeVocalAiGateway();

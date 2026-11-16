@@ -99,7 +99,10 @@ describe.skipIf(adminUrl === undefined)('CallRepository', () => {
             pool,
             new PinoLogger({ pinoHttp: { level: 'silent' } }),
         );
-        repository = new CallRepository(transactions);
+        repository = new CallRepository(
+            transactions,
+            new PinoLogger({ pinoHttp: { level: 'silent' } }),
+        );
     }, 60_000);
 
     afterAll(async () => {
@@ -250,6 +253,16 @@ describe.skipIf(adminUrl === undefined)('CallRepository', () => {
         it('returns an empty list when nothing matches', async () => {
             const calls = await repository.findByFilter({ projectId: 'unknown-project' });
             expect(calls).toEqual([]);
+        });
+
+        it('caps the result size by the given limit', async () => {
+            const calls = await repository.findByFilter({ projectId: 'project-a', limit: 1 });
+            expect(calls).toHaveLength(1);
+        });
+
+        it('caps the result size at the hard maximum regardless of a larger requested limit', async () => {
+            const calls = await repository.findByFilter({ limit: 100_000 });
+            expect(calls.length).toBeLessThanOrEqual(500);
         });
     });
 

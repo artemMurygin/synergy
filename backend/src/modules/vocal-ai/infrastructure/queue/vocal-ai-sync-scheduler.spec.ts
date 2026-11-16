@@ -1,5 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-import type { JobSchedulerTemplateOptions, Queue, RepeatOptions } from 'bullmq';
+import type { JobSchedulerJson, JobSchedulerTemplateOptions, Queue, RepeatOptions } from 'bullmq';
 import { describe, expect, it, vi } from 'vitest';
 import type { Env } from '../../../../shared/config/env.schema';
 import { VocalAiSyncScheduler } from './vocal-ai-sync-scheduler';
@@ -13,16 +13,26 @@ type UpsertFn = (
     template: { name?: string; data?: unknown; opts?: JobSchedulerTemplateOptions },
 ) => Promise<void>;
 
+type GetJobSchedulersFn = () => Promise<JobSchedulerJson[]>;
+type RemoveJobSchedulerFn = (jobSchedulerId: string) => Promise<boolean>;
+
+function createJobScheduler(key: string): JobSchedulerJson {
+    return { key, name: JOB_NAMES.SYNC_PROJECT_CALLS };
+}
+
 function createScheduler(
     overrides: {
         projectIds?: string[];
         intervalMinutes?: number;
         attempts?: number;
         backoffMs?: number;
+        existingSchedulerKeys?: string[];
     } = {},
 ): {
     scheduler: VocalAiSyncScheduler;
     upsertJobScheduler: ReturnType<typeof vi.fn<UpsertFn>>;
+    getJobSchedulers: ReturnType<typeof vi.fn<GetJobSchedulersFn>>;
+    removeJobScheduler: ReturnType<typeof vi.fn<RemoveJobSchedulerFn>>;
 } {
     const values: Record<string, unknown> = {
         VOCAL_AI_PROJECT_IDS: overrides.projectIds ?? ['project-1', 'project-2'],
@@ -31,12 +41,19 @@ function createScheduler(
         VOCAL_AI_SYNC_BACKOFF_MS: overrides.backoffMs ?? 7000,
     };
     const upsertJobScheduler = vi.fn<UpsertFn>().mockResolvedValue();
+    const getJobSchedulers = vi
+        .fn<GetJobSchedulersFn>()
+        .mockResolvedValue((overrides.existingSchedulerKeys ?? []).map(createJobScheduler));
+    const removeJobScheduler = vi.fn<RemoveJobSchedulerFn>().mockResolvedValue(true);
     const config = { get: vi.fn((key: string) => values[key]) } as unknown as ConfigService<
         Env,
         true
     >;
-    const scheduler = new VocalAiSyncScheduler({ upsertJobScheduler } as unknown as Queue, config);
-    return { scheduler, upsertJobScheduler };
+    const scheduler = new VocalAiSyncScheduler(
+        { upsertJobScheduler, getJobSchedulers, removeJobScheduler } as unknown as Queue,
+        config,
+    );
+    return { scheduler, upsertJobScheduler, getJobSchedulers, removeJobScheduler };
 }
 
 describe('VocalAiSyncScheduler', () => {
@@ -82,6 +99,40 @@ describe('VocalAiSyncScheduler', () => {
         await scheduler.register();
 
         expect(upsertJobScheduler).not.toHaveBeenCalled();
+    });
+
+    it('removes schedulers of projects dropped from the config so a rollback actually stops them', async () => {
+        const { scheduler, removeJobScheduler } = createScheduler({
+            projectIds: ['project-1'],
+            existingSchedulerKeys: ['vocal-ai-sync:project-1', 'vocal-ai-sync:project-2'],
+        });
+
+        await scheduler.register();
+
+        expect(removeJobScheduler).toHaveBeenCalledTimes(1);
+        expect(removeJobScheduler).toHaveBeenCalledWith('vocal-ai-sync:project-2');
+    });
+
+    it('removes every own scheduler when the project id list becomes empty', async () => {
+        const { scheduler, removeJobScheduler } = createScheduler({
+            projectIds: [],
+            existingSchedulerKeys: ['vocal-ai-sync:project-1', 'vocal-ai-sync:project-2'],
+        });
+
+        await scheduler.register();
+
+        expect(removeJobScheduler).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves schedulers of other queues untouched', async () => {
+        const { scheduler, removeJobScheduler } = createScheduler({
+            projectIds: ['project-1'],
+            existingSchedulerKeys: ['vocal-ai-sync:project-1', 'deal-sync'],
+        });
+
+        await scheduler.register();
+
+        expect(removeJobScheduler).not.toHaveBeenCalled();
     });
 
     it('registers idempotently under the same scheduler ids on repeated start', async () => {

@@ -5,3 +5,5 @@ export const SHEETS_QA_AGENT_CAPABILITY = Symbol('SHEETS_QA_AGENT_CAPABILITY');
 export const TASKS_AGENT_CAPABILITY = Symbol('TASKS_AGENT_CAPABILITY');
 /** DI token of the meetings capability; provided by the transcription module. */
 export const MEETINGS_AGENT_CAPABILITY = Symbol('MEETINGS_AGENT_CAPABILITY');
+/** DI token of the vocal-ai capability; provided by the vocal-ai module. */
+export const VOCAL_AI_AGENT_CAPABILITY = Symbol('VOCAL_AI_AGENT_CAPABILITY');

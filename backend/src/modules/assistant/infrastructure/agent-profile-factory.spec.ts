@@ -52,6 +52,7 @@ describe('AgentProfileFactory', () => {
     const sheetsQa = capability('sheets_qa', 'isolated');
     const tasks = capability('tasks', 'fork');
     const meetings = capability('meetings', 'fork');
+    const vocalAi = capability('vocal-ai', 'fork');
     const topLevelAgent = { name: 'orchestrator-agent' };
 
     function create(registry = new ClientProfileRegistry()): AgentProfileFactory {
@@ -60,6 +61,7 @@ describe('AgentProfileFactory', () => {
             sheetsQa,
             tasks,
             meetings,
+            vocalAi,
             orchestratorModel,
             checkpointer,
         });
@@ -71,6 +73,7 @@ describe('AgentProfileFactory', () => {
         sheetsQa.buildAgent.mockClear();
         tasks.buildAgent.mockClear();
         meetings.buildAgent.mockClear();
+        vocalAi.buildAgent.mockClear();
     });
 
     describe.each<ClientId>(['manager-app', 'employee-app'])(
@@ -85,7 +88,7 @@ describe('AgentProfileFactory', () => {
                 expect(options.model).toBe(orchestratorModel);
                 expect(options.checkpointer).toBe(checkpointer);
                 expect(options.systemPrompt).toBe(
-                    buildOrchestratorPrompt([sheetsQa, tasks, meetings]),
+                    buildOrchestratorPrompt([sheetsQa, tasks, meetings, vocalAi]),
                 );
                 expect(options.tools ?? []).toEqual([]);
             });
@@ -113,6 +116,12 @@ describe('AgentProfileFactory', () => {
                         runnable: meetings.built,
                         mode: 'fork',
                     },
+                    {
+                        name: 'vocal-ai',
+                        description: vocalAi.description,
+                        runnable: vocalAi.built,
+                        mode: 'fork',
+                    },
                 ]);
             });
 
@@ -122,6 +131,7 @@ describe('AgentProfileFactory', () => {
                 expect(sheetsQa.buildAgent).toHaveBeenCalledWith(ctx);
                 expect(tasks.buildAgent).toHaveBeenCalledWith(ctx);
                 expect(meetings.buildAgent).toHaveBeenCalledWith(ctx);
+                expect(vocalAi.buildAgent).toHaveBeenCalledWith(ctx);
             });
         },
     );
@@ -140,6 +150,7 @@ describe('AgentProfileFactory', () => {
             expect(createDeepAgent).not.toHaveBeenCalled();
             expect(sheetsQa.buildAgent).not.toHaveBeenCalled();
             expect(meetings.buildAgent).not.toHaveBeenCalled();
+            expect(vocalAi.buildAgent).not.toHaveBeenCalled();
         });
     });
 
@@ -157,6 +168,7 @@ describe('AgentProfileFactory', () => {
         expect(sheetsQa.buildAgent).not.toHaveBeenCalled();
         expect(tasks.buildAgent).not.toHaveBeenCalled();
         expect(meetings.buildAgent).not.toHaveBeenCalled();
+        expect(vocalAi.buildAgent).not.toHaveBeenCalled();
     });
 
     it('follows the registry when a client gets its own profile', () => {

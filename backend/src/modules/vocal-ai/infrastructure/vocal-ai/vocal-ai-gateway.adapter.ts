@@ -10,6 +10,7 @@ import type { SyncWindow } from '../../domain/value-objects/sync-window.value-ob
 import type {
     VocalAiCallDetailDto,
     VocalAiCallSummaryDto,
+    VocalAiListCallsWindowKind,
     VocalAiLoginCredentials,
     VocalAiSession,
 } from '../../domain/ports/vocal-ai-gateway.port';
@@ -115,8 +116,13 @@ const callCardSchema = z.object({
 });
 
 const listCallsResponseSchema = z.object({
+    offset: z.number().int().nonnegative().optional(),
+    limit: z.number().int().positive().optional(),
+    totalCalls: z.number().int().nonnegative().optional(),
     items: z.array(callCardSchema),
 });
+
+const LIST_CALLS_PAGE_LIMIT = 100;
 
 const transcriptLineSchema = z.object({
     speakerName: z.string(),
@@ -216,23 +222,48 @@ export class VocalAiGateway extends VocalAiGatewayPort {
         return refreshed;
     }
 
-    async listCalls(projectId: string, window: SyncWindow): Promise<VocalAiCallSummaryDto[]> {
+    async listCalls(
+        projectId: string,
+        window: SyncWindow,
+        windowKind: VocalAiListCallsWindowKind,
+    ): Promise<VocalAiCallSummaryDto[]> {
+        const items: VocalAiCallSummaryDto[] = [];
+        let offset = 0;
+        for (;;) {
+            const page = await this.fetchCallsPage(projectId, window, windowKind, offset);
+            items.push(...page.items.map((item) => toCallSummaryDto(item, projectId)));
+            const fetchedUpTo = offset + page.items.length;
+            if (page.items.length < LIST_CALLS_PAGE_LIMIT) break;
+            if (page.totalCalls !== undefined && fetchedUpTo >= page.totalCalls) break;
+            offset = fetchedUpTo;
+        }
+        return items;
+    }
+
+    private async fetchCallsPage(
+        projectId: string,
+        window: SyncWindow,
+        windowKind: VocalAiListCallsWindowKind,
+        offset: number,
+    ): Promise<{ items: CallCard[]; totalCalls: number | undefined }> {
         const fromAt = window.fromAt.toISOString();
         const toAt = window.toAt.toISOString();
+        const isCallWindow = windowKind === 'callWindow';
         const response = await this.authorizedSend({
             method: 'POST',
             path: callsListPath(projectId),
+            query: { limit: String(LIST_CALLS_PAGE_LIMIT), offset: String(offset) },
             body: {
                 managers: [],
                 clients: [],
                 callTypes: [],
                 marks: [],
-                startDate: fromAt,
-                endDate: toAt,
-                scoreStartDate: fromAt,
-                scoreEndDate: toAt,
-                dateFromScore: fromAt,
-                dateToScore: toAt,
+                startDate: isCallWindow ? fromAt : null,
+                endDate: isCallWindow ? toAt : null,
+                scoreStartDate: isCallWindow ? null : fromAt,
+                scoreEndDate: isCallWindow ? null : toAt,
+                dateFromScore: isCallWindow ? null : fromAt,
+                dateToScore: isCallWindow ? null : toAt,
                 durationMin: null,
                 durationMax: null,
                 totalScoreMin: null,
@@ -262,7 +293,7 @@ export class VocalAiGateway extends VocalAiGatewayPort {
                 },
             );
         }
-        return parsed.data.items.map((item) => toCallSummaryDto(item, projectId));
+        return { items: parsed.data.items, totalCalls: parsed.data.totalCalls };
     }
 
     async getCall(callId: CallId, projectId: string): Promise<VocalAiCallDetailDto> {

@@ -66,7 +66,7 @@ export const envSchema = z
                     .map((projectId) => projectId.trim())
                     .filter((projectId) => projectId !== ''),
             ),
-        VOCAL_AI_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+        VOCAL_AI_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(5),
         VOCAL_AI_SYNC_ATTEMPTS: z.coerce.number().int().positive().default(3),
         VOCAL_AI_SYNC_BACKOFF_MS: z.coerce.number().int().nonnegative().default(5000),
         TELEGRAM_BOT_TOKEN: z.string().optional(),

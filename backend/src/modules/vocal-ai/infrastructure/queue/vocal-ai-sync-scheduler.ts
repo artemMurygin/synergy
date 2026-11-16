@@ -25,6 +25,8 @@ export class VocalAiSyncScheduler implements OnApplicationBootstrap {
         const attempts = this.config.get('VOCAL_AI_SYNC_ATTEMPTS', { infer: true });
         const backoffMs = this.config.get('VOCAL_AI_SYNC_BACKOFF_MS', { infer: true });
 
+        await this.removeStaleSchedulers(projectIds);
+
         for (const projectId of projectIds) {
             await this.queue.upsertJobScheduler(
                 `${SCHEDULER_ID_PREFIX}:${projectId}`,
@@ -41,6 +43,20 @@ export class VocalAiSyncScheduler implements OnApplicationBootstrap {
                     },
                 },
             );
+        }
+    }
+
+    /** Removes schedulers of projects no longer in `VOCAL_AI_PROJECT_IDS` so a rolled-back rollout actually stops. */
+    private async removeStaleSchedulers(projectIds: readonly string[]): Promise<void> {
+        const expectedIds = new Set(
+            projectIds.map((projectId) => `${SCHEDULER_ID_PREFIX}:${projectId}`),
+        );
+        const existingSchedulers = await this.queue.getJobSchedulers();
+        for (const scheduler of existingSchedulers) {
+            const isOwnScheduler = scheduler.key.startsWith(`${SCHEDULER_ID_PREFIX}:`);
+            if (isOwnScheduler && !expectedIds.has(scheduler.key)) {
+                await this.queue.removeJobScheduler(scheduler.key);
+            }
         }
     }
 }

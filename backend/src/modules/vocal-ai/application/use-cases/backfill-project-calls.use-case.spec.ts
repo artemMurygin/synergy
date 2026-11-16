@@ -88,16 +88,19 @@ describe('BackfillProjectCallsUseCase', () => {
             1,
             PROJECT_ID,
             new SyncWindow({ fromAt: new Date(0), toAt: new Date(ONE_DAY_MS) }),
+            'callWindow',
         );
         expect(gateway.listCalls).toHaveBeenNthCalledWith(
             2,
             PROJECT_ID,
             new SyncWindow({ fromAt: new Date(ONE_DAY_MS), toAt: new Date(2 * ONE_DAY_MS) }),
+            'callWindow',
         );
         expect(gateway.listCalls).toHaveBeenNthCalledWith(
             3,
             PROJECT_ID,
             new SyncWindow({ fromAt: new Date(2 * ONE_DAY_MS), toAt: now }),
+            'callWindow',
         );
         vi.useRealTimers();
     });
@@ -124,7 +127,7 @@ describe('BackfillProjectCallsUseCase', () => {
         vi.useRealTimers();
     });
 
-    it('sets the sync cursor to now only after the whole history has been fetched', async () => {
+    it('advances the cursor to the end of each page right after it is upserted', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(now);
         const { gateway, callRepository, cursorRepository, useCase } = createFixture();
@@ -132,16 +135,21 @@ describe('BackfillProjectCallsUseCase', () => {
 
         await useCase.execute(PROJECT_ID);
 
-        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, now);
+        expect(cursorRepository.set).toHaveBeenCalledTimes(3);
+        expect(cursorRepository.set).toHaveBeenNthCalledWith(1, PROJECT_ID, new Date(ONE_DAY_MS));
+        expect(cursorRepository.set).toHaveBeenNthCalledWith(
+            2,
+            PROJECT_ID,
+            new Date(2 * ONE_DAY_MS),
+        );
+        expect(cursorRepository.set).toHaveBeenNthCalledWith(3, PROJECT_ID, now);
         expect(cursorRepository.set.mock.invocationCallOrder[0]).toBeGreaterThan(
-            callRepository.upsertMany.mock.invocationCallOrder[
-                callRepository.upsertMany.mock.invocationCallOrder.length - 1
-            ],
+            callRepository.upsertMany.mock.invocationCallOrder[0],
         );
         vi.useRealTimers();
     });
 
-    it('does not move the cursor when a page fetch fails partway through', async () => {
+    it('leaves the cursor at the last completed page when a later page fetch fails, so the next cycle can resume', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(now);
         const { gateway, cursorRepository, useCase } = createFixture();
@@ -151,20 +159,24 @@ describe('BackfillProjectCallsUseCase', () => {
 
         await expect(useCase.execute(PROJECT_ID)).rejects.toThrow('vocal-ai down');
 
-        expect(cursorRepository.set).not.toHaveBeenCalled();
+        expect(cursorRepository.set).toHaveBeenCalledTimes(1);
+        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
         vi.useRealTimers();
     });
 
-    it('does not move the cursor when upserting a page fails', async () => {
+    it('leaves the cursor at the last completed page when upserting a later page fails, so the next cycle can resume', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(now);
         const { gateway, callRepository, cursorRepository, useCase } = createFixture();
         gateway.listCalls.mockResolvedValue([createSummaryDto(1)]);
-        callRepository.upsertMany.mockRejectedValueOnce(new Error('db down'));
+        callRepository.upsertMany
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('db down'));
 
         await expect(useCase.execute(PROJECT_ID)).rejects.toThrow('db down');
 
-        expect(cursorRepository.set).not.toHaveBeenCalled();
+        expect(cursorRepository.set).toHaveBeenCalledTimes(1);
+        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
         vi.useRealTimers();
     });
 });

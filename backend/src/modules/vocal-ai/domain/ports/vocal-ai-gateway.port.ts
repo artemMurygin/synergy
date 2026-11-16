@@ -38,12 +38,19 @@ export interface VocalAiCallDetailDto extends VocalAiCallSummaryDto {
     transcriptLines: CallTranscriptLine[];
 }
 
+/** Which date the window filters by: when the call happened, or when it was scored/rescored. */
+export type VocalAiListCallsWindowKind = 'callWindow' | 'scoreWindow';
+
 export abstract class VocalAiGatewayPort {
     abstract login(credentials: VocalAiLoginCredentials): Promise<VocalAiSession>;
 
     abstract refreshToken(session: VocalAiSession): Promise<VocalAiSession>;
 
-    abstract listCalls(projectId: string, window: SyncWindow): Promise<VocalAiCallSummaryDto[]>;
+    abstract listCalls(
+        projectId: string,
+        window: SyncWindow,
+        windowKind: VocalAiListCallsWindowKind,
+    ): Promise<VocalAiCallSummaryDto[]>;
 
     abstract getCall(callId: CallId, projectId: string): Promise<VocalAiCallDetailDto>;
 }

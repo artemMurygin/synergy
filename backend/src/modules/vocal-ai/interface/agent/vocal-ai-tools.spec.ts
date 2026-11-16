@@ -7,7 +7,7 @@ import { CallSummary } from '../../domain/entities/call-summary.entity';
 import { CallTag } from '../../domain/entities/call-tag.entity';
 import { CallTranscriptLine } from '../../domain/entities/call-transcript-line.entity';
 import { CallId } from '../../domain/value-objects/call-id.value-object';
-import { CallNotFoundError } from '../../domain/errors';
+import { CallNotFoundError, VocalAiRequestError } from '../../domain/errors';
 import type { GetCallDetailUseCase } from '../../application/use-cases/get-call-detail.use-case';
 import type { GetCallStatsUseCase } from '../../application/use-cases/get-call-stats.use-case';
 import type { GetCallTranscriptUseCase } from '../../application/use-cases/get-call-transcript.use-case';
@@ -268,6 +268,21 @@ describe('get_call_transcript', () => {
 
         expect(result.found).toBe(false);
         expect(String(result.error)).toMatch(/не найден/i);
+    });
+
+    it('returns a readable error instead of throwing when the lazy fetch from VocalAI fails', async () => {
+        const { getCallTranscript, tools } = createFixture();
+        getCallTranscript.execute.mockRejectedValue(
+            new VocalAiRequestError('VocalAI listCalls failed with HTTP 503'),
+        );
+
+        const result = await call(tools.getCallTranscript, {
+            callId: 42,
+            projectId: 'project-1',
+        });
+
+        expect(result.found).toBe(false);
+        expect(typeof result.error).toBe('string');
     });
 });
 

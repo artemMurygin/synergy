@@ -415,6 +415,12 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
             mode: 'fork',
             buildAgent: () => createAgent({ model: fakeModel(), tools: [] }),
         };
+        const vocalAi: AgentCapability = {
+            name: 'vocal-ai',
+            description: 'Звонки',
+            mode: 'fork',
+            buildAgent: () => createAgent({ model: fakeModel(), tools: [] }),
+        };
         const orchestratorModel = fakeModel()
             .respond(
                 new AIMessage({
@@ -434,6 +440,7 @@ describe('AgentRunner: userId reaches a subagent tool (design D4)', () => {
             sheetsQa,
             tasks,
             meetings,
+            vocalAi,
             orchestratorModel,
             checkpointer: new MemorySaver(),
         });

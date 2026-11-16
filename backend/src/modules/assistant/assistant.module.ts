@@ -8,6 +8,7 @@ import {
     MEETINGS_AGENT_CAPABILITY,
     SHEETS_QA_AGENT_CAPABILITY,
     TASKS_AGENT_CAPABILITY,
+    VOCAL_AI_AGENT_CAPABILITY,
     type AgentCapability,
 } from '../../shared/agent-capability';
 import type { Env } from '../../shared/config/env.schema';
@@ -17,6 +18,7 @@ import { FilesModule } from '../files/files.module';
 import { SheetsQaModule } from '../sheets-qa/sheets-qa.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { TranscriptionModule } from '../transcription/transcription.module';
+import { VocalAiModule } from '../vocal-ai/vocal-ai.module';
 import { ASSISTANT_CONFIG } from './assistant.config';
 import { AskInTelegramUseCase } from './application/ask-in-telegram.use-case';
 import { ClientProfileRegistry } from './application/client-profile-registry';
@@ -63,6 +65,7 @@ import { ThreadsController } from './interface/http/threads.controller';
         SheetsQaModule,
         TasksModule,
         TranscriptionModule,
+        VocalAiModule,
         SystemMessageQueueModule,
     ],
     controllers: [AgentController, ThreadsController],
@@ -110,6 +113,7 @@ import { ThreadsController } from './interface/http/threads.controller';
                 SHEETS_QA_AGENT_CAPABILITY,
                 TASKS_AGENT_CAPABILITY,
                 MEETINGS_AGENT_CAPABILITY,
+                VOCAL_AI_AGENT_CAPABILITY,
                 AGENT_CHECKPOINTER,
             ],
             useFactory: (
@@ -118,6 +122,7 @@ import { ThreadsController } from './interface/http/threads.controller';
                 sheetsQa: AgentCapability,
                 tasks: AgentCapability,
                 meetings: AgentCapability,
+                vocalAi: AgentCapability,
                 checkpointer: PostgresSaver,
             ): AgentProfileFactory =>
                 new AgentProfileFactory({
@@ -125,6 +130,7 @@ import { ThreadsController } from './interface/http/threads.controller';
                     sheetsQa,
                     tasks,
                     meetings,
+                    vocalAi,
                     orchestratorModel: createChatModel(config, ASSISTANT_CONFIG.model),
                     checkpointer,
                 }),

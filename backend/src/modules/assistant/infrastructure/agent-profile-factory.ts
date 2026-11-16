@@ -17,6 +17,7 @@ export interface AgentProfileFactoryOptions {
     readonly sheetsQa: AgentCapability;
     readonly tasks: AgentCapability;
     readonly meetings: AgentCapability;
+    readonly vocalAi: AgentCapability;
     readonly orchestratorModel: BaseChatModel;
     /** Stores the chat history of the top-level agent of every profile. */
     readonly checkpointer: BaseCheckpointSaver;
@@ -67,10 +68,11 @@ export class AgentProfileFactory implements AgentContextWriterPort {
         }
     }
 
-    /** Orchestrator deep agent that delegates to the price, task and meeting specialists. */
+    /** Orchestrator deep agent that delegates to the price, task, meeting and vocal-ai specialists. */
     private buildApp(ctx: AgentRunContext): CapabilityAgent {
-        const { sheetsQa, tasks, meetings, orchestratorModel, checkpointer } = this.options;
-        const capabilities = [sheetsQa, tasks, meetings];
+        const { sheetsQa, tasks, meetings, vocalAi, orchestratorModel, checkpointer } =
+            this.options;
+        const capabilities = [sheetsQa, tasks, meetings, vocalAi];
         const subagents = capabilities.map((capability): CompiledSubAgent => ({
             name: capability.name,
             description: capability.description,
