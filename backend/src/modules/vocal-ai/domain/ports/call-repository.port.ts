@@ -1,6 +1,8 @@
 import type { Call } from '../entities/call.entity';
+import type { CallId } from '../value-objects/call-id.value-object';
 
 export interface CallFilter {
+    callId?: CallId;
     projectId?: string;
     manager?: string;
     callDateFrom?: Date;

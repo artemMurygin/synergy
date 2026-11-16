@@ -212,6 +212,9 @@ function toSummary(row: ReturnType<typeof summaryRow.parse>): CallSummary {
 function buildWhere(filter: CallFilter): FragmentSqlToken {
     const conditions: FragmentSqlToken[] = [];
 
+    if (filter.callId !== undefined) {
+        conditions.push(sql.fragment`c.call_id = ${filter.callId.value}`);
+    }
     if (filter.projectId !== undefined) {
         conditions.push(sql.fragment`c.project_id = ${filter.projectId}`);
     }
