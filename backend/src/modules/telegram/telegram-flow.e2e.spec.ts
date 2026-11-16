@@ -17,6 +17,7 @@ import { RequestContextMiddleware } from '../../shared/context/request-context.m
 import { HttpExceptionFilter } from '../../shared/http/http-exception.filter';
 import { OutboxSettings } from '../../shared/outbox/infrastructure/outbox-settings';
 import { OutboxModule } from '../../shared/outbox/outbox.module';
+import { QueueRootModule } from '../../shared/queue/queue-root.module';
 import {
     connectTestRedis,
     disconnectTestRedis,
@@ -32,6 +33,13 @@ import { SlonikUserRepository } from '../auth/infrastructure/slonik-user.reposit
 import { registerAuthErrorStatuses } from '../auth/interface/auth-error-status';
 import { JwtAuthGuard } from '../auth/interface/http/jwt-auth.guard';
 import { PasswordChangeGuard } from '../auth/interface/http/password-change.guard';
+import { FindOwnedFilesUseCase } from '../files/application/find-owned-files.use-case';
+import { GetFileUseCase } from '../files/application/get-file.use-case';
+import { HoldFileUseCase } from '../files/application/hold-file.use-case';
+import { OpenFileForProcessingUseCase } from '../files/application/open-file-for-processing.use-case';
+import { ReleaseFileHoldUseCase } from '../files/application/release-file-hold.use-case';
+import { StoreGeneratedFileUseCase } from '../files/application/store-generated-file.use-case';
+import { FilesModule } from '../files/files.module';
 import { channelSubscriberName } from '../notifications/application/channel-delivery.subscriber';
 import { TestClient } from '../notifications/interface/ws/testing/realtime-gateway-fixture';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -87,6 +95,45 @@ const tokens = new JwtAccessTokenService({
     exports: [AccessTokenService, FindActiveUserUseCase],
 })
 class AuthStubModule {}
+
+/** Stands in for FilesModule (object storage, queues): the flow does not issue or transcribe files. */
+@Module({
+    providers: [
+        {
+            provide: GetFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
+            provide: StoreGeneratedFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
+            provide: OpenFileForProcessingUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
+            provide: HoldFileUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
+            provide: ReleaseFileHoldUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+        {
+            provide: FindOwnedFilesUseCase,
+            useValue: { execute: () => Promise.reject(new Error('not used in this flow')) },
+        },
+    ],
+    exports: [
+        GetFileUseCase,
+        StoreGeneratedFileUseCase,
+        OpenFileForProcessingUseCase,
+        HoldFileUseCase,
+        ReleaseFileHoldUseCase,
+        FindOwnedFilesUseCase,
+    ],
+})
+class NoFilesModule {}
 
 interface TelegramUser {
     readonly id: string;
@@ -336,10 +383,18 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
                             TELEGRAM_LINK_TOKEN_TTL_SECONDS: 600,
                             TELEGRAM_DELIVERY_RESERVATION_MS: RESERVATION_MS,
                             TELEGRAM_API_BASE_URL: stub.baseUrl,
+                            // The assistant/sheets-qa agent model is built at wiring time; no request is sent.
+                            OPENROUTER_API_KEY: 'test-key',
+                            CHAT_SYSTEM_MESSAGE_RETRY_MS: 200,
+                            CHAT_SYSTEM_MESSAGE_DEADLINE_MS: 10_000,
+                            MEETING_TRANSCRIPTION_ATTEMPTS: 3,
+                            MEETING_TRANSCRIPTION_CONCURRENCY: 2,
+                            MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: 7_200_000,
                         }),
                     ],
                 }),
                 LoggerModule.forRoot({ pinoHttp: { level: 'silent' } }),
+                QueueRootModule,
                 OutboxModule,
                 TasksModule,
                 NotificationsModule,
@@ -349,6 +404,8 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
         })
             .overrideModule(AuthModule)
             .useModule(AuthStubModule)
+            .overrideModule(FilesModule)
+            .useModule(NoFilesModule)
             .overrideProvider(OutboxSettings)
             .useValue(
                 new OutboxSettings({

@@ -337,7 +337,7 @@ describe.skipIf(adminUrl === undefined)('SlonikEmployeeQuery and PgAdminLock', (
                 {
                     id: sales.id,
                     name: 'Продажи',
-                    head: { id: head.id, login: 'head', fullName: 'Руков Олег' },
+                    head: { id: head.id, login: 'head', fullName: 'Руков Олег', isActive: true },
                     employeeCount: 0,
                 },
                 { id: dev.id, name: 'Разработка', head: null, employeeCount: 2 },
