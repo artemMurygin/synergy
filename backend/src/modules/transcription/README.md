@@ -117,9 +117,9 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 `WholeFileMeetingTranscriber`:
 
-- поток из S3 пишется во временную папку (`mkdtemp` в `os.tmpdir()`), `ffprobe` даёт длительность. Запись длиннее `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` или сжатый файл больше `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` дают `failed('too-long')` до обращения к провайдеру, нечитаемый файл — `failed('unsupported-media')`;
+- поток из S3 пишется во временную папку (`mkdtemp` в `os.tmpdir()`), `ffprobe` даёт длительность. Запись длиннее `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` или сжатый файл больше `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES` дают `failed('too-long')` до обращения к провайдеру, нечитаемый файл — `failed('unsupported-media')`;
 - `ffmpeg` один раз перекодирует всю дорожку в mono 16 кГц opus 32 кбит/с (видео отбрасывается), без нарезки;
-- один `POST {ELEVENLABS_BASE_URL}/v1/speech-to-text` (multipart `file` с диска, `scribe_v2`, диаризация, слова), без повторной диаризации и без fallback на куски. Тайминги отсчитываются от начала всей записи;
+- один `POST {OPENROUTER_BASE_URL}/audio/transcriptions` (JSON, `input_audio` base64 `ogg`, `MEETING_TRANSCRIPTION_MODEL`, диаризация, слова), без повторной диаризации и без fallback на куски. Тайминги отсчитываются от начала всей записи;
 - слова превращаются в сегменты по смене спикера, спикеры нумеруются по первому появлению;
 - временная папка удаляется всегда. Параметры нарезки (`CHUNK_*`, `MAX_EXEMPLARS`, `EXEMPLAR_SEC`) на обработку встреч больше не влияют.
 
@@ -137,14 +137,12 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 | Переменная | По умолчанию | Назначение |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Голосовые Telegram и извлечение задач (не расшифровка встреч) |
-| `ELEVENLABS_API_KEY` | — | Секрет ключа ElevenLabs для расшифровки встреч |
-| `ELEVENLABS_BASE_URL` | `https://api.elevenlabs.io` | Адрес API ElevenLabs |
-| `ELEVENLABS_STT_MODEL` | `scribe_v2` | model_id ElevenLabs STT с диаризацией (без `/`, не slug OpenRouter) |
-| `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` | `5400000` | Таймаут HTTP-запроса на всю запись; не больше дедлайна job'а |
-| `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` | `1073741824` | Предел размера сжатого файла; проверяется до отправки |
+| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Ключ и адрес OpenRouter: расшифровка встреч, голосовые Telegram, извлечение задач |
+| `MEETING_TRANSCRIPTION_MODEL` | `elevenlabs/scribe-v2` | Модель STT OpenRouter с диаризацией |
+| `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` | `240000` | Таймаут HTTP-запроса на всю запись; не больше 290000 и дедлайна job'а |
+| `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES` | `18874368` | Предел размера сжатого файла; проверяется до отправки |
 | `MEETING_TRANSCRIPTION_LANGUAGE` | не задан | Код языка (например, `ru`); пусто — автоопределение |
-| `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` | `14400` | Максимум длительности записи (4 ч) |
+| `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` | `4500` | Максимум длительности записи (75 мин) |
 | `MEETING_TRANSCRIPTION_ATTEMPTS` | `3` | Попытки job'а |
 | `MEETING_TRANSCRIPTION_CONCURRENCY` | `2` | Записи, которые воркер обрабатывает параллельно |
 | `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` | `7200000` | Дедлайн одной попытки; по истечении — `failed('timeout')` |
@@ -160,7 +158,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 ### Куда уходят записи
 
-Сжатая запись целиком отправляется напрямую в ElevenLabs (`POST {ELEVENLABS_BASE_URL}/v1/speech-to-text`) с отдельным ключом `ELEVENLABS_API_KEY`; ключ и текст в логи не попадают. Исходная запись хранится только в нашем S3 и удаляется по сроку.
+Сжатая запись целиком отправляется в OpenRouter (`POST {OPENROUTER_BASE_URL}/audio/transcriptions`) с ключом `OPENROUTER_API_KEY`; ключ и текст в логи не попадают. Исходная запись хранится только в нашем S3 и удаляется по сроку.
 
 В лог пишутся `fileId`, размер, длительность, число спикеров, число попыток, время, исход и код ошибки. Текст расшифровки, аудио и имя файла в лог не попадают.
 

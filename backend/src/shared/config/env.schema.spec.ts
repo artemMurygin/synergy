@@ -483,29 +483,30 @@ describe('validateEnv meeting transcription settings', () => {
         ).toThrow('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS');
     });
 
-    it('rejects a non-positive file size limit', () => {
+    it('rejects a non-positive compressed audio size limit', () => {
         expect(() =>
-            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_MAX_FILE_BYTES: '0' }),
-        ).toThrow('MEETING_TRANSCRIPTION_MAX_FILE_BYTES');
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: '0' }),
+        ).toThrow('MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES');
     });
 
-    it('rejects an OpenRouter slug in ELEVENLABS_STT_MODEL', () => {
+    it('rejects an STT timeout above 290000 ms', () => {
         expect(() =>
-            validateEnv({ ...REQUIRED_ENV, ELEVENLABS_STT_MODEL: 'elevenlabs/scribe-v2' }),
-        ).toThrow(/ELEVENLABS_STT_MODEL/);
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: '290001' }),
+        ).toThrow('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS');
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: '290000' })
+                .MEETING_TRANSCRIPTION_STT_TIMEOUT_MS,
+        ).toBe(290_000);
     });
 
     it('uses defaults from design', () => {
         const env = validateEnv(REQUIRED_ENV);
 
-        expect(env.MEETING_TRANSCRIPTION_MODEL).toBe('scribe_v2');
-        expect(env.ELEVENLABS_STT_MODEL).toBe('scribe_v2');
-        expect(env.ELEVENLABS_API_KEY).toBeUndefined();
-        expect(env.ELEVENLABS_BASE_URL).toBe('https://api.elevenlabs.io');
-        expect(env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS).toBe(5_400_000);
-        expect(env.MEETING_TRANSCRIPTION_MAX_FILE_BYTES).toBe(1_073_741_824);
+        expect(env.MEETING_TRANSCRIPTION_MODEL).toBe('elevenlabs/scribe-v2');
+        expect(env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS).toBe(240_000);
+        expect(env.MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES).toBe(18_874_368);
         expect(env.MEETING_TRANSCRIPTION_LANGUAGE).toBeUndefined();
-        expect(env.MEETING_TRANSCRIPTION_MAX_DURATION_SEC).toBe(14400);
+        expect(env.MEETING_TRANSCRIPTION_MAX_DURATION_SEC).toBe(4500);
         expect(env.MEETING_TRANSCRIPTION_CHUNK_SEC).toBe(600);
         expect(env.MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC).toBe(30);
         expect(env.MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES).toBe(20971520);

@@ -14,6 +14,7 @@ import {
     type WholeFileTranscription,
     type WholeFileWord,
 } from '../domain/ports/whole-file-stt.port';
+import { recordingLogger } from '../../application/test-doubles';
 import { WholeFileMeetingTranscriber } from './whole-file-meeting-transcriber';
 
 const AUDIO = Buffer.from('fake-recording-bytes');
@@ -84,6 +85,20 @@ describe('WholeFileMeetingTranscriber', () => {
 
     afterEach(async () => {
         await rm(tmpRoot, { recursive: true, force: true });
+    });
+
+    it('logs a warning without paths when stale folder cleanup fails', async () => {
+        const notADirectory = join(tmpRoot, 'file-not-dir');
+        await writeFile(notADirectory, 'x');
+        const log = recordingLogger();
+
+        await new WholeFileMeetingTranscriber(preparer, stt, {
+            tmpRoot: notADirectory,
+            logger: log.logger,
+        }).onModuleInit();
+
+        expect(log.warn).toHaveBeenCalledTimes(1);
+        expect(log.dump()).not.toContain(tmpRoot);
     });
 
     it('writes the stream to a temporary folder, prepares once and calls STT once', async () => {

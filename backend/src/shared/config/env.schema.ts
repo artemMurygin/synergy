@@ -146,26 +146,14 @@ export const envSchema = z
         FILES_DOWNLOAD_TOKEN_SECRET: z.string().min(32).optional(),
         FILES_DOWNLOAD_LINK_TTL_SEC: positiveInt(300),
 
-        // Расшифровка встреч целым файлом: прямой ElevenLabs STT, ключ — отдельный секрет
-        ELEVENLABS_API_KEY: z.string().min(1).optional(),
-        ELEVENLABS_BASE_URL: z.url().default('https://api.elevenlabs.io'),
-        MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('scribe_v2'),
-        // model_id прямого API ElevenLabs; отдельно от MEETING_TRANSCRIPTION_MODEL (slug OpenRouter).
-        ELEVENLABS_STT_MODEL: z
-            .string()
-            .min(1)
-            .refine(
-                (v) => !v.includes('/'),
-                'ELEVENLABS_STT_MODEL must be a model_id like scribe_v2',
-            )
-            .default('scribe_v2'),
-        // Таймаут одного HTTP-запроса на всю запись (90 мин); не больше дедлайна job'а
-        MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(5_400_000),
-        // Предел размера сжатого файла, байты (1 ГиБ); проверяется до отправки
-        MEETING_TRANSCRIPTION_MAX_FILE_BYTES: positiveInt(1_073_741_824),
-        // Пусто: язык определяет модель
+        // Расшифровка встреч целым файлом: OpenRouter STT (ключ OPENROUTER_API_KEY)
+        MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('elevenlabs/scribe-v2'),
+        // Таймаут одного HTTP-запроса на всю запись (240 с, не больше 290 с); не больше дедлайна job'а
+        MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(240_000).pipe(z.number().max(290_000)),
+        // Предел размера сжатого файла, байты (18 МиБ); проверяется до отправки
+        MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: positiveInt(18_874_368),
         MEETING_TRANSCRIPTION_LANGUAGE: z.string().min(1).optional(),
-        MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(14400),
+        MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(4500),
         MEETING_TRANSCRIPTION_CHUNK_SEC: positiveInt(600),
         MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: z.coerce.number().int().nonnegative().default(30),
         MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES: positiveInt(20971520),

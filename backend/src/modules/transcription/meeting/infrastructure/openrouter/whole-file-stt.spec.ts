@@ -1,7 +1,6 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Agent } from 'undici';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { silentLogger } from '../../../../files/application/test-doubles';
 import { recordingLogger } from '../../../application/test-doubles';
@@ -9,7 +8,7 @@ import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../../
 import type { PreparedMeetingAudio } from '../../domain/ports/meeting-audio-preparer.port';
 import { WholeFileStt, type WholeFileSttSettings } from './whole-file-stt';
 
-const API_KEY = 'xi-test-secret-key';
+const API_KEY = 'sk-or-test-secret-key';
 const AUDIO = Buffer.from('OggS-fake-opus-whole-file');
 const SECRET_TEXT = 'confidential-meeting-phrase';
 
@@ -18,30 +17,29 @@ type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
 function settings(overrides: Partial<WholeFileSttSettings> = {}): WholeFileSttSettings {
     return {
         apiKey: API_KEY,
-        baseUrl: 'https://elevenlabs.test/',
-        model: 'scribe_v2',
+        baseUrl: 'https://openrouter.test/api/v1/',
+        model: 'elevenlabs/scribe-v2',
         language: undefined,
-        timeoutMs: 600_000,
-        maxFileBytes: 1_000_000,
+        timeoutMs: 240_000,
+        maxAudioBytes: 1_000_000,
         ...overrides,
     };
 }
 
 const okBody = {
-    language_code: 'rus',
-    language_probability: 0.99,
+    language: 'rus',
     text: SECRET_TEXT,
     words: [
-        { text: 'Привет', start: 0.1, end: 0.5, type: 'word', speaker_id: 'speaker_0' },
-        { text: ' ', start: 0.5, end: 0.6, type: 'spacing', speaker_id: 'speaker_0' },
-        { text: SECRET_TEXT, start: 0.6, end: 1.2, type: 'word', speaker_id: 'speaker_1' },
+        { word: 'Привет', start: 0.1, end: 0.5, speaker: 'speaker_0' },
+        { text: SECRET_TEXT, start: 0.6, end: 1.2, speaker_id: 'speaker_1', type: 'word' },
     ],
+    usage: { seconds: 3500, cost: 0.42 },
 };
 
-function sentForm(fetchMock: FetchMock): FormData {
+function sentJson(fetchMock: FetchMock): Record<string, unknown> {
     const body = fetchMock.mock.calls[0]?.[1]?.body;
-    if (!(body instanceof FormData)) throw new Error('fetch was not called with FormData');
-    return body;
+    if (typeof body !== 'string') throw new Error('fetch was not called with a JSON string');
+    return JSON.parse(body) as Record<string, unknown>;
 }
 
 async function rejectionOf(promise: Promise<unknown>): Promise<Error> {
@@ -76,51 +74,37 @@ describe('WholeFileStt', () => {
     });
 
     describe('request', () => {
-        it('sends the request through a dispatcher with long timeouts', async () => {
-            fetchMock.mockResolvedValue(Response.json(okBody));
-            await new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal());
-            const init = fetchMock.mock.calls[0]?.[1] as { dispatcher?: unknown } | undefined;
-            expect(init?.dispatcher).toBeInstanceOf(Agent);
-        });
-
-        it('posts one multipart request to /v1/speech-to-text with the whole file', async () => {
+        it('posts one JSON request to /audio/transcriptions with the whole file', async () => {
             fetchMock.mockResolvedValue(Response.json(okBody));
 
             await new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal());
 
             expect(fetchMock).toHaveBeenCalledTimes(1);
             const [url, init] = fetchMock.mock.calls[0] ?? [];
-            expect(url).toBe('https://elevenlabs.test/v1/speech-to-text');
+            expect(url).toBe('https://openrouter.test/api/v1/audio/transcriptions');
             expect(init?.method).toBe('POST');
-            expect(new Headers(init?.headers).get('xi-api-key')).toBe(API_KEY);
+            const headers = new Headers(init?.headers);
+            expect(headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
+            expect(headers.get('content-type')).toContain('application/json');
+            expect(init).not.toHaveProperty('dispatcher');
 
-            const form = sentForm(fetchMock);
-            expect(form.get('model_id')).toBe('scribe_v2');
-            expect(form.get('diarize')).toBe('true');
-            expect(form.get('timestamps_granularity')).toBe('word');
-            expect(form.has('language_code')).toBe(false);
-            expect([...form.keys()].filter((key) => key === 'file')).toHaveLength(1);
+            const json = sentJson(fetchMock);
+            expect(json).toEqual({
+                model: 'elevenlabs/scribe-v2',
+                input_audio: { data: AUDIO.toString('base64'), format: 'ogg' },
+                response_format: 'verbose_json',
+                timestamp_granularities: ['word'],
+                diarize: true,
+            });
         });
 
-        it('sends the file as a blob, not as base64 text', async () => {
-            fetchMock.mockResolvedValue(Response.json(okBody));
-            await new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal());
-
-            const file = sentForm(fetchMock).get('file');
-            expect(file).toBeInstanceOf(Blob);
-            const blob = file as Blob;
-            expect(blob.size).toBe(AUDIO.length);
-            expect(Buffer.from(await blob.arrayBuffer()).equals(AUDIO)).toBe(true);
-            expect(typeof fetchMock.mock.calls[0]?.[1]?.body).not.toBe('string');
-        });
-
-        it('sends language_code only when a language is configured', async () => {
+        it('sends language only when a language is configured', async () => {
             fetchMock.mockResolvedValue(Response.json(okBody));
             await new WholeFileStt(settings({ language: 'ru' }), silentLogger()).transcribe(
                 audio,
                 signal(),
             );
-            expect(sentForm(fetchMock).get('language_code')).toBe('ru');
+            expect(sentJson(fetchMock).language).toBe('ru');
         });
 
         it('passes a signal that follows the caller abort', async () => {
@@ -136,7 +120,7 @@ describe('WholeFileStt', () => {
     });
 
     describe('response', () => {
-        it('returns language, words and usage in seconds with unknown cost', async () => {
+        it('returns language, words and usage with provider cost', async () => {
             fetchMock.mockResolvedValue(Response.json(okBody));
             const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
                 audio,
@@ -144,21 +128,40 @@ describe('WholeFileStt', () => {
             );
 
             expect(result.language).toBe('rus');
-            expect(result.words).toHaveLength(3);
-            expect(result.words[0]).toEqual({
-                type: 'word',
-                text: 'Привет',
-                start: 0.1,
-                end: 0.5,
-                speakerId: 'speaker_0',
-            });
+            expect(result.words).toEqual([
+                { type: 'word', text: 'Привет', start: 0.1, end: 0.5, speakerId: 'speaker_0' },
+                { type: 'word', text: SECRET_TEXT, start: 0.6, end: 1.2, speakerId: 'speaker_1' },
+            ]);
+            expect(result.usage).toEqual({ seconds: 3500, cost: 0.42 });
+        });
+
+        it('falls back to the audio duration and null cost when usage is missing', async () => {
+            fetchMock.mockResolvedValue(Response.json({ words: [] }));
+            const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
+                audio,
+                signal(),
+            );
+            expect(result.language).toBeNull();
             expect(result.usage).toEqual({ seconds: 3600, cost: null });
         });
 
-        it('keeps invalid word fields as null for the converter to drop', async () => {
+        it.each([
+            [0, '0'],
+            ['0', '0'],
+            ['speaker_0', 'speaker_0'],
+        ])('reads speaker label %j as %j', async (label, expected) => {
             fetchMock.mockResolvedValue(
-                Response.json({ language_code: 'rus', words: [{ text: 'x', type: 'word' }] }),
+                Response.json({ words: [{ word: 'a', start: 0, end: 1, speaker_label: label }] }),
             );
+            const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
+                audio,
+                signal(),
+            );
+            expect(result.words[0]?.speakerId).toBe(expected);
+        });
+
+        it('keeps invalid word fields as null for the converter to drop', async () => {
+            fetchMock.mockResolvedValue(Response.json({ words: [{ word: 'x' }] }));
             const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
                 audio,
                 signal(),
@@ -172,9 +175,22 @@ describe('WholeFileStt', () => {
             });
         });
 
+        it('keeps non-word item types so the converter can skip them', async () => {
+            fetchMock.mockResolvedValue(
+                Response.json({
+                    words: [{ text: ' ', type: 'spacing', start: 0, end: 1, speaker_id: 'a' }],
+                }),
+            );
+            const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
+                audio,
+                signal(),
+            );
+            expect(result.words[0]?.type).toBe('spacing');
+        });
+
         it.each([
-            ['no words array', { language_code: 'rus' }],
-            ['words is not an array', { language_code: 'rus', words: 'nope' }],
+            ['no words array', { language: 'rus' }],
+            ['words is not an array', { language: 'rus', words: 'nope' }],
             ['body is not an object', 'oops'],
         ])('rejects an invalid response structure (%s) as temporary', async (_name, body) => {
             fetchMock.mockResolvedValue(Response.json(body));
@@ -203,7 +219,7 @@ describe('WholeFileStt', () => {
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
 
-        it.each([400, 413, 415, 422])(
+        it.each([400, 415, 422])(
             'maps HTTP %i to a permanent unsupported-media error',
             async (code) => {
                 fetchMock.mockResolvedValue(new Response('bad', { status: code }));
@@ -230,6 +246,15 @@ describe('WholeFileStt', () => {
             },
         );
 
+        it('maps HTTP 413 to a permanent too-long error', async () => {
+            fetchMock.mockResolvedValue(new Response('big', { status: 413 }));
+            const error = await rejectionOf(
+                new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal()),
+            );
+            expect(error).toBeInstanceOf(TranscriptionPermanentError);
+            expect((error as TranscriptionPermanentError).reason).toBe('too-long');
+        });
+
         it('maps a network failure to a temporary error', async () => {
             fetchMock.mockRejectedValue(new TypeError('fetch failed'));
             const error = await rejectionOf(
@@ -249,12 +274,13 @@ describe('WholeFileStt', () => {
             expect(error).toBeInstanceOf(TranscriptionTemporaryError);
             expect(fetchMock).not.toHaveBeenCalled();
             expect(log.error).toHaveBeenCalled();
+            expect(log.dump()).not.toContain(API_KEY);
         });
 
         it('refuses a file over the size limit before sending, with no fallback', async () => {
             const error = await rejectionOf(
                 new WholeFileStt(
-                    settings({ maxFileBytes: AUDIO.length - 1 }),
+                    settings({ maxAudioBytes: AUDIO.length - 1 }),
                     silentLogger(),
                 ).transcribe(audio, signal()),
             );

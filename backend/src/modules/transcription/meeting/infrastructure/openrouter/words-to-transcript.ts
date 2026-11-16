@@ -31,13 +31,9 @@ export function wordsToTranscript(
     const speechItems = response.words.filter((item) => item.type === 'word');
     const words = speechItems.flatMap((item) => toSpeechWord(item) ?? []);
     if (speechItems.length > 0 && words.length === 0) {
-        throw new TranscriptionTemporaryError(
-            'ElevenLabs returned an invalid response',
-            undefined,
-            {
-                reason: 'invalid_response',
-            },
-        );
+        throw new TranscriptionTemporaryError('Provider returned an invalid response', undefined, {
+            reason: 'invalid_response',
+        });
     }
 
     const ordered = words

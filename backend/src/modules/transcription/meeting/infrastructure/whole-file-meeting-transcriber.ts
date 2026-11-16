@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type { OnModuleInit } from '@nestjs/common';
+import type { PinoLogger } from 'nestjs-pino';
 import { TranscriptionTemporaryError } from '../domain/errors';
 import { type MeetingAudioPreparerPort } from '../domain/ports/meeting-audio-preparer.port';
 import {
@@ -12,11 +13,13 @@ import {
     type MeetingTranscription,
 } from '../domain/ports/meeting-transcriber.port';
 import { type WholeFileSttPort } from '../domain/ports/whole-file-stt.port';
-import { wordsToTranscript } from './elevenlabs/words-to-transcript';
+import { wordsToTranscript } from './openrouter/words-to-transcript';
 
 export interface WholeFileMeetingTranscriberSettings {
     /** Parent of the per-recording temporary folder; `os.tmpdir()` by default. */
     readonly tmpRoot?: string;
+    /** Для предупреждений об очистке устаревших папок; без путей в сообщениях. */
+    readonly logger?: PinoLogger;
 }
 
 const TMP_PREFIX = 'meeting-transcription-';
@@ -46,7 +49,8 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
         let entries: Dirent[];
         try {
             entries = await readdir(root, { withFileTypes: true });
-        } catch {
+        } catch (error) {
+            if (errorCode(error) !== 'ENOENT') this.warnCleanup(error);
             return;
         }
         for (const entry of entries) {
@@ -57,10 +61,18 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
                 if (now - mtimeMs >= STALE_WORK_DIR_AGE_MS) {
                     await rm(path, { recursive: true, force: true });
                 }
-            } catch {
+            } catch (error) {
                 // Best-effort: папку мог удалить другой процесс или она чужая (EPERM).
+                if (errorCode(error) !== 'ENOENT') this.warnCleanup(error);
             }
         }
+    }
+
+    private warnCleanup(error: unknown): void {
+        this.settings.logger?.warn(
+            { errorCode: errorCode(error) ?? 'unknown' },
+            'Failed to clean up stale meeting transcription folders',
+        );
     }
 
     async transcribe(audio: MeetingAudio, signal: AbortSignal): Promise<MeetingTranscription> {
@@ -103,4 +115,9 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
             );
         }
     }
+}
+
+function errorCode(error: unknown): string | undefined {
+    if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
+    return typeof error.code === 'string' ? error.code : undefined;
 }

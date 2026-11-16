@@ -39,7 +39,7 @@ import { START_MEETING_TRANSCRIPTION_SUBSCRIBER } from './meeting/application/st
 import { MeetingAudioPreparerPort } from './meeting/domain/ports/meeting-audio-preparer.port';
 import { WholeFileSttPort } from './meeting/domain/ports/whole-file-stt.port';
 import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
-import { WholeFileStt } from './meeting/infrastructure/elevenlabs/whole-file-stt';
+import { WholeFileStt } from './meeting/infrastructure/openrouter/whole-file-stt';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
 import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
@@ -60,13 +60,10 @@ const values: Record<string, unknown> = {
     OPENROUTER_API_KEY: 'sk-or-test',
     OPENROUTER_BASE_URL: 'https://openrouter.test/api/v1',
     TRANSCRIPTION_MODEL: 'google/gemini-3.1-flash-lite',
-    ELEVENLABS_API_KEY: 'xi-test',
-    ELEVENLABS_BASE_URL: 'https://elevenlabs.test',
-    MEETING_TRANSCRIPTION_MODEL: 'scribe_v2',
-    ELEVENLABS_STT_MODEL: 'scribe_v2',
-    MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: 5_400_000,
-    MEETING_TRANSCRIPTION_MAX_FILE_BYTES: 1_073_741_824,
-    MEETING_TRANSCRIPTION_MAX_DURATION_SEC: 14400,
+    MEETING_TRANSCRIPTION_MODEL: 'elevenlabs/scribe-v2',
+    MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: 240_000,
+    MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: 18_874_368,
+    MEETING_TRANSCRIPTION_MAX_DURATION_SEC: 4500,
     MEETING_TRANSCRIPTION_CHUNK_SEC: 600,
     MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: 30,
     MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES: 20971520,
@@ -217,18 +214,18 @@ describe('TranscriptionModule', () => {
         expect(app.get(MeetingTranscriptionQueuePort)).toBeInstanceOf(MeetingTranscriptionQueue);
     });
 
-    it('builds the whole-file adapters from the ElevenLabs key and timeouts', async () => {
+    it('builds the whole-file adapters from the OpenRouter key and limits', async () => {
         app = await createApp();
 
         expect(app.get(WholeFileSttPort)).toBeInstanceOf(WholeFileStt);
         expect(app.get(MeetingAudioPreparerPort)).toBeInstanceOf(FfmpegMeetingAudioPreparer);
         expect(app.get(WholeFileSttPort)).toMatchObject({
             settings: {
-                apiKey: 'xi-test',
-                baseUrl: 'https://elevenlabs.test',
-                model: 'scribe_v2',
-                timeoutMs: 5_400_000,
-                maxFileBytes: 1_073_741_824,
+                apiKey: 'sk-or-test',
+                baseUrl: 'https://openrouter.test/api/v1',
+                model: 'elevenlabs/scribe-v2',
+                timeoutMs: 240_000,
+                maxAudioBytes: 18_874_368,
             },
         });
     });

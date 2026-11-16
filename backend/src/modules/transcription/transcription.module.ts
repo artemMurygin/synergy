@@ -32,7 +32,7 @@ import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
 import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
-import { WholeFileStt } from './meeting/infrastructure/elevenlabs/whole-file-stt';
+import { WholeFileStt } from './meeting/infrastructure/openrouter/whole-file-stt';
 import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
 import { WholeFileMeetingTranscriber } from './meeting/infrastructure/whole-file-meeting-transcriber';
 import { MeetingFiles } from './meeting/infrastructure/files/meeting-files';
@@ -138,7 +138,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 new FfmpegMeetingAudioPreparer(
                     FfmpegMeetingAudioPreparer.settingsFromConfig(
                         config,
-                        config.get('MEETING_TRANSCRIPTION_MAX_FILE_BYTES', { infer: true }),
+                        config.get('MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES', { infer: true }),
                     ),
                     { logger },
                 ),
@@ -151,11 +151,12 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
         },
         {
             provide: MeetingTranscriberPort,
-            inject: [MeetingAudioPreparerPort, WholeFileSttPort],
+            inject: [MeetingAudioPreparerPort, WholeFileSttPort, PinoLogger],
             useFactory: (
                 preparer: MeetingAudioPreparerPort,
                 stt: WholeFileSttPort,
-            ): MeetingTranscriberPort => new WholeFileMeetingTranscriber(preparer, stt),
+                logger: PinoLogger,
+            ): MeetingTranscriberPort => new WholeFileMeetingTranscriber(preparer, stt, { logger }),
         },
     ],
     exports: [
