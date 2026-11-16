@@ -51,6 +51,11 @@ export const envSchema = z
         DEAL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
         DEAL_SYNC_DEFAULT_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
         CRM_DRIVER: z.enum(['mock']).default('mock'),
+
+        // Логин/пароль СИНЕРГИИ для двухшагового логина VocalAiGateway (SSO -> обмен на токен VocalAI)
+        VOCAL_AI_SYNERGY_LOGIN: z.string().min(1).optional(),
+        VOCAL_AI_SYNERGY_PASSWORD: z.string().min(1).optional(),
+        VOCAL_AI_BASE_URL: z.url().default('https://app.vocal-ai.ru'),
         TELEGRAM_BOT_TOKEN: z.string().optional(),
         TELEGRAM_BOT_USERNAME: z.string().regex(TELEGRAM_BOT_USERNAME_PATTERN).optional(),
         TELEGRAM_UPDATES_MODE: z.enum(['webhook', 'polling', 'off']).default('off'),
