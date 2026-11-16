@@ -13,13 +13,10 @@ import {
     type MeetingTranscription,
 } from '../domain/ports/meeting-transcriber.port';
 import { type WholeFileSttPort } from '../domain/ports/whole-file-stt.port';
-import { wordsToTranscript } from './openrouter/words-to-transcript';
+import { wordsToTranscript } from './words-to-transcript';
 
 export interface WholeFileMeetingTranscriberSettings {
-    /** Parent of the per-recording temporary folder; `os.tmpdir()` by default. */
     readonly tmpRoot?: string;
-    /** Для предупреждений об очистке устаревших папок; без путей в сообщениях. */
-    readonly logger?: PinoLogger;
 }
 
 const TMP_PREFIX = 'meeting-transcription-';
@@ -37,9 +34,11 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
     constructor(
         private readonly preparer: MeetingAudioPreparerPort,
         private readonly stt: WholeFileSttPort,
+        private readonly logger: PinoLogger,
         private readonly settings: WholeFileMeetingTranscriberSettings = {},
     ) {
         super();
+        this.logger.setContext(WholeFileMeetingTranscriber.name);
     }
 
     // Папки упавшего процесса (до 1 ГБ записи и сжатая копия) иначе остаются в tmp навсегда.
@@ -69,10 +68,7 @@ export class WholeFileMeetingTranscriber extends MeetingTranscriberPort implemen
     }
 
     private warnCleanup(error: unknown): void {
-        this.settings.logger?.warn(
-            { errorCode: errorCode(error) ?? 'unknown' },
-            'Failed to clean up stale meeting transcription folders',
-        );
+        this.logger.warn({ err: error }, 'Failed to clean up stale meeting transcription folders');
     }
 
     async transcribe(audio: MeetingAudio, signal: AbortSignal): Promise<MeetingTranscription> {

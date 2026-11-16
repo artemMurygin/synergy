@@ -54,7 +54,7 @@ const result = await transcribeVoice.execute(clip);
 
 Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. Чужая и несуществующая расшифровка дают 404 `MEETING_TRANSCRIPT_NOT_FOUND`.
 
-- `GET /transcripts/:fileId` → `{ fileId, status, failureReason, language, durationSec, speakerCount, speakers, segments, completedAt }`. `status`: `pending`, `processing`, `completed`, `no_speech`, `failed`. `segments` (`[{ seq, speaker, startSec, endSec, text }]`: `seq` с нуля без пропусков, `speaker` — номер спикера с единицы, время в секундах от начала записи) и `speakers` (`[{ speaker, name, talkSec, talkShare }]`, все спикеры `1..speakerCount`, `name: null` — метка «Спикер N», `talkShare` — доля 0..1) приходят только у готовой расшифровки (`completed`, `no_speech`; у `no_speech` списки пустые), иначе `null`. `failureReason`: `provider-unavailable`, `unsupported-media`, `too-long`, `timeout`, `file-deleted`.
+- `GET /transcripts/:fileId` → `{ fileId, status, failureReason, language, durationSec, speakerCount, speakers, segments, completedAt }`. `status`: `pending`, `processing`, `completed`, `no_speech`, `failed`. `segments` (`[{ seq, speaker, startSec, endSec, text }]`: `seq` с нуля без пропусков, `speaker` — номер спикера с единицы или `0` для реплики «Нераспознан», для которой провайдер не вернул метку собеседника, время в секундах от начала записи) и `speakers` (`[{ speaker, name, talkSec, talkShare }]`, все спикеры `1..speakerCount` без «Нераспознан», `name: null` — метка «Спикер N», `talkShare` — доля 0..1) приходят только у готовой расшифровки (`completed`, `no_speech`; у `no_speech` списки пустые), иначе `null`. `failureReason`: `provider-unavailable`, `unsupported-media`, `too-long`, `timeout`, `file-deleted`.
 - `PUT /transcripts/:fileId/speakers` с телом `{ speakers: [{ speaker, name }] }` → 200 и `{ speakers }` в той же форме. Имена назначаются одним вызовом, всё или ничего. Пустое имя или `null` сбрасывает спикера к метке «Спикер N». Одно имя может стоять у нескольких спикеров. 409 `MEETING_TRANSCRIPT_NOT_READY`, если расшифровка не `completed`; 422 `MEETING_TRANSCRIPT_UNKNOWN_SPEAKER` (номера нет в `1..speakerCount`) или `MEETING_TRANSCRIPT_INVALID_SPEAKER_NAME` (длина после обрезки пробелов не 1–100 символов), и тогда ни одно имя не меняется. Текст реплик не меняется никогда.
 - `POST /transcripts/:fileId/retry` → 202 и статус `pending`. Только для `failed` (иначе 409 `MEETING_TRANSCRIPTION_NOT_RETRYABLE`) и пока запись хранится (иначе 410 `FILE_GONE`). Удержание записи и статус `pending` сохраняются в одной транзакции, job ставится после коммита с новым `jobId`. Если job поставить не удалось, расшифровка возвращается в `failed` с прежней причиной, удержание снимается.
 
@@ -68,7 +68,7 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 Миграция `022` перенесла сегменты из бывшей колонки `meeting_transcript.segments JSONB`: порядок массива задал `seq`, номер спикера взят из метки «Спикер N». Метка «Спикер N» и имя — только отображение: в данных у сегмента числовой `speaker`. Down-часть миграции записана в комментарии (имена при откате теряются).
 
-Домен: `SpeakerName` (1–100 символов после обрезки), `SpeakerNames` (неизменяемая карта «номер → имя», `labelOf` даёт имя или «Спикер N»), `SpeakerAssignment` (проверенный пункт назначения), `SpeakerSummary` (имя, время и доля речи для API и агента).
+Домен: `SpeakerName` (1–100 символов после обрезки), `SpeakerNames` (неизменяемая карта «номер → имя», `labelOf` даёт имя, «Спикер N» или «Нераспознан» для `speaker = 0`; миграция `036` разрешила `speaker = 0` в сегментах), `SpeakerAssignment` (проверенный пункт назначения), `SpeakerSummary` (имя, время и доля речи для API и агента).
 
 ### Документы встречи
 
@@ -121,11 +121,12 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 - `ffmpeg` один раз перекодирует всю дорожку в mono 16 кГц opus 32 кбит/с (видео отбрасывается), без нарезки;
 - один `POST {OPENROUTER_BASE_URL}/audio/transcriptions` (JSON, `input_audio` base64 `ogg`, `MEETING_TRANSCRIPTION_MODEL`, диаризация, слова), без повторной диаризации и без fallback на куски. Тайминги отсчитываются от начала всей записи;
 - слова превращаются в сегменты по смене спикера, спикеры нумеруются по первому появлению;
-- временная папка удаляется всегда. Параметры нарезки (`CHUNK_*`, `MAX_EXEMPLARS`, `EXEMPLAR_SEC`) на обработку встреч больше не влияют.
+- временная папка удаляется всегда; нарезки на куски нет, её переменные окружения удалены;
+- слова без метки собеседника попадают в реплики «Нераспознан» (`speaker = 0`), не занимают номер и не входят в `speakerCount`.
 
 ### Сбои и повторы
 
-- Запрос: таймаут `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS`, повторы только на уровне job'а. Сеть, 429, 5xx и таймаут — временные ошибки; 401/403 — сбой конфигурации ключа (лог без значения ключа); остальные 4xx — постоянные.
+- Запрос: таймаут `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS`, повторы только на уровне job'а. Сеть, 429, 5xx и таймаут — временные ошибки; если таймаут случился и на последней попытке, итог — `failed('timeout')`. 400, 401 и 403 — сбой конфигурации (модель, параметры или ключ; лог уровня error без значения ключа), тоже временные: файл к этому моменту уже проверен `ffprobe`/`ffmpeg`. 413 — `too-long`, 415/422 — `unsupported-media`, без повторов.
 - Job: `MEETING_TRANSCRIPTION_ATTEMPTS` попыток, backoff экспоненциальный от 30 с. Постоянная ошибка или последняя попытка дают `failed`, событие `meeting-transcript.failed` и снятие удержания. Постоянная ошибка не повторяется (`UnrecoverableError`).
 - Попытка ограничена дедлайном `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` (2 ч): по нему прерываются `ffmpeg`, `ffprobe` и запросы к провайдеру, расшифровка сразу получает `failed('timeout')` без повторов.
 - Если job окончательно упал вне use case (ошибка БД при смене статуса, сбой сохранения, воркер упал и job завис сверх `maxStalledCount`), процессор переводит незавершённую расшифровку в `failed('provider-unavailable')` и снимает удержание (`FailMeetingTranscriptionUseCase`).
@@ -135,24 +136,24 @@ Bearer-токен обязателен, Swagger: `/docs`, тег `transcripts`. 
 
 ### Переменные окружения
 
-| Переменная | По умолчанию | Назначение |
-| --- | --- | --- |
-| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | — | Ключ и адрес OpenRouter: расшифровка встреч, голосовые Telegram, извлечение задач |
-| `MEETING_TRANSCRIPTION_MODEL` | `elevenlabs/scribe-v2` | Модель STT OpenRouter с диаризацией |
-| `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` | `240000` | Таймаут HTTP-запроса на всю запись; не больше 290000 и дедлайна job'а |
-| `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES` | `18874368` | Предел размера сжатого файла; проверяется до отправки |
-| `MEETING_TRANSCRIPTION_LANGUAGE` | не задан | Код языка (например, `ru`); пусто — автоопределение |
-| `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` | `4500` | Максимум длительности записи (75 мин) |
-| `MEETING_TRANSCRIPTION_ATTEMPTS` | `3` | Попытки job'а |
-| `MEETING_TRANSCRIPTION_CONCURRENCY` | `2` | Записи, которые воркер обрабатывает параллельно |
-| `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS` | `7200000` | Дедлайн одной попытки; по истечении — `failed('timeout')` |
-| `MEETING_TASKS_EXTRACTION_MODEL` | `anthropic/claude-haiku-5.5` | Модель извлечения задач |
-| `MEETING_TASKS_WINDOW_TOKENS` | `60000` | Порог оценки токенов, после которого расшифровка режется на окна |
-| `MEETING_TASKS_WINDOW_MINUTES` | `30` | Длина окна в минутах (перекрытие 2 минуты) |
+| Переменная                                  | По умолчанию                 | Назначение                                                                                                        |
+| ------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` | —                            | Ключ и адрес OpenRouter: расшифровка встреч, голосовые Telegram, извлечение задач                                 |
+| `MEETING_TRANSCRIPTION_MODEL`               | `elevenlabs/scribe-v2`       | Модель STT OpenRouter с диаризацией                                                                               |
+| `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS`      | `240000`                     | Таймаут HTTP-запроса на всю запись; не больше 290000 и дедлайна job'а                                             |
+| `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES`     | `18000000`                   | Предел размера сжатого файла; проверяется до отправки. В base64 с JSON укладывается в лимит тела OpenRouter 25 МБ |
+| `MEETING_TRANSCRIPTION_LANGUAGE`            | не задан                     | Код языка (например, `ru`); пусто — автоопределение                                                               |
+| `MEETING_TRANSCRIPTION_MAX_DURATION_SEC`    | `4500`                       | Максимум длительности записи (75 мин)                                                                             |
+| `MEETING_TRANSCRIPTION_ATTEMPTS`            | `3`                          | Попытки job'а                                                                                                     |
+| `MEETING_TRANSCRIPTION_CONCURRENCY`         | `2`                          | Записи, которые воркер обрабатывает параллельно                                                                   |
+| `MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS`      | `7200000`                    | Дедлайн одной попытки; по истечении — `failed('timeout')`                                                         |
+| `MEETING_TASKS_EXTRACTION_MODEL`            | `anthropic/claude-haiku-5.5` | Модель извлечения задач                                                                                           |
+| `MEETING_TASKS_WINDOW_TOKENS`               | `60000`                      | Порог оценки токенов, после которого расшифровка режется на окна                                                  |
+| `MEETING_TASKS_WINDOW_MINUTES`              | `30`                         | Длина окна в минутах (перекрытие 2 минуты)                                                                        |
 
 ### Требования к окружению
 
-- `ffmpeg` и `ffprobe` в образе: `Dockerfile.dev` ставит их через `apk add --no-cache ffmpeg` (прод-образу нужно то же). При старте модуль проверяет `ffmpeg -version`; если команды нет, в лог пишется ошибка, а записи получают `failed('provider-unavailable')`.
+- `ffmpeg` и `ffprobe` в образе: `Dockerfile.dev` ставит их через `apk add --no-cache ffmpeg` (прод-образу нужно то же). Если `ffprobe` нет, попытка получает временную ошибку, а после всех попыток запись получает `failed('provider-unavailable')`.
 - Свободное место во временной папке: около 2 × `FILES_MAX_RECORDING_MB` × `MEETING_TRANSCRIPTION_CONCURRENCY` (исходная запись плюс сжатая копия), при значениях по умолчанию — около 4 ГБ. Папка попытки удаляется в конце. Папки `meeting-transcription-*` старше суток (остались от упавшего процесса) удаляются при старте модуля.
 - Reverse proxy перед бэкендом должен пропускать большие тела запросов: `client_max_body_size` у nginx не меньше лимита записи (см. `../files/README.md`).
 

@@ -156,7 +156,7 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 preparer: MeetingAudioPreparerPort,
                 stt: WholeFileSttPort,
                 logger: PinoLogger,
-            ): MeetingTranscriberPort => new WholeFileMeetingTranscriber(preparer, stt, { logger }),
+            ): MeetingTranscriberPort => new WholeFileMeetingTranscriber(preparer, stt, logger),
         },
     ],
     exports: [

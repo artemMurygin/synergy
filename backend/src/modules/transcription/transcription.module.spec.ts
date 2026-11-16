@@ -46,7 +46,6 @@ import { MeetingFilesPort } from './meeting/domain/ports/meeting-files.port';
 import { MeetingTranscriptRepositoryPort } from './meeting/domain/ports/meeting-transcript-repository.port';
 import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-transcription-queue.port';
 import { WholeFileMeetingTranscriber } from './meeting/infrastructure/whole-file-meeting-transcriber';
-import { ChunkedMeetingTranscriber } from './meeting/infrastructure/chunked-meeting-transcriber';
 import { MeetingTranscriptionQueue } from './meeting/infrastructure/queue/meeting-transcription.queue';
 import { MEETING_TRANSCRIPTION_QUEUE_NAME } from './meeting/infrastructure/queue/meeting-transcription-queue.constants';
 import { MeetingTranscriptionQueueModule } from './meeting/infrastructure/queue/meeting-transcription-queue.module';
@@ -62,14 +61,8 @@ const values: Record<string, unknown> = {
     TRANSCRIPTION_MODEL: 'google/gemini-3.1-flash-lite',
     MEETING_TRANSCRIPTION_MODEL: 'elevenlabs/scribe-v2',
     MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: 240_000,
-    MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: 18_874_368,
+    MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: 18_000_000,
     MEETING_TRANSCRIPTION_MAX_DURATION_SEC: 4500,
-    MEETING_TRANSCRIPTION_CHUNK_SEC: 600,
-    MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: 30,
-    MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES: 20971520,
-    MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS: 90000,
-    MEETING_TRANSCRIPTION_MAX_EXEMPLARS: 8,
-    MEETING_TRANSCRIPTION_EXEMPLAR_SEC: 10,
     MEETING_TRANSCRIPTION_ATTEMPTS: 3,
     MEETING_TRANSCRIPTION_CONCURRENCY: 2,
     MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: 7_200_000,
@@ -207,7 +200,6 @@ describe('TranscriptionModule', () => {
             FailMeetingTranscriptionUseCase,
         );
         expect(app.get(MeetingTranscriberPort)).toBeInstanceOf(WholeFileMeetingTranscriber);
-        expect(app.get(MeetingTranscriberPort)).not.toBeInstanceOf(ChunkedMeetingTranscriber);
         expect(app.get(MeetingTranscriptRepositoryPort)).toBeInstanceOf(
             MeetingTranscriptRepository,
         );
@@ -225,7 +217,7 @@ describe('TranscriptionModule', () => {
                 baseUrl: 'https://openrouter.test/api/v1',
                 model: 'elevenlabs/scribe-v2',
                 timeoutMs: 240_000,
-                maxAudioBytes: 18_874_368,
+                maxAudioBytes: 18_000_000,
             },
         });
     });

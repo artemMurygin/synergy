@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { TranscriptionTemporaryError } from '../../domain/errors';
-import type { DiarizedTranscript } from '../../domain/diarized-transcript';
-import type { WholeFileWord } from '../../domain/ports/whole-file-stt.port';
+import { TranscriptionTemporaryError } from '../domain/errors';
+import type { DiarizedTranscript } from '../domain/diarized-transcript';
+import type { WholeFileWord } from '../domain/ports/whole-file-stt.port';
+import { UNRECOGNIZED_SPEAKER } from '../domain/transcript-segment';
 import { wordsToTranscript } from './words-to-transcript';
 
 const word = (
@@ -77,20 +78,37 @@ describe('wordsToTranscript', () => {
     it.each([
         ['no speaker', null],
         ['empty speaker', ''],
-    ])('keeps a word with %s under an unknown speaker', (_name, speakerId) => {
-        const transcript = convert([word('a', 0, 1, 'speaker_0'), word('b', 1, 2, speakerId)]);
+    ])(
+        'marks a word with %s as unrecognized without taking a speaker number',
+        (_name, speakerId) => {
+            const transcript = convert([
+                word('a', 0, 1, 'speaker_0'),
+                word('b', 1, 2, speakerId),
+                word('c', 2, 3, 'speaker_1'),
+            ]);
 
-        expect(transcript.segments).toEqual([
-            { seq: 0, speaker: 1, startSec: 0, endSec: 1, text: 'a' },
-            { seq: 1, speaker: 2, startSec: 1, endSec: 2, text: 'b' },
+            expect(transcript.segments).toEqual([
+                { seq: 0, speaker: 1, startSec: 0, endSec: 1, text: 'a' },
+                { seq: 1, speaker: UNRECOGNIZED_SPEAKER, startSec: 1, endSec: 2, text: 'b' },
+                { seq: 2, speaker: 2, startSec: 2, endSec: 3, text: 'c' },
+            ]);
+        },
+    );
+
+    it('keeps a provider label "unknown" apart from unrecognized words', () => {
+        const transcript = convert([word('a', 0, 1, 'unknown'), word('b', 1, 2, null)]);
+
+        expect(transcript.segments.map((segment) => segment.speaker)).toEqual([
+            1,
+            UNRECOGNIZED_SPEAKER,
         ]);
     });
 
-    it('does not fail when no word has a speaker label', () => {
+    it('marks all words as unrecognized when no word has a speaker label', () => {
         const transcript = convert([word('a', 0, 1, null), word('b', 1, 2, null)]);
 
         expect(transcript.segments).toEqual([
-            { seq: 0, speaker: 1, startSec: 0, endSec: 2, text: 'a b' },
+            { seq: 0, speaker: UNRECOGNIZED_SPEAKER, startSec: 0, endSec: 2, text: 'a b' },
         ]);
     });
 

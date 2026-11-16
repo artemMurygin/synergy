@@ -1,19 +1,17 @@
-import { TranscriptionTemporaryError } from '../../domain/errors';
-import { DiarizedTranscript } from '../../domain/diarized-transcript';
-import type { WholeFileTranscription, WholeFileWord } from '../../domain/ports/whole-file-stt.port';
-import { TranscriptSegment } from '../../domain/transcript-segment';
-
-const UNKNOWN_SPEAKER = 'unknown';
+import { TranscriptionTemporaryError } from '../domain/errors';
+import { DiarizedTranscript } from '../domain/diarized-transcript';
+import type { WholeFileTranscription, WholeFileWord } from '../domain/ports/whole-file-stt.port';
+import { TranscriptSegment, UNRECOGNIZED_SPEAKER } from '../domain/transcript-segment';
 
 interface SpeechWord {
     readonly text: string;
     readonly start: number;
     readonly end: number;
-    readonly speakerId: string;
+    readonly speakerId: string | null;
 }
 
 interface Group {
-    readonly speakerId: string;
+    readonly speakerId: string | null;
     readonly start: number;
     end: number;
     readonly texts: string[];
@@ -21,8 +19,8 @@ interface Group {
 
 /**
  * Единый ответ провайдера -> доменная расшифровка. Берутся только элементы `word` с валидными
- * временем и текстом; слово без метки спикера сохраняется под общей меткой `unknown`; подряд идущие слова одного спикера склеиваются в сегмент,
- * спикеры нумеруются с единицы по первому появлению. Нет речи -> пустые сегменты (`no_speech`).
+ * временем и текстом; подряд идущие слова одного спикера склеиваются в сегмент, спикеры
+ * нумеруются с единицы по первому появлению, слова без метки получают `UNRECOGNIZED_SPEAKER`. Нет речи -> пустые сегменты (`no_speech`).
  * Если слова речи есть, но ни одно не валидно, ответ некорректен: бросает
  * `TranscriptionTemporaryError`, пустой успех не возвращается. Текст в ошибку не попадает.
  */
@@ -46,7 +44,9 @@ export function wordsToTranscript(
     const speakers = new Map<string, number>();
     const groups: Group[] = [];
     for (const word of ordered) {
-        if (!speakers.has(word.speakerId)) speakers.set(word.speakerId, speakers.size + 1);
+        if (word.speakerId !== null && !speakers.has(word.speakerId)) {
+            speakers.set(word.speakerId, speakers.size + 1);
+        }
         const last = groups.at(-1);
         if (last?.speakerId === word.speakerId) {
             last.end = Math.max(last.end, word.end);
@@ -63,7 +63,10 @@ export function wordsToTranscript(
     const segments = groups.map((group, seq) =>
         TranscriptSegment.of({
             seq,
-            speaker: speakers.get(group.speakerId) ?? 1,
+            speaker:
+                group.speakerId === null
+                    ? UNRECOGNIZED_SPEAKER
+                    : (speakers.get(group.speakerId) ?? UNRECOGNIZED_SPEAKER),
             startSec: group.start,
             endSec: group.end,
             text: group.texts.join(' '),
@@ -82,6 +85,6 @@ function toSpeechWord(item: WholeFileWord): SpeechWord | null {
         text: text.trim(),
         start,
         end,
-        speakerId: speakerId === null || speakerId === '' ? UNKNOWN_SPEAKER : speakerId,
+        speakerId: speakerId === null || speakerId.trim() === '' ? null : speakerId,
     };
 }

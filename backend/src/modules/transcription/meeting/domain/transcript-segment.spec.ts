@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InvalidTranscriptSegmentError } from './errors';
-import { countSpeakers, TranscriptSegment } from './transcript-segment';
+import { countSpeakers, TranscriptSegment, UNRECOGNIZED_SPEAKER } from './transcript-segment';
 
 const valid = { seq: 0, speaker: 1, startSec: 1.5, endSec: 3, text: 'привет' };
 
@@ -46,7 +46,11 @@ describe('TranscriptSegment', () => {
         );
     });
 
-    it.each([0, -2, 1.5, Number.NaN])('rejects the speaker number %s', (speaker) => {
+    it('accepts the unrecognized speaker 0', () => {
+        expect(TranscriptSegment.of({ ...valid, speaker: UNRECOGNIZED_SPEAKER }).speaker).toBe(0);
+    });
+
+    it.each([-2, 1.5, Number.NaN])('rejects the speaker number %s', (speaker) => {
         expect(() => TranscriptSegment.of({ ...valid, speaker })).toThrow(
             InvalidTranscriptSegmentError,
         );
@@ -63,5 +67,15 @@ describe('countSpeakers', () => {
 
         expect(countSpeakers(segments)).toBe(2);
         expect(countSpeakers([])).toBe(0);
+    });
+
+    it('does not count unrecognized speech as a speaker', () => {
+        const segments = [
+            TranscriptSegment.of({ ...valid, seq: 0, speaker: 1 }),
+            TranscriptSegment.of({ ...valid, seq: 1, speaker: UNRECOGNIZED_SPEAKER }),
+        ];
+
+        expect(countSpeakers(segments)).toBe(1);
+        expect(countSpeakers([segments[1] ?? segments[0]])).toBe(0);
     });
 });

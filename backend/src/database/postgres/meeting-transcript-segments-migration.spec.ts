@@ -177,7 +177,7 @@ describe.skipIf(adminUrl === undefined)('022_meeting_transcript_segments migrati
 
     it.each([
         ['a negative seq', -1, {}],
-        ['a speaker below 1', 0, { speaker: 0 }],
+        ['a negative speaker (0 is «Нераспознан» since 036)', 0, { speaker: -1 }],
         ['a negative start', 0, { start: -1 }],
         ['an end before the start', 0, { start: 5, end: 4 }],
         ['an empty text', 0, { text: '' }],

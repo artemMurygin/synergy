@@ -1,5 +1,6 @@
 import type { SpeakerTalkTime } from './ports/transcript-segment-repository.port';
 import type { SpeakerNames } from './speaker-names';
+import { UNRECOGNIZED_SPEAKER } from './transcript-segment';
 
 /** Собеседник готовой расшифровки для API и агента: имя (или `null`) и время речи. */
 export interface SpeakerSummary {
@@ -17,7 +18,8 @@ export function summarizeSpeakers(
     stats: readonly SpeakerTalkTime[],
 ): SpeakerSummary[] {
     const talk = new Map(stats.map((s) => [s.speaker, s.talkSec]));
-    const total = stats.reduce((sum, s) => sum + s.talkSec, 0);
+    const numbered = stats.filter((s) => s.speaker !== UNRECOGNIZED_SPEAKER);
+    const total = numbered.reduce((sum, s) => sum + s.talkSec, 0);
     return Array.from({ length: speakerCount }, (_, i) => {
         const speaker = i + 1;
         const talkSec = talk.get(speaker) ?? 0;

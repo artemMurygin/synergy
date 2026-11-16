@@ -17,7 +17,11 @@ import {
 } from '../../../files/application/test-doubles';
 import { recordingLogger } from '../../application/test-doubles';
 import { TranscribeMeetingUseCase } from '../application/transcribe-meeting.use-case';
-import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../domain/errors';
+import {
+    TranscriptionPermanentError,
+    TranscriptionTemporaryError,
+    TranscriptionTimeoutError,
+} from '../domain/errors';
 import { MeetingTranscriptCompletedEvent } from '../domain/events/meeting-transcript-completed.event';
 import { MeetingTranscript } from '../domain/meeting-transcript';
 import {
@@ -30,7 +34,7 @@ import { InMemoryTranscriptSegmentRepository } from '../testing/in-memory-transc
 import { WholeFileMeetingTranscriber } from './whole-file-meeting-transcriber';
 
 const FILE_ID = '0b9f1c2e-7d4a-4f61-9c3b-2a5e8d7f6a10';
-const MAX_DURATION_SEC = 14400;
+const MAX_DURATION_SEC = 4500;
 
 class Preparer extends MeetingAudioPreparerPort {
     durationSec = 3600;
@@ -112,7 +116,7 @@ describe('whole-file meeting flow', () => {
         useCase = new TranscribeMeetingUseCase(
             transcripts,
             segments,
-            new WholeFileMeetingTranscriber(preparer, stt, { tmpRoot: root }),
+            new WholeFileMeetingTranscriber(preparer, stt, silentLogger(), { tmpRoot: root }),
             open,
             release,
             transactions,
@@ -140,7 +144,7 @@ describe('whole-file meeting flow', () => {
 
     it.each([
         ['short', 120],
-        ['long', 14400],
+        ['70-minute', 4200],
     ])('sends a valid %s recording once and keeps absolute timings', async (_name, durationSec) => {
         preparer.durationSec = durationSec;
 
@@ -155,8 +159,8 @@ describe('whole-file meeting flow', () => {
         expect(await readdir(root)).toEqual([]);
     });
 
-    it('fails too-long before the provider is called', async () => {
-        preparer.durationSec = MAX_DURATION_SEC + 1;
+    it('fails a 76-minute recording as too-long before the provider is called', async () => {
+        preparer.durationSec = 76 * 60;
 
         await expect(
             useCase.execute({ fileId: FILE_ID, isFinalAttempt: false }),
@@ -192,5 +196,15 @@ describe('whole-file meeting flow', () => {
         const transcript = await stored();
         expect(transcript.status).toBe('failed');
         expect(transcript.failureReason).toBe('provider-unavailable');
+    });
+
+    it('ends in timeout when the provider timed out on the final attempt', async () => {
+        stt.failures = [new TranscriptionTimeoutError('timed out')];
+
+        await useCase.execute({ fileId: FILE_ID, isFinalAttempt: true }).catch(() => undefined);
+
+        const transcript = await stored();
+        expect(transcript.status).toBe('failed');
+        expect(transcript.failureReason).toBe('timeout');
     });
 });

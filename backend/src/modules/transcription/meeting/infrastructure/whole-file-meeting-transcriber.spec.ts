@@ -14,6 +14,7 @@ import {
     type WholeFileTranscription,
     type WholeFileWord,
 } from '../domain/ports/whole-file-stt.port';
+import { silentLogger } from '../../../files/application/test-doubles';
 import { recordingLogger } from '../../application/test-doubles';
 import { WholeFileMeetingTranscriber } from './whole-file-meeting-transcriber';
 
@@ -75,7 +76,7 @@ describe('WholeFileMeetingTranscriber', () => {
         sizeBytes: AUDIO.length,
     });
     const make = (root = tmpRoot): WholeFileMeetingTranscriber =>
-        new WholeFileMeetingTranscriber(preparer, stt, { tmpRoot: root });
+        new WholeFileMeetingTranscriber(preparer, stt, silentLogger(), { tmpRoot: root });
 
     beforeEach(async () => {
         tmpRoot = await mkdtemp(join(tmpdir(), 'whole-file-transcriber-spec-'));
@@ -92,13 +93,14 @@ describe('WholeFileMeetingTranscriber', () => {
         await writeFile(notADirectory, 'x');
         const log = recordingLogger();
 
-        await new WholeFileMeetingTranscriber(preparer, stt, {
+        await new WholeFileMeetingTranscriber(preparer, stt, log.logger, {
             tmpRoot: notADirectory,
-            logger: log.logger,
         }).onModuleInit();
 
         expect(log.warn).toHaveBeenCalledTimes(1);
-        expect(log.dump()).not.toContain(tmpRoot);
+        const [fields] = log.warn.mock.calls[0] ?? [];
+        expect(fields).toHaveProperty('err');
+        expect(Reflect.get(Object(fields), 'err')).toBeInstanceOf(Error);
     });
 
     it('writes the stream to a temporary folder, prepares once and calls STT once', async () => {

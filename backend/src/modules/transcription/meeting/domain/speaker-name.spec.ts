@@ -51,6 +51,10 @@ describe('SpeakerAssignment', () => {
 });
 
 describe('SpeakerNames', () => {
+    it('labels the unrecognized speaker 0 «Нераспознан»', () => {
+        expect(SpeakerNames.empty().labelOf(0)).toBe('Нераспознан');
+    });
+
     it('is empty by default and labels speakers «Спикер N»', () => {
         const names = SpeakerNames.empty();
 

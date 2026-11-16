@@ -122,6 +122,17 @@ describe('MeetingTranscript', () => {
         expect(t.speakerCount).toBe(2);
     });
 
+    it('completes unrecognized-only speech as completed with no numbered speakers', () => {
+        const t = processing();
+        t.complete(
+            DiarizedTranscript.of({ language: 'ru', durationSec: 5, segments: [seg(0, 0, 0, 5)] }),
+            T1,
+        );
+
+        expect(t.status).toBe('completed');
+        expect(t.speakerCount).toBe(0);
+    });
+
     it('completes with empty segments as no_speech', () => {
         const t = processing();
         t.complete(silence, T1);
@@ -369,10 +380,15 @@ describe('MeetingTranscript', () => {
             ).toThrow(InvalidMeetingTranscriptStateError);
         });
 
-        it('rejects completed without speakers', () => {
-            expect(() =>
-                MeetingTranscript.restore({ ...base, status: 'completed', completedAt: T1 }),
-            ).toThrow(InvalidMeetingTranscriptStateError);
+        it('restores completed without numbered speakers (only unrecognized speech)', () => {
+            expect(
+                MeetingTranscript.restore({
+                    ...base,
+                    status: 'completed',
+                    durationSec: 5,
+                    completedAt: T1,
+                }).speakerCount,
+            ).toBe(0);
         });
 
         it('rejects a final status without completedAt', () => {

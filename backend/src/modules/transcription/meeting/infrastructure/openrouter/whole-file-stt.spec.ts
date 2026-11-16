@@ -2,9 +2,14 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { silentLogger } from '../../../../files/application/test-doubles';
 import { recordingLogger } from '../../../application/test-doubles';
-import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../../domain/errors';
+import {
+    TranscriptionPermanentError,
+    TranscriptionTemporaryError,
+    TranscriptionTimeoutError,
+} from '../../domain/errors';
 import type { PreparedMeetingAudio } from '../../domain/ports/meeting-audio-preparer.port';
 import { WholeFileStt, type WholeFileSttSettings } from './whole-file-stt';
 
@@ -39,7 +44,16 @@ const okBody = {
 function sentJson(fetchMock: FetchMock): Record<string, unknown> {
     const body = fetchMock.mock.calls[0]?.[1]?.body;
     if (typeof body !== 'string') throw new Error('fetch was not called with a JSON string');
-    return JSON.parse(body) as Record<string, unknown>;
+    return z.record(z.string(), z.unknown()).parse(JSON.parse(body));
+}
+
+function abortReasonOf(signal: AbortSignal | null | undefined): Error {
+    const reason: unknown = signal?.reason;
+    return reason instanceof Error ? reason : new DOMException('aborted', 'AbortError');
+}
+
+function permanentReasonOf(error: Error): string | null {
+    return error instanceof TranscriptionPermanentError ? error.reason : null;
 }
 
 async function rejectionOf(promise: Promise<unknown>): Promise<Error> {
@@ -149,7 +163,8 @@ describe('WholeFileStt', () => {
             [0, '0'],
             ['0', '0'],
             ['speaker_0', '0'],
-            ['Speaker 3', '3'],
+            ['speaker_12', '12'],
+            ['Speaker 3', 'Speaker 3'],
             ['  ', null],
         ])('reads speaker label %j as %j', async (label, expected) => {
             fetchMock.mockResolvedValue(
@@ -160,6 +175,19 @@ describe('WholeFileStt', () => {
                 signal(),
             );
             expect(result.words[0]?.speakerId).toBe(expected);
+        });
+
+        it('skips a blank speaker field and reads the next filled one', async () => {
+            fetchMock.mockResolvedValue(
+                Response.json({
+                    words: [{ word: 'a', start: 0, end: 1, speaker: ' ', speaker_id: 'speaker_2' }],
+                }),
+            );
+            const result = await new WholeFileStt(settings(), silentLogger()).transcribe(
+                audio,
+                signal(),
+            );
+            expect(result.words[0]?.speakerId).toBe('2');
         });
 
         it('keeps invalid word fields as null for the converter to drop', async () => {
@@ -221,18 +249,34 @@ describe('WholeFileStt', () => {
             expect(fetchMock).toHaveBeenCalledTimes(1);
         });
 
-        it.each([400, 415, 422])(
-            'maps HTTP %i to a permanent unsupported-media error',
-            async (code) => {
-                fetchMock.mockResolvedValue(new Response('bad', { status: code }));
-                const error = await rejectionOf(
-                    new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal()),
-                );
-                expect(error).toBeInstanceOf(TranscriptionPermanentError);
-                expect((error as TranscriptionPermanentError).reason).toBe('unsupported-media');
-                expect(fetchMock).toHaveBeenCalledTimes(1);
-            },
-        );
+        it.each([415, 422])('maps HTTP %i to a permanent unsupported-media error', async (code) => {
+            fetchMock.mockResolvedValue(new Response('bad', { status: code }));
+            const error = await rejectionOf(
+                new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal()),
+            );
+            expect(permanentReasonOf(error)).toBe('unsupported-media');
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('maps HTTP 400 to a temporary error logged as error, since the file is already validated', async () => {
+            const log = recordingLogger();
+            fetchMock.mockResolvedValue(new Response('bad model', { status: 400 }));
+            const error = await rejectionOf(
+                new WholeFileStt(settings(), log.logger).transcribe(audio, signal()),
+            );
+            expect(error).toBeInstanceOf(TranscriptionTemporaryError);
+            expect(log.error).toHaveBeenCalled();
+        });
+
+        it('releases the body of a failed response', async () => {
+            const response = new Response('busy', { status: 503 });
+            const cancel = vi.spyOn(response.body ?? new ReadableStream(), 'cancel');
+            fetchMock.mockResolvedValue(response);
+            await rejectionOf(
+                new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal()),
+            );
+            expect(cancel).toHaveBeenCalled();
+        });
 
         it.each([401, 403])(
             'maps HTTP %i to a temporary config error logged as error',
@@ -253,8 +297,7 @@ describe('WholeFileStt', () => {
             const error = await rejectionOf(
                 new WholeFileStt(settings(), silentLogger()).transcribe(audio, signal()),
             );
-            expect(error).toBeInstanceOf(TranscriptionPermanentError);
-            expect((error as TranscriptionPermanentError).reason).toBe('too-long');
+            expect(permanentReasonOf(error)).toBe('too-long');
         });
 
         it('maps a network failure to a temporary error', async () => {
@@ -286,19 +329,18 @@ describe('WholeFileStt', () => {
                     silentLogger(),
                 ).transcribe(audio, signal()),
             );
-            expect(error).toBeInstanceOf(TranscriptionPermanentError);
-            expect((error as TranscriptionPermanentError).reason).toBe('too-long');
+            expect(permanentReasonOf(error)).toBe('too-long');
             expect(fetchMock).not.toHaveBeenCalled();
         });
     });
 
     describe('timeout and cancellation', () => {
-        it('turns the HTTP timeout into a temporary error', async () => {
+        it('turns the HTTP timeout into a timeout error', async () => {
             fetchMock.mockImplementation(
                 (_url, init) =>
                     new Promise<Response>((_resolve, reject) => {
                         init?.signal?.addEventListener('abort', () => {
-                            reject(init.signal?.reason as Error);
+                            reject(abortReasonOf(init.signal));
                         });
                     }),
             );
@@ -308,10 +350,8 @@ describe('WholeFileStt', () => {
                     signal(),
                 ),
             );
+            expect(error).toBeInstanceOf(TranscriptionTimeoutError);
             expect(error).toBeInstanceOf(TranscriptionTemporaryError);
-            expect((error as TranscriptionTemporaryError).metadata).toMatchObject({
-                reason: 'timeout',
-            });
         });
 
         it('rethrows the abort error when the caller cancels', async () => {
@@ -320,7 +360,7 @@ describe('WholeFileStt', () => {
                 (_url, init) =>
                     new Promise<Response>((_resolve, reject) => {
                         init?.signal?.addEventListener('abort', () => {
-                            reject(init.signal?.reason as Error);
+                            reject(abortReasonOf(init.signal));
                         });
                     }),
             );

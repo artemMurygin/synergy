@@ -13,7 +13,7 @@
 | Name | Status | Aggregate root? | Ключевые поля | Назначение |
 |---|---|---|---|---|
 | `MeetingTranscript` | existing | да | `fileId`, статус, язык, длительность, число спикеров | Управляет жизненным циклом расшифровки и событиями |
-| `TranscriptSegment` | existing | нет; хранится отдельно от агрегата | `seq`, `speaker`, `startSec`, `endSec`, `text` | Реплика из единого ответа STT |
+| `TranscriptSegment` | existing | нет; хранится отдельно от агрегата | `seq`, `speaker` (`0` — «Нераспознан»), `startSec`, `endSec`, `text` | Реплика из единого ответа STT |
 
 ### Aggregates
 

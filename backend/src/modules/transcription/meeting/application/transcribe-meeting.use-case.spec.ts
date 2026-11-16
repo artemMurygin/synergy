@@ -14,7 +14,11 @@ import {
 } from '../../../files/application/test-doubles';
 import { recordingLogger, type RecordingLogger } from '../../application/test-doubles';
 import { DiarizedTranscript } from '../domain/diarized-transcript';
-import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../domain/errors';
+import {
+    TranscriptionPermanentError,
+    TranscriptionTemporaryError,
+    TranscriptionTimeoutError,
+} from '../domain/errors';
 import { MeetingTranscriptCompletedEvent } from '../domain/events/meeting-transcript-completed.event';
 import { MeetingTranscriptFailedEvent } from '../domain/events/meeting-transcript-failed.event';
 import { MeetingTranscript } from '../domain/meeting-transcript';
@@ -284,6 +288,32 @@ describe('TranscribeMeetingUseCase', () => {
             expect(events.published[0]).toMatchObject({ reason: 'provider-unavailable' });
             expect(events.inTransaction).toEqual([true]);
             expect(releaseHold).toHaveBeenCalledWith(FILE_ID);
+        });
+
+        it('fails with timeout when the provider timed out on the final attempt', async () => {
+            const error = new TranscriptionTimeoutError('provider timed out');
+
+            await expect(
+                useCase(FakeMeetingTranscriber.failing(error)).execute({
+                    fileId: FILE_ID,
+                    isFinalAttempt: true,
+                }),
+            ).rejects.toThrow();
+
+            expect((await stored()).failureReason).toBe('timeout');
+        });
+
+        it('retries a provider timeout before the final attempt', async () => {
+            const error = new TranscriptionTimeoutError('provider timed out');
+
+            await expect(
+                useCase(FakeMeetingTranscriber.failing(error)).execute({
+                    fileId: FILE_ID,
+                    isFinalAttempt: false,
+                }),
+            ).rejects.toBe(error);
+
+            expect((await stored()).status).toBe('processing');
         });
 
         it('treats an unexpected error as temporary', async () => {

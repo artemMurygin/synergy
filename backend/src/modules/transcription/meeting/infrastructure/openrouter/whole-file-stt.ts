@@ -1,9 +1,13 @@
-import type { ConfigService } from '@nestjs/config';
-import type { Env } from '../../../../../shared/config/env.schema';
 import { readFile } from 'node:fs/promises';
 import type { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
-import { TranscriptionPermanentError, TranscriptionTemporaryError } from '../../domain/errors';
+import type { ConfigService } from '@nestjs/config';
+import type { Env } from '../../../../../shared/config/env.schema';
+import {
+    TranscriptionPermanentError,
+    TranscriptionTemporaryError,
+    TranscriptionTimeoutError,
+} from '../../domain/errors';
 import type { PreparedMeetingAudio } from '../../domain/ports/meeting-audio-preparer.port';
 import {
     WholeFileSttPort,
@@ -11,13 +15,15 @@ import {
     type WholeFileWord,
 } from '../../domain/ports/whole-file-stt.port';
 
-const PERMANENT_STATUSES = new Set([400, 415, 422]);
-const AUTH_STATUSES = new Set([401, 403]);
+const UNSUPPORTED_MEDIA_STATUSES = new Set([415, 422]);
+// Файл уже проверен ffprobe/ffmpeg, поэтому 400 почти всегда означает ошибку настройки
+// (модель, параметры), а не битую запись: её нельзя навсегда помечать unsupported-media.
+const CONFIG_STATUSES = new Set([400, 401, 403]);
 const TRAILING_SLASHES = /\/+$/;
 
 const finiteOrNull = z.number().nullish().catch(null);
 const stringOrNull = z.string().nullish().catch(null);
-const SPEAKER_PREFIX = /^speaker[_\s-]?(\d+)$/i;
+const SPEAKER_PREFIX = /^speaker_(\d+)$/;
 
 const labelOrNull = z
     .union([z.string(), z.number()])
@@ -130,21 +136,26 @@ export class WholeFileStt extends WholeFileSttPort {
             throw this.requestError(error, signal, timeout);
         }
 
-        if (!response.ok) throw this.statusError(response.status);
+        if (!response.ok) {
+            await response.body?.cancel().catch(() => undefined);
+            throw this.statusError(response.status);
+        }
 
         let json: unknown;
+        let parseFailure: Error | undefined;
         try {
             json = await response.json();
         } catch (error: unknown) {
             if (signal.aborted) throw error;
             if (timeout.aborted) throw this.timeoutError();
+            parseFailure = error instanceof Error ? error : undefined;
         }
         const parsed = responseSchema.safeParse(json);
         if (!parsed.success) {
             this.logger.warn({ status: response.status }, 'Invalid whole-file STT response');
             throw new TranscriptionTemporaryError(
                 'OpenRouter returned an invalid response',
-                undefined,
+                parseFailure,
                 { status: response.status, reason: 'invalid_response' },
             );
         }
@@ -182,12 +193,12 @@ export class WholeFileStt extends WholeFileSttPort {
         });
     }
 
-    private timeoutError(): TranscriptionTemporaryError {
+    private timeoutError(): TranscriptionTimeoutError {
         this.logger.warn(
             { timeoutMs: this.settings.timeoutMs },
             'Whole-file STT request timed out',
         );
-        return new TranscriptionTemporaryError('OpenRouter transcription timed out', undefined, {
+        return new TranscriptionTimeoutError('OpenRouter transcription timed out', undefined, {
             reason: 'timeout',
         });
     }
@@ -198,14 +209,14 @@ export class WholeFileStt extends WholeFileSttPort {
             this.logger.warn({ status }, 'Provider refused the recording as too large');
             return new TranscriptionPermanentError('too-long', message, undefined, { status });
         }
-        if (PERMANENT_STATUSES.has(status)) {
+        if (UNSUPPORTED_MEDIA_STATUSES.has(status)) {
             this.logger.warn({ status }, 'Provider rejected the recording');
             return new TranscriptionPermanentError('unsupported-media', message, undefined, {
                 status,
             });
         }
-        if (AUTH_STATUSES.has(status)) {
-            this.logger.error({ status }, 'OpenRouter refused the API key');
+        if (CONFIG_STATUSES.has(status)) {
+            this.logger.error({ status }, 'OpenRouter rejected the request configuration');
         } else {
             this.logger.warn({ status }, 'Whole-file STT request failed');
         }
@@ -224,13 +235,14 @@ function toWord(item: unknown): WholeFileWord {
         text: word.word ?? word.text ?? null,
         start: word.start ?? null,
         end: word.end ?? null,
-        speakerId: normalizeSpeaker(word.speaker ?? word.speaker_id ?? word.speaker_label),
+        speakerId: firstSpeaker([word.speaker, word.speaker_id, word.speaker_label]),
     };
 }
 
-/** `0`, `"0"` and `"speaker_0"` are the same label; blank means no label. */
-function normalizeSpeaker(value: string | null | undefined): string | null {
-    const raw = value?.trim() ?? '';
-    if (raw === '') return null;
-    return SPEAKER_PREFIX.exec(raw)?.[1] ?? raw;
+function firstSpeaker(labels: readonly (string | null)[]): string | null {
+    for (const label of labels) {
+        const trimmed = label?.trim() ?? '';
+        if (trimmed !== '') return SPEAKER_PREFIX.exec(trimmed)?.[1] ?? trimmed;
+    }
+    return null;
 }

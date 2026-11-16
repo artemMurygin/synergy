@@ -45,6 +45,9 @@ export function transcriptFinishedText(outcome: TranscriptOutcome): string {
     switch (outcome.kind) {
         case 'completed': {
             const count = outcome.speakerCount;
+            if (count === 0) {
+                return `Расшифровка готова: собеседники не распознаны, ${formatTimecode(outcome.durationSec)}. Можно сразу перейти к задачам: напишите «извлеки задачи».`;
+            }
             const speakers = `${String(count)} ${plural(count, ['спикер', 'спикера', 'спикеров'])}`;
             return `Расшифровка готова: ${speakers}, ${formatTimecode(outcome.durationSec)}. Напишите, кто есть кто, например: «Спикер 1 — Анна, Спикер 2 — Олег». Можно сразу перейти к задачам: напишите «извлеки задачи».`;
         }

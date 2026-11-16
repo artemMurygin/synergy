@@ -150,16 +150,10 @@ export const envSchema = z
         MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('elevenlabs/scribe-v2'),
         // Таймаут одного HTTP-запроса на всю запись (240 с, не больше 290 с); не больше дедлайна job'а
         MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(240_000).pipe(z.number().max(290_000)),
-        // Предел размера сжатого файла, байты (18 МиБ); проверяется до отправки
-        MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: positiveInt(18_874_368),
+        // Предел сжатого файла, байты: в base64 (24 000 000) с JSON укладывается в 25 МБ OpenRouter
+        MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: positiveInt(18_000_000),
         MEETING_TRANSCRIPTION_LANGUAGE: z.string().min(1).optional(),
         MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(4500),
-        MEETING_TRANSCRIPTION_CHUNK_SEC: positiveInt(600),
-        MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: z.coerce.number().int().nonnegative().default(30),
-        MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES: positiveInt(20971520),
-        MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS: positiveInt(90000),
-        MEETING_TRANSCRIPTION_MAX_EXEMPLARS: positiveInt(8),
-        MEETING_TRANSCRIPTION_EXEMPLAR_SEC: positiveInt(10),
         MEETING_TRANSCRIPTION_ATTEMPTS: positiveInt(3),
         MEETING_TRANSCRIPTION_CONCURRENCY: positiveInt(2),
         // Общий дедлайн одной попытки расшифровки; по истечении — failed с причиной timeout
@@ -197,14 +191,6 @@ export const envSchema = z
         path: ['LANGSMITH_API_KEY'],
         message: 'LANGSMITH_API_KEY is required when LANGSMITH_TRACING=true',
     })
-    .refine(
-        (env) => env.MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC < env.MEETING_TRANSCRIPTION_CHUNK_SEC,
-        {
-            path: ['MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC'],
-            message:
-                'MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC must be less than MEETING_TRANSCRIPTION_CHUNK_SEC',
-        },
-    )
     .refine(
         (env) =>
             env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS <= env.MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS,
