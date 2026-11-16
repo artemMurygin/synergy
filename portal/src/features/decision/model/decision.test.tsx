@@ -107,6 +107,18 @@ describe.each([
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['queue'] }))
   })
 
+  it('on success also invalidates agents and catalog', async () => {
+    stubFetch(() => json(requestFixture))
+    const client = seededClient()
+    const spy = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useHook() as ReturnType<typeof useAcceptRequest>, { wrapper: queryWrapper(client) })
+    await act(async () => {
+      await result.current.mutateAsync(variables as never)
+    })
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['agents'] }))
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['catalog'] }))
+  })
+
   it('on 409 keeps the message and refreshes the queue', async () => {
     stubFetch(() => json({ message: 'decided' }, 409))
     const client = seededClient()

@@ -110,12 +110,29 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         return String(created.id);
     };
 
-    const accept = (
+    const take = (requestId: string, by: string): Promise<Record<string, unknown>> =>
+        post(`/portal/requests/${requestId}/take`, by, ['developer'], {});
+
+    /** Принятие по новой схеме: заявку сначала берут в работу, затем принимают с оценкой. */
+    const accept = async (
         requestId: string,
         by: string,
-        body: unknown,
-    ): Promise<Record<string, unknown>> =>
-        post(`/portal/requests/${requestId}/accept`, by, ['developer'], body);
+        target: unknown,
+    ): Promise<Record<string, unknown>> => {
+        await take(requestId, by);
+        return post(`/portal/requests/${requestId}/accept`, by, ['developer'], {
+            effortHours: 8,
+            target,
+        });
+    };
+
+    const newSkill = (name: string): unknown => ({
+        kind: 'new_skill',
+        agentId,
+        name,
+        description: '',
+    });
+    const existingSkill = (skillId: string): unknown => ({ kind: 'existing_skill', skillId });
 
     const changeStatus = (skillId: string, by: string, status: string): Promise<unknown> =>
         post(`/portal/skills/${skillId}/status`, by, ['developer'], { status });
@@ -225,7 +242,7 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('tells the author about an accepted request once, even when the event is handled again', async () => {
         const requestId = await submit(anna, 'Сверка актов');
 
-        await accept(requestId, dev, { agentId, name: 'Сверка актов', description: '' });
+        await accept(requestId, dev, newSkill('Сверка актов'));
         await waitForOutboxIdle();
         await replayPortalEvents();
 
@@ -242,9 +259,75 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         expect(accepted[0]?.body).toContain('Запланировано');
     });
 
+    it('tells the author when a developer takes the request, once even when replayed', async () => {
+        const requestId = await submit(anna, 'Взятие в работу');
+
+        await take(requestId, dev);
+        await waitForOutboxIdle();
+        await replayPortalEvents();
+
+        const taken = (await stored('request.under-review')).filter(
+            (n) => n.target_id === requestId,
+        );
+        expect(taken).toHaveLength(1);
+        expect(taken[0]).toMatchObject({
+            recipient_id: anna,
+            target_type: 'request',
+            actor_id: dev,
+        });
+        expect(taken[0]?.body).toContain('Взятие в работу');
+    });
+
+    it('does not notify a developer who takes their own request', async () => {
+        const requestId = await submit(dev, 'Своя заявка в работу');
+
+        await take(requestId, dev);
+        await waitForOutboxIdle();
+
+        const own = (await stored('request.under-review')).filter((n) => n.target_id === requestId);
+        expect(own).toEqual([]);
+    });
+
+    it('serves a backend response the portal fixture can parse (take, then accept with a new agent)', async () => {
+        const requestId = await submit(anna, 'Фикстура портала');
+
+        const taken = await take(requestId, dev);
+        expect(taken).toMatchObject({
+            status: { code: 'under_review', label: 'На рассмотрении' },
+            reviewer: { id: dev },
+            effortHours: null,
+        });
+        expect(typeof taken.takenAt).toBe('string');
+
+        const decided = await post(`/portal/requests/${requestId}/accept`, dev, ['developer'], {
+            effortHours: 24,
+            target: {
+                kind: 'new_agent',
+                agent: {
+                    name: 'Новый агент контракта',
+                    productIds: [],
+                    newProduct: { name: 'Новый продукт контракта' },
+                },
+                skill: { name: 'Навык контракта', description: 'Описание' },
+            },
+        });
+        expect(decided).toMatchObject({
+            status: { code: 'planned' },
+            effortHours: 24,
+            reviewer: { id: dev },
+        });
+        await waitForOutboxIdle();
+        const accepted = (await stored('request.accepted')).filter(
+            (n) => n.target_id === requestId,
+        );
+        expect(accepted).toHaveLength(1);
+        expect(accepted[0]?.recipient_id).toBe(anna);
+    });
+
     it('tells the author about a rejected request with the reason', async () => {
         const requestId = await submit(boris, 'Дубликат идеи');
 
+        await take(requestId, dev);
         await post(`/portal/requests/${requestId}/reject`, dev, ['developer'], {
             reason: 'Уже есть в поставке',
         });
@@ -261,13 +344,9 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('notifies each author of a linked request once when the skill status changes', async () => {
         const annaRequest = await submit(anna, 'Идея Анны');
         const borisRequest = await submit(boris, 'Идея Бориса');
-        const first = await accept(annaRequest, dev, {
-            agentId,
-            name: 'Общий навык',
-            description: '',
-        });
+        const first = await accept(annaRequest, dev, newSkill('Общий навык'));
         const skill = first.skill as { id: string };
-        await accept(borisRequest, dev, { skillId: skill.id });
+        await accept(borisRequest, dev, existingSkill(skill.id));
         await waitForOutboxIdle();
 
         await changeStatus(skill.id, dev, 'in_dev');
@@ -288,9 +367,9 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('creates one notification per request for two requests of the same author', async () => {
         const one = await submit(anna, 'Первая заявка Анны');
         const two = await submit(anna, 'Вторая заявка Анны');
-        const created = await accept(one, dev, { agentId, name: 'Навык Анны', description: '' });
+        const created = await accept(one, dev, newSkill('Навык Анны'));
         const skill = created.skill as { id: string };
-        await accept(two, dev, { skillId: skill.id });
+        await accept(two, dev, existingSkill(skill.id));
         await waitForOutboxIdle();
 
         await changeStatus(skill.id, dev, 'in_dev');
@@ -306,11 +385,7 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
     it('creates no notification when the author is the developer', async () => {
         const requestId = await submit(dev, 'Своя заявка');
 
-        const created = await accept(requestId, dev, {
-            agentId,
-            name: 'Свой навык',
-            description: '',
-        });
+        const created = await accept(requestId, dev, newSkill('Свой навык'));
         await changeStatus((created.skill as { id: string }).id, dev, 'in_dev');
         await waitForOutboxIdle();
 
@@ -328,11 +403,8 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         const linked = await submit(anna, 'Привязанная');
         const rejectedRequest = await submit(boris, 'Отклонённая');
         const pending = await submit(boris, 'Непривязанная');
-        const created = await accept(linked, dev, {
-            agentId,
-            name: 'Навык снимка',
-            description: '',
-        });
+        const created = await accept(linked, dev, newSkill('Навык снимка'));
+        await take(rejectedRequest, dev);
         await post(`/portal/requests/${rejectedRequest}/reject`, dev, ['developer'], {
             reason: 'Нет',
         });
@@ -344,5 +416,108 @@ describe.skipIf(adminUrl === undefined)('portal notifications (modules wired end
         const changed = await stored('request.status-changed');
         expect(changed.filter((n) => n.target_id === linked)).toHaveLength(1);
         expect(changed.filter((n) => [rejectedRequest, pending].includes(n.target_id))).toEqual([]);
+    });
+    describe('request comments', () => {
+        const postComment = (
+            requestId: string,
+            by: string,
+            roles: Role[],
+            body: string,
+        ): Promise<Record<string, unknown>> =>
+            post(`/portal/requests/${requestId}/comments`, by, roles, { body });
+
+        async function addDeveloper(login: string, active = true): Promise<string> {
+            const id = await addUser(login);
+            await client.query(
+                "INSERT INTO auth_user_roles (user_id, role) VALUES ($1, 'developer')",
+                [id],
+            );
+            if (!active) {
+                await client.query('UPDATE auth_users SET is_active = false WHERE id = $1', [id]);
+            }
+            return id;
+        }
+
+        async function withDevelopers(
+            run: (devs: { active: string; other: string; inactive: string }) => Promise<void>,
+        ): Promise<void> {
+            const suffix = randomUUID().slice(0, 6);
+            const active = await addDeveloper(`dev-a-${suffix}`);
+            const other = await addDeveloper(`dev-b-${suffix}`);
+            const inactive = await addDeveloper(`dev-x-${suffix}`, false);
+            try {
+                await run({ active, other, inactive });
+            } finally {
+                await client.query('DELETE FROM auth_user_roles WHERE user_id = ANY($1::uuid[])', [
+                    [active, other, inactive],
+                ]);
+            }
+        }
+
+        const forRequest = async (requestId: string): Promise<StoredNotification[]> =>
+            (await stored('request.comment-added')).filter((n) => n.target_id === requestId);
+
+        it('notifies active developers, not the author nor a deactivated developer, when the author comments', async () => {
+            await withDevelopers(async ({ active, other, inactive }) => {
+                const requestId = await submit(anna, 'Комментарий автора');
+
+                await postComment(requestId, anna, [], 'Уточнение от автора');
+                await waitForOutboxIdle();
+
+                const notes = await forRequest(requestId);
+                const recipients = notes.map((n) => n.recipient_id);
+                expect(recipients).toContain(active);
+                expect(recipients).toContain(other);
+                expect(recipients).not.toContain(anna);
+                expect(recipients).not.toContain(inactive);
+                expect(new Set(recipients).size).toBe(recipients.length);
+                expect(notes.every((n) => n.actor_id === anna && n.target_type === 'request')).toBe(
+                    true,
+                );
+                expect(notes[0]?.title).toContain('Комментарий автора');
+                expect(notes[0]?.body).toContain('Уточнение от автора');
+            });
+        });
+
+        it('notifies only the author when a developer replies', async () => {
+            await withDevelopers(async ({ active, other }) => {
+                const requestId = await submit(anna, 'Ответ разработчика');
+
+                await postComment(requestId, active, ['developer'], 'Ответ по существу');
+                await waitForOutboxIdle();
+
+                const notes = await forRequest(requestId);
+                expect(notes.map((n) => n.recipient_id)).toEqual([anna]);
+                expect(notes[0]?.actor_id).toBe(active);
+                expect(notes.map((n) => n.recipient_id)).not.toContain(other);
+            });
+        });
+
+        it('creates no notifications when a comment is edited', async () => {
+            const requestId = await submit(anna, 'Правка комментария');
+            const created = await postComment(requestId, anna, [], 'Первая версия');
+            await waitForOutboxIdle();
+            const before = await forRequest(requestId);
+            const eventsBefore = await client.query<{ n: string }>(
+                "SELECT count(*) AS n FROM outbox_events WHERE event_type = 'portal.request_comment_posted'",
+            );
+
+            const response = await fetch(
+                `${base}/portal/requests/${requestId}/comments/${String(created.id)}`,
+                {
+                    method: 'PATCH',
+                    headers: { ...bearer(anna), 'content-type': 'application/json' },
+                    body: JSON.stringify({ body: 'Вторая версия' }),
+                },
+            );
+            expect(response.status).toBe(200);
+            await waitForOutboxIdle();
+
+            expect(await forRequest(requestId)).toEqual(before);
+            const eventsAfter = await client.query<{ n: string }>(
+                "SELECT count(*) AS n FROM outbox_events WHERE event_type = 'portal.request_comment_posted'",
+            );
+            expect(eventsAfter.rows[0]?.n).toBe(eventsBefore.rows[0]?.n);
+        });
     });
 });

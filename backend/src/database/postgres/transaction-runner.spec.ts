@@ -107,6 +107,41 @@ describe.skipIf(adminUrl === undefined)('TransactionRunner', () => {
         });
     });
 
+    describe('savepoint', () => {
+        it('keeps the outer transaction usable after a failed nested work', async () => {
+            await runner.run(async () => {
+                await expect(
+                    runner.savepoint(async () => {
+                        await insertMark('rolled-back');
+                        await runner.executor().query(sql.unsafe`SELECT 1/0`);
+                    }),
+                ).rejects.toThrow();
+                await insertMark('kept');
+            });
+
+            expect(await countMarks()).toBe(1);
+        });
+
+        it('drops after-commit callbacks of a failed savepoint and keeps those of a successful one', async () => {
+            const calls: string[] = [];
+            await runner.run(async () => {
+                await expect(
+                    runner.savepoint(() => {
+                        runner.afterCommit(() => calls.push('failed'));
+                        return Promise.reject(new Error('savepoint failed'));
+                    }),
+                ).rejects.toThrow('savepoint failed');
+                await runner.savepoint(() => {
+                    runner.afterCommit(() => calls.push('succeeded'));
+                    return Promise.resolve();
+                });
+                expect(calls).toEqual([]);
+            });
+
+            expect(calls).toEqual(['succeeded']);
+        });
+    });
+
     describe('executor', () => {
         it('returns the pool outside a transaction', () => {
             expect(runner.executor()).toBe(pool);

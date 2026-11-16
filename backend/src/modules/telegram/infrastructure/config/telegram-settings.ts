@@ -21,6 +21,7 @@ export interface TelegramSettingsValues {
     readonly linkTokenTtlSeconds: number;
     readonly deliveryReservationMs: number;
     readonly apiBaseUrl: string;
+    readonly portalUrl?: string | undefined;
     readonly outboxHandlerTimeoutMs: number;
 }
 
@@ -31,6 +32,7 @@ export class TelegramSettings extends TelegramSettingsPort {
     readonly linkTokenTtlSeconds: number;
     readonly deliveryReservationMs: number;
     readonly apiBaseUrl: string;
+    readonly portalUrl: string | null;
     readonly #botToken: string | null;
 
     constructor(values: TelegramSettingsValues) {
@@ -52,6 +54,7 @@ export class TelegramSettings extends TelegramSettingsPort {
         this.linkTokenTtlSeconds = values.linkTokenTtlSeconds;
         this.deliveryReservationMs = values.deliveryReservationMs;
         this.apiBaseUrl = values.apiBaseUrl.replace(TRAILING_SLASHES, '');
+        this.portalUrl = configuredPortalUrl(values.portalUrl);
     }
 
     get botToken(): string | null {
@@ -71,6 +74,7 @@ export class TelegramSettings extends TelegramSettingsPort {
             linkTokenTtlSeconds: this.linkTokenTtlSeconds,
             deliveryReservationMs: this.deliveryReservationMs,
             apiBaseUrl: this.apiBaseUrl,
+            portalUrl: this.portalUrl,
         };
     }
 
@@ -84,9 +88,16 @@ export class TelegramSettings extends TelegramSettingsPort {
             linkTokenTtlSeconds: config.get('TELEGRAM_LINK_TOKEN_TTL_SECONDS', { infer: true }),
             deliveryReservationMs: config.get('TELEGRAM_DELIVERY_RESERVATION_MS', { infer: true }),
             apiBaseUrl: config.get('TELEGRAM_API_BASE_URL', { infer: true }),
+            portalUrl: config.get('PORTAL_PUBLIC_URL', { infer: true }),
             outboxHandlerTimeoutMs: outbox.handlerTimeoutMs,
         });
     }
+}
+
+function configuredPortalUrl(portalUrl: string | undefined): string | null {
+    if (portalUrl === undefined) return null;
+    const normalized = portalUrl.replace(TRAILING_SLASHES, '');
+    return normalized === '' ? null : normalized;
 }
 
 function configuredBotUsername(botUsername: string | undefined): string | null {

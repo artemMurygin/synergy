@@ -76,4 +76,24 @@ describe('RequestList', () => {
     expect(screen.getByText('5 раз в неделю · 20 мин · 3 чел.')).toBeTruthy()
     expect(screen.getByText('≈ 21 ч')).toBeTruthy()
   })
+
+  it('shows "Новая" without a reviewer and filters new requests apart from those under review', async () => {
+    const fresh = { ...requestFixture, id: 'n', title: 'Свежая', status: { code: 'new' as const, label: 'Новая' }, reviewer: null, takenAt: null }
+    renderList({ items: [requestFixture, fresh], showReviewer: true })
+    const row = screen.getByRole('link', { name: /Свежая/ })
+    expect(within(row).getByText('Новая')).toBeTruthy()
+    expect(within(row).queryByText(/·\s*с\s/)).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Новые · 1' }))
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'На рассмотрении · 1' }))
+    expect(screen.getByRole('link', { name: /Сверка актов/ })).toBeTruthy()
+  })
+
+  it('shows the reviewer and the taking date under the badge only with showReviewer', () => {
+    const { unmount } = renderList({ items: [requestFixture], showReviewer: true })
+    expect(screen.getByText('Петров Пётр · с 11.11')).toBeTruthy()
+    unmount()
+    renderList({ items: [requestFixture] })
+    expect(screen.queryByText(/Петров Пётр/)).toBeNull()
+  })
 })

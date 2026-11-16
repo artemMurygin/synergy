@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,6 +43,34 @@ describe('QueuePage', () => {
     expect(screen.queryByText('petr')).toBeNull()
     expect(screen.getByTitle('01.11.2026')).toBeTruthy()
     expect(screen.getAllByText(/5 раз в неделю · 20 мин · 3 чел./)).toHaveLength(2)
+  })
+
+  it('shows the subtitle of the mock-up', async () => {
+    stubFetch(() => json(page([older])))
+    renderPage()
+    await screen.findByText('Старая идея')
+    expect(screen.getByText('Новые и взятые в работу заявки, старые первыми. Возьмите заявку, оцените и примите решение')).toBeTruthy()
+  })
+
+  it('puts the "Статус" column right after "Заявка" and shows the badge of each request', async () => {
+    const fresh = { ...requestFixture, id: 'r-fresh', title: 'Свежая идея', status: { code: 'new' as const, label: 'Новая' }, reviewer: null, takenAt: null }
+    stubFetch(() => json(page([older, fresh])))
+    renderPage()
+    await screen.findByText('Старая идея')
+    const heads = Array.from(document.querySelectorAll('[aria-hidden="true"] > span')).map((e) => e.textContent)
+    expect(heads.slice(0, 3)).toEqual(['Заявка', 'Статус', 'Автор'])
+    const fresher = screen.getByRole('link', { name: 'Свежая идея' })
+    expect(within(fresher).getByText('Новая')).toBeTruthy()
+    expect(within(fresher).queryByText(/·\s*с\s\d/)).toBeNull()
+    const old = screen.getByRole('link', { name: 'Старая идея' })
+    expect(within(old).getByText('На рассмотрении')).toBeTruthy()
+  })
+
+  it('shows who took a request under review and since when', async () => {
+    stubFetch(() => json(page([older])))
+    renderPage()
+    await screen.findByText('Старая идея')
+    expect(screen.getByText('Петров Пётр · с 11.11')).toBeTruthy()
   })
 
   it('opens the request on click', async () => {

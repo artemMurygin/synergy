@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RequestNotFoundError } from '../domain/errors';
 import { RequestQuery } from '../domain/ports/request-query.port';
+import { RequestAccessPolicy } from '../domain/request-access-policy';
 import type { RequestView } from './request-view';
 
 export interface GetRequestInput {
@@ -17,7 +18,10 @@ export class GetRequestUseCase {
     async execute(input: GetRequestInput): Promise<RequestView> {
         const view = await this.query.findView(input.requestId);
         if (view === null) throw new RequestNotFoundError(input.requestId);
-        const allowed = view.authorId === input.actorId || input.roles.includes('developer');
+        const allowed = RequestAccessPolicy.canView(view, {
+            id: input.actorId,
+            roles: input.roles,
+        });
         if (!allowed) throw new RequestNotFoundError(input.requestId);
         return view;
     }

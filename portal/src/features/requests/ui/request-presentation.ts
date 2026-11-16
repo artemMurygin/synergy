@@ -1,10 +1,11 @@
 import type { IdeaRequest, RequestStatusCode } from '@/lib/schemas'
 
-export type RequestFilter = 'all' | 'pending' | 'in_work' | 'launched' | 'rejected'
+export type RequestFilter = 'all' | 'new' | 'under_review' | 'in_work' | 'launched' | 'rejected'
 
 export const FILTERS: { id: RequestFilter; label: string }[] = [
   { id: 'all', label: 'Все' },
-  { id: 'pending', label: 'На рассмотрении' },
+  { id: 'new', label: 'Новые' },
+  { id: 'under_review', label: 'На рассмотрении' },
   { id: 'in_work', label: 'В работе' },
   { id: 'launched', label: 'Запущено' },
   { id: 'rejected', label: 'Отклонены' }
@@ -49,4 +50,11 @@ export function formatMeta(request: IdeaRequest): string {
 
 export function formatShortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+}
+
+/** «Иван Петров · с 14.11» — who took the request and since when; null while nobody has. */
+export function formatReviewerNote(request: Pick<IdeaRequest, 'reviewer' | 'takenAt'>): string | null {
+  if (!request.reviewer) return null
+  const name = request.reviewer.fullName
+  return request.takenAt ? `${name} · с ${formatShortDate(request.takenAt)}` : name
 }

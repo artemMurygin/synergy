@@ -14,7 +14,7 @@ function withDatabase(url: string, database: string): string {
 }
 
 describe.skipIf(adminUrl === undefined)(
-    '036_meeting_segment_unrecognized_speaker migration',
+    '039_meeting_segment_unrecognized_speaker migration',
     () => {
         const dbName = `seg_unrec_mig_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
         let client: Client;
@@ -34,7 +34,7 @@ describe.skipIf(adminUrl === undefined)(
             await admin.end();
             const dbUrl = withDatabase(adminUrl ?? '', dbName);
 
-            await migrateBefore(dbUrl, '036');
+            await migrateBefore(dbUrl, '039');
             client = new Client({ connectionString: dbUrl });
             await client.connect();
             const owner = await client.query<{ id: string }>(

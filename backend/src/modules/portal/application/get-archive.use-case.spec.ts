@@ -3,6 +3,7 @@ import {
     CatalogQuery,
     type ArchiveRows,
     type CatalogRow,
+    type ProductDepartmentRow,
 } from '../domain/ports/catalog-query.port';
 import { GetArchiveUseCase } from './get-archive.use-case';
 
@@ -17,6 +18,10 @@ class FakeCatalogQuery extends CatalogQuery {
 
     loadArchive(): Promise<ArchiveRows> {
         return Promise.resolve(this.archive);
+    }
+
+    loadProductDepartments(): Promise<ProductDepartmentRow[]> {
+        return Promise.resolve([]);
     }
 }
 

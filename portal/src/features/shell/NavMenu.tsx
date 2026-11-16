@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { NavLink } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import { queueQuery } from "@/features/decision";
 import { useSession } from "@/features/auth";
 import { initials as initialsFor } from "@/lib/initials";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 interface Item {
   to: string;
   label: string;
+  /** A sub-path that belongs to another item: this one is not active there although `to` is its prefix. */
+  excludePath?: string;
 }
 interface Group {
   key: "main" | "developer" | "admin";
@@ -25,6 +27,7 @@ const MAIN: Group = {
     { to: "/requests", label: "Мои заявки" },
     { to: "/catalog", label: "Каталог" },
     { to: "/roadmap", label: "Роадмап" },
+    { to: "/bugs", label: "Поддержка", excludePath: "/bugs/queue" },
   ],
 };
 const DEVELOPER: Group = {
@@ -33,6 +36,7 @@ const DEVELOPER: Group = {
   items: [
     { to: "/queue", label: "Очередь" },
     { to: "/skills", label: "Навыки" },
+    { to: "/bugs/queue", label: "Баги" },
     { to: "/archive", label: "Архив" },
   ],
 };
@@ -44,6 +48,36 @@ const ADMIN: Group = {
     { to: "/admin/departments", label: "Отделы" },
   ],
 };
+
+/** A nav link that stays inactive on the sub-path of a sibling item (`/bugs` on `/bugs/queue`). */
+function SectionLink({
+  item,
+  className,
+  onClick,
+  children,
+}: {
+  item: Item;
+  className: (active: boolean) => string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const { pathname } = useLocation();
+  const excluded =
+    item.excludePath !== undefined &&
+    (pathname === item.excludePath || pathname.startsWith(`${item.excludePath}/`));
+  if (excluded) {
+    return (
+      <Link to={item.to} onClick={onClick} className={className(false)}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <NavLink to={item.to} onClick={onClick} className={({ isActive }) => className(isActive)}>
+      {children}
+    </NavLink>
+  );
+}
 
 /** "разработчик, администратор": the roles are independent, so the label lists every one of them. */
 function roleLabel(isDeveloper: boolean, isAdmin: boolean): string {
@@ -159,7 +193,7 @@ export function NavMenu() {
           </span>
         </NavLink>
         <nav aria-label="Разделы" className="h-full min-w-0 flex-1">
-          <div className="flex h-full items-stretch gap-3">
+          <div className={cn("flex h-full items-stretch gap-3", isDeveloper && "xl:gap-6")}>
             {groups.map((group, index) => (
               <Fragment key={group.key}>
                 {index > 0 ? (
@@ -167,22 +201,22 @@ export function NavMenu() {
                     <span className="h-4 w-px bg-border" />
                   </span>
                 ) : null}
-                <ul aria-label={group.caption ?? "Основное"} className="flex h-full gap-3">
+                <ul aria-label={group.caption ?? "Основное"} className={cn("flex h-full gap-3", isDeveloper && "xl:gap-6")}>
                   {group.items.map((item) => (
                     <li key={item.to} className="h-full">
-                      <NavLink
-                        to={item.to}
-                        className={({ isActive }) =>
+                      <SectionLink
+                        item={item}
+                        className={(active) =>
                           cn(
                             "relative box-border flex h-full items-center gap-1.5 border-b-2 border-transparent text-[13px] leading-4 font-semibold whitespace-nowrap text-ink-60 hover:text-ink",
                             FOCUS,
-                            isActive && "border-brand-red text-ink",
+                            active && "border-brand-red text-ink",
                           )
                         }
                       >
                         {item.label}
                         {badge(item, true)}
-                      </NavLink>
+                      </SectionLink>
                     </li>
                   ))}
                 </ul>
@@ -277,20 +311,20 @@ export function NavMenu() {
                   <ul aria-label={group.caption ?? "Основное"} className="flex flex-col">
                     {group.items.map((item) => (
                       <li key={item.to}>
-                        <NavLink
-                          to={item.to}
+                        <SectionLink
+                          item={item}
                           onClick={() => setOpen(false)}
-                          className={({ isActive }) =>
+                          className={(active) =>
                             cn(
                               "flex h-12 items-center gap-2 px-4 text-[15px] font-semibold text-ink",
                               FOCUS,
-                              isActive && "bg-brand-red-soft text-brand-red",
+                              active && "bg-brand-red-soft text-brand-red",
                             )
                           }
                         >
                           {item.label}
                           {badge(item)}
-                        </NavLink>
+                        </SectionLink>
                       </li>
                     ))}
                   </ul>

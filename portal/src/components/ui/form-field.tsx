@@ -7,6 +7,10 @@ export interface FieldProps {
   hint?: string
   /** Override of the hint colour (default ink-40; the DepartmentDialog frames use ink-60) */
   hintClassName?: string
+  /** Puts the hint at the right edge of the label row (decision forms of the mock-ups) */
+  hintEnd?: boolean
+  /** Keeps the label for assistive tech only (the composer mock-up has no visible label) */
+  hideLabel?: boolean
 }
 
 /** Wires a visible label, hint and error text to a control (label, aria-invalid, aria-describedby). */
@@ -24,6 +28,8 @@ export function FormField({
   controlId,
   hint,
   hintClassName,
+  hintEnd,
+  hideLabel,
   hintId,
   error,
   errorId,
@@ -38,8 +44,13 @@ export function FormField({
 }) {
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
-        <label htmlFor={controlId} className="text-[13px] font-semibold leading-[1.17] text-ink">
+      <div
+        className={cn(
+          hideLabel && !hint && 'absolute',
+          hintEnd ? 'flex items-center justify-between gap-x-1.5' : 'flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5'
+        )}
+      >
+        <label htmlFor={controlId} className={cn('text-[13px] font-semibold leading-[1.17] text-ink', hideLabel && 'sr-only')}>
           {label}
         </label>
         {hint ? (

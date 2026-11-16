@@ -1,0 +1,15 @@
+{
+  "id": "p1",
+  "slug": "manager-helper",
+  "name": "Manager Helper",
+  "departments": [
+    {
+      "id": "kc-1",
+      "name": "КЦ 1"
+    },
+    {
+      "id": "kc-2",
+      "name": "КЦ 2"
+    }
+  ]
+}

@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { formatEffortHours } from '@/lib/format'
 import { initials } from '@/lib/initials'
 import { REQUEST_STATUS_LABEL } from '@/lib/status-labels'
 import type { IdeaRequest, RequestStatusCode } from '@/lib/schemas'
 import { RequestStatusBadge } from './RequestStatusBadge'
 
-const FLOW: readonly RequestStatusCode[] = ['pending', 'planned', 'in_dev', 'testing', 'launched']
-const REJECTED_FLOW: readonly RequestStatusCode[] = ['pending', 'rejected']
+const FLOW: readonly RequestStatusCode[] = ['new', 'under_review', 'planned', 'in_dev', 'testing', 'launched']
+const REJECTED_FLOW: readonly RequestStatusCode[] = ['new', 'under_review', 'rejected']
+const AWAITING: readonly RequestStatusCode[] = ['new', 'under_review']
 const WEEKS_PER_MONTH = 4.3
 const DAYS_PER_MONTH = 30
 
@@ -155,7 +157,14 @@ function StatusSteps({ request }: { request: IdeaRequest }) {
         {flow.map((step, i) => {
           const state: StepState =
             step === 'rejected' ? 'rejected' : i < index || (finished && step === 'launched') ? 'done' : i === index ? 'current' : 'upcoming'
-          const meta = step === 'pending' ? dayMonth(request.createdAt) : step === 'rejected' ? 'причина ниже' : undefined
+          const meta =
+            step === 'new'
+              ? dayMonth(request.createdAt)
+              : step === 'under_review' && request.reviewer && request.takenAt
+                ? `${dayMonth(request.takenAt)} · ${request.reviewer.fullName}`
+                : step === 'rejected'
+                  ? 'причина ниже'
+                  : undefined
           return <Step key={step} title={REQUEST_STATUS_LABEL[step]} meta={meta} state={state} last={i === flow.length - 1} />
         })}
       </ol>
@@ -182,10 +191,19 @@ function SkillCard({ request }: { request: IdeaRequest }) {
             <p className="break-words text-xs text-ink-60">{request.skill.description}</p>
           </div>
         </div>
+        <div className="flex items-center gap-2 border-t border-border pt-3">
+          <Svg size={15} className="shrink-0 text-ink-40">
+            <line x1="10" x2="14" y1="2" y2="2" />
+            <line x1="12" x2="15" y1="14" y2="11" />
+            <circle cx="12" cy="14" r="8" />
+          </Svg>
+          <span className="min-w-0 flex-1 text-[13px] text-ink-60">Оценка разработчика</span>
+          <span className="text-[13px] font-bold text-ink">{formatEffortHours(request.effortHours)}</span>
+        </div>
       </Card>
     )
   }
-  if (request.status.code !== 'pending') return null
+  if (!AWAITING.includes(request.status.code)) return null
   return (
     <Card title="Навык" className="gap-3.5">
       <p className="text-[13px] leading-[1.45] text-ink-60">
@@ -227,7 +245,7 @@ function Notice({ title, children, tone = 'info' }: { title: string; children: R
 }
 
 function StatusNotice({ code }: { code: RequestStatusCode }) {
-  if (code === 'pending') {
+  if (AWAITING.includes(code)) {
     return <Notice title="Решение придёт уведомлением">Обычно разработчик отвечает за 2–3 рабочих дня.</Notice>
   }
   if (code === 'rejected' || code === 'launched') return null
@@ -307,24 +325,27 @@ export interface RequestDetailsProps {
   request: IdeaRequest
   /** Developer decision panel; when given it takes the place of the author's side cards. */
   decision?: ReactNode
+  /** Comments feed; the last card of the main column. */
+  comments?: ReactNode
 }
 
-export function RequestDetails({ request, decision }: RequestDetailsProps) {
+export function RequestDetails({ request, decision, comments }: RequestDetailsProps) {
   const code = request.status.code
-  const waiting = code === 'pending' ? ` · ждёт решения ${pluralDays(waitingDays(request.createdAt))}` : ''
+  const waiting = code === 'new' ? ` · ждёт решения ${pluralDays(waitingDays(request.createdAt))}` : ''
+  const inWork = request.reviewer && request.takenAt ? ` · в работе у ${request.reviewer.fullName} с ${shortDate(request.takenAt)}` : ''
   const frequency = request.frequency
   return (
     <article className="flex flex-col gap-3.5 min-[900px]:gap-6">
       <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 min-[900px]:grid-cols-[auto_auto_minmax(0,1fr)] min-[900px]:gap-x-3.5 min-[900px]:gap-y-2.5">
         <Link
-          to="/requests"
+          to={decision ? '/queue' : '/requests'}
           className="col-span-2 flex items-center gap-1.5 justify-self-start text-[13px] font-semibold leading-4 text-ink-60 hover:text-ink min-[900px]:col-span-3"
         >
           <Svg size={16}>
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </Svg>
-          Мои заявки
+          {decision ? 'Очередь заявок' : 'Мои заявки'}
         </Link>
         <h1 className="col-span-2 break-words font-display text-2xl font-bold leading-[1.2] tracking-[-0.4px] text-ink min-[900px]:col-span-1 min-[900px]:text-[30px] min-[900px]:leading-[38px] min-[900px]:tracking-[-0.6px]">
           {request.title}
@@ -336,10 +357,13 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
           <span className="min-[900px]:hidden">
             {shortDate(request.createdAt)}
             {decision ? ` · ${request.author.fullName}` : ''}
+            {inWork}
           </span>
           <span className="hidden min-[900px]:inline">
-            Подана {longDate(request.createdAt)} · {request.author.fullName}
+            Подана {longDate(request.createdAt)}
+            {decision ? ` · ${request.author.fullName}` : ''}
             {waiting}
+            {inWork}
           </span>
         </p>
       </header>
@@ -372,7 +396,8 @@ export function RequestDetails({ request, decision }: RequestDetailsProps) {
               <Fact label="экономии в месяц" value={monthlySavings(request)} accent />
             </dl>
           </section>
-          {code === 'rejected' ? null : <History request={request} />}
+          {code === 'rejected' || decision ? null : <History request={request} />}
+          {comments ? <div className="order-4 min-[900px]:order-none">{comments}</div> : null}
         </div>
 
         <div className="contents min-[900px]:flex min-[900px]:flex-col min-[900px]:gap-4">

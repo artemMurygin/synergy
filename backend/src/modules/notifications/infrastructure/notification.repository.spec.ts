@@ -415,4 +415,33 @@ describe.skipIf(adminUrl === undefined)('UserDirectory', () => {
         expect(await directory.findFullNameById(randomUUID())).toBeNull();
         expect(await directory.findFullNameById('not-a-uuid')).toBeNull();
     });
+
+    it('lists only active users with the developer role', async () => {
+        const dev = await addUser('dev-active', true);
+        const deactivatedDev = await addUser('dev-off', false);
+        const plain = await addUser('plain', true);
+        const adminOnly = await addUser('admin-only', true);
+        const twoRoles = await addUser('dev-and-admin', true);
+        for (const [userId, role] of [
+            [dev, 'developer'],
+            [deactivatedDev, 'developer'],
+            [adminOnly, 'admin'],
+            [twoRoles, 'developer'],
+            [twoRoles, 'admin'],
+        ]) {
+            await client.query('INSERT INTO auth_user_roles (user_id, role) VALUES ($1, $2)', [
+                userId,
+                role,
+            ]);
+        }
+
+        const ids = await directory.listActiveDeveloperIds();
+
+        expect(ids).toContain(dev);
+        expect(ids).toContain(twoRoles);
+        expect(ids).not.toContain(deactivatedDev);
+        expect(ids).not.toContain(plain);
+        expect(ids).not.toContain(adminOnly);
+        expect(ids.filter((id) => id === twoRoles)).toHaveLength(1);
+    });
 });

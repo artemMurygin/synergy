@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "open",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-06T10:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      }
+    },
+    {
+      "id": "b1",
+      "title": "Не отвечает",
+      "product": {
+        "id": "p1",
+        "name": "Manager Helper"
+      },
+      "agent": {
+        "id": "g1",
+        "name": "Ассистент"
+      },
+      "status": "wont_fix",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "statusChangedAt": "2026-11-07T09:00:00.000Z",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      }
+    }
+  ],
+  "total": 2,
+  "limit": 20,
+  "page": 0
+}

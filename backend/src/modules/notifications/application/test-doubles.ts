@@ -61,6 +61,21 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
         return result;
     }
 
+    async savepoint<T>(work: () => Promise<T>): Promise<T> {
+        const parentCallbacks = this.storage.getStore();
+        if (parentCallbacks === undefined) return this.run(work);
+        const restores = this.participants.map((participant) => participant.snapshot());
+        const callbacks: (() => void)[] = [];
+        try {
+            const result = await this.storage.run(callbacks, work);
+            parentCallbacks.push(...callbacks);
+            return result;
+        } catch (error: unknown) {
+            for (const restore of restores) restore();
+            throw error;
+        }
+    }
+
     executor(): CommonQueryMethods {
         throw new Error('SnapshotTransactionRunner has no database connection');
     }
@@ -190,7 +205,17 @@ export class FakeUserDirectory extends UserDirectoryPort {
 
     readonly requestedIds: string[] = [];
 
+    developerIds: string[] = [];
+
+    developersRequested = 0;
+
     failure: Error | null = null;
+
+    listActiveDeveloperIds(): Promise<string[]> {
+        this.developersRequested += 1;
+        if (this.failure !== null) return Promise.reject(this.failure);
+        return Promise.resolve([...this.developerIds]);
+    }
 
     findFullNameById(userId: string): Promise<string | null> {
         this.requestedIds.push(userId);

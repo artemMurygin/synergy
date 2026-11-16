@@ -1,8 +1,16 @@
 import type { Catalog } from '@/lib/schemas'
 
-const cc = { id: 'p-cc', slug: 'control-center', name: 'Control Center' }
-const tg = { id: 'p-tg', slug: 'telegram-bot', name: 'Telegram-бот' }
-const web = { id: 'p-web', slug: 'web', name: 'Веб' }
+const cc = {
+  id: 'p-cc',
+  slug: 'control-center',
+  name: 'Control Center',
+  departments: [
+    { id: 'd-kc1', name: 'КЦ 1' },
+    { id: 'd-kc2', name: 'КЦ 2' }
+  ]
+}
+const tg = { id: 'p-tg', slug: 'telegram-bot', name: 'Telegram-бот', departments: [] }
+const web = { id: 'p-web', slug: 'web', name: 'Веб', departments: [] }
 
 const skill = (id: string, name: string, status: Catalog['products'][number]['agents'][number]['skills'][number]['status']) => ({
   id,

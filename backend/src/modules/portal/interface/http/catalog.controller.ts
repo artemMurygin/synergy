@@ -1,11 +1,25 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    Body,
+    Controller,
+    Get,
+    HttpCode,
+    HttpStatus,
+    Param,
+    ParseUUIDPipe,
+    Post,
+    Put,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
+import { zodToOpenApi } from '../../../../shared/http/zod-openapi';
+import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
 import { Roles } from '../../../auth/interface/http/decorators';
 import { ArchiveAgentUseCase } from '../../application/archive-agent.use-case';
 import { GetArchiveUseCase } from '../../application/get-archive.use-case';
 import { GetCatalogUseCase } from '../../application/get-catalog.use-case';
-import { ArchiveResponse, CatalogResponse } from './catalog.responses';
+import { SetProductDepartmentsUseCase } from '../../application/set-product-departments.use-case';
+import { ArchiveResponse, CatalogResponse, ProductDepartmentsResponse } from './catalog.responses';
+import { type SetProductDepartmentsBody, setProductDepartmentsSchema } from './catalog.schemas';
 import { AgentResponse } from './skills.responses';
 
 const errorResponse = (status: HttpStatus, description: string): MethodDecorator =>
@@ -24,6 +38,7 @@ export class CatalogController {
         private readonly getCatalog: GetCatalogUseCase,
         private readonly getArchive: GetArchiveUseCase,
         private readonly archiveAgent: ArchiveAgentUseCase,
+        private readonly setProductDepartments: SetProductDepartmentsUseCase,
     ) {}
 
     @Get('catalog')
@@ -75,5 +90,29 @@ export class CatalogController {
     @unauthorized
     async restore(@Param('id', ParseUUIDPipe) id: string): Promise<AgentResponse> {
         return new AgentResponse(await this.archiveAgent.restore(id));
+    }
+
+    @Put('products/:id/departments')
+    @Roles('admin')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary:
+            'Replace the set of departments a product is available to; informational only (admin)',
+    })
+    @ApiBody({ schema: zodToOpenApi(setProductDepartmentsSchema) })
+    @ApiResponse({ status: HttpStatus.OK, type: ProductDepartmentsResponse })
+    @errorResponse(HttpStatus.BAD_REQUEST, 'Invalid department ids')
+    @errorResponse(HttpStatus.FORBIDDEN, 'Requires the admin role')
+    @errorResponse(HttpStatus.NOT_FOUND, 'Product or department not found')
+    @unauthorized
+    async setDepartments(
+        @Param('id') id: string,
+        @Body(new ZodValidationPipe(setProductDepartmentsSchema)) body: SetProductDepartmentsBody,
+    ): Promise<ProductDepartmentsResponse> {
+        const view = await this.setProductDepartments.execute({
+            productId: id,
+            departmentIds: body.departmentIds,
+        });
+        return new ProductDepartmentsResponse(view);
     }
 }

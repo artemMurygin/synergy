@@ -67,6 +67,13 @@ export type Skill = z.infer<typeof skillSchema>
 export const agentStatusCodeSchema = z.enum(['working', 'in_development'])
 export type AgentStatusCode = z.infer<typeof agentStatusCodeSchema>
 
+export const departmentRefSchema = z.object({ id: z.string(), name: z.string() })
+export type DepartmentRef = z.infer<typeof departmentRefSchema>
+
+/** Catalog-only product reference: carries the departments the product is available to (reference label, not access control). */
+export const catalogProductRefSchema = productRefSchema.extend({ departments: z.array(departmentRefSchema) })
+export type CatalogProductRef = z.infer<typeof catalogProductRefSchema>
+
 export const catalogSkillSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -82,13 +89,13 @@ export const catalogAgentSchema = z.object({
   slug: z.string(),
   name: z.string(),
   status: z.object({ code: agentStatusCodeSchema, label: z.string() }),
-  products: z.array(productRefSchema),
+  products: z.array(catalogProductRefSchema),
   skills: z.array(catalogSkillSchema)
 })
 export type CatalogAgent = z.infer<typeof catalogAgentSchema>
 
 export const catalogSchema = z.object({
-  products: z.array(productRefSchema.extend({ agents: z.array(catalogAgentSchema) }))
+  products: z.array(catalogProductRefSchema.extend({ agents: z.array(catalogAgentSchema) }))
 })
 export type Catalog = z.infer<typeof catalogSchema>
 export type CatalogProduct = Catalog['products'][number]

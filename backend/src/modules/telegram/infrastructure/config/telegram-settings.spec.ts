@@ -24,6 +24,7 @@ const BASE_VALUES: TelegramSettingsValues = {
     linkTokenTtlSeconds: 600,
     deliveryReservationMs: 120_000,
     apiBaseUrl: 'https://api.telegram.org',
+    portalUrl: undefined,
     outboxHandlerTimeoutMs: HANDLER_TIMEOUT_MS,
 };
 
@@ -47,6 +48,27 @@ const caught = (action: () => unknown): unknown => {
 };
 
 describe('TelegramSettings', () => {
+    describe('portalUrl', () => {
+        it('is null without PORTAL_PUBLIC_URL', () => {
+            const settings = TelegramSettings.fromConfig(configFrom({}), outboxSettings);
+
+            expect(settings.portalUrl).toBeNull();
+        });
+
+        it('is read from PORTAL_PUBLIC_URL without trailing slashes', () => {
+            const settings = TelegramSettings.fromConfig(
+                configFrom({ PORTAL_PUBLIC_URL: 'https://portal.example.com//' }),
+                outboxSettings,
+            );
+
+            expect(settings.portalUrl).toBe('https://portal.example.com');
+        });
+
+        it('rejects a non-http url in the env', () => {
+            expect(() => configFrom({ PORTAL_PUBLIC_URL: 'ftp://portal.example.com' })).toThrow();
+        });
+    });
+
     it('implements the settings port', () => {
         expect(new TelegramSettings(BASE_VALUES)).toBeInstanceOf(TelegramSettingsPort);
     });

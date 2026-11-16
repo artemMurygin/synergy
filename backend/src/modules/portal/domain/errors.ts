@@ -15,6 +15,13 @@ export const PortalErrorCode = {
     AgentNameTaken: 'PORTAL_AGENT_NAME_TAKEN',
     ProductNameTaken: 'PORTAL_PRODUCT_NAME_TAKEN',
     SlugTaken: 'PORTAL_SLUG_TAKEN',
+    CommentNotFound: 'PORTAL_COMMENT_NOT_FOUND',
+    CommentNotOwned: 'PORTAL_COMMENT_NOT_OWNED',
+    CommentEditExpired: 'PORTAL_COMMENT_EDIT_EXPIRED',
+    BugNotFound: 'PORTAL_BUG_NOT_FOUND',
+    InvalidBugTransition: 'PORTAL_BUG_INVALID_TRANSITION',
+    AgentNotInProduct: 'PORTAL_AGENT_NOT_IN_PRODUCT',
+    DepartmentNotFound: 'PORTAL_DEPARTMENT_NOT_FOUND',
 } as const;
 
 /** Статус навыка можно сменить только по таблице переходов (HTTP 409). */
@@ -143,5 +150,74 @@ export class SlugTakenError extends BaseError {
 
     constructor() {
         super('slug is already taken');
+    }
+}
+
+/** Комментарий не найден в этой заявке (HTTP 404). */
+export class CommentNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.CommentNotFound;
+
+    constructor(readonly commentId: string) {
+        super(`Comment ${commentId} not found`);
+    }
+}
+
+/** Править можно только свой комментарий (HTTP 403). */
+export class CommentNotOwnedError extends BaseError {
+    readonly code = PortalErrorCode.CommentNotOwned;
+
+    constructor(readonly commentId: string) {
+        super(`Comment ${commentId} belongs to another user`);
+    }
+}
+
+/** Окно правки комментария истекло (HTTP 409). */
+export class CommentEditWindowExpiredError extends BaseError {
+    readonly code = PortalErrorCode.CommentEditExpired;
+
+    constructor(readonly commentId: string) {
+        super(`Edit window for comment ${commentId} has expired`);
+    }
+}
+
+/** Баг не найден или недоступен пользователю (HTTP 404). */
+export class BugNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.BugNotFound;
+
+    constructor(readonly bugId: string) {
+        super(`Bug ${bugId} not found`);
+    }
+}
+
+/** Статус бага нельзя сменить по таблице переходов (HTTP 409). */
+export class InvalidBugTransitionError extends BaseError {
+    readonly code = PortalErrorCode.InvalidBugTransition;
+
+    constructor(
+        readonly from: string,
+        readonly to: string,
+    ) {
+        super(`Bug status cannot change from ${from} to ${to}`);
+    }
+}
+
+/** Агент не относится к выбранному продукту (HTTP 400). */
+export class AgentNotInProductError extends BaseError {
+    readonly code = PortalErrorCode.AgentNotInProduct;
+
+    constructor(
+        readonly agentId: string,
+        readonly productId: string,
+    ) {
+        super(`Agent ${agentId} does not belong to product ${productId}`);
+    }
+}
+
+/** Отдел не найден в справочнике (HTTP 404). */
+export class DepartmentNotFoundError extends BaseError {
+    readonly code = PortalErrorCode.DepartmentNotFound;
+
+    constructor(readonly departmentId: string) {
+        super(`Department ${departmentId} not found`);
     }
 }

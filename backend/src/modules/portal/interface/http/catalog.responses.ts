@@ -2,15 +2,44 @@ import { ApiProperty } from '@nestjs/swagger';
 import type { ArchiveView } from '../../application/get-archive.use-case';
 import type {
     CatalogAgentView,
+    CatalogProductRef,
     CatalogProductView,
     CatalogSkillView,
     CatalogView,
 } from '../../application/get-catalog.use-case';
+import type { ProductAccessView } from '../../domain/ports/product-access-repository.port';
 import type { ArchivedAgentRow, ArchivedSkillRow } from '../../domain/ports/catalog-query.port';
 import { SKILL_STATUSES, type SkillStatus } from '../../domain/skill-status';
 import { ProductRefResponse, toProductRefs } from './skills.responses';
 
 const UUID_EXAMPLE = '2cdc8ab1-6d50-49cc-ba14-54e4ac7ec231';
+
+export class DepartmentRefResponse {
+    @ApiProperty({ example: 'sales' })
+    readonly id!: string;
+
+    @ApiProperty({ example: 'Продажи' })
+    readonly name!: string;
+}
+
+export class CatalogProductRefResponse extends ProductRefResponse {
+    @ApiProperty({ type: [DepartmentRefResponse], description: 'Справочно, права не ограничивает' })
+    readonly departments!: DepartmentRefResponse[];
+}
+
+const toDepartments = (
+    departments: readonly { id: string; name: string }[],
+): DepartmentRefResponse[] => departments.map(({ id, name }) => ({ id, name }));
+
+const toCatalogProductRefs = (
+    products: readonly CatalogProductRef[],
+): CatalogProductRefResponse[] =>
+    products.map((product) => ({
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        departments: toDepartments(product.departments),
+    }));
 
 class AgentStatusResponse {
     @ApiProperty({ enum: ['working', 'in_development'] })
@@ -62,8 +91,8 @@ class CatalogAgentResponse {
     @ApiProperty({ type: AgentStatusResponse })
     readonly status: AgentStatusResponse;
 
-    @ApiProperty({ type: [ProductRefResponse] })
-    readonly products: ProductRefResponse[];
+    @ApiProperty({ type: [CatalogProductRefResponse] })
+    readonly products: CatalogProductRefResponse[];
 
     @ApiProperty({ type: [CatalogSkillResponse] })
     readonly skills: CatalogSkillResponse[];
@@ -73,7 +102,7 @@ class CatalogAgentResponse {
         this.slug = view.slug;
         this.name = view.name;
         this.status = { code: view.status.code, label: view.status.label };
-        this.products = toProductRefs(view.products);
+        this.products = toCatalogProductRefs(view.products);
         this.skills = view.skills.map((skill) => new CatalogSkillResponse(skill));
     }
 }
@@ -88,6 +117,9 @@ class CatalogProductResponse {
     @ApiProperty()
     readonly name: string;
 
+    @ApiProperty({ type: [DepartmentRefResponse] })
+    readonly departments: DepartmentRefResponse[];
+
     @ApiProperty({ type: [CatalogAgentResponse] })
     readonly agents: CatalogAgentResponse[];
 
@@ -95,6 +127,7 @@ class CatalogProductResponse {
         this.id = view.id;
         this.slug = view.slug;
         this.name = view.name;
+        this.departments = toDepartments(view.departments);
         this.agents = view.agents.map((agent) => new CatalogAgentResponse(agent));
     }
 }
@@ -180,5 +213,26 @@ export class ArchiveResponse {
     constructor(view: ArchiveView) {
         this.agents = view.agents.map((agent) => new ArchivedAgentResponse(agent));
         this.skills = view.skills.map((skill) => new ArchivedSkillResponse(skill));
+    }
+}
+
+export class ProductDepartmentsResponse {
+    @ApiProperty({ example: UUID_EXAMPLE })
+    readonly id: string;
+
+    @ApiProperty({ example: 'control-center' })
+    readonly slug: string;
+
+    @ApiProperty()
+    readonly name: string;
+
+    @ApiProperty({ type: [DepartmentRefResponse], description: 'По названию' })
+    readonly departments: DepartmentRefResponse[];
+
+    constructor(view: ProductAccessView) {
+        this.id = view.id;
+        this.slug = view.slug;
+        this.name = view.name;
+        this.departments = toDepartments(view.departments);
     }
 }

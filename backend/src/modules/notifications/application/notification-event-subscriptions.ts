@@ -1,13 +1,21 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { DomainEventRegistry } from '../../../shared/outbox/application/domain-event-registry';
 import { CHAT_SYSTEM_MESSAGE_POSTED_EVENT_TYPE } from '../../assistant/contracts/chat-system-message-posted.event';
+import { BUG_COMMENT_POSTED_EVENT_TYPE } from '../../portal/contracts/bug-comment-posted.event';
+import { BUG_REPORTED_EVENT_TYPE } from '../../portal/contracts/bug-reported.event';
+import { BUG_STATUS_CHANGED_EVENT_TYPE } from '../../portal/contracts/bug-status-changed.event';
 import { REQUEST_ACCEPTED_EVENT_TYPE } from '../../portal/contracts/request-accepted.event';
 import { REQUEST_REJECTED_EVENT_TYPE } from '../../portal/contracts/request-rejected.event';
+import { REQUEST_COMMENT_POSTED_EVENT_TYPE } from '../../portal/contracts/request-comment-posted.event';
 import { REQUEST_TAKEN_EVENT_TYPE } from '../../portal/contracts/request-taken.event';
 import { SKILL_STATUS_CHANGED_EVENT_TYPE } from '../../portal/contracts/skill-status-changed.event';
 import { TASK_CREATED_EVENT_TYPE } from '../../tasks/contracts/task-created.event';
 import { ChatSystemMessagePostedSubscriber } from './chat-system-message-posted.subscriber';
+import { BugCommentPostedSubscriber } from './bug-comment-posted.subscriber';
+import { BugReportedSubscriber } from './bug-reported.subscriber';
+import { BugStatusChangedSubscriber } from './bug-status-changed.subscriber';
 import { registerNotificationEvents } from './register-notification-events';
+import { RequestCommentPostedSubscriber } from './request-comment-posted.subscriber';
 import { RequestDecidedSubscriber } from './request-decided.subscriber';
 import { RequestTakenSubscriber } from './request-taken.subscriber';
 import { SkillStatusChangedSubscriber } from './skill-status-changed.subscriber';
@@ -22,6 +30,10 @@ export class NotificationEventSubscriptions implements OnModuleInit {
         private readonly requestDecidedSubscriber: RequestDecidedSubscriber,
         private readonly skillStatusChangedSubscriber: SkillStatusChangedSubscriber,
         private readonly requestTakenSubscriber: RequestTakenSubscriber,
+        private readonly requestCommentPostedSubscriber: RequestCommentPostedSubscriber,
+        private readonly bugReportedSubscriber: BugReportedSubscriber,
+        private readonly bugStatusChangedSubscriber: BugStatusChangedSubscriber,
+        private readonly bugCommentPostedSubscriber: BugCommentPostedSubscriber,
     ) {}
 
     onModuleInit(): void {
@@ -37,6 +49,13 @@ export class NotificationEventSubscriptions implements OnModuleInit {
             this.requestDecidedSubscriber.rejections(),
         );
         this.registry.subscribe(REQUEST_TAKEN_EVENT_TYPE, this.requestTakenSubscriber);
+        this.registry.subscribe(
+            REQUEST_COMMENT_POSTED_EVENT_TYPE,
+            this.requestCommentPostedSubscriber,
+        );
+        this.registry.subscribe(BUG_REPORTED_EVENT_TYPE, this.bugReportedSubscriber);
+        this.registry.subscribe(BUG_STATUS_CHANGED_EVENT_TYPE, this.bugStatusChangedSubscriber);
+        this.registry.subscribe(BUG_COMMENT_POSTED_EVENT_TYPE, this.bugCommentPostedSubscriber);
         this.registry.subscribe(SKILL_STATUS_CHANGED_EVENT_TYPE, this.skillStatusChangedSubscriber);
     }
 }

@@ -210,7 +210,7 @@ export class AcceptRequestUseCase {
         for (let attempt = 1; ; attempt += 1) {
             const slug = await this.catalog.nextFreeSlug(kind, base);
             try {
-                return await this.transactions.run(() => insert(slug));
+                return await this.transactions.savepoint(() => insert(slug));
             } catch (error: unknown) {
                 if (!(error instanceof SlugTakenError) || attempt >= SLUG_ATTEMPTS) throw error;
             }

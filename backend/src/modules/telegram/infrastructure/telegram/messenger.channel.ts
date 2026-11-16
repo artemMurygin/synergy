@@ -23,6 +23,8 @@ import { TelegramSettingsPort } from '../../application/ports/telegram-settings.
 import { UserDirectoryPort } from '../../application/ports/user-directory.port';
 import { sendErrorReasonOf } from '../../application/send-error-reason';
 import { ClockPort } from '../../domain/ports/clock.port';
+import { portalBugUrl } from '../../domain/portal-bug-url';
+import { portalRequestUrl } from '../../domain/portal-request-url';
 import { TelegramDeliveryLogPort } from '../../domain/ports/telegram-delivery-log.port';
 import { TelegramLinkRepositoryPort } from '../../domain/ports/telegram-link-repository.port';
 import { BotApiClient } from './bot-api-client';
@@ -37,10 +39,21 @@ interface DeliveryAttempt {
     readonly reservedAt: Date;
 }
 
-export function notificationMessage(notification: Notification): string {
+export function notificationMessage(notification: Notification, portalUrl: string | null): string {
     const title = `<b>${escapeHtml(notification.content.title)}</b>`;
     const body = notification.content.body;
-    return body === '' ? title : `${title}\n${escapeHtml(body)}`;
+    const text = body === '' ? title : `${title}\n${escapeHtml(body)}`;
+    const target = notification.target;
+    if (portalUrl === null) return text;
+    if (target.type === 'request') {
+        const href = escapeHtml(portalRequestUrl(portalUrl, target.id));
+        return `${text}\n<a href="${href}">Открыть заявку</a>`;
+    }
+    if (target.type === 'bug') {
+        const href = escapeHtml(portalBugUrl(portalUrl, target.id));
+        return `${text}\n<a href="${href}">Открыть обращение</a>`;
+    }
+    return text;
 }
 
 @Injectable()
@@ -98,7 +111,7 @@ export class MessengerChannel extends NotificationChannelPort {
         try {
             return await this.client.sendMessage(
                 attempt.chatId,
-                notificationMessage(attempt.notification),
+                notificationMessage(attempt.notification, this.settings.portalUrl),
             );
         } catch (error: unknown) {
             await this.handleSendFailure(error, attempt);

@@ -12,7 +12,7 @@ import {
     type CatalogSeedResult,
 } from '../domain/ports/catalog-repository.port';
 import type { Product } from '../domain/product';
-import { millis, nullableTimestamp, toDate } from './sql-helpers';
+import { millis, nullableTimestamp, toDate, UUID_PATTERN } from './sql-helpers';
 
 const agentRow = z.object({
     id: z.string(),
@@ -94,10 +94,12 @@ export class SlonikCatalogRepository extends CatalogRepository {
     }
 
     async findProductsByIds(ids: readonly string[]): Promise<Product[]> {
-        if (ids.length === 0) return [];
+        // Некорректный uuid — «не найдено», а не ошибка приведения типа в БД.
+        const valid = ids.filter((id) => UUID_PATTERN.test(id));
+        if (valid.length === 0) return [];
         const rows = await this.transactions.executor().any(sql.unsafe`
             SELECT id, slug, name FROM portal_products
-            WHERE id = ANY(${sql.array([...ids], 'uuid')}) ORDER BY slug`);
+            WHERE id = ANY(${sql.array(valid, 'uuid')}) ORDER BY slug`);
         return rows.map((raw) => productRow.parse(raw));
     }
 
@@ -237,6 +239,7 @@ export class SlonikCatalogRepository extends CatalogRepository {
         lock: ReturnType<typeof sql.fragment>,
         id: string,
     ): Promise<Agent | null> {
+        if (!UUID_PATTERN.test(id)) return null;
         const row = await this.transactions.executor().maybeOne(sql.unsafe`
             ${AGENT_SELECT} WHERE a.id = ${id} ${lock}`);
         return row === null ? null : toAgent(row);

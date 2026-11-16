@@ -9,6 +9,7 @@ import {
   FILTERS,
   formatHours,
   formatMeta,
+  formatReviewerNote,
   formatShortDate,
   matchesFilter,
   monthlyHours,
@@ -22,6 +23,8 @@ export interface RequestListProps {
   onRetry: () => void
   /** Total number of requests on the server, for the footer counter. */
   total?: number
+  /** Queue mode: under the badge show who took the request and since when. */
+  showReviewer?: boolean
 }
 
 const COLUMNS = 'min-[768px]:grid-cols-[minmax(0,1fr)_220px_110px_100px_150px_20px]'
@@ -218,10 +221,11 @@ function EmptyState() {
   )
 }
 
-function RequestRow({ request }: { request: IdeaRequest }) {
+function RequestRow({ request, showReviewer }: { request: IdeaRequest; showReviewer: boolean }) {
   const code = request.status.code
   const hours = monthlyHours(request)
   const skill = request.skill
+  const reviewerNote = showReviewer && code === 'under_review' ? formatReviewerNote(request) : null
   return (
     <li className="border-b border-border last:border-b-0">
       <Link
@@ -253,8 +257,9 @@ function RequestRow({ request }: { request: IdeaRequest }) {
         <time dateTime={request.createdAt} className="hidden text-[13px] text-ink-60 min-[768px]:block">
           {formatDate(request.createdAt)}
         </time>
-        <span className="row-start-2 justify-self-start min-[768px]:row-auto">
+        <span className="row-start-2 flex min-w-0 flex-col items-start gap-1 justify-self-start min-[768px]:row-auto">
           <RequestStatusBadge status={code} />
+          {reviewerNote ? <span className="max-w-full truncate text-xs text-ink-60">{reviewerNote}</span> : null}
         </span>
         <Chevron className="col-start-2 row-start-1 size-[18px] min-[768px]:col-auto min-[768px]:row-auto min-[768px]:size-5" />
         <span className="col-start-2 row-start-2 text-xs text-ink-60 min-[768px]:hidden">
@@ -265,7 +270,7 @@ function RequestRow({ request }: { request: IdeaRequest }) {
   )
 }
 
-export function RequestList({ items, isLoading, error, onRetry, total }: RequestListProps) {
+export function RequestList({ items, isLoading, error, onRetry, total, showReviewer = false }: RequestListProps) {
   const [filter, setFilter] = useState<RequestFilter>('all')
   const [query, setQuery] = useState('')
 
@@ -284,7 +289,8 @@ export function RequestList({ items, isLoading, error, onRetry, total }: Request
     all: 'order-1',
     in_work: 'order-2',
     launched: 'order-3',
-    pending: 'order-4',
+    new: 'order-4',
+    under_review: 'order-4',
     rejected: 'order-5'
   }
 
@@ -326,7 +332,7 @@ export function RequestList({ items, isLoading, error, onRetry, total }: Request
         <TableHead />
         <ul className={cn(CARD, 'min-[768px]:rounded-none min-[768px]:border-0')}>
           {visible.map((request) => (
-            <RequestRow key={request.id} request={request} />
+            <RequestRow key={request.id} request={request} showReviewer={showReviewer} />
           ))}
         </ul>
         {visible.length === 0 ? (

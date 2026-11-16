@@ -6,6 +6,11 @@ import { useSessionStore } from '@/features/auth'
 import { agentFixture, json, page, queryWrapper, skillFixture, stubFetch } from '@/test/helpers'
 import { SkillPicker, type SkillPickerValue } from './SkillPicker'
 
+const PRODUCTS = [
+  { id: 'p1', slug: 'manager-helper', name: 'Manager Helper' },
+  { id: 'p2', slug: 'telegram', name: 'Telegram-бот' }
+]
+
 beforeEach(() => {
   useSessionStore.setState(useSessionStore.getInitialState())
   useSessionStore.getState().signIn('tok', { id: 'u1', login: 'dev', mustChangePassword: false, roles: ['developer'], fullName: 'dev', lastName: null, firstName: null, middleName: null, position: null, department: null })
@@ -22,6 +27,7 @@ function Harness({ onChange }: { onChange: (v: SkillPickerValue) => void }) {
   const [value, setValue] = useState<SkillPickerValue>(EXISTING)
   return (
     <SkillPicker
+      products={PRODUCTS}
       value={value}
       onChange={(v) => {
         setValue(v)
@@ -66,6 +72,7 @@ describe('SkillPicker', () => {
     render(
       <Wrapper>
         <SkillPicker
+          products={PRODUCTS}
           value={{ mode: 'new', agentId: '', name: '', description: '' }}
           onChange={() => undefined}
           errors={{ agentId: 'Выберите агента', name: 'Введите название' }}
@@ -74,5 +81,34 @@ describe('SkillPicker', () => {
     )
     expect(screen.getByLabelText('Агент').getAttribute('aria-invalid')).toBe('true')
     expect(screen.getByText('Введите название')).toBeTruthy()
+  })
+
+  it('has three mode chips with aria-pressed', async () => {
+    renderPicker()
+    const user = userEvent.setup()
+    expect(screen.getByRole('button', { name: 'Существующий' }).getAttribute('aria-pressed')).toBe('true')
+    await user.click(screen.getByRole('button', { name: 'Новый агент' }))
+    expect(screen.getByRole('button', { name: 'Новый агент' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Существующий' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('new agent mode shows the agent and skill groups and reports the value', async () => {
+    const onChange = renderPicker()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Новый агент' }))
+    expect(screen.getByRole('group', { name: 'Новый агент' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Навык' })).toBeTruthy()
+    expect(screen.queryByLabelText('Агент')).toBeNull()
+    await user.type(screen.getByLabelText('Название агента'), 'Б')
+    await user.click(screen.getByRole('checkbox', { name: 'Manager Helper' }))
+    await user.type(screen.getByLabelText(/Новый продукт/), 'В')
+    expect(onChange).toHaveBeenLastCalledWith({
+      mode: 'new_agent',
+      agentName: 'Б',
+      productIds: ['p1'],
+      newProductName: 'В',
+      name: '',
+      description: ''
+    })
   })
 })

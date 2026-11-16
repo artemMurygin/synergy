@@ -43,6 +43,23 @@ import {
     REQUEST_REJECTED_SUBSCRIBER,
     RequestDecidedSubscriber,
 } from './request-decided.subscriber';
+import {
+    REQUEST_COMMENT_POSTED_SUBSCRIBER,
+    RequestCommentPostedSubscriber,
+} from './request-comment-posted.subscriber';
+import { REQUEST_COMMENT_POSTED_EVENT_TYPE } from '../../portal/contracts/request-comment-posted.event';
+import { BUG_COMMENT_POSTED_EVENT_TYPE } from '../../portal/contracts/bug-comment-posted.event';
+import { BUG_REPORTED_EVENT_TYPE } from '../../portal/contracts/bug-reported.event';
+import { BUG_STATUS_CHANGED_EVENT_TYPE } from '../../portal/contracts/bug-status-changed.event';
+import {
+    BUG_COMMENT_POSTED_SUBSCRIBER,
+    BugCommentPostedSubscriber,
+} from './bug-comment-posted.subscriber';
+import { BUG_REPORTED_SUBSCRIBER, BugReportedSubscriber } from './bug-reported.subscriber';
+import {
+    BUG_STATUS_CHANGED_SUBSCRIBER,
+    BugStatusChangedSubscriber,
+} from './bug-status-changed.subscriber';
 import { REQUEST_TAKEN_SUBSCRIBER, RequestTakenSubscriber } from './request-taken.subscriber';
 import {
     SKILL_STATUS_CHANGED_SUBSCRIBER,
@@ -83,6 +100,24 @@ function requestSubscriber(): RequestDecidedSubscriber {
 
 function takenSubscriber(): RequestTakenSubscriber {
     return new RequestTakenSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function commentSubscriber(): RequestCommentPostedSubscriber {
+    return new RequestCommentPostedSubscriber(new FakeUserDirectory(), createNotifications());
+}
+
+function bugSubscribers(): [
+    BugReportedSubscriber,
+    BugStatusChangedSubscriber,
+    BugCommentPostedSubscriber,
+] {
+    const users = new FakeUserDirectory();
+    const create = createNotifications();
+    return [
+        new BugReportedSubscriber(users, create),
+        new BugStatusChangedSubscriber(users, create),
+        new BugCommentPostedSubscriber(users, create),
+    ];
 }
 
 function skillSubscriber(): SkillStatusChangedSubscriber {
@@ -136,6 +171,8 @@ describe('NotificationEventSubscriptions', () => {
             requestSubscriber(),
             skillSubscriber(),
             takenSubscriber(),
+            commentSubscriber(),
+            ...bugSubscribers(),
         ).onModuleInit();
 
         expect(
@@ -170,6 +207,8 @@ describe('NotificationEventSubscriptions', () => {
             requestSubscriber(),
             skillSubscriber(),
             takenSubscriber(),
+            commentSubscriber(),
+            ...bugSubscribers(),
         ).onModuleInit();
 
         expect(
@@ -194,6 +233,8 @@ describe('NotificationEventSubscriptions', () => {
         const requests = requestSubscriber();
         const skills = skillSubscriber();
         const taken = takenSubscriber();
+        const comments = commentSubscriber();
+        const bugs = bugSubscribers();
 
         new NotificationEventSubscriptions(
             registry,
@@ -202,7 +243,26 @@ describe('NotificationEventSubscriptions', () => {
             requests,
             skills,
             taken,
+            comments,
+            ...bugs,
         ).onModuleInit();
+
+        expect(
+            registry.findSubscriber(
+                REQUEST_COMMENT_POSTED_EVENT_TYPE,
+                REQUEST_COMMENT_POSTED_SUBSCRIBER,
+            ),
+        ).toBe(comments);
+
+        expect(registry.findSubscriber(BUG_REPORTED_EVENT_TYPE, BUG_REPORTED_SUBSCRIBER)).toBe(
+            bugs[0],
+        );
+        expect(
+            registry.findSubscriber(BUG_STATUS_CHANGED_EVENT_TYPE, BUG_STATUS_CHANGED_SUBSCRIBER),
+        ).toBe(bugs[1]);
+        expect(
+            registry.findSubscriber(BUG_COMMENT_POSTED_EVENT_TYPE, BUG_COMMENT_POSTED_SUBSCRIBER),
+        ).toBe(bugs[2]);
 
         expect(
             registry.findSubscriber(REQUEST_ACCEPTED_EVENT_TYPE, REQUEST_ACCEPTED_SUBSCRIBER),

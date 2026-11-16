@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
 import { formatDate } from '@/lib/format'
+import { formatReviewerNote, RequestStatusBadge } from '@/features/requests'
 import { initials } from '@/lib/initials'
 import type { FrequencyPeriod, IdeaRequest } from '@/lib/schemas'
 import { useQueue } from './use-queue'
@@ -97,7 +98,7 @@ function formatDecimal(n: number): string {
 }
 
 const ROW_GRID =
-  'md:grid md:grid-cols-[minmax(0,1fr)_170px_120px_110px_112px] md:items-center md:gap-4'
+  'md:grid md:grid-cols-[minmax(0,1fr)_190px_170px_120px_110px_112px] md:items-center md:gap-4'
 
 function Stat({ value, label, note, alert }: { value: string; label: string; note: string; alert?: boolean }) {
   return (
@@ -129,7 +130,7 @@ export function QueuePage() {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1.5">
             <h1 className="font-display text-[32px] font-bold leading-[1.28] text-ink">Очередь заявок</h1>
-            <p className="text-sm leading-4 text-ink-60">Новые идеи ждут решения. Примите заявку в навык или отклоните с причиной.</p>
+            <p className="text-sm leading-4 text-ink-60">Новые и взятые в работу заявки, старые первыми. Возьмите заявку, оцените и примите решение</p>
           </div>
           <div className="flex items-center gap-2 pb-0">
             <span className="text-[13px] text-ink-60">Сортировка</span>
@@ -194,6 +195,7 @@ export function QueuePage() {
               className={`${ROW_GRID} hidden h-[34px] border-b border-border bg-surface-alt px-5 text-[11px] font-bold leading-[14px] uppercase tracking-[0.08em] text-ink-60`}
             >
               <span>Заявка</span>
+              <span>Статус</span>
               <span>Автор</span>
               <span>Эффект / мес</span>
               <span>Ждёт</span>
@@ -213,6 +215,12 @@ export function QueuePage() {
                       <span className="flex min-w-0 flex-col gap-[3px]">
                         <span className="break-words text-[15px] font-semibold leading-[18px] text-ink">{request.title}</span>
                         <span className="text-xs leading-[14px] text-ink-60">{formatMeta(request)}</span>
+                      </span>
+                      <span className="flex min-w-0 flex-col items-start gap-1">
+                        <RequestStatusBadge status={request.status.code} />
+                        {request.status.code === 'under_review' && formatReviewerNote(request) ? (
+                          <span className="max-w-full truncate text-xs text-ink-60">{formatReviewerNote(request)}</span>
+                        ) : null}
                       </span>
                       <span className="flex min-w-0 items-center gap-2">
                         <span

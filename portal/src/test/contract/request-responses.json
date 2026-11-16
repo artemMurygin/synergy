@@ -1,0 +1,319 @@
+[
+  {
+    "name": "new",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "new",
+        "label": "Новая"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": null,
+      "takenAt": null,
+      "effortHours": null,
+      "rejectReason": null,
+      "skill": null,
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "under_review",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "under_review",
+        "label": "На рассмотрении"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": null,
+      "rejectReason": null,
+      "skill": null,
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "rejected",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "rejected",
+        "label": "Отклонена"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": null,
+      "rejectReason": "Уже есть",
+      "skill": null,
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "planned",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "planned",
+        "label": "planned"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": 16,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "in_dev",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "in_dev",
+        "label": "in_dev"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": 16,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "testing",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "testing",
+        "label": "testing"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": 16,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "launched",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "launched",
+        "label": "launched"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": 16,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "rework",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "rework",
+        "label": "rework"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": 16,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  },
+  {
+    "name": "accepted before estimates existed",
+    "response": {
+      "id": "r1",
+      "title": "Сверка актов",
+      "description": "Описание",
+      "frequency": {
+        "count": 1,
+        "period": "day"
+      },
+      "minutesPerRun": 10,
+      "peopleCount": 1,
+      "status": {
+        "code": "planned",
+        "label": "Запланировано"
+      },
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "reviewer": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "takenAt": "2026-11-07T09:00:00.000Z",
+      "effortHours": null,
+      "rejectReason": null,
+      "skill": {
+        "id": "s1",
+        "name": "Навык",
+        "description": ""
+      },
+      "createdAt": "2026-11-06T10:00:00.000Z"
+    }
+  }
+]

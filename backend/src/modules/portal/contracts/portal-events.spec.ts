@@ -12,6 +12,12 @@ import {
     SKILL_STATUS_CHANGED_EVENT_TYPE,
     SkillStatusChangedEvent,
 } from './skill-status-changed.event';
+import {
+    COMMENT_EXCERPT_LENGTH,
+    REQUEST_COMMENT_POSTED_EVENT_TYPE,
+    RequestCommentPostedEvent,
+    commentExcerpt,
+} from './request-comment-posted.event';
 import { registerPortalEvents } from './register-portal-events';
 import { SKILL_STATUS_LABELS } from './skill-status-labels';
 
@@ -28,7 +34,11 @@ function registry(): DomainEventRegistry {
 function roundTrip(
     events: DomainEventRegistry,
     original:
-        RequestAcceptedEvent | RequestRejectedEvent | RequestTakenEvent | SkillStatusChangedEvent,
+        | RequestAcceptedEvent
+        | RequestRejectedEvent
+        | RequestTakenEvent
+        | RequestCommentPostedEvent
+        | SkillStatusChangedEvent,
 ): DomainEvent {
     const serialized = events.serialize(original);
     return events.restore({
@@ -389,5 +399,88 @@ describe('SKILL_STATUS_LABELS', () => {
             rework: 'Доработка',
         });
         expect(Object.keys(SKILL_STATUS_LABELS).sort()).toEqual([...SKILL_STATUSES].sort());
+    });
+});
+
+describe('RequestCommentPosted contract', () => {
+    const COMMENT_ID = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+    const posted = (): RequestCommentPostedEvent =>
+        new RequestCommentPostedEvent({
+            aggregateId: COMMENT_ID,
+            requestId: REQUEST_ID,
+            requestAuthorId: 'author',
+            commenterId: 'dev',
+            requestTitle: 'Идея',
+            excerpt: 'Привет',
+            metadata,
+        });
+
+    it('has a stable event type and aggregate id equal to the comment id', () => {
+        expect(REQUEST_COMMENT_POSTED_EVENT_TYPE).toBe('portal.request_comment_posted');
+        expect(posted().aggregateId).toBe(COMMENT_ID);
+    });
+
+    it('serializes and restores an equal event', () => {
+        const events = registry();
+        const original = posted();
+        expect(events.serialize(original).payload).toEqual({
+            requestId: REQUEST_ID,
+            requestAuthorId: 'author',
+            commenterId: 'dev',
+            requestTitle: 'Идея',
+            excerpt: 'Привет',
+        });
+        const restored = roundTrip(events, original);
+        expect(restored).toBeInstanceOf(RequestCommentPostedEvent);
+        if (!(restored instanceof RequestCommentPostedEvent)) return;
+        expect(restored.aggregateId).toBe(COMMENT_ID);
+        expect(restored.requestId).toBe(REQUEST_ID);
+        expect(restored.requestAuthorId).toBe('author');
+        expect(restored.commenterId).toBe('dev');
+        expect(restored.requestTitle).toBe('Идея');
+        expect(restored.excerpt).toBe('Привет');
+        expect(restored.metadata).toEqual(metadata);
+    });
+
+    it('rejects a payload without an excerpt', () => {
+        expect(() =>
+            registry().restore({
+                id: 'e1',
+                eventType: REQUEST_COMMENT_POSTED_EVENT_TYPE,
+                aggregateId: COMMENT_ID,
+                payload: {
+                    requestId: 'r',
+                    requestAuthorId: 'a',
+                    commenterId: 'c',
+                    requestTitle: 't',
+                },
+                metadata,
+            }),
+        ).toThrow(InvalidEventPayloadError);
+    });
+});
+
+describe('commentExcerpt', () => {
+    it('does not split a surrogate pair at the cut point', () => {
+        const result = commentExcerpt(`${'a'.repeat(198)}😀${'b'.repeat(10)}`);
+        expect(result.length).toBeLessThanOrEqual(COMMENT_EXCERPT_LENGTH);
+        expect(JSON.parse(JSON.stringify(result))).toBe(result);
+        expect(result).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
+        expect(result.endsWith('…')).toBe(true);
+    });
+
+    it('returns short text unchanged', () => {
+        expect(commentExcerpt('abc')).toBe('abc');
+    });
+
+    it('keeps text of exactly the limit unchanged', () => {
+        const text = 'a'.repeat(COMMENT_EXCERPT_LENGTH);
+        expect(commentExcerpt(text)).toBe(text);
+    });
+
+    it('truncates longer text to 199 chars plus an ellipsis', () => {
+        const result = commentExcerpt('a'.repeat(COMMENT_EXCERPT_LENGTH + 50));
+        expect(result).toBe(`${'a'.repeat(COMMENT_EXCERPT_LENGTH - 1)}…`);
+        expect(result).toHaveLength(COMMENT_EXCERPT_LENGTH);
     });
 });

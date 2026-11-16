@@ -1,16 +1,18 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSessionStore } from '@/features/auth'
+import type { Role } from '@/lib/schemas'
 import { catalogFixture } from '@/features/catalog/model/catalog.fixtures'
 import { createTestClient, json, queryWrapper, stubFetch } from '@/test/helpers'
 import { CatalogPage } from './CatalogPage'
 
-beforeEach(() => {
+function signIn(roles: Role[]) {
   useSessionStore.setState(useSessionStore.getInitialState())
-  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'ivan', mustChangePassword: false, roles: [], fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null })
-})
+  useSessionStore.getState().signIn('tok', { id: 'u1', login: 'ivan', mustChangePassword: false, roles, fullName: 'ivan', lastName: null, firstName: null, middleName: null, position: null, department: null })
+}
+beforeEach(() => signIn([]))
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -97,5 +99,67 @@ describe('CatalogPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByRole('heading', { name: 'Control Center' })).toBeTruthy()
     expect(fn.mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows "Доступно: …" under a product with departments and nothing under one without', async () => {
+    stubFetch(() => json(catalogFixture))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Control Center' })
+    expect(within(section('Control Center')).getByText('Доступно: КЦ 1, КЦ 2')).toBeTruthy()
+    expect(within(section('Telegram-бот')).queryByText(/Доступно/)).toBeNull()
+    expect(within(section('Веб')).queryByText(/Доступно/)).toBeNull()
+  })
+
+  it('has no "Доступ отделов" action and does not request departments without the admin role', async () => {
+    for (const roles of [[], ['developer']] as Role[][]) {
+      signIn(roles)
+      const { calls } = stubFetch(() => json(catalogFixture))
+      renderPage()
+      await screen.findByRole('heading', { name: 'Control Center' })
+      expect(screen.queryByRole('button', { name: 'Доступ отделов' })).toBeNull()
+      expect(calls.some((c) => c.path === '/admin/departments')).toBe(false)
+      cleanup()
+    }
+  })
+
+  describe('admin', () => {
+    const directory = [
+      { id: 'd-kc1', name: 'КЦ 1', head: null, employeeCount: 3 },
+      { id: 'd-kc2', name: 'КЦ 2', head: null, employeeCount: 2 }
+    ]
+    beforeEach(() => signIn(['admin']))
+
+    it('has "Доступ отделов" on every product, also on one without agents', async () => {
+      stubFetch((call) => (call.path === '/admin/departments' ? json(directory) : json(catalogFixture)))
+      renderPage()
+      await screen.findByRole('heading', { name: 'Control Center' })
+      await waitFor(() => expect((within(section('Веб')).getByRole('button', { name: 'Доступ отделов' }) as HTMLButtonElement).disabled).toBe(false))
+      expect(screen.getAllByRole('button', { name: 'Доступ отделов' })).toHaveLength(3)
+    })
+
+    it('assigns departments: PUT, the dialog closes and the label is reloaded', async () => {
+      let saved = false
+      const updated = {
+        products: catalogFixture.products.map((p) => (p.id === 'p-web' ? { ...p, departments: [{ id: 'd-kc1', name: 'КЦ 1' }] } : p))
+      }
+      const { calls } = stubFetch((call) => {
+        if (call.path === '/admin/departments') return json(directory)
+        if (call.method === 'PUT') {
+          saved = true
+          return json({ id: 'p-web', slug: 'web', name: 'Веб', departments: [{ id: 'd-kc1', name: 'КЦ 1' }] })
+        }
+        return json(saved ? updated : catalogFixture)
+      })
+      renderPage()
+      await screen.findByRole('heading', { name: 'Веб' })
+      const button = within(section('Веб')).getByRole('button', { name: 'Доступ отделов' })
+      await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false))
+      await userEvent.click(button)
+      await userEvent.click(await screen.findByRole('checkbox', { name: 'КЦ 1' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+      expect(await within(section('Веб')).findByText('Доступно: КЦ 1')).toBeTruthy()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ path: '/portal/products/p-web/departments', body: { departmentIds: ['d-kc1'] } })
+    })
   })
 })

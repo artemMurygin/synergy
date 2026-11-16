@@ -65,6 +65,7 @@ export const envSchema = z
         TELEGRAM_LINK_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(600),
         TELEGRAM_DELIVERY_RESERVATION_MS: z.coerce.number().int().positive().default(120000),
         TELEGRAM_API_BASE_URL: z.url().default('https://api.telegram.org'),
+        PORTAL_PUBLIC_URL: z.url({ protocol: /^https?$/ }).optional(),
 
         DEAL_SYNC_ATTEMPTS: z.coerce.number().int().positive().default(3),
         DEAL_SYNC_BACKOFF_MS: z.coerce.number().int().nonnegative().default(5000),

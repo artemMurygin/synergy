@@ -17,5 +17,12 @@ export function registerPortalErrorStatuses(): void {
         [PortalErrorCode.ProductNotFound]: HttpStatus.NOT_FOUND,
         [PortalErrorCode.AgentNameTaken]: HttpStatus.CONFLICT,
         [PortalErrorCode.ProductNameTaken]: HttpStatus.CONFLICT,
+        [PortalErrorCode.CommentNotFound]: HttpStatus.NOT_FOUND,
+        [PortalErrorCode.CommentNotOwned]: HttpStatus.FORBIDDEN,
+        [PortalErrorCode.CommentEditExpired]: HttpStatus.CONFLICT,
+        [PortalErrorCode.BugNotFound]: HttpStatus.NOT_FOUND,
+        [PortalErrorCode.InvalidBugTransition]: HttpStatus.CONFLICT,
+        [PortalErrorCode.AgentNotInProduct]: HttpStatus.BAD_REQUEST,
+        [PortalErrorCode.DepartmentNotFound]: HttpStatus.NOT_FOUND,
     });
 }

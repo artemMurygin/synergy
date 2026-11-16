@@ -2,6 +2,8 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AgentCard, ArchiveAgentAction, selectAgent } from '@/features/catalog'
+import { AgentGuideSection } from '@/features/guides'
+import { useSession } from '@/features/auth'
 import { NotFoundView } from './NotFoundView'
 import { useCatalog } from './use-catalog'
 
@@ -14,6 +16,21 @@ function BackLink() {
       </svg>
       Каталог
     </Link>
+  )
+}
+
+function ReportBugLink({ agentId }: { agentId: string }) {
+  return (
+    <Button asChild variant="outline" className="h-11 w-full min-[768px]:w-auto">
+      <Link to={`/bugs/new?agentId=${encodeURIComponent(agentId)}`}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-[18px]">
+          <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+          <path d="M12 15h.01" />
+          <path d="M12 7v4" />
+        </svg>
+        Сообщить о проблеме
+      </Link>
+    </Button>
   )
 }
 
@@ -33,6 +50,8 @@ export function AgentPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const query = useCatalog()
+  const { roles } = useSession()
+  const isDeveloper = roles.includes('developer')
   const agent = query.data ? selectAgent(query.data, id) : undefined
 
   if (query.isInitialLoad) {
@@ -68,14 +87,18 @@ export function AgentPage() {
       <BackLink />
       <AgentCard
         agent={agent}
+        guide={<AgentGuideSection agentId={agent.id} canEdit={isDeveloper} />}
         actions={
-          <ArchiveAgentAction
-            agentId={agent.id}
-            agentName={agent.name}
-            products={agent.products}
-            skillsCount={agent.skills.length}
-            onArchived={() => void navigate('/catalog')}
-          />
+          <div className="flex flex-col gap-3 min-[768px]:flex-row min-[768px]:items-center">
+            <ReportBugLink agentId={agent.id} />
+            <ArchiveAgentAction
+              agentId={agent.id}
+              agentName={agent.name}
+              products={agent.products}
+              skillsCount={agent.skills.length}
+              onArchived={() => void navigate('/catalog')}
+            />
+          </div>
         }
       />
     </section>

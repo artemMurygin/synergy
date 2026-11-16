@@ -49,6 +49,14 @@ describe('configureHttp', () => {
         expect(response.status).toBe(201);
     });
 
+    it('accepts the longest agent guide: 50 000 Cyrillic characters with line breaks', async () => {
+        const base = await start({ allowedOrigins: [] });
+        const guide = 'Инструкция\n'.repeat(50_000 / 11).padEnd(50_000, 'я');
+        const response = await post(base, guide);
+        expect(response.status).toBe(201);
+        expect(await response.json()).toEqual({ length: 50_000 });
+    });
+
     it('answers the preflight of any extension for a scheme wildcard', async () => {
         const base = await start({ allowedOrigins: ['chrome-extension://*'] });
         const response = await fetch(`${base}/probe`, {

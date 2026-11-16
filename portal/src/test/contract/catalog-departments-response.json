@@ -1,0 +1,55 @@
+{
+  "products": [
+    {
+      "id": "p1",
+      "slug": "manager-helper",
+      "name": "Manager Helper",
+      "departments": [
+        {
+          "id": "kc-1",
+          "name": "КЦ 1"
+        },
+        {
+          "id": "kc-2",
+          "name": "КЦ 2"
+        }
+      ],
+      "agents": [
+        {
+          "id": "g1",
+          "slug": "assistant",
+          "name": "Ассистент",
+          "status": {
+            "code": "working",
+            "label": "Работает"
+          },
+          "products": [
+            {
+              "id": "p1",
+              "slug": "manager-helper",
+              "name": "Manager Helper",
+              "departments": [
+                {
+                  "id": "kc-1",
+                  "name": "КЦ 1"
+                },
+                {
+                  "id": "kc-2",
+                  "name": "КЦ 2"
+                }
+              ]
+            }
+          ],
+          "skills": []
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "slug": "web",
+      "name": "Веб",
+      "departments": [],
+      "agents": []
+    }
+  ]
+}

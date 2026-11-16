@@ -3,9 +3,28 @@ import type { CommonQueryMethods } from 'slonik';
 import { TransactionRunnerPort } from '../../../database/postgres/transaction-runner.port';
 import { DomainEventPublisherPort, type DomainEvent } from '../../../shared/ddd';
 import { formatFullName, type FullNameParts } from '../../../shared/people/full-name';
+import { BugReport } from '../domain/bug-report';
+import type { BugStatus } from '../domain/bug-status';
+import {
+    BugQuery,
+    type BugListRecord,
+    type BugPerson,
+    type BugRecord,
+} from '../domain/ports/bug-query.port';
+import { BugRepository } from '../domain/ports/bug-repository.port';
 import type { LinkedRequestSnapshot } from '../contracts/linked-request-snapshot';
 import { Agent } from '../domain/agent';
+import type { AgentGuide } from '../domain/agent-guide';
+import { AgentGuideQuery, type GuideRecord } from '../domain/ports/agent-guide-query.port';
+import { AgentGuideRepository } from '../domain/ports/agent-guide-repository.port';
+import { DepartmentLookupPort } from '../domain/ports/department-lookup.port';
 import {
+    ProductAccessRepository,
+    type ProductAccessView,
+} from '../domain/ports/product-access-repository.port';
+import type { ProductAccess } from '../domain/product-access';
+import {
+    DepartmentNotFoundError,
     AgentNameTakenError,
     InvalidSkillTransitionError,
     ProductNameTakenError,
@@ -27,8 +46,12 @@ import {
     CatalogQuery,
     type ArchiveRows,
     type CatalogRow,
+    type ProductDepartmentRow,
 } from '../domain/ports/catalog-query.port';
+import { CommentQuery, type CommentRecord } from '../domain/ports/comment-query.port';
+import { CommentRepository } from '../domain/ports/comment-repository.port';
 import { Clock } from '../domain/ports/clock.port';
+import type { RequestComment } from '../domain/request-comment';
 import type { Page, PageRequest } from '../domain/ports/page';
 import { RequestQuery, type RequestView } from '../domain/ports/request-query.port';
 import { RequestRepository } from '../domain/ports/request-repository.port';
@@ -60,9 +83,19 @@ export interface TransactionParticipant {
     snapshot(): () => void;
 }
 
-/** Фейковый `TransactionRunner`: при ошибке откатывает состояние участников. */
+interface SnapshotTransactionScope {
+    readonly callbacks: (() => void)[];
+    isAborted: boolean;
+}
+
+export class TransactionAbortedError extends Error {}
+
+/**
+ * Как PostgreSQL: ошибка из вложенного `run` (без SAVEPOINT), перехваченная кодом, прерывает
+ * всю транзакцию, и коммит падает. Откатить часть работы может только `savepoint`.
+ */
 export class SnapshotTransactionRunner extends TransactionRunnerPort {
-    private readonly storage = new AsyncLocalStorage<(() => void)[]>();
+    private readonly storage = new AsyncLocalStorage<SnapshotTransactionScope>();
 
     commits = 0;
 
@@ -75,26 +108,46 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
     }
 
     async run<T>(work: () => Promise<T>): Promise<T> {
-        if (this.storage.getStore() !== undefined) {
-            // Вложенный вызов — savepoint: при ошибке откатывает только свои изменения.
-            const nestedRestores = this.participants.map((participant) => participant.snapshot());
+        const parent = this.storage.getStore();
+        if (parent !== undefined) {
             try {
                 return await work();
             } catch (error: unknown) {
-                this.savepointRollbacks += 1;
-                for (const restore of nestedRestores) restore();
+                parent.isAborted = true;
                 throw error;
             }
         }
         const restores = this.participants.map((participant) => participant.snapshot());
-        const callbacks: (() => void)[] = [];
+        const scope: SnapshotTransactionScope = { callbacks: [], isAborted: false };
         try {
-            const result = await this.storage.run(callbacks, work);
+            const result = await this.storage.run(scope, work);
+            if (scope.isAborted) {
+                throw new TransactionAbortedError('current transaction is aborted');
+            }
             this.commits += 1;
-            for (const callback of callbacks) callback();
+            for (const callback of scope.callbacks) callback();
             return result;
         } catch (error: unknown) {
             this.rollbacks += 1;
+            for (const restore of restores) restore();
+            throw error;
+        }
+    }
+
+    async savepoint<T>(work: () => Promise<T>): Promise<T> {
+        const parent = this.storage.getStore();
+        if (parent === undefined) return this.run(work);
+        const restores = this.participants.map((participant) => participant.snapshot());
+        const scope: SnapshotTransactionScope = { callbacks: [], isAborted: false };
+        try {
+            const result = await this.storage.run(scope, work);
+            if (scope.isAborted) {
+                throw new TransactionAbortedError('current transaction is aborted');
+            }
+            parent.callbacks.push(...scope.callbacks);
+            return result;
+        } catch (error: unknown) {
+            this.savepointRollbacks += 1;
             for (const restore of restores) restore();
             throw error;
         }
@@ -105,10 +158,9 @@ export class SnapshotTransactionRunner extends TransactionRunnerPort {
     }
 
     afterCommit(callback: () => void): void {
-        const callbacks = this.storage.getStore();
-        if (callbacks === undefined)
-            throw new Error('afterCommit was called outside a transaction');
-        callbacks.push(callback);
+        const scope = this.storage.getStore();
+        if (scope === undefined) throw new Error('afterCommit was called outside a transaction');
+        scope.callbacks.push(callback);
     }
 
     isInTransaction(): boolean {
@@ -201,6 +253,131 @@ export class InMemoryRequestRepository extends RequestRepository implements Tran
                     title: request.title.value,
                 })),
         );
+    }
+}
+
+export class InMemoryBugRepository extends BugRepository implements TransactionParticipant {
+    readonly byId = new Map<string, BugReport>();
+
+    /** Если задан, `insert` падает: имитация сбоя записи. */
+    insertError: Error | null = null;
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, bug] of saved) this.byId.set(id, bug);
+        };
+    }
+
+    private static copy(bug: BugReport): BugReport {
+        return BugReport.restore({
+            id: bug.id,
+            createdAt: bug.createdAt,
+            authorId: bug.authorId,
+            productId: bug.productId,
+            agentId: bug.agentId,
+            title: bug.title,
+            description: bug.description,
+            status: bug.status,
+            wontFixReason: bug.wontFixReason,
+            statusChangedBy: bug.statusChangedBy,
+            statusChangedAt: bug.statusChangedAt,
+        });
+    }
+
+    insert(bug: BugReport): Promise<void> {
+        if (this.insertError !== null) return Promise.reject(this.insertError);
+        this.byId.set(bug.id, InMemoryBugRepository.copy(bug));
+        return Promise.resolve();
+    }
+
+    /** Отдаёт копию: мутация домена не попадает в «БД» до `updateStatus`. */
+    findById(id: string): Promise<BugReport | null> {
+        const stored = this.byId.get(id);
+        return Promise.resolve(stored === undefined ? null : InMemoryBugRepository.copy(stored));
+    }
+
+    updateStatus(bug: BugReport, expected: BugStatus): Promise<boolean> {
+        const stored = this.byId.get(bug.id);
+        if (stored?.status !== expected) return Promise.resolve(false);
+        this.byId.set(bug.id, InMemoryBugRepository.copy(bug));
+        return Promise.resolve(true);
+    }
+}
+
+export class InMemoryCommentRepository extends CommentRepository implements TransactionParticipant {
+    readonly byId = new Map<string, RequestComment>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.byId);
+        return () => {
+            this.byId.clear();
+            for (const [id, comment] of saved) this.byId.set(id, comment);
+        };
+    }
+
+    insert(comment: RequestComment): Promise<void> {
+        this.byId.set(comment.id, comment);
+        return Promise.resolve();
+    }
+
+    findById(id: string): Promise<RequestComment | null> {
+        return Promise.resolve(this.byId.get(id) ?? null);
+    }
+
+    update(comment: RequestComment): Promise<void> {
+        this.byId.set(comment.id, comment);
+        return Promise.resolve();
+    }
+}
+
+/** Лента комментариев в памяти: порядок `createdAt`, затем `id`; метка роли по автору заявки. */
+export class InMemoryCommentQuery extends CommentQuery {
+    /** Логины авторов; по умолчанию логин равен идентификатору. */
+    readonly logins = new Map<string, string>();
+    /** Части ФИО авторов; без записи полное имя равно логину. */
+    readonly profiles = new Map<string, FullNameParts>();
+
+    constructor(
+        private readonly comments: InMemoryCommentRepository,
+        private readonly requests: InMemoryRequestRepository,
+    ) {
+        super();
+    }
+
+    private toRecord(comment: RequestComment): CommentRecord {
+        const login = this.logins.get(comment.authorId) ?? comment.authorId;
+        const request = this.requests.byId.get(comment.requestId);
+        return {
+            id: comment.id,
+            authorId: comment.authorId,
+            body: comment.body.value,
+            author: {
+                id: comment.authorId,
+                login,
+                fullName: formatFullName(this.profiles.get(comment.authorId) ?? {}, login),
+            },
+            authorRole: request?.authorId === comment.authorId ? 'request_author' : 'developer',
+            createdAt: comment.createdAt,
+            editedAt: comment.editedAt,
+        };
+    }
+
+    listByRequest(requestId: string): Promise<CommentRecord[]> {
+        const items = [...this.comments.byId.values()]
+            .filter((comment) => comment.requestId === requestId)
+            .sort(
+                (a, b) =>
+                    a.createdAt.getTime() - b.createdAt.getTime() ||
+                    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            );
+        return Promise.resolve(items.map((comment) => this.toRecord(comment)));
+    }
+
+    findView(id: string): Promise<CommentRecord | null> {
+        const comment = this.comments.byId.get(id);
+        return Promise.resolve(comment === undefined ? null : this.toRecord(comment));
     }
 }
 
@@ -625,6 +802,10 @@ export class InMemoryCatalogQuery extends CatalogQuery {
         return Promise.resolve(rows);
     }
 
+    loadProductDepartments(): Promise<ProductDepartmentRow[]> {
+        return Promise.resolve([]);
+    }
+
     loadArchive(): Promise<ArchiveRows> {
         const agents = [...this.catalog.agents.values()].flatMap((agent) =>
             agent.archivedAt === null
@@ -659,6 +840,200 @@ export class InMemoryCatalogQuery extends CatalogQuery {
     }
 }
 
+/** Read-модель багов в памяти: названия берёт из in-memory каталога. */
+export class InMemoryBugQuery extends BugQuery {
+    /** Логины пользователей; по умолчанию логин равен идентификатору. */
+    readonly logins = new Map<string, string>();
+
+    /** Записи `listByAuthor`/`listQueue` для проверки переданных параметров. */
+    readonly calls: { method: string; args: unknown[] }[] = [];
+
+    constructor(
+        private readonly bugs: InMemoryBugRepository,
+        private readonly catalog: InMemoryCatalogRepository,
+    ) {
+        super();
+    }
+
+    private person(id: string): BugPerson {
+        const login = this.logins.get(id) ?? id;
+        return { id, login, fullName: login };
+    }
+
+    private toRecord(bug: BugReport): BugRecord {
+        const product = [...this.catalog.products.values()].find((p) => p.id === bug.productId);
+        const agent = this.catalog.agents.get(bug.agentId);
+        return {
+            id: bug.id,
+            title: bug.title.value,
+            description: bug.description.value,
+            product: { id: bug.productId, name: product?.name ?? bug.productId },
+            agent: { id: bug.agentId, name: agent?.name ?? bug.agentId },
+            status: bug.status,
+            createdAt: bug.createdAt,
+            statusChangedAt: bug.statusChangedAt,
+            author: this.person(bug.authorId),
+            statusChangedBy: bug.statusChangedBy === null ? null : this.person(bug.statusChangedBy),
+            wontFixReason: bug.wontFixReason?.value ?? null,
+        };
+    }
+
+    findView(id: string): Promise<BugRecord | null> {
+        const bug = this.bugs.byId.get(id);
+        return Promise.resolve(bug === undefined ? null : this.toRecord(bug));
+    }
+
+    listByAuthor(authorId: string, page: PageRequest): Promise<Page<BugListRecord>> {
+        this.calls.push({ method: 'listByAuthor', args: [authorId, page] });
+        const own = [...this.bugs.byId.values()]
+            .filter((bug) => bug.authorId === authorId)
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return Promise.resolve(
+            paginate(
+                own.map((bug) => this.toRecord(bug)),
+                page,
+            ),
+        );
+    }
+
+    listQueue(status: BugStatus | null, page: PageRequest): Promise<Page<BugListRecord>> {
+        this.calls.push({ method: 'listQueue', args: [status, page] });
+        const all = [...this.bugs.byId.values()];
+        const matching = all.filter((bug) =>
+            status === null
+                ? bug.status === 'open' || bug.status === 'in_progress'
+                : bug.status === status,
+        );
+        const closed = status === 'resolved' || status === 'wont_fix';
+        matching.sort((a, b) => {
+            if (closed) return b.statusChangedAt.getTime() - a.statusChangedAt.getTime();
+            if (status === null && a.status !== b.status) return a.status === 'open' ? -1 : 1;
+            return a.createdAt.getTime() - b.createdAt.getTime();
+        });
+        return Promise.resolve(
+            paginate(
+                matching.map((bug) => this.toRecord(bug)),
+                page,
+            ),
+        );
+    }
+}
+
+/** Инструкции агентов в памяти; `query` строит read-модель с ФИО из `people`. */
+export class InMemoryAgentGuideRepository
+    extends AgentGuideRepository
+    implements TransactionParticipant
+{
+    readonly guides = new Map<string, AgentGuide>();
+
+    snapshot(): () => void {
+        const saved = new Map(this.guides);
+        return () => {
+            this.guides.clear();
+            for (const [key, value] of saved) this.guides.set(key, value);
+        };
+    }
+
+    upsert(guide: AgentGuide): Promise<void> {
+        this.guides.set(guide.agentId, guide);
+        return Promise.resolve();
+    }
+
+    delete(agentId: string): Promise<void> {
+        this.guides.delete(agentId);
+        return Promise.resolve();
+    }
+}
+
+export class InMemoryAgentGuideQuery extends AgentGuideQuery {
+    constructor(private readonly repository: InMemoryAgentGuideRepository) {
+        super();
+    }
+
+    find(agentId: string): Promise<GuideRecord | null> {
+        const guide = this.repository.guides.get(agentId);
+        if (guide === undefined) return Promise.resolve(null);
+        return Promise.resolve({
+            body: guide.body.value,
+            updatedAt: guide.updatedAt,
+            updatedBy: {
+                id: guide.updatedBy,
+                login: `login-${guide.updatedBy}`,
+                fullName: `Имя ${guide.updatedBy}`,
+            },
+        });
+    }
+}
+
+/** Справочник отделов в памяти (`id` → название). */
+export class InMemoryDepartmentLookup extends DepartmentLookupPort {
+    readonly departments = new Map<string, string>();
+
+    findExistingIds(ids: readonly string[]): Promise<string[]> {
+        return Promise.resolve(ids.filter((id) => this.departments.has(id)));
+    }
+}
+
+/** Пометки доступности продуктов в памяти; отделы проверяет через `lookup`. */
+export class InMemoryProductAccessRepository
+    extends ProductAccessRepository
+    implements TransactionParticipant
+{
+    readonly access = new Map<string, string[]>();
+
+    readonly lockedIds: string[] = [];
+
+    readonly replaced: ProductAccess[] = [];
+
+    constructor(
+        private readonly catalog: InMemoryCatalogRepository,
+        private readonly lookup: InMemoryDepartmentLookup,
+    ) {
+        super();
+    }
+
+    snapshot(): () => void {
+        const saved = new Map<string, string[]>();
+        for (const [key, value] of this.access) saved.set(key, [...value]);
+        return () => {
+            this.access.clear();
+            for (const [key, value] of saved) this.access.set(key, value);
+        };
+    }
+
+    lockProduct(id: string): Promise<Product | null> {
+        this.lockedIds.push(id);
+        const product = [...this.catalog.products.values()].find((p) => p.id === id);
+        return Promise.resolve(product ?? null);
+    }
+
+    replace(access: ProductAccess): Promise<void> {
+        this.replaced.push(access);
+        const unknown = access.departmentIds.find((id) => !this.lookup.departments.has(id));
+        if (unknown !== undefined) return Promise.reject(new DepartmentNotFoundError(unknown));
+        this.access.set(access.productId, [...access.departmentIds]);
+        return Promise.resolve();
+    }
+
+    findProductWithDepartments(id: string): Promise<ProductAccessView | null> {
+        const product = [...this.catalog.products.values()].find((p) => p.id === id);
+        if (product === undefined) return Promise.resolve(null);
+        const departments = (this.access.get(id) ?? [])
+            .map((deptId) => ({ id: deptId, name: this.lookup.departments.get(deptId) ?? deptId }))
+            .sort(
+                (a, b) =>
+                    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) ||
+                    a.id.localeCompare(b.id),
+            );
+        return Promise.resolve({
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            departments,
+        });
+    }
+}
+
 export interface PortalFixture {
     clock: FakeClock;
     requests: InMemoryRequestRepository;
@@ -668,6 +1043,14 @@ export interface PortalFixture {
     events: RecordingEventPublisher;
     requestQuery: InMemoryRequestQuery;
     skillQuery: InMemorySkillQuery;
+    comments: InMemoryCommentRepository;
+    commentQuery: InMemoryCommentQuery;
+    bugs: InMemoryBugRepository;
+    bugQuery: InMemoryBugQuery;
+    guides: InMemoryAgentGuideRepository;
+    guideQuery: InMemoryAgentGuideQuery;
+    departments: InMemoryDepartmentLookup;
+    productAccess: InMemoryProductAccessRepository;
 }
 
 /** Полный набор двойников для тестов use case'ов портала. */
@@ -676,13 +1059,27 @@ export function createPortalFixture(): PortalFixture {
     const requests = new InMemoryRequestRepository();
     const skills = new InMemorySkillRepository();
     const catalog = new InMemoryCatalogRepository();
+    const comments = new InMemoryCommentRepository();
+    const bugs = new InMemoryBugRepository();
+    const guides = new InMemoryAgentGuideRepository();
+    const departments = new InMemoryDepartmentLookup();
+    const productAccess = new InMemoryProductAccessRepository(catalog, departments);
     // Раннер откатывает события, события спрашивают раннер: связываем через ссылку.
     const ref: { runner?: SnapshotTransactionRunner } = {};
     const events = new RecordingEventPublisher(() => {
         if (ref.runner === undefined) throw new Error('Fixture is not initialised');
         return ref.runner;
     });
-    const transactions = new SnapshotTransactionRunner([requests, skills, catalog, events]);
+    const transactions = new SnapshotTransactionRunner([
+        requests,
+        skills,
+        catalog,
+        comments,
+        bugs,
+        guides,
+        productAccess,
+        events,
+    ]);
     ref.runner = transactions;
     return {
         clock,
@@ -693,5 +1090,13 @@ export function createPortalFixture(): PortalFixture {
         events,
         requestQuery: new InMemoryRequestQuery(requests, skills),
         skillQuery: new InMemorySkillQuery(skills, requests, catalog),
+        comments,
+        commentQuery: new InMemoryCommentQuery(comments, requests),
+        bugs,
+        bugQuery: new InMemoryBugQuery(bugs, catalog),
+        guides,
+        guideQuery: new InMemoryAgentGuideQuery(guides),
+        departments,
+        productAccess,
     };
 }

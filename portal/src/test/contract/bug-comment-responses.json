@@ -1,0 +1,30 @@
+{
+  "items": [
+    {
+      "id": "c1",
+      "body": "Воспроизводится каждый раз",
+      "author": {
+        "id": "a1",
+        "login": "anna",
+        "fullName": "Иванова Анна"
+      },
+      "authorRole": "bug_author",
+      "createdAt": "2026-11-06T10:00:00.000Z",
+      "editedAt": null,
+      "canEdit": true
+    },
+    {
+      "id": "c2",
+      "body": "Смотрю\nлоги",
+      "author": {
+        "id": "d1",
+        "login": "petrov",
+        "fullName": "Петров Пётр"
+      },
+      "authorRole": "developer",
+      "createdAt": "2026-11-06T10:03:00.000Z",
+      "editedAt": "2026-11-06T10:05:00.000Z",
+      "canEdit": false
+    }
+  ]
+}

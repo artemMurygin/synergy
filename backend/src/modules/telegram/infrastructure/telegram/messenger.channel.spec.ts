@@ -30,7 +30,7 @@ import { BotApiStub } from '../../testing/bot-api-stub';
 import { testTelegramSettings } from '../../testing/telegram-settings.fixture';
 import { BotApiClient } from './bot-api-client';
 import type { PinoLogger } from 'nestjs-pino';
-import { MessengerChannel } from './messenger.channel';
+import { MessengerChannel, notificationMessage } from './messenger.channel';
 
 const BORIS_ID = '6f1c1d4e-2b1a-4c55-9a3e-0d1f2a3b4c5d';
 const CHAT_ID = 777n;
@@ -44,6 +44,7 @@ function notificationFor(
         title: 'Вам назначена задача',
         body: 'anna назначила вас ответственным: Подготовить КП',
     },
+    target: { type: string; id: string } = { type: 'task', id: 'task-1' },
 ): Notification {
     notificationSequence += 1;
     const notification = Notification.create({
@@ -52,7 +53,7 @@ function notificationFor(
             recipientId,
             type: 'task.assigned',
             content: NotificationContent.of(content),
-            target: NotificationTarget.of({ type: 'task', id: 'task-1' }),
+            target: NotificationTarget.of(target),
             actorId: 'anna',
         },
         sourceEventId: `event-${String(notificationSequence)}`,
@@ -82,6 +83,79 @@ function failure(
     };
 }
 
+describe('notificationMessage', () => {
+    const requestNotification = (id: string): Notification =>
+        notificationFor(
+            BORIS_ID,
+            { title: 'Новый комментарий', body: 'anna: Привет' },
+            { type: 'request', id },
+        );
+
+    it('appends the request link for a request target when the portal url is set', () => {
+        expect(
+            notificationMessage(requestNotification('req-1'), 'https://portal.example.com'),
+        ).toBe(
+            '<b>Новый комментарий</b>\nanna: Привет\n<a href="https://portal.example.com/requests/req-1">Открыть заявку</a>',
+        );
+    });
+
+    it('escapes the href attribute', () => {
+        expect(
+            notificationMessage(requestNotification('a"b'), 'https://p.example.com/?x=1&y=2'),
+        ).toContain('<a href="https://p.example.com/?x=1&amp;y=2/requests/a%22b">');
+    });
+
+    it('keeps the message unchanged without a portal url', () => {
+        expect(notificationMessage(requestNotification('req-1'), null)).toBe(
+            '<b>Новый комментарий</b>\nanna: Привет',
+        );
+    });
+
+    it('appends the bug link for a bug target when the portal url is set', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'Статус изменён', body: 'В работе' },
+            { type: 'bug', id: 'bug-1' },
+        );
+        expect(notificationMessage(notification, 'https://portal.example.com')).toBe(
+            '<b>Статус изменён</b>\nВ работе\n<a href="https://portal.example.com/bugs/bug-1">Открыть обращение</a>',
+        );
+    });
+
+    it('encodes and escapes the bug href', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'T', body: 'B' },
+            { type: 'bug', id: 'a"b' },
+        );
+        expect(notificationMessage(notification, 'https://p.example.com/?x=1&y=2')).toContain(
+            '<a href="https://p.example.com/?x=1&amp;y=2/bugs/a%22b">Открыть обращение</a>',
+        );
+    });
+
+    it('keeps the bug message unchanged without a portal url', () => {
+        const notification = notificationFor(
+            BORIS_ID,
+            { title: 'T', body: 'B' },
+            { type: 'bug', id: 'bug-1' },
+        );
+        expect(notificationMessage(notification, null)).toBe('<b>T</b>\nB');
+    });
+
+    it('keeps the message unchanged for task and chat targets', () => {
+        for (const type of ['task', 'chat']) {
+            const notification = notificationFor(
+                BORIS_ID,
+                { title: 'T', body: 'B' },
+                { type, id: 'x-1' },
+            );
+            expect(notificationMessage(notification, 'https://portal.example.com')).toBe(
+                '<b>T</b>\nB',
+            );
+        }
+    });
+});
+
 describe('MessengerChannel', () => {
     let stub: BotApiStub;
     let clock: FixedClock;
@@ -97,8 +171,10 @@ describe('MessengerChannel', () => {
         apiBaseUrl: string,
         botToken?: string | null,
         requestTimeoutMs?: number,
+        portalUrl?: string,
     ): MessengerChannel {
         const settings = testTelegramSettings({
+            ...(portalUrl === undefined ? {} : { portalUrl }),
             apiBaseUrl,
             deliveryReservationMs: RESERVATION_MS,
             ...(botToken === null ? { botToken: undefined } : {}),
@@ -179,6 +255,33 @@ describe('MessengerChannel', () => {
                 sentAt: NOW,
             });
             expect(metrics.sent).toEqual(['notification']);
+        });
+
+        it('passes the portal url from settings so request notifications carry a link', async () => {
+            linkBoris();
+            stub.respond('sendMessage', sentOk(502));
+            const withPortal = channelWith(
+                stub.baseUrl,
+                undefined,
+                undefined,
+                'https://portal.example.com',
+            );
+
+            await withPortal.deliver(
+                notificationFor(
+                    BORIS_ID,
+                    { title: 'T', body: 'B' },
+                    { type: 'request', id: 'r-1' },
+                ),
+            );
+
+            expect(stub.requestsOf('sendMessage').map(({ body }) => body)).toEqual([
+                {
+                    chat_id: '777',
+                    text: '<b>T</b>\nB\n<a href="https://portal.example.com/requests/r-1">Открыть заявку</a>',
+                    parse_mode: 'HTML',
+                },
+            ]);
         });
 
         it('escapes the user text so it does not change the markup', async () => {

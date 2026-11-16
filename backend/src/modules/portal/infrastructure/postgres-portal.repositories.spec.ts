@@ -13,6 +13,10 @@ import {
 } from '../domain/errors';
 import { Agent } from '../domain/agent';
 import { AgentNameTakenError, ProductNameTakenError, SlugTakenError } from '../domain/errors';
+import { CommentBody } from '../domain/comment-body';
+import { RequestComment } from '../domain/request-comment';
+import { SlonikCommentQuery } from './slonik-comment.query';
+import { SlonikCommentRepository } from './slonik-comment.repository';
 import { Frequency } from '../domain/frequency';
 import { IdeaRequest } from '../domain/idea-request';
 import type { CatalogSeedProduct } from '../domain/ports/catalog-repository.port';
@@ -51,6 +55,8 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
     let transactions: TransactionRunner;
     let requests: SlonikRequestRepository;
     let requestQuery: SlonikRequestQuery;
+    let comments: SlonikCommentRepository;
+    let commentQuery: SlonikCommentQuery;
     let skills: SlonikSkillRepository;
     let skillQuery: SlonikSkillQuery;
     let catalog: SlonikCatalogRepository;
@@ -165,6 +171,8 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         );
         requests = new SlonikRequestRepository(transactions);
         requestQuery = new SlonikRequestQuery(transactions);
+        comments = new SlonikCommentRepository(transactions);
+        commentQuery = new SlonikCommentQuery(transactions);
         skills = new SlonikSkillRepository(transactions);
         skillQuery = new SlonikSkillQuery(transactions);
         catalog = new SlonikCatalogRepository(transactions);
@@ -201,6 +209,143 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
         const [entry] = await catalog.listAgents();
         agentId = entry.agent.id;
         productId = must(entry.products[0]).id;
+    });
+
+    describe('SlonikCommentRepository', () => {
+        function makeComment(requestId: string, authorId: string, offsetSec = 1): RequestComment {
+            return RequestComment.create({
+                id: randomUUID(),
+                requestId,
+                authorId,
+                body: CommentBody.of('Текст комментария'),
+                now: new Date(T0.getTime() + offsetSec * SECOND),
+            });
+        }
+
+        it('insert + findById: round-trip, editedAt = null', async () => {
+            const request = makeRequest();
+            await requests.save(request);
+            const comment = makeComment(request.id, bob);
+            await comments.insert(comment);
+
+            const found = must(await comments.findById(comment.id));
+
+            expect(found.requestId).toBe(request.id);
+            expect(found.authorId).toBe(bob);
+            expect(found.body.value).toBe('Текст комментария');
+            expect(found.createdAt.getTime()).toBe(comment.createdAt.getTime());
+            expect(found.editedAt).toBeNull();
+        });
+
+        it('findById: некорректный UUID и неизвестный id дают null', async () => {
+            expect(await comments.findById('not-a-uuid')).toBeNull();
+            expect(await comments.findById(randomUUID())).toBeNull();
+        });
+
+        it('update пишет body и edited_at, created_at не меняется', async () => {
+            const request = makeRequest();
+            await requests.save(request);
+            const comment = makeComment(request.id, bob);
+            await comments.insert(comment);
+            const loaded = must(await comments.findById(comment.id));
+            const editedAt = new Date(T0.getTime() + 60 * SECOND);
+
+            loaded.edit(bob, CommentBody.of('Новый текст'), editedAt);
+            await comments.update(loaded);
+
+            const after = must(await comments.findById(comment.id));
+            expect(after.body.value).toBe('Новый текст');
+            expect(after.editedAt?.getTime()).toBe(editedAt.getTime());
+            expect(after.createdAt.getTime()).toBe(comment.createdAt.getTime());
+        });
+    });
+
+    describe('SlonikCommentQuery', () => {
+        async function addComment(
+            requestId: string,
+            authorId: string,
+            offsetSec: number,
+            id: string = randomUUID(),
+        ): Promise<string> {
+            await comments.insert(
+                RequestComment.create({
+                    id,
+                    requestId,
+                    authorId,
+                    body: CommentBody.of(`Комментарий ${String(offsetSec)}`),
+                    now: new Date(T0.getTime() + offsetSec * SECOND),
+                }),
+            );
+            return id;
+        }
+
+        it('listByRequest: порядок created_at, id; authorRole по автору заявки', async () => {
+            const request = makeRequest(alice);
+            await requests.save(request);
+            const second = await addComment(request.id, dev, 2);
+            const first = await addComment(request.id, alice, 1);
+
+            const list = await commentQuery.listByRequest(request.id);
+
+            expect(list.map((c) => c.id)).toEqual([first, second]);
+            expect(list.map((c) => c.authorRole)).toEqual(['request_author', 'developer']);
+            expect(list[1]?.author).toEqual({ id: dev, login: 'dev', fullName: 'dev' });
+            expect(list[0]?.editedAt).toBeNull();
+        });
+
+        it('listByRequest: при равном created_at порядок стабилен по id', async () => {
+            const request = makeRequest(alice);
+            await requests.save(request);
+            const ids = [
+                '00000000-0000-4000-8000-000000000002',
+                '00000000-0000-4000-8000-000000000001',
+                '00000000-0000-4000-8000-000000000003',
+            ];
+            for (const id of ids) await addComment(request.id, bob, 5, id);
+
+            const list = await commentQuery.listByRequest(request.id);
+
+            expect(list.map((c) => c.id)).toEqual([...ids].sort());
+        });
+
+        it('listByRequest: ФИО по правилам employee-directory, без ФИО — логин', async () => {
+            const request = makeRequest(alice);
+            await requests.save(request);
+            await addProfile(bob, { last: 'Иванов', first: 'Пётр', middle: 'Сергеевич' });
+            await addComment(request.id, bob, 1);
+            await addComment(request.id, dev, 2);
+
+            const list = await commentQuery.listByRequest(request.id);
+
+            expect(list[0]?.author.fullName).toBe('Иванов Пётр Сергеевич');
+            expect(list[1]?.author.fullName).toBe('dev');
+        });
+
+        it('listByRequest: чужие заявки не попадают, пустая лента даёт []', async () => {
+            const mine = makeRequest(alice);
+            const other = makeRequest(alice);
+            await requests.save(mine);
+            await requests.save(other);
+            await addComment(other.id, bob, 1);
+
+            expect(await commentQuery.listByRequest(mine.id)).toEqual([]);
+            expect(await commentQuery.listByRequest(other.id)).toHaveLength(1);
+        });
+
+        it('findView: одна запись в формате ленты или null', async () => {
+            const request = makeRequest(alice);
+            await requests.save(request);
+            const id = await addComment(request.id, alice, 1);
+
+            const view = must(await commentQuery.findView(id));
+
+            expect(view.id).toBe(id);
+            expect(view.authorId).toBe(alice);
+            expect(view.authorRole).toBe('request_author');
+            expect(view.author.login).toBe('alice');
+            expect(await commentQuery.findView(randomUUID())).toBeNull();
+            expect(await commentQuery.findView('not-a-uuid')).toBeNull();
+        });
     });
 
     describe('SlonikSkillRepository', () => {
@@ -426,7 +571,6 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             first.take(dev, new Date(T0.getTime() + 10 * SECOND));
             second.take(dev, new Date(T0.getTime() + 10 * SECOND));
             first.accept(skill.id, EffortHours.of(8), dev, new Date(T0.getTime() + 10 * SECOND));
-            second.take(dev, new Date(T0.getTime() + 11 * SECOND));
             second.reject('Нет', dev, new Date(T0.getTime() + 11 * SECOND));
 
             await requests.save(first, 'new');
@@ -673,10 +817,9 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             const view = await requestQuery.findView(underReview.id);
 
             expect(view).toMatchObject({
-                reviewer: { id: dev, fullName: 'Петров Пётр' },
+                reviewer: { id: dev, login: expect.any(String) as string, fullName: 'Петров Пётр' },
                 effortHours: null,
             });
-            expect(typeof view?.reviewer?.login).toBe('string');
             expect(view?.takenAt?.getTime()).toBe(takenAt.getTime());
             expect(own.items.find((item) => item.id === accepted.id)?.effortHours).toBe(16);
         });
@@ -752,7 +895,7 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             await requests.save(request);
             request.take(dev, T0);
             request.accept(first.id, EffortHours.of(8), dev, T0);
-            await requests.save(request);
+            await requests.save(request, 'new');
 
             const all = await skillQuery.list({}, { limit: 50, page: 0 });
             const inDev = await skillQuery.list({ status: 'in_dev' }, { limit: 50, page: 0 });
@@ -1227,6 +1370,11 @@ describe.skipIf(adminUrl === undefined)('Slonik portal repositories', () => {
             ]);
 
             expect(await catalog.listAgents()).toEqual([]);
+        });
+
+        it('findProductsByIds и findAgentForShare: не-UUID дают [] и null, а не ошибку БД', async () => {
+            expect(await catalog.findProductsByIds(['x'])).toEqual([]);
+            expect(await transactions.run(() => catalog.findAgentForShare('x'))).toBeNull();
         });
 
         it('findAgent, findAgentForShare и findAgentForUpdate возвращают productIds и archivedAt', async () => {

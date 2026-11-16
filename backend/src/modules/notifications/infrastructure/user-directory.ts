@@ -7,6 +7,8 @@ import { isUuid } from './is-uuid';
 
 const loginRow = z.object({ login: z.string() });
 
+const idRow = z.object({ id: z.string() });
+
 const nameRow = z.object({
     login: z.string(),
     last_name: z.string().nullable(),
@@ -43,5 +45,19 @@ export class UserDirectory extends UserDirectoryPort {
             .filter((part) => part !== '')
             .join(' ');
         return fullName === '' ? row.login : fullName;
+    }
+
+    async listActiveDeveloperIds(): Promise<string[]> {
+        const rows = await this.transactions.executor().any(
+            sql.type(idRow)`
+                SELECT u.id
+                FROM auth_users u
+                WHERE u.is_active
+                  AND EXISTS (
+                      SELECT 1 FROM auth_user_roles r
+                      WHERE r.user_id = u.id AND r.role = 'developer')
+                ORDER BY u.id`,
+        );
+        return rows.map((row) => row.id);
     }
 }
