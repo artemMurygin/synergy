@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { silentLogger } from '../../../../files/application/test-doubles';
 import { TranscriptionPermanentError } from '../../domain/errors';
-import { FfmpegMeetingAudioPreparer } from './meeting-audio-preparer';
+import { MeetingAudioPreparer } from './meeting-audio-preparer';
 
 const hasFfmpeg =
     spawnSync('ffmpeg', ['-version']).status === 0 &&
@@ -70,15 +70,15 @@ async function exists(path: string): Promise<boolean> {
 
 function preparer(
     overrides: Partial<{ maxDurationSec: number; maxBytes: number }> = {},
-    spawnFn?: ConstructorParameters<typeof FfmpegMeetingAudioPreparer>[1]['spawn'],
-): FfmpegMeetingAudioPreparer {
-    return new FfmpegMeetingAudioPreparer(
+    spawnFn?: ConstructorParameters<typeof MeetingAudioPreparer>[1]['spawn'],
+): MeetingAudioPreparer {
+    return new MeetingAudioPreparer(
         { maxDurationSec: MAX_DURATION_SEC, maxBytes: MAX_BYTES, ...overrides },
         { logger: silentLogger(), spawn: spawnFn },
     );
 }
 
-describe.skipIf(!hasFfmpeg)('FfmpegMeetingAudioPreparer (ffmpeg integration)', () => {
+describe.skipIf(!hasFfmpeg)('MeetingAudioPreparer (ffmpeg integration)', () => {
     let dir: string;
     let wav: string;
 
@@ -243,9 +243,9 @@ describe.skipIf(!hasFfmpeg)('FfmpegMeetingAudioPreparer (ffmpeg integration)', (
     });
 });
 
-describe('FfmpegMeetingAudioPreparer without binaries', () => {
+describe('MeetingAudioPreparer without binaries', () => {
     it('throws provider-unavailable when ffprobe is missing', async () => {
-        const p = new FfmpegMeetingAudioPreparer(
+        const p = new MeetingAudioPreparer(
             { maxDurationSec: 10, maxBytes: 10, ffprobePath: '/nonexistent/ffprobe' },
             { logger: silentLogger() },
         );

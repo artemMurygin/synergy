@@ -33,7 +33,7 @@ import { MeetingTranscriptionQueuePort } from './meeting/domain/ports/meeting-tr
 import { TaskExtractorPort } from './meeting/domain/ports/task-extractor.port';
 import { TranscriptSegmentRepositoryPort } from './meeting/domain/ports/transcript-segment-repository.port';
 import { WholeFileStt } from './meeting/infrastructure/openrouter/whole-file-stt';
-import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
+import { MeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
 import { WholeFileMeetingTranscriber } from './meeting/infrastructure/whole-file-meeting-transcriber';
 import { MeetingFiles } from './meeting/infrastructure/files/meeting-files';
 import { TaskExtractor } from './meeting/infrastructure/openrouter/task-extractor';
@@ -135,8 +135,8 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 config: ConfigService<Env, true>,
                 logger: PinoLogger,
             ): MeetingAudioPreparerPort =>
-                new FfmpegMeetingAudioPreparer(
-                    FfmpegMeetingAudioPreparer.settingsFromConfig(
+                new MeetingAudioPreparer(
+                    MeetingAudioPreparer.settingsFromConfig(
                         config,
                         config.get('MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES', { infer: true }),
                     ),

@@ -129,8 +129,8 @@ describe('WholeFileStt', () => {
 
             expect(result.language).toBe('rus');
             expect(result.words).toEqual([
-                { type: 'word', text: 'Привет', start: 0.1, end: 0.5, speakerId: 'speaker_0' },
-                { type: 'word', text: SECRET_TEXT, start: 0.6, end: 1.2, speakerId: 'speaker_1' },
+                { type: 'word', text: 'Привет', start: 0.1, end: 0.5, speakerId: '0' },
+                { type: 'word', text: SECRET_TEXT, start: 0.6, end: 1.2, speakerId: '1' },
             ]);
             expect(result.usage).toEqual({ seconds: 3500, cost: 0.42 });
         });
@@ -148,7 +148,9 @@ describe('WholeFileStt', () => {
         it.each([
             [0, '0'],
             ['0', '0'],
-            ['speaker_0', 'speaker_0'],
+            ['speaker_0', '0'],
+            ['Speaker 3', '3'],
+            ['  ', null],
         ])('reads speaker label %j as %j', async (label, expected) => {
             fetchMock.mockResolvedValue(
                 Response.json({ words: [{ word: 'a', start: 0, end: 1, speaker_label: label }] }),

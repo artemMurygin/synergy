@@ -38,7 +38,7 @@ import { RetryMeetingTranscriptionUseCase } from './meeting/application/retry-me
 import { START_MEETING_TRANSCRIPTION_SUBSCRIBER } from './meeting/application/start-meeting-transcription-on-file-uploaded.subscriber';
 import { MeetingAudioPreparerPort } from './meeting/domain/ports/meeting-audio-preparer.port';
 import { WholeFileSttPort } from './meeting/domain/ports/whole-file-stt.port';
-import { FfmpegMeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
+import { MeetingAudioPreparer } from './meeting/infrastructure/ffmpeg/meeting-audio-preparer';
 import { WholeFileStt } from './meeting/infrastructure/openrouter/whole-file-stt';
 import { TranscribeMeetingUseCase } from './meeting/application/transcribe-meeting.use-case';
 import { MeetingTranscriberPort } from './meeting/domain/ports/meeting-transcriber.port';
@@ -218,7 +218,7 @@ describe('TranscriptionModule', () => {
         app = await createApp();
 
         expect(app.get(WholeFileSttPort)).toBeInstanceOf(WholeFileStt);
-        expect(app.get(MeetingAudioPreparerPort)).toBeInstanceOf(FfmpegMeetingAudioPreparer);
+        expect(app.get(MeetingAudioPreparerPort)).toBeInstanceOf(MeetingAudioPreparer);
         expect(app.get(WholeFileSttPort)).toMatchObject({
             settings: {
                 apiKey: 'sk-or-test',

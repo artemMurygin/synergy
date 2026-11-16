@@ -66,13 +66,31 @@ describe('wordsToTranscript', () => {
         ['NaN time', word('x', Number.NaN, 1, 'speaker_0')],
         ['blank text', word('  ', 0, 1, 'speaker_0')],
         ['no text', word(null, 0, 1, 'speaker_0')],
-        ['no speaker', word('x', 0, 1, null)],
-        ['empty speaker', word('x', 0, 1, '')],
     ])('drops a word with %s', (_name, bad) => {
         const transcript = convert([word('ok', 5, 6, 'speaker_0'), bad]);
 
         expect(transcript.segments).toEqual([
             { seq: 0, speaker: 1, startSec: 5, endSec: 6, text: 'ok' },
+        ]);
+    });
+
+    it.each([
+        ['no speaker', null],
+        ['empty speaker', ''],
+    ])('keeps a word with %s under an unknown speaker', (_name, speakerId) => {
+        const transcript = convert([word('a', 0, 1, 'speaker_0'), word('b', 1, 2, speakerId)]);
+
+        expect(transcript.segments).toEqual([
+            { seq: 0, speaker: 1, startSec: 0, endSec: 1, text: 'a' },
+            { seq: 1, speaker: 2, startSec: 1, endSec: 2, text: 'b' },
+        ]);
+    });
+
+    it('does not fail when no word has a speaker label', () => {
+        const transcript = convert([word('a', 0, 1, null), word('b', 1, 2, null)]);
+
+        expect(transcript.segments).toEqual([
+            { seq: 0, speaker: 1, startSec: 0, endSec: 2, text: 'a b' },
         ]);
     });
 

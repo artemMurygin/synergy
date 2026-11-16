@@ -17,6 +17,8 @@ const TRAILING_SLASHES = /\/+$/;
 
 const finiteOrNull = z.number().nullish().catch(null);
 const stringOrNull = z.string().nullish().catch(null);
+const SPEAKER_PREFIX = /^speaker[_\s-]?(\d+)$/i;
+
 const labelOrNull = z
     .union([z.string(), z.number()])
     .nullish()
@@ -222,6 +224,13 @@ function toWord(item: unknown): WholeFileWord {
         text: word.word ?? word.text ?? null,
         start: word.start ?? null,
         end: word.end ?? null,
-        speakerId: word.speaker ?? word.speaker_id ?? word.speaker_label ?? null,
+        speakerId: normalizeSpeaker(word.speaker ?? word.speaker_id ?? word.speaker_label),
     };
+}
+
+/** `0`, `"0"` and `"speaker_0"` are the same label; blank means no label. */
+function normalizeSpeaker(value: string | null | undefined): string | null {
+    const raw = value?.trim() ?? '';
+    if (raw === '') return null;
+    return SPEAKER_PREFIX.exec(raw)?.[1] ?? raw;
 }

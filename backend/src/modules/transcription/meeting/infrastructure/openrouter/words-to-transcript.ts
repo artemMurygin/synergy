@@ -3,6 +3,8 @@ import { DiarizedTranscript } from '../../domain/diarized-transcript';
 import type { WholeFileTranscription, WholeFileWord } from '../../domain/ports/whole-file-stt.port';
 import { TranscriptSegment } from '../../domain/transcript-segment';
 
+const UNKNOWN_SPEAKER = 'unknown';
+
 interface SpeechWord {
     readonly text: string;
     readonly start: number;
@@ -19,7 +21,7 @@ interface Group {
 
 /**
  * Единый ответ провайдера -> доменная расшифровка. Берутся только элементы `word` с валидными
- * временем, текстом и спикером; подряд идущие слова одного спикера склеиваются в сегмент,
+ * временем и текстом; слово без метки спикера сохраняется под общей меткой `unknown`; подряд идущие слова одного спикера склеиваются в сегмент,
  * спикеры нумеруются с единицы по первому появлению. Нет речи -> пустые сегменты (`no_speech`).
  * Если слова речи есть, но ни одно не валидно, ответ некорректен: бросает
  * `TranscriptionTemporaryError`, пустой успех не возвращается. Текст в ошибку не попадает.
@@ -74,8 +76,12 @@ export function wordsToTranscript(
 function toSpeechWord(item: WholeFileWord): SpeechWord | null {
     const { text, start, end, speakerId } = item;
     if (text === null || text.trim() === '') return null;
-    if (speakerId === null || speakerId === '') return null;
     if (start === null || end === null) return null;
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) return null;
-    return { text: text.trim(), start, end, speakerId };
+    return {
+        text: text.trim(),
+        start,
+        end,
+        speakerId: speakerId === null || speakerId === '' ? UNKNOWN_SPEAKER : speakerId,
+    };
 }

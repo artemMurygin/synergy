@@ -54,7 +54,7 @@ function abortReason(signal: AbortSignal): Error {
 }
 
 /** `MeetingAudioPreparerPort` на `ffprobe` и `ffmpeg`: один OGG на всю запись, без нарезки. */
-export class FfmpegMeetingAudioPreparer extends MeetingAudioPreparerPort {
+export class MeetingAudioPreparer extends MeetingAudioPreparerPort {
     private readonly logger: PinoLogger;
     private readonly ffmpegPath: string;
     private readonly ffprobePath: string;
@@ -66,7 +66,7 @@ export class FfmpegMeetingAudioPreparer extends MeetingAudioPreparerPort {
     ) {
         super();
         this.logger = deps.logger;
-        this.logger.setContext(FfmpegMeetingAudioPreparer.name);
+        this.logger.setContext(MeetingAudioPreparer.name);
         this.ffmpegPath = settings.ffmpegPath ?? 'ffmpeg';
         this.ffprobePath = settings.ffprobePath ?? 'ffprobe';
         this.spawn = deps.spawn ?? nodeSpawn;
