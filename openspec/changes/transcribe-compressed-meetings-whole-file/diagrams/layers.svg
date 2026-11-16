@@ -18,7 +18,7 @@
 <path d="M860 130 H881" stroke="#567086" stroke-width="2"/>
 <path d="M880 126 L885 130 L880 134" fill="none" stroke="#567086" stroke-width="2"/>
 <rect x="885" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
-<text x="980" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">ElevenLabs adapter</text>
+<text x="980" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">OpenRouter STT adapter</text>
 <path d="M1075 130 H1096" stroke="#567086" stroke-width="2"/>
 <path d="M1095 126 L1100 130 L1095 134" fill="none" stroke="#567086" stroke-width="2"/>
 <rect x="1100" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>

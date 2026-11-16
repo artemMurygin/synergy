@@ -14,7 +14,7 @@
 <path d="M645 130 H666" stroke="#567086" stroke-width="2"/>
 <path d="M665 126 L670 130 L665 134" fill="none" stroke="#567086" stroke-width="2"/>
 <rect x="670" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
-<text x="765" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">ElevenLabs STT</text>
+<text x="765" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">OpenRouter · Scribe v2</text>
 <path d="M860 130 H881" stroke="#567086" stroke-width="2"/>
 <path d="M880 126 L885 130 L880 134" fill="none" stroke="#567086" stroke-width="2"/>
 <rect x="885" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>

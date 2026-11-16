@@ -33,13 +33,23 @@
 - [x] 5.3 Подключить новые порты и адаптеры в `TranscriptionModule`, добавить переменные окружения и правила валидации, настроить дедлайн job; проверить, что `npm run typecheck` в `backend` проходит и старые параметры нарезки больше не влияют на обработку встреч.
 - [x] 5.4 Прогнать тесты из 5.1 до green, затем `npm test` и `npm run typecheck` в `backend`; зафиксировать отсутствие регрессий.
 
-## 6. Проверка качества и документация
+## 8. Перевод целого файла на OpenRouter, максимум 75 минут (TDD)
+
+Группы 1–5 реализованы с прямым API ElevenLabs; эта группа переводит `WholeFileStt` на OpenRouter (design, решение 2). Выполняется до групп 6 и 7.
+
+- [ ] 8.1 Переписать тесты `whole-file-stt.spec.ts` под OpenRouter: один JSON-запрос `POST {OPENROUTER_BASE_URL}/audio/transcriptions` с `Authorization: Bearer`, `model` из `MEETING_TRANSCRIPTION_MODEL`, `input_audio` (base64, `format: 'ogg'`), `response_format: 'verbose_json'`, `timestamp_granularities: ['word']`, `diarize: true`, `language` при наличии; слова с `word`/`text` и `speaker`/`speaker_id`/`speaker_label`; `usage.cost` из ответа; размер сверх `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES` → `too-long` без запроса; 413 → постоянная `too-long`, прочие 400/415/422 → `unsupported-media`, 429/5xx/сеть → временные; таймаут → `timeout`; нет `OPENROUTER_API_KEY` → ошибка конфигурации без значения ключа в логах; без `dispatcher`/`undici`. Обновить тесты env-схемы и модуля: нет `ELEVENLABS_*`, `MEETING_TRANSCRIPTION_MAX_DURATION_SEC` по умолчанию 4500, `MEETING_TRANSCRIPTION_MODEL` по умолчанию `elevenlabs/scribe-v2`, `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS` по умолчанию 240000 и не больше 290000; убедиться, что Vitest видит тесты.
+- [ ] 8.2 Прогнать тесты из 8.1 и зафиксировать ожидаемый red: адаптер ещё обращается к ElevenLabs, а env содержит `ELEVENLABS_*`.
+- [ ] 8.3 Перевести `WholeFileStt` на OpenRouter (перенести из `meeting/infrastructure/elevenlabs/` в `openrouter/`), разбор слов согласовать с `words-to-transcript`; удалить `ELEVENLABS_API_KEY`, `ELEVENLABS_BASE_URL`, `ELEVENLABS_STT_MODEL` из `env.schema.ts`, вернуть default `MEETING_TRANSCRIPTION_MODEL=elevenlabs/scribe-v2`, добавить `MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES` (18874368) вместо использования `MEETING_TRANSCRIPTION_MAX_FILE_BYTES` как предела сжатого файла, задать максимум 4500 с и таймаут 240 с; убрать `undici` из `package.json` и кода; проверить `npm run typecheck` в `backend`.
+- [ ] 8.4 Прогнать тесты из 8.1 до green, затем соседние `meeting-audio-preparer`, `words-to-transcript`, `whole-file-meeting-transcriber`, `whole-file-meeting-flow`, `transcription.module`, `env.schema`; убедиться, что в `backend/src` не осталось `ELEVENLABS_` и `undici`.
+- [ ] 8.5 Закрыть оставшиеся замечания ревью по затронутым файлам: в `WholeFileMeetingTranscriber.onModuleInit` не глотать ошибки молча — логировать сбой очистки устаревших папок (warn, без путей с персональными данными); прогнать тесты транскрайбера до green.
+
+## 6. Проверка качества и документация (после группы 8)
 
 - [ ] 6.1 Выполнить один разрешённый сквозной прогон целой записи около 53 минут и сравнить полноту таймкодов, число/стабильность спикеров и качество текста с сохранённым эталоном; зафиксировать результаты без публикации аудио и расшифровки в git.
-- [ ] 6.2 Проверить запись, приближенную к лимиту 4 часа, или эквивалентный нагрузочный прогон: один запрос укладывается в размер, таймаут и ресурсы; если синхронный API не выдерживает, завершить решение с webhook до релиза, сохранив отправку целого файла.
-- [ ] 6.3 Обновить `backend/src/modules/transcription/README.md` и `.env.example`: новый поток, ключ, таймауты, причины сбоя и требования к диску; проверить, что документы совпадают с конфигурацией и не содержат секретов. Это документационная задача без логики, отдельные red/green шаги не нужны.
+- [ ] 6.2 Проверить через OpenRouter запись около 75 минут: сжатый файл не больше 18 МБ, один запрос укладывается в лимит тела 25 МБ, апстрим-таймаут OpenRouter и `MEETING_TRANSCRIPTION_STT_TIMEOUT_MS`; если не укладывается — снизить максимум длительности, а не возвращать нарезку; зафиксировать измеренное время ответа.
+- [ ] 6.3 Обновить `backend/src/modules/transcription/README.md` и `.env.example`: поток «S3 → tmp → ffprobe → один OGG → один запрос OpenRouter», без `ELEVENLABS_*`, максимум 75 минут, предел сжатого файла, таймаут, причины сбоя (в т. ч. `too-long` для записей длиннее 75 минут) и требования к диску; проверить, что документы совпадают с конфигурацией и не содержат секретов. Это документационная задача без логики, отдельные red/green шаги не нужны.
 
-## 7. Code review
+## 7. Code review (после групп 6 и 8)
 
 - [ ] 7.1 Запустить code-review (скилл `code-review`) по всем изменениям фичи — от коммита, с которого начат change, до текущего HEAD; проверить стандарты проекта и соответствие specs этого change, сохранить вывод ревью.
 - [ ] 7.2 Исправить блокирующие и существенные замечания; остальные исправить или явно отклонить с обоснованием, результат зафиксировать коммитом и проверить `git status`.

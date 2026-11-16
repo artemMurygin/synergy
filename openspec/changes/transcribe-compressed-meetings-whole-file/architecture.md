@@ -38,7 +38,7 @@
 | `MeetingTranscriberPort` (existing) | domain port | Контракт распознавания целой записи |
 | `WholeFileMeetingTranscriber` (new) | infrastructure | Скачивание во временную папку, вызов подготовки и STT, сборка результата, очистка |
 | `MeetingAudioPreparerPort` / ffmpeg adapter (new) | domain port / infrastructure | Проверка входа и кодирование всей дорожки в один OGG |
-| `WholeFileSttPort` / ElevenLabs adapter (new) | domain port / infrastructure | Один запрос к Scribe v2 и проверка структуры ответа |
+| `WholeFileSttPort` / OpenRouter adapter `WholeFileStt` (new) | domain port / infrastructure | Один запрос `POST /audio/transcriptions` к `elevenlabs/scribe-v2` через OpenRouter, проверка размера до отправки и структуры ответа |
 
 ### Method Signatures
 
@@ -87,11 +87,11 @@
 
 ### 2. External Modules Interaction
 
-Локальная диаграмма: [modules.svg](diagrams/modules.svg). `Files` передаёт поток, очередь запускает воркер, воркер обращается к ElevenLabs и сохраняет сегменты; событие готовности доставляет результат в чат.
+Локальная диаграмма: [modules.svg](diagrams/modules.svg). `Files` передаёт поток, очередь запускает воркер, воркер обращается к OpenRouter (`elevenlabs/scribe-v2`) и сохраняет сегменты; событие готовности доставляет результат в чат.
 
 ### 3. Layer Interaction — from upload to response
 
-Локальная диаграмма: [layers.svg](diagrams/layers.svg). `file.uploaded` → BullMQ processor → `TranscribeMeetingUseCase` → `MeetingTranscriberPort` → подготовка аудио → ElevenLabs → репозитории → `GET /transcripts/:fileId`. Ошибки возвращаются в use case и переводятся в существующие причины сбоя.
+Локальная диаграмма: [layers.svg](diagrams/layers.svg). `file.uploaded` → BullMQ processor → `TranscribeMeetingUseCase` → `MeetingTranscriberPort` → подготовка аудио → OpenRouter → репозитории → `GET /transcripts/:fileId`. Ошибки возвращаются в use case и переводятся в существующие причины сбоя.
 
 ---
 
