@@ -390,6 +390,14 @@ describe.skipIf(adminUrl === undefined)('telegram flow (modules wired end to end
                             MEETING_TRANSCRIPTION_ATTEMPTS: 3,
                             MEETING_TRANSCRIPTION_CONCURRENCY: 2,
                             MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: 7_200_000,
+                            // TelegramModule -> AssistantModule -> VocalAiModule wires VocalAiSyncScheduler;
+                            // this ConfigModule skips the env.schema zod defaults/transform, so these must
+                            // be supplied already in their post-transform shape (empty array, not '').
+                            VOCAL_AI_BASE_URL: 'https://app.vocal-ai.ru',
+                            VOCAL_AI_PROJECT_IDS: [],
+                            VOCAL_AI_SYNC_INTERVAL_MINUTES: 5,
+                            VOCAL_AI_SYNC_ATTEMPTS: 3,
+                            VOCAL_AI_SYNC_BACKOFF_MS: 5000,
                         }),
                     ],
                 }),
