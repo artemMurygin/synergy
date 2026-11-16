@@ -56,6 +56,19 @@ export const envSchema = z
         VOCAL_AI_SYNERGY_LOGIN: z.string().min(1).optional(),
         VOCAL_AI_SYNERGY_PASSWORD: z.string().min(1).optional(),
         VOCAL_AI_BASE_URL: z.url().default('https://app.vocal-ai.ru'),
+        // ID проектов VocalAI для синхронизации звонков; пустой список -> планировщик не регистрирует ни одного job
+        VOCAL_AI_PROJECT_IDS: z
+            .string()
+            .default('')
+            .transform((v) =>
+                v
+                    .split(',')
+                    .map((projectId) => projectId.trim())
+                    .filter((projectId) => projectId !== ''),
+            ),
+        VOCAL_AI_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+        VOCAL_AI_SYNC_ATTEMPTS: z.coerce.number().int().positive().default(3),
+        VOCAL_AI_SYNC_BACKOFF_MS: z.coerce.number().int().nonnegative().default(5000),
         TELEGRAM_BOT_TOKEN: z.string().optional(),
         TELEGRAM_BOT_USERNAME: z.string().regex(TELEGRAM_BOT_USERNAME_PATTERN).optional(),
         TELEGRAM_UPDATES_MODE: z.enum(['webhook', 'polling', 'off']).default('off'),

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { Call } from '../../domain/entities/call.entity';
 import { CallRepositoryPort } from '../../domain/ports/call-repository.port';
@@ -20,6 +20,7 @@ export class SyncProjectCallsUseCase {
         private readonly vocalAiGateway: VocalAiGatewayPort,
         private readonly callRepository: CallRepositoryPort,
         private readonly cursorRepository: SyncCursorRepositoryPort,
+        @Inject(BackfillProjectCallsUseCase)
         private readonly backfillUseCase: BackfillCallsExecutor,
         private readonly logger: PinoLogger,
     ) {
