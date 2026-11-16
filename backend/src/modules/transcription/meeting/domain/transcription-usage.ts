@@ -1,7 +1,10 @@
-/** Сколько секунд аудио провайдер расшифровал и сколько это стоило (в валюте счёта OpenRouter). */
+/**
+ * Сколько секунд аудио провайдер расшифровал и сколько это стоило. Длительность известна всегда;
+ * неизвестная стоимость — `null`, а не 0.
+ */
 export interface TranscriptionUsage {
     readonly seconds: number;
-    readonly cost: number;
+    readonly cost: number | null;
 }
 
 export const TranscriptionUsage = {
@@ -11,6 +14,7 @@ export const TranscriptionUsage = {
 
     add(total: TranscriptionUsage, part: TranscriptionUsage | null): TranscriptionUsage {
         if (part === null) return total;
-        return { seconds: total.seconds + part.seconds, cost: total.cost + part.cost };
+        const cost = total.cost === null || part.cost === null ? null : total.cost + part.cost;
+        return { seconds: total.seconds + part.seconds, cost };
     },
 };

@@ -1,25 +1,20 @@
 import { type ChildProcess, type SpawnOptions, spawn as nodeSpawn } from 'node:child_process';
-import { stat } from 'node:fs/promises';
+import { rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { OnModuleInit } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { PinoLogger } from 'nestjs-pino';
 import { z } from 'zod';
 import type { Env } from '../../../../../shared/config/env.schema';
-import { AudioChunk } from '../../domain/audio-chunk';
 import { TranscriptionPermanentError } from '../../domain/errors';
 import {
-    AudioChunkerPort,
-    type ChunkPlan,
-    EXEMPLAR_GAP_SEC,
-    type ExemplarPlacement,
-    type RenderedAudioChunk,
-    type SpeakerExemplar,
-} from '../../domain/ports/audio-chunker.port';
+    MeetingAudioPreparerPort,
+    type PreparedMeetingAudio,
+} from '../../domain/ports/meeting-audio-preparer.port';
 
-export interface AudioChunkerSettings {
+export interface MeetingAudioPreparerSettings {
     readonly maxDurationSec: number;
-    readonly maxChunkBytes: number;
+    /** Предел размера сжатого файла, байты. */
+    readonly maxBytes: number;
     readonly ffmpegPath?: string;
     readonly ffprobePath?: string;
 }
@@ -30,15 +25,15 @@ export type SpawnProcess = (
     options: SpawnOptions,
 ) => ChildProcess;
 
-export interface AudioChunkerDeps {
+export interface MeetingAudioPreparerDeps {
     readonly logger: PinoLogger;
     readonly spawn?: SpawnProcess;
 }
 
-const SAMPLE_RATE = '16000';
-// Output: mono 16 kHz opus 32 kbit/s in ogg, no video (design.md, decision 8).
-const OUTPUT_ARGS = ['-vn', '-ac', '1', '-ar', SAMPLE_RATE, '-c:a', 'libopus', '-b:a', '32k'];
-const AUDIO_FORMAT = `aformat=sample_fmts=fltp:sample_rates=${SAMPLE_RATE}:channel_layouts=mono`;
+export const PREPARED_AUDIO_FILE_NAME = 'meeting.ogg';
+
+// Mono 16 kHz Opus 32 kbit/s, no video; one pass over the whole track.
+const OUTPUT_ARGS = ['-vn', '-ac', '1', '-ar', '16000', '-c:a', 'libopus', '-b:a', '32k'];
 
 const probeSchema = z.object({
     format: z.object({ duration: z.string().optional() }).optional(),
@@ -58,64 +53,51 @@ function abortReason(signal: AbortSignal): Error {
         : new DOMException('The operation was aborted', 'AbortError');
 }
 
-/** Number for ffmpeg time options, without exponent notation. */
-function sec(value: number): string {
-    return value.toFixed(6);
-}
-
-/** `AudioChunkerPort` on top of the `ffprobe` and `ffmpeg` binaries. */
-export class AudioChunker extends AudioChunkerPort implements OnModuleInit {
+/** `MeetingAudioPreparerPort` на `ffprobe` и `ffmpeg`: один OGG на всю запись, без нарезки. */
+export class MeetingAudioPreparer extends MeetingAudioPreparerPort {
     private readonly logger: PinoLogger;
     private readonly ffmpegPath: string;
     private readonly ffprobePath: string;
     private readonly spawn: SpawnProcess;
-    private available = true;
 
     constructor(
-        private readonly settings: AudioChunkerSettings,
-        deps: AudioChunkerDeps,
+        private readonly settings: MeetingAudioPreparerSettings,
+        deps: MeetingAudioPreparerDeps,
     ) {
         super();
         this.logger = deps.logger;
-        this.logger.setContext(AudioChunker.name);
+        this.logger.setContext(MeetingAudioPreparer.name);
         this.ffmpegPath = settings.ffmpegPath ?? 'ffmpeg';
         this.ffprobePath = settings.ffprobePath ?? 'ffprobe';
         this.spawn = deps.spawn ?? nodeSpawn;
     }
 
-    static settingsFromConfig(config: ConfigService<Env, true>): AudioChunkerSettings {
+    static settingsFromConfig(
+        config: ConfigService<Env, true>,
+        maxBytes: number,
+    ): MeetingAudioPreparerSettings {
         return {
             maxDurationSec: config.get('MEETING_TRANSCRIPTION_MAX_DURATION_SEC', { infer: true }),
-            maxChunkBytes: config.get('MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES', { infer: true }),
+            maxBytes,
         };
     }
 
-    async onModuleInit(): Promise<void> {
-        this.available = await this.checkAvailable();
-        if (!this.available) {
-            this.logger.error(
-                { ffmpegPath: this.ffmpegPath },
-                'ffmpeg is not available, meeting transcriptions will fail',
-            );
-        }
-    }
-
-    /** `ffmpeg -version` exits with 0. */
-    async checkAvailable(): Promise<boolean> {
+    async prepare(
+        inputPath: string,
+        workDir: string,
+        signal: AbortSignal,
+    ): Promise<PreparedMeetingAudio> {
+        const durationSec = await this.probeDuration(inputPath, signal);
+        const outputPath = join(workDir, PREPARED_AUDIO_FILE_NAME);
         try {
-            const result = await this.run(
-                this.ffmpegPath,
-                ['-version'],
-                new AbortController().signal,
-            );
-            return result.code === 0;
-        } catch {
-            return false;
+            return await this.encode(inputPath, outputPath, durationSec, signal);
+        } catch (error) {
+            await rm(outputPath, { force: true });
+            throw error;
         }
     }
 
-    async probe(inputPath: string, signal: AbortSignal): Promise<{ durationSec: number }> {
-        this.ensureAvailable();
+    private async probeDuration(inputPath: string, signal: AbortSignal): Promise<number> {
         const result = await this.exec(
             this.ffprobePath,
             [
@@ -155,72 +137,15 @@ export class AudioChunker extends AudioChunkerPort implements OnModuleInit {
                 maxDurationSec: this.settings.maxDurationSec,
             });
         }
-        return { durationSec };
+        return durationSec;
     }
 
-    async render(
+    private async encode(
         inputPath: string,
-        chunk: ChunkPlan,
-        exemplars: readonly SpeakerExemplar[],
-        workDir: string,
+        outputPath: string,
+        durationSec: number,
         signal: AbortSignal,
-    ): Promise<RenderedAudioChunk> {
-        this.ensureAvailable();
-
-        // Segments in file order: each exemplar, then the chunk itself.
-        const segments = [
-            ...exemplars.map((e) => ({ startSec: e.startSec, durationSec: e.endSec - e.startSec })),
-            { startSec: chunk.startSec, durationSec: chunk.endSec - chunk.startSec },
-        ];
-
-        const layout: ExemplarPlacement[] = [];
-        let cursor = 0;
-        for (const exemplar of exemplars) {
-            const start = cursor;
-            cursor += exemplar.endSec - exemplar.startSec;
-            layout.push({
-                globalSpeakerId: exemplar.globalSpeakerId,
-                startInFileSec: start,
-                endInFileSec: cursor,
-            });
-            cursor += EXEMPLAR_GAP_SEC;
-        }
-        const prefixSec = cursor;
-
-        const inputArgs: string[] = [];
-        for (const segment of segments) {
-            inputArgs.push(
-                '-ss',
-                sec(segment.startSec),
-                '-t',
-                sec(segment.durationSec),
-                '-i',
-                inputPath,
-            );
-        }
-
-        // Each segment is padded and trimmed to its exact length, so the layout matches the file.
-        const filters: string[] = [];
-        const concatInputs: string[] = [];
-        segments.forEach((segment, index) => {
-            const i = String(index);
-            const d = sec(segment.durationSec);
-            filters.push(
-                `[${i}:a:0]aresample=${SAMPLE_RATE},${AUDIO_FORMAT},apad=whole_dur=${d},atrim=duration=${d},asetpts=N/SR/TB[s${i}]`,
-            );
-            concatInputs.push(`[s${i}]`);
-            if (index < exemplars.length) {
-                filters.push(
-                    `anullsrc=r=${SAMPLE_RATE}:cl=mono,${AUDIO_FORMAT},atrim=duration=${sec(EXEMPLAR_GAP_SEC)}[g${i}]`,
-                );
-                concatInputs.push(`[g${i}]`);
-            }
-        });
-        filters.push(
-            `${concatInputs.join('')}concat=n=${String(concatInputs.length)}:v=0:a=1[out]`,
-        );
-
-        const outputPath = join(workDir, `chunk-${String(chunk.index)}.ogg`);
+    ): Promise<PreparedMeetingAudio> {
         const result = await this.exec(
             this.ffmpegPath,
             [
@@ -228,11 +153,8 @@ export class AudioChunker extends AudioChunkerPort implements OnModuleInit {
                 'error',
                 '-nostdin',
                 '-y',
-                ...inputArgs,
-                '-filter_complex',
-                filters.join(';'),
-                '-map',
-                '[out]',
+                '-i',
+                inputPath,
                 ...OUTPUT_ARGS,
                 '-f',
                 'ogg',
@@ -242,39 +164,21 @@ export class AudioChunker extends AudioChunkerPort implements OnModuleInit {
         );
         if (result.code !== 0) {
             throw new TranscriptionPermanentError('unsupported-media', undefined, undefined, {
-                index: chunk.index,
                 exitCode: result.code,
             });
         }
 
         const { size } = await stat(outputPath);
-        if (size > this.settings.maxChunkBytes) {
-            // A configuration error: the chunk length does not fit the provider limit.
+        if (size > this.settings.maxBytes) {
             throw new TranscriptionPermanentError(
                 'too-long',
-                'Rendered chunk is larger than MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES',
+                'Prepared audio is larger than the whole-file size limit',
                 undefined,
-                { index: chunk.index, sizeBytes: size, maxBytes: this.settings.maxChunkBytes },
+                { sizeBytes: size, maxBytes: this.settings.maxBytes },
             );
         }
-
-        const base = AudioChunk.of(
-            {
-                index: chunk.index,
-                path: outputPath,
-                startSec: chunk.startSec,
-                endSec: chunk.endSec,
-                sizeBytes: size,
-            },
-            this.settings.maxChunkBytes,
-        );
-        return Object.freeze({ ...base, prefixSec, exemplarLayout: Object.freeze(layout) });
-    }
-
-    private ensureAvailable(): void {
-        if (!this.available) {
-            throw new TranscriptionPermanentError('provider-unavailable');
-        }
+        this.logger.info({ durationSec, sizeBytes: size }, 'Meeting audio prepared');
+        return Object.freeze({ path: outputPath, durationSec, sizeBytes: size });
     }
 
     /** `run` with a missing binary mapped to `provider-unavailable`. */

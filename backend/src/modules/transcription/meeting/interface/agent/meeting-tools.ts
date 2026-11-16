@@ -18,6 +18,7 @@ import {
 import type { ExtractedMeetingTask } from '../../domain/extracted-meeting-task';
 import type { MeetingDocumentFile, MeetingFilesPort } from '../../domain/ports/meeting-files.port';
 import { formatMoscowDateTime, formatTimecode } from '../../domain/meeting-time-format';
+import { defaultSpeakerLabel } from '../../domain/speaker-names';
 import type { SpeakerSummary } from '../../domain/speaker-summary';
 import type { TranscriptSegment } from '../../domain/transcript-segment';
 import type { TranscriptionStatus } from '../../domain/transcription-status';
@@ -41,7 +42,7 @@ function json(value: unknown): string {
 }
 
 function label(speaker: number, name: string | null): string {
-    return name ?? `Спикер ${String(speaker)}`;
+    return name ?? defaultSpeakerLabel(speaker);
 }
 
 function percent(share: number): string {

@@ -473,19 +473,42 @@ describe('validateEnv file storage settings', () => {
 });
 
 describe('validateEnv meeting transcription settings', () => {
+    it('rejects an STT timeout longer than the job deadline', () => {
+        expect(() =>
+            validateEnv({
+                ...REQUIRED_ENV,
+                MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: '8000000',
+                MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS: '7200000',
+            }),
+        ).toThrow('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS');
+    });
+
+    it('rejects a non-positive compressed audio size limit', () => {
+        expect(() =>
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: '0' }),
+        ).toThrow('MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES');
+    });
+
+    it('rejects an STT timeout above 290000 ms', () => {
+        expect(() =>
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: '290001' }),
+        ).toThrow('MEETING_TRANSCRIPTION_STT_TIMEOUT_MS');
+        expect(
+            validateEnv({ ...REQUIRED_ENV, MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: '290000' })
+                .MEETING_TRANSCRIPTION_STT_TIMEOUT_MS,
+        ).toBe(290_000);
+    });
+
     it('uses defaults from design', () => {
         const env = validateEnv(REQUIRED_ENV);
 
         expect(env.MEETING_TRANSCRIPTION_MODEL).toBe('elevenlabs/scribe-v2');
+        expect(env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS).toBe(240_000);
+        expect(env.MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES).toBe(18_000_000);
         expect(env.MEETING_TRANSCRIPTION_LANGUAGE).toBeUndefined();
-        expect(env.MEETING_TRANSCRIPTION_MAX_DURATION_SEC).toBe(14400);
-        expect(env.MEETING_TRANSCRIPTION_CHUNK_SEC).toBe(600);
-        expect(env.MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC).toBe(30);
-        expect(env.MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES).toBe(20971520);
-        expect(env.MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS).toBe(90000);
-        expect(env.MEETING_TRANSCRIPTION_MAX_EXEMPLARS).toBe(8);
-        expect(env.MEETING_TRANSCRIPTION_EXEMPLAR_SEC).toBe(10);
-        expect(env).not.toHaveProperty('MEETING_TRANSCRIPTION_CHUNK_CONCURRENCY');
+        expect(env.MEETING_TRANSCRIPTION_MAX_DURATION_SEC).toBe(4500);
+        expect(env).not.toHaveProperty('MEETING_TRANSCRIPTION_CHUNK_SEC');
+        expect(env).not.toHaveProperty('MEETING_TRANSCRIPTION_MAX_EXEMPLARS');
         expect(env.MEETING_TRANSCRIPTION_ATTEMPTS).toBe(3);
         expect(env.MEETING_TRANSCRIPTION_CONCURRENCY).toBe(2);
         expect(env.MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS).toBe(7_200_000);
@@ -503,22 +526,20 @@ describe('validateEnv meeting transcription settings', () => {
     });
 
     it.each([
-        ['MEETING_TRANSCRIPTION_CHUNK_SEC', '0'],
-        ['MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC', '-1'],
-        ['MEETING_TRANSCRIPTION_MAX_EXEMPLARS', 'many'],
-        ['MEETING_TRANSCRIPTION_EXEMPLAR_SEC', '0'],
+        ['MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES', '0'],
+        ['MEETING_TRANSCRIPTION_MAX_DURATION_SEC', 'long'],
     ])('rejects %s=%s', (name, value) => {
         expect(() => validateEnv({ ...REQUIRED_ENV, [name]: value })).toThrow(name);
     });
 
-    it('rejects an overlap not shorter than the chunk', () => {
+    it('starts with leftover chunking settings, which no longer affect anything', () => {
         expect(() =>
             validateEnv({
                 ...REQUIRED_ENV,
-                MEETING_TRANSCRIPTION_CHUNK_SEC: '60',
-                MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: '60',
+                MEETING_TRANSCRIPTION_CHUNK_SEC: '30',
+                MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: '30',
             }),
-        ).toThrow('MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC');
+        ).not.toThrow();
     });
 });
 

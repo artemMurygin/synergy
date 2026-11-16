@@ -251,9 +251,9 @@ export class MeetingTranscript extends AggregateRoot<MeetingTranscriptProps> {
                 'Speaker count must be a non-negative integer',
             );
         }
-        if ((status === 'completed') !== speakerCount > 0) {
+        if (status !== 'completed' && speakerCount > 0) {
             throw new InvalidMeetingTranscriptStateError(
-                'Speakers must be present exactly when status is completed',
+                'Speakers may be present only when status is completed',
             );
         }
         if (speakerNames.maxSpeaker() > speakerCount) {

@@ -4,7 +4,6 @@ import type { TranscriptionFailureReason } from './transcription-status';
 export const MeetingTranscriptionErrorCode = {
     InvalidSegment: 'MEETING_TRANSCRIPTION_INVALID_SEGMENT',
     InvalidTranscript: 'MEETING_TRANSCRIPTION_INVALID_TRANSCRIPT',
-    InvalidChunk: 'MEETING_TRANSCRIPTION_INVALID_CHUNK',
     InvalidState: 'MEETING_TRANSCRIPTION_INVALID_STATE',
     InvalidTransition: 'MEETING_TRANSCRIPTION_INVALID_TRANSITION',
     NotRetryable: 'MEETING_TRANSCRIPTION_NOT_RETRYABLE',
@@ -21,10 +20,6 @@ export class InvalidTranscriptSegmentError extends ArgumentInvalidError {
 
 export class InvalidDiarizedTranscriptError extends ArgumentInvalidError {
     override readonly code: string = MeetingTranscriptionErrorCode.InvalidTranscript;
-}
-
-export class InvalidAudioChunkError extends ArgumentInvalidError {
-    override readonly code: string = MeetingTranscriptionErrorCode.InvalidChunk;
 }
 
 /** A restored or mutated aggregate breaks its invariants. */
@@ -69,6 +64,9 @@ export class InvalidSpeakerNameError extends ArgumentInvalidError {
 export class TranscriptionTemporaryError extends BaseError {
     readonly code = MeetingTranscriptionErrorCode.Temporary;
 }
+
+/** Провайдер не ответил за отведённое время: повторяется как временная, итоговая причина — `timeout`. */
+export class TranscriptionTimeoutError extends TranscriptionTemporaryError {}
 
 /** The provider or the decoder rejected the recording: no retries. */
 export class TranscriptionPermanentError extends BaseError {

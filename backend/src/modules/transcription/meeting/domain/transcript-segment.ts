@@ -1,9 +1,12 @@
 import { InvalidTranscriptSegmentError } from './errors';
 
+/** Реплика, для которой провайдер не вернул метку собеседника («Нераспознан»). */
+export const UNRECOGNIZED_SPEAKER = 0;
+
 /**
  * A phrase of one speaker; time in seconds from the start of the whole recording.
  * `seq` — порядковый номер в расшифровке с нуля, `speaker` — номер собеседника с единицы
- * (метка «Спикер N» и имя — только отображение). После `complete` сегмент неизменен.
+ * или `UNRECOGNIZED_SPEAKER` (метка «Спикер N» и имя — только отображение). После `complete` сегмент неизменен.
  */
 export interface TranscriptSegment {
     readonly seq: number;
@@ -19,8 +22,8 @@ export const TranscriptSegment = {
         if (!Number.isInteger(seq) || seq < 0) {
             throw new InvalidTranscriptSegmentError('Segment seq must be a non-negative integer');
         }
-        if (!Number.isInteger(speaker) || speaker < 1) {
-            throw new InvalidTranscriptSegmentError('Segment speaker must be an integer >= 1');
+        if (!Number.isInteger(speaker) || speaker < UNRECOGNIZED_SPEAKER) {
+            throw new InvalidTranscriptSegmentError('Segment speaker must be an integer >= 0');
         }
         if (
             !Number.isFinite(startSec) ||
@@ -39,5 +42,6 @@ export const TranscriptSegment = {
 };
 
 export function countSpeakers(segments: readonly TranscriptSegment[]): number {
-    return new Set(segments.map((s) => s.speaker)).size;
+    const numbered = segments.filter((s) => s.speaker !== UNRECOGNIZED_SPEAKER);
+    return new Set(numbered.map((s) => s.speaker)).size;
 }

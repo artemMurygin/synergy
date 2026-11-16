@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1545 250" role="img" aria-label="Поток: от загрузки до выдачи">
+<rect width="100%" height="100%" fill="#f7f9fc"/>
+<text x="28" y="45" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#172b40">Поток: от загрузки до выдачи</text>
+<rect x="25" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="120" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">file.uploaded</text>
+<path d="M215 130 H236" stroke="#567086" stroke-width="2"/>
+<path d="M235 126 L240 130 L235 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="240" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="335" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">Processor</text>
+<path d="M430 130 H451" stroke="#567086" stroke-width="2"/>
+<path d="M450 126 L455 130 L450 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="455" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="550" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">Use case</text>
+<path d="M645 130 H666" stroke="#567086" stroke-width="2"/>
+<path d="M665 126 L670 130 L665 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="670" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="765" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">Audio preparation</text>
+<path d="M860 130 H881" stroke="#567086" stroke-width="2"/>
+<path d="M880 126 L885 130 L880 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="885" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="980" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">OpenRouter STT adapter</text>
+<path d="M1075 130 H1096" stroke="#567086" stroke-width="2"/>
+<path d="M1095 126 L1100 130 L1095 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="1100" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="1195" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">Repositories</text>
+<path d="M1290 130 H1311" stroke="#567086" stroke-width="2"/>
+<path d="M1310 126 L1315 130 L1310 134" fill="none" stroke="#567086" stroke-width="2"/>
+<rect x="1315" y="95" width="190" height="70" rx="12" fill="white" stroke="#6e8ea5" stroke-width="2"/>
+<text x="1410" y="136" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#17324a">GET transcript</text>
+</svg>

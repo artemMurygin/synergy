@@ -1,6 +1,7 @@
 import { InvalidSpeakerNameError } from './errors';
 import { isSpeakerNumber, type SpeakerAssignment } from './speaker-assignment';
 import { SpeakerName } from './speaker-name';
+import { UNRECOGNIZED_SPEAKER } from './transcript-segment';
 
 export interface SpeakerNameEntry {
     readonly speaker: number;
@@ -9,6 +10,7 @@ export interface SpeakerNameEntry {
 
 /** Метка собеседника без имени. */
 export function defaultSpeakerLabel(speaker: number): string {
+    if (speaker === UNRECOGNIZED_SPEAKER) return 'Нераспознан';
     return `Спикер ${String(speaker)}`;
 }
 

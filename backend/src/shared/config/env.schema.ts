@@ -147,16 +147,14 @@ export const envSchema = z
         FILES_DOWNLOAD_TOKEN_SECRET: z.string().min(32).optional(),
         FILES_DOWNLOAD_LINK_TTL_SEC: positiveInt(300),
 
+        // Расшифровка встреч целым файлом: OpenRouter STT (ключ OPENROUTER_API_KEY)
         MEETING_TRANSCRIPTION_MODEL: z.string().min(1).default('elevenlabs/scribe-v2'),
-        // Пусто: язык определяет модель
+        // Таймаут одного HTTP-запроса на всю запись (240 с, не больше 290 с); не больше дедлайна job'а
+        MEETING_TRANSCRIPTION_STT_TIMEOUT_MS: positiveInt(240_000).pipe(z.number().max(290_000)),
+        // Предел сжатого файла, байты: в base64 (24 000 000) с JSON укладывается в 25 МБ OpenRouter
+        MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: positiveInt(18_000_000),
         MEETING_TRANSCRIPTION_LANGUAGE: z.string().min(1).optional(),
-        MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(14400),
-        MEETING_TRANSCRIPTION_CHUNK_SEC: positiveInt(600),
-        MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC: z.coerce.number().int().nonnegative().default(30),
-        MEETING_TRANSCRIPTION_MAX_CHUNK_BYTES: positiveInt(20971520),
-        MEETING_TRANSCRIPTION_CHUNK_TIMEOUT_MS: positiveInt(90000),
-        MEETING_TRANSCRIPTION_MAX_EXEMPLARS: positiveInt(8),
-        MEETING_TRANSCRIPTION_EXEMPLAR_SEC: positiveInt(10),
+        MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(4500),
         MEETING_TRANSCRIPTION_ATTEMPTS: positiveInt(3),
         MEETING_TRANSCRIPTION_CONCURRENCY: positiveInt(2),
         // Общий дедлайн одной попытки расшифровки; по истечении — failed с причиной timeout
@@ -195,11 +193,12 @@ export const envSchema = z
         message: 'LANGSMITH_API_KEY is required when LANGSMITH_TRACING=true',
     })
     .refine(
-        (env) => env.MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC < env.MEETING_TRANSCRIPTION_CHUNK_SEC,
+        (env) =>
+            env.MEETING_TRANSCRIPTION_STT_TIMEOUT_MS <= env.MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS,
         {
-            path: ['MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC'],
+            path: ['MEETING_TRANSCRIPTION_STT_TIMEOUT_MS'],
             message:
-                'MEETING_TRANSCRIPTION_CHUNK_OVERLAP_SEC must be less than MEETING_TRANSCRIPTION_CHUNK_SEC',
+                'MEETING_TRANSCRIPTION_STT_TIMEOUT_MS must not exceed MEETING_TRANSCRIPTION_JOB_TIMEOUT_MS',
         },
     )
     .superRefine((env, ctx) => {

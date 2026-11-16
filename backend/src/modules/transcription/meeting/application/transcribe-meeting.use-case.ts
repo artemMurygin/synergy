@@ -4,7 +4,7 @@ import { TransactionRunnerPort } from '../../../../database/postgres/transaction
 import { DomainEventPublisherPort } from '../../../../shared/ddd';
 import { OpenFileForProcessingUseCase } from '../../../files/application/open-file-for-processing.use-case';
 import { ReleaseFileHoldUseCase } from '../../../files/application/release-file-hold.use-case';
-import { TranscriptionPermanentError } from '../domain/errors';
+import { TranscriptionPermanentError, TranscriptionTimeoutError } from '../domain/errors';
 import type { MeetingTranscript } from '../domain/meeting-transcript';
 import {
     MeetingTranscriberPort,
@@ -168,7 +168,8 @@ function failureReasonOf(
     isFinalAttempt: boolean,
 ): TranscriptionFailureReason | null {
     if (error instanceof TranscriptionPermanentError) return error.reason;
-    return isFinalAttempt ? 'provider-unavailable' : null;
+    if (!isFinalAttempt) return null;
+    return error instanceof TranscriptionTimeoutError ? 'timeout' : 'provider-unavailable';
 }
 
 // Только код или имя класса, а не `err`: сообщения провайдера могут содержать фрагменты ответа.
