@@ -162,4 +162,20 @@ describe('SyncProjectCallsUseCase', () => {
         expect(cursorRepository.set).not.toHaveBeenCalled();
         expect(result).toEqual({ syncedCallsCount: 1 });
     });
+
+    it('quarantines a call that keeps failing to persist across cycles so the cursor can still advance', async () => {
+        const { gateway, callRepository, cursorRepository, useCase } = createFixture(lastSyncedAt);
+        gateway.listCalls.mockResolvedValue([createSummaryDto(1)]);
+        callRepository.upsertMany.mockResolvedValue([new CallId(1)]);
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            await useCase.execute(PROJECT_ID, now);
+        }
+        expect(cursorRepository.set).not.toHaveBeenCalled();
+
+        const result = await useCase.execute(PROJECT_ID, now);
+
+        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, now);
+        expect(result).toEqual({ syncedCallsCount: 0 });
+    });
 });

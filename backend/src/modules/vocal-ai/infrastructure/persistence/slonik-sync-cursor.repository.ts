@@ -27,7 +27,8 @@ export class SyncCursorRepository extends SyncCursorRepositoryPort {
             INSERT INTO vocal_ai_projects (project_id, title, last_synced_at)
             VALUES (${projectId}, ${projectId}, ${syncedAt.toISOString()})
             ON CONFLICT (project_id) DO UPDATE SET last_synced_at = EXCLUDED.last_synced_at
-            WHERE EXCLUDED.last_synced_at >= vocal_ai_projects.last_synced_at
+            WHERE vocal_ai_projects.last_synced_at IS NULL
+                OR EXCLUDED.last_synced_at >= vocal_ai_projects.last_synced_at
             RETURNING project_id`);
         if (row === null) {
             throw new SyncCursorRegressionError(

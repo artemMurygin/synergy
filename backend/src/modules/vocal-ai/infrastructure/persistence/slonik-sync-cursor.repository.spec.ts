@@ -93,6 +93,17 @@ describe.skipIf(adminUrl === undefined)('SyncCursorRepository', () => {
         expect(await repository.get('project-1')).toEqual(syncedAt);
     });
 
+    it('sets the cursor for a project that already has a row with a null last_synced_at', async () => {
+        await client.query(
+            "INSERT INTO vocal_ai_projects (project_id, title, last_synced_at) VALUES ('project-1', 'project-1', NULL)",
+        );
+        const syncedAt = new Date('2026-03-01T12:00:00Z');
+
+        await repository.set('project-1', syncedAt);
+
+        expect(await repository.get('project-1')).toEqual(syncedAt);
+    });
+
     it('stores the cursor of each project independently', async () => {
         await repository.set('project-1', new Date('2026-03-01T00:00:00Z'));
         await repository.set('project-2', new Date('2026-04-01T00:00:00Z'));

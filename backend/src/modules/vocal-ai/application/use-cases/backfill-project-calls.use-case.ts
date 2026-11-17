@@ -5,6 +5,7 @@ import { SyncCursorRepositoryPort } from '../../domain/ports/sync-cursor-reposit
 import { VocalAiGatewayPort } from '../../domain/ports/vocal-ai-gateway.port';
 import type { CallId } from '../../domain/value-objects/call-id.value-object';
 import { SyncWindow } from '../../domain/value-objects/sync-window.value-object';
+import { CallPersistFailureTracker } from '../call-persist-failure-tracker';
 import { toCall } from '../mappers/call-summary-dto.mapper';
 
 export const BACKFILL_PAGE_WINDOW_MS = Symbol('BACKFILL_PAGE_WINDOW_MS');
@@ -15,6 +16,8 @@ export interface BackfillResult {
 
 @Injectable()
 export class BackfillProjectCallsUseCase {
+    private readonly failureTracker = new CallPersistFailureTracker();
+
     constructor(
         private readonly vocalAiGateway: VocalAiGatewayPort,
         private readonly callRepository: CallRepositoryPort,
@@ -49,11 +52,26 @@ export class BackfillProjectCallsUseCase {
                 syncedCallsCount += pageDtos.length - failedCallIds.length;
             }
 
-            if (failedCallIds.length > 0) {
+            const { blockingCallIds, quarantinedCallIds } = this.failureTracker.partition(
+                pageDtos.map((dto) => dto.callId),
+                failedCallIds,
+            );
+
+            if (quarantinedCallIds.length > 0) {
+                this.logger.error(
+                    {
+                        projectId,
+                        quarantinedCallIds: quarantinedCallIds.map((callId) => callId.value),
+                    },
+                    'Backfill page permanently failed to persist calls, skipping them so paging keeps advancing',
+                );
+            }
+
+            if (blockingCallIds.length > 0) {
                 this.logger.warn(
                     {
                         projectId,
-                        failedCallIds: failedCallIds.map((callId) => callId.value),
+                        failedCallIds: blockingCallIds.map((callId) => callId.value),
                     },
                     'Backfill page left calls unsaved, stopping so it is retried next cycle',
                 );

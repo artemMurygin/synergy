@@ -5,6 +5,7 @@ import { CallRepositoryPort } from '../../domain/ports/call-repository.port';
 import { SyncCursorRepositoryPort } from '../../domain/ports/sync-cursor-repository.port';
 import { VocalAiGatewayPort } from '../../domain/ports/vocal-ai-gateway.port';
 import { SyncWindow } from '../../domain/value-objects/sync-window.value-object';
+import { CallPersistFailureTracker } from '../call-persist-failure-tracker';
 import { toCall } from '../mappers/call-summary-dto.mapper';
 import { BackfillProjectCallsUseCase } from './backfill-project-calls.use-case';
 
@@ -16,6 +17,8 @@ type BackfillCallsExecutor = Pick<BackfillProjectCallsUseCase, 'execute'>;
 
 @Injectable()
 export class SyncProjectCallsUseCase {
+    private readonly failureTracker = new CallPersistFailureTracker();
+
     constructor(
         private readonly vocalAiGateway: VocalAiGatewayPort,
         private readonly callRepository: CallRepositoryPort,
@@ -43,9 +46,21 @@ export class SyncProjectCallsUseCase {
         const failedCallIds = await this.callRepository.upsertMany(calls);
         const syncedCallsCount = calls.length - failedCallIds.length;
 
-        if (failedCallIds.length > 0) {
+        const { blockingCallIds, quarantinedCallIds } = this.failureTracker.partition(
+            calls.map((call) => call.callId),
+            failedCallIds,
+        );
+
+        if (quarantinedCallIds.length > 0) {
+            this.logger.error(
+                { projectId, quarantinedCallIds: quarantinedCallIds.map((callId) => callId.value) },
+                'Project incremental sync permanently failed to persist calls, skipping them so the cursor keeps advancing',
+            );
+        }
+
+        if (blockingCallIds.length > 0) {
             this.logger.warn(
-                { projectId, failedCallIds: failedCallIds.map((callId) => callId.value) },
+                { projectId, failedCallIds: blockingCallIds.map((callId) => callId.value) },
                 'Project incremental sync left calls unsaved, cursor not advanced',
             );
             return { syncedCallsCount };
