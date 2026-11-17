@@ -198,23 +198,19 @@ describe('BackfillProjectCallsUseCase', () => {
         vi.useRealTimers();
     });
 
-    it('quarantines a call that keeps failing to persist on the very first page across cycles, so backfill eventually completes past the epoch', async () => {
+    it('keeps leaving the cursor unmoved on every cycle while the first page keeps failing to persist', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(now);
         const { gateway, callRepository, cursorRepository, useCase } = createFixture();
         gateway.listCalls.mockResolvedValue([createSummaryDto(1)]);
         callRepository.upsertMany.mockResolvedValue([new CallId(1)]);
 
-        for (let cycle = 0; cycle < 4; cycle += 1) {
+        for (let cycle = 0; cycle < 10; cycle += 1) {
             const result = await useCase.execute(PROJECT_ID);
             expect(result).toEqual({ syncedCallsCount: 0 });
         }
+
         expect(cursorRepository.set).not.toHaveBeenCalled();
-
-        const result = await useCase.execute(PROJECT_ID);
-
-        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, now);
-        expect(result).toEqual({ syncedCallsCount: 0 });
         vi.useRealTimers();
     });
 });
