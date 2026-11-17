@@ -123,6 +123,7 @@ const listCallsResponseSchema = z.object({
 });
 
 const LIST_CALLS_PAGE_LIMIT = 100;
+const LIST_CALLS_MAX_PAGES = 1000;
 
 const transcriptLineSchema = z.object({
     speakerName: z.string(),
@@ -229,7 +230,14 @@ export class VocalAiGateway extends VocalAiGatewayPort {
     ): Promise<VocalAiCallSummaryDto[]> {
         const items: VocalAiCallSummaryDto[] = [];
         let offset = 0;
-        for (;;) {
+        for (let pageIndex = 0; ; pageIndex += 1) {
+            if (pageIndex >= LIST_CALLS_MAX_PAGES) {
+                throw new VocalAiRequestError(
+                    `VocalAI listCalls for project ${projectId} exceeded the hard page limit of ${String(LIST_CALLS_MAX_PAGES)}`,
+                    undefined,
+                    { projectId },
+                );
+            }
             const page = await this.fetchCallsPage(projectId, window, windowKind, offset);
             items.push(...page.items.map((item) => toCallSummaryDto(item, projectId)));
             const fetchedUpTo = offset + page.items.length;

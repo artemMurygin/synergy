@@ -11,8 +11,9 @@ export interface CallFilter {
     totalScoreMax?: number;
     tagId?: string;
     metricId?: string;
-    /** Caps the number of matching calls returned; capped again by the repository at its hard maximum. */
+    /** Capped again by the repository at its hard maximum. */
     limit?: number;
+    offset?: number;
 }
 
 export interface CallStats {
@@ -22,9 +23,12 @@ export interface CallStats {
 }
 
 export abstract class CallRepositoryPort {
-    abstract upsertMany(calls: Call[]): Promise<void>;
+    /** Resolves with the callIds that could not be persisted, so the caller can retry them. */
+    abstract upsertMany(calls: Call[]): Promise<readonly CallId[]>;
 
     abstract findByFilter(filter: CallFilter): Promise<Call[]>;
+
+    abstract countByFilter(filter: CallFilter): Promise<number>;
 
     abstract aggregateStats(filter: CallFilter): Promise<CallStats>;
 }

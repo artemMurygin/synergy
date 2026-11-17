@@ -43,7 +43,11 @@ interface Fixture {
 }
 
 function createFixture(): Fixture {
-    const listCalls = { execute: vi.fn<ListCallsUseCase['execute']>().mockResolvedValue([]) };
+    const listCalls = {
+        execute: vi
+            .fn<ListCallsUseCase['execute']>()
+            .mockResolvedValue({ calls: [], totalCount: 0, truncated: false }),
+    };
     const getCallDetail = {
         execute: vi.fn<GetCallDetailUseCase['execute']>(),
     };
@@ -106,7 +110,7 @@ describe('list_calls', () => {
     it('validates filters with zod and calls only ListCallsUseCase', async () => {
         const { listCalls, tools } = createFixture();
         const found = buildCall();
-        listCalls.execute.mockResolvedValue([found]);
+        listCalls.execute.mockResolvedValue({ calls: [found], totalCount: 1, truncated: false });
 
         const result = await call(tools.listCalls, {
             projectId: 'project-1',
@@ -132,6 +136,8 @@ describe('list_calls', () => {
         expect(result.calls).toEqual([
             expect.objectContaining({ callId: 1, projectId: 'project-1', manager: 'Иванов' }),
         ]);
+        expect(result.total).toBe(1);
+        expect(result.truncated).toBe(false);
     });
 
     it('returns an empty list without error when nothing matches', async () => {
@@ -141,6 +147,19 @@ describe('list_calls', () => {
 
         expect(result.calls).toEqual([]);
         expect(result.total).toBe(0);
+    });
+
+    it('passes limit/offset to the use case and returns the real total, not the page length', async () => {
+        const { listCalls, tools } = createFixture();
+        const found = buildCall();
+        listCalls.execute.mockResolvedValue({ calls: [found], totalCount: 42, truncated: true });
+
+        const result = await call(tools.listCalls, { limit: 1, offset: 10 });
+
+        expect(listCalls.execute).toHaveBeenCalledWith({ limit: 1, offset: 10 });
+        expect(result.calls).toHaveLength(1);
+        expect(result.total).toBe(42);
+        expect(result.truncated).toBe(true);
     });
 
     it('rejects an invalid date filter instead of calling the use case', async () => {
@@ -243,9 +262,9 @@ describe('get_call_transcript', () => {
         });
         getCallTranscript.execute.mockResolvedValue([line]);
 
-        const result = await call(tools.getCallTranscript, { callId: 42, projectId: 'project-1' });
+        const result = await call(tools.getCallTranscript, { callId: 42 });
 
-        expect(getCallTranscript.execute).toHaveBeenCalledWith(new CallId(42), 'project-1');
+        expect(getCallTranscript.execute).toHaveBeenCalledWith(new CallId(42));
         expect(result.lines).toEqual([
             {
                 speakerName: 'Иванов',
@@ -261,10 +280,7 @@ describe('get_call_transcript', () => {
         const { getCallTranscript, tools } = createFixture();
         getCallTranscript.execute.mockRejectedValue(new CallNotFoundError(new CallId(999)));
 
-        const result = await call(tools.getCallTranscript, {
-            callId: 999,
-            projectId: 'project-1',
-        });
+        const result = await call(tools.getCallTranscript, { callId: 999 });
 
         expect(result.found).toBe(false);
         expect(String(result.error)).toMatch(/не найден/i);
@@ -276,10 +292,7 @@ describe('get_call_transcript', () => {
             new VocalAiRequestError('VocalAI listCalls failed with HTTP 503'),
         );
 
-        const result = await call(tools.getCallTranscript, {
-            callId: 42,
-            projectId: 'project-1',
-        });
+        const result = await call(tools.getCallTranscript, { callId: 42 });
 
         expect(result.found).toBe(false);
         expect(typeof result.error).toBe('string');

@@ -19,7 +19,12 @@ function createFixture(): Fixture {
     const logger = new PinoLogger({ pinoHttp: { level: 'silent' } });
     const syncProjectCalls = new SyncProjectCallsUseCase(
         { login: vi.fn(), refreshToken: vi.fn(), listCalls: vi.fn(), getCall: vi.fn() },
-        { upsertMany: vi.fn(), findByFilter: vi.fn(), aggregateStats: vi.fn() },
+        {
+            upsertMany: vi.fn(),
+            findByFilter: vi.fn(),
+            countByFilter: vi.fn(),
+            aggregateStats: vi.fn(),
+        },
         { get: vi.fn(), set: vi.fn() },
         { execute: vi.fn() },
         logger,

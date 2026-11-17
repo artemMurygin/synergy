@@ -120,6 +120,11 @@ describe.skipIf(adminUrl === undefined)('CallRepository', () => {
     });
 
     describe('upsertMany', () => {
+        it('reports no failed callIds when every call persists', async () => {
+            const failedCallIds = await repository.upsertMany([buildCall({ callId: 1 })]);
+            expect(failedCallIds).toEqual([]);
+        });
+
         it('inserts new calls with their children', async () => {
             const call = buildCall({
                 callId: 1,
@@ -171,7 +176,7 @@ describe.skipIf(adminUrl === undefined)('CallRepository', () => {
         });
 
         it('does nothing for an empty list', async () => {
-            await expect(repository.upsertMany([])).resolves.toBeUndefined();
+            await expect(repository.upsertMany([])).resolves.toEqual([]);
         });
     });
 
@@ -263,6 +268,39 @@ describe.skipIf(adminUrl === undefined)('CallRepository', () => {
         it('caps the result size at the hard maximum regardless of a larger requested limit', async () => {
             const calls = await repository.findByFilter({ limit: 100_000 });
             expect(calls.length).toBeLessThanOrEqual(500);
+        });
+
+        it('skips the first results by the given offset, keeping the same order', async () => {
+            const firstPage = await repository.findByFilter({ projectId: 'project-a', limit: 1 });
+            const secondPage = await repository.findByFilter({
+                projectId: 'project-a',
+                limit: 1,
+                offset: 1,
+            });
+            expect(firstPage.map((c) => c.callId.value)).not.toEqual(
+                secondPage.map((c) => c.callId.value),
+            );
+            expect(secondPage).toHaveLength(1);
+        });
+    });
+
+    describe('countByFilter', () => {
+        beforeEach(async () => {
+            await repository.upsertMany([
+                buildCall({ callId: 15, projectId: 'project-a' }),
+                buildCall({ callId: 16, projectId: 'project-a' }),
+                buildCall({ callId: 17, projectId: 'project-b' }),
+            ]);
+        });
+
+        it('counts all matching calls regardless of limit/offset', async () => {
+            const count = await repository.countByFilter({ projectId: 'project-a' });
+            expect(count).toBe(2);
+        });
+
+        it('returns zero when nothing matches', async () => {
+            const count = await repository.countByFilter({ projectId: 'unknown-project' });
+            expect(count).toBe(0);
         });
     });
 

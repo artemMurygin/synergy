@@ -81,6 +81,8 @@ const callFilterSchema = z.object({
     totalScoreMax: z.number().optional().describe('Максимальная общая оценка звонка'),
     tagId: z.string().optional().describe('Идентификатор тега'),
     metricId: z.string().optional().describe('Идентификатор метрики чек-листа'),
+    limit: z.number().int().positive().optional().describe('Максимальное число звонков в ответе'),
+    offset: z.number().int().nonnegative().optional().describe('Смещение для постраничного вывода'),
 });
 
 type CallFilterArgs = z.infer<typeof callFilterSchema>;
@@ -97,6 +99,8 @@ function toFilter(input: CallFilterArgs): CallFilter {
         ...(input.totalScoreMax === undefined ? {} : { totalScoreMax: input.totalScoreMax }),
         ...(input.tagId === undefined ? {} : { tagId: input.tagId }),
         ...(input.metricId === undefined ? {} : { metricId: input.metricId }),
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+        ...(input.offset === undefined ? {} : { offset: input.offset }),
     };
 }
 
@@ -166,7 +170,7 @@ function presentTranscriptLine(line: CallTranscriptLine): Record<string, unknown
 }
 
 /**
- * Tools of the vocal-ai agent: read звонки and their analytics from the local sync store, with a
+ * Tools of the vocal-ai agent: read calls and their analytics from the local sync store, with a
  * lazy fetch of the transcript as the only tool that can reach the external VocalAI API
  * (indirectly, through GetCallTranscriptUseCase). The run context is unused today because no
  * tool filters by the acting user; it is kept in the signature for parity with other capabilities.
@@ -177,19 +181,24 @@ export function createVocalAiTools(deps: VocalAiToolsDeps, _ctx: AgentRunContext
         async (input) => {
             try {
                 const filter = toFilter(input);
-                const calls = await deps.listCalls.execute(filter);
+                const { calls, totalCount, truncated } = await deps.listCalls.execute(filter);
                 if (calls.length === 0) {
-                    return json({ total: 0, calls: [], message: 'Звонков не найдено' });
+                    return json({
+                        total: totalCount,
+                        truncated,
+                        calls: [],
+                        message: 'Звонков не найдено',
+                    });
                 }
-                return json({ total: calls.length, calls: calls.map(presentCall) });
+                return json({ total: totalCount, truncated, calls: calls.map(presentCall) });
             } catch (error) {
-                return json({ total: 0, calls: [], error: explain(error) });
+                return json({ total: 0, truncated: false, calls: [], error: explain(error) });
             }
         },
         {
             name: 'list_calls',
             description:
-                'Список звонков из локального хранилища с фильтрацией по проекту, менеджеру, диапазону дат звонка, диапазону общей оценки, тегу и метрике чек-листа. Все фильтры опциональны и комбинируются через AND. Внешний VocalAI API не вызывается.',
+                'Список звонков из локального хранилища с фильтрацией по проекту, менеджеру, диапазону дат звонка, диапазону общей оценки, тегу и метрике чек-листа, с пагинацией через limit/offset. Все фильтры опциональны и комбинируются через AND. Ответ содержит реальное общее количество подходящих звонков (total) и признак усечения результата лимитом (truncated). Внешний VocalAI API не вызывается.',
             schema: callFilterSchema,
         },
     );
@@ -218,7 +227,7 @@ export function createVocalAiTools(deps: VocalAiToolsDeps, _ctx: AgentRunContext
         async (input) => {
             try {
                 const callId = new CallId(input.callId);
-                const lines = await deps.getCallTranscript.execute(callId, input.projectId);
+                const lines = await deps.getCallTranscript.execute(callId);
                 return json({ found: true, lines: lines.map(presentTranscriptLine) });
             } catch (error) {
                 return json({ found: false, lines: [], error: explain(error) });
@@ -230,7 +239,6 @@ export function createVocalAiTools(deps: VocalAiToolsDeps, _ctx: AgentRunContext
                 'Полный текст транскрипции звонка по его идентификатору. Если транскрипция ещё не сохранена локально, инструмент сам дожидается её ленивой загрузки перед возвратом результата.',
             schema: z.object({
                 callId: z.number().int().describe('Идентификатор звонка'),
-                projectId: z.string().describe('Идентификатор проекта VocalAI'),
             }),
         },
     );

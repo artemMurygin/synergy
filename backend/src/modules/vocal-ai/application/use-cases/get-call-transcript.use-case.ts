@@ -15,12 +15,7 @@ export class GetCallTranscriptUseCase {
         private readonly vocalAiGateway: VocalAiGatewayPort,
     ) {}
 
-    /**
-     * `projectId` переданный вызывающим не используется для запроса к VocalAI: звонок может
-     * принадлежать другому проекту, чем тот, что указала модель. Реальный `projectId` берётся из
-     * уже найденной записи звонка в локальном хранилище.
-     */
-    async execute(callId: CallId, _projectId: string): Promise<readonly CallTranscriptLine[]> {
+    async execute(callId: CallId): Promise<readonly CallTranscriptLine[]> {
         if (await this.transcriptRepository.exists(callId)) {
             const transcript = await this.transcriptRepository.findByCallId(callId);
             if (transcript !== null) {

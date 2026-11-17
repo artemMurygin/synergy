@@ -40,14 +40,20 @@ export class SyncProjectCallsUseCase {
         ]);
 
         const calls = deduplicateByCallId([...callWindowDtos, ...scoreWindowDtos].map(toCall));
-        await this.callRepository.upsertMany(calls);
-        await this.cursorRepository.set(projectId, now);
+        const failedCallIds = await this.callRepository.upsertMany(calls);
+        const syncedCallsCount = calls.length - failedCallIds.length;
 
-        this.logger.info(
-            { projectId, syncedCallsCount: calls.length },
-            'Project incremental sync completed',
-        );
-        return { syncedCallsCount: calls.length };
+        if (failedCallIds.length > 0) {
+            this.logger.warn(
+                { projectId, failedCallIds: failedCallIds.map((callId) => callId.value) },
+                'Project incremental sync left calls unsaved, cursor not advanced',
+            );
+            return { syncedCallsCount };
+        }
+
+        await this.cursorRepository.set(projectId, now);
+        this.logger.info({ projectId, syncedCallsCount }, 'Project incremental sync completed');
+        return { syncedCallsCount };
     }
 }
 

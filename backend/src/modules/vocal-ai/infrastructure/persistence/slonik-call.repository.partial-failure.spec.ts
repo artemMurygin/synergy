@@ -27,6 +27,8 @@ class FakeTransactionRunner extends TransactionRunnerPort {
     }
 
     executor(): CommonQueryMethods {
+        // CallRepository only calls `query()` on the executor; stubbing the rest of
+        // CommonQueryMethods would add no coverage, so the cast is scoped to this fake.
         return this.executorMock as unknown as CommonQueryMethods;
     }
 
@@ -76,8 +78,9 @@ describe('CallRepository.upsertMany: частичный сбой записи', 
             return Promise.resolve({});
         });
 
-        await expect(repository.upsertMany(callIds.map(buildCall))).resolves.toBeUndefined();
+        const failedCallIds = await repository.upsertMany(callIds.map(buildCall));
 
+        expect(failedCallIds.map((callId) => callId.value)).toEqual([2]);
         expect(errorSpy).toHaveBeenCalledTimes(1);
         expect(errorSpy).toHaveBeenCalledWith(
             expect.objectContaining({ callId: 2 }),

@@ -414,6 +414,28 @@ describe('VocalAiGateway', () => {
             expect(calls).toHaveLength(1);
             expect(httpClient.send).toHaveBeenCalledTimes(3);
         });
+
+        it('останавливается с явной ошибкой по жёсткому потолку страниц, когда сервер всегда отдаёт полную страницу без totalCalls', async () => {
+            httpClient.send
+                .mockResolvedValueOnce(ssoLoginResponse())
+                .mockResolvedValueOnce(providerLoginResponse())
+                .mockResolvedValue(
+                    jsonResponse(200, {
+                        items: Array.from({ length: 100 }, (_unused, index) =>
+                            callItem({ id: index + 1 }),
+                        ),
+                    }),
+                );
+
+            const window = new SyncWindow({
+                fromAt: new Date('2026-11-01T00:00:00Z'),
+                toAt: new Date('2026-11-16T00:00:00Z'),
+            });
+
+            const error = await rejectionOf(gateway.listCalls(PROJECT_ID, window, 'callWindow'));
+
+            expect(error).toBeInstanceOf(VocalAiRequestError);
+        });
     });
 
     describe('getCall', () => {

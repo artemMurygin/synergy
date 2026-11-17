@@ -55,8 +55,9 @@ function createFixture(cursor: Date | null): Fixture {
         getCall: vi.fn<VocalAiGatewayPort['getCall']>(),
     };
     const callRepository = {
-        upsertMany: vi.fn<CallRepositoryPort['upsertMany']>().mockResolvedValue(undefined),
+        upsertMany: vi.fn<CallRepositoryPort['upsertMany']>().mockResolvedValue([]),
         findByFilter: vi.fn<CallRepositoryPort['findByFilter']>(),
+        countByFilter: vi.fn<CallRepositoryPort['countByFilter']>(),
         aggregateStats: vi.fn<CallRepositoryPort['aggregateStats']>(),
     };
     const cursorRepository = {
@@ -149,5 +150,16 @@ describe('SyncProjectCallsUseCase', () => {
         await expect(useCase.execute(PROJECT_ID, now)).rejects.toThrow('db down');
 
         expect(cursorRepository.set).not.toHaveBeenCalled();
+    });
+
+    it('does not move the cursor when upsertMany reports a partially failed call, so it is retried next cycle', async () => {
+        const { gateway, callRepository, cursorRepository, useCase } = createFixture(lastSyncedAt);
+        gateway.listCalls.mockResolvedValueOnce([createSummaryDto(1), createSummaryDto(2)]);
+        callRepository.upsertMany.mockResolvedValueOnce([new CallId(2)]);
+
+        const result = await useCase.execute(PROJECT_ID, now);
+
+        expect(cursorRepository.set).not.toHaveBeenCalled();
+        expect(result).toEqual({ syncedCallsCount: 1 });
     });
 });

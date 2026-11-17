@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { PostgresModule } from '../../database/postgres/postgres.module';
+import { VOCAL_AI_AGENT_CAPABILITY } from '../../shared/agent-capability';
+import type { Env } from '../../shared/config/env.schema';
 import type { ChatModelSetting } from '../../shared/llm';
 import { createChatModel } from '../../shared/llm';
-import type { Env } from '../../shared/config/env.schema';
 import { BACKFILL_PAGE_WINDOW_MS } from './application/use-cases/backfill-project-calls.use-case';
 import { BackfillProjectCallsUseCase } from './application/use-cases/backfill-project-calls.use-case';
 import { GetCallDetailUseCase } from './application/use-cases/get-call-detail.use-case';
@@ -28,7 +29,6 @@ import { CallTranscriptRepository } from './infrastructure/persistence/slonik-ca
 import { SyncCursorRepository } from './infrastructure/persistence/slonik-sync-cursor.repository';
 import { VocalAiAgentCapability } from './interface/agent/vocal-ai-agent.capability';
 import { VocalAiSyncProcessor } from './interface/queue/vocal-ai-sync.processor';
-import { VOCAL_AI_AGENT_CAPABILITY } from '../../shared/agent-capability';
 
 const BACKFILL_PAGE_WINDOW_DAYS = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;

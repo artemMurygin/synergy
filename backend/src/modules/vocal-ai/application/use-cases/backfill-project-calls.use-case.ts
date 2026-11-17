@@ -3,6 +3,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { CallRepositoryPort } from '../../domain/ports/call-repository.port';
 import { SyncCursorRepositoryPort } from '../../domain/ports/sync-cursor-repository.port';
 import { VocalAiGatewayPort } from '../../domain/ports/vocal-ai-gateway.port';
+import type { CallId } from '../../domain/value-objects/call-id.value-object';
 import { SyncWindow } from '../../domain/value-objects/sync-window.value-object';
 import { toCall } from '../mappers/call-summary-dto.mapper';
 
@@ -27,8 +28,8 @@ export class BackfillProjectCallsUseCase {
     /**
      * Advances the cursor to the end of each page right after that page is upserted, instead of
      * once at the very end: a failure partway through leaves the cursor at the last completed
-     * page, so the next scheduled cycle resumes as a normal incremental sync from there instead
-     * of restarting the whole history from the epoch.
+     * page, so the next cycle resumes as a normal incremental sync from there instead of
+     * restarting the whole history from the epoch.
      */
     async execute(projectId: string): Promise<BackfillResult> {
         const now = new Date();
@@ -42,9 +43,21 @@ export class BackfillProjectCallsUseCase {
             const window = new SyncWindow({ fromAt: pageFromAt, toAt: pageToAt });
             const pageDtos = await this.vocalAiGateway.listCalls(projectId, window, 'callWindow');
 
+            let failedCallIds: readonly CallId[] = [];
             if (pageDtos.length > 0) {
-                await this.callRepository.upsertMany(pageDtos.map(toCall));
-                syncedCallsCount += pageDtos.length;
+                failedCallIds = await this.callRepository.upsertMany(pageDtos.map(toCall));
+                syncedCallsCount += pageDtos.length - failedCallIds.length;
+            }
+
+            if (failedCallIds.length > 0) {
+                this.logger.warn(
+                    {
+                        projectId,
+                        failedCallIds: failedCallIds.map((callId) => callId.value),
+                    },
+                    'Backfill page left calls unsaved, stopping so it is retried next cycle',
+                );
+                break;
             }
 
             await this.cursorRepository.set(projectId, pageToAt);

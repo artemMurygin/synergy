@@ -54,8 +54,9 @@ function createFixture(): Fixture {
         getCall: vi.fn<VocalAiGatewayPort['getCall']>(),
     };
     const callRepository = {
-        upsertMany: vi.fn<CallRepositoryPort['upsertMany']>().mockResolvedValue(undefined),
+        upsertMany: vi.fn<CallRepositoryPort['upsertMany']>().mockResolvedValue([]),
         findByFilter: vi.fn<CallRepositoryPort['findByFilter']>(),
+        countByFilter: vi.fn<CallRepositoryPort['countByFilter']>(),
         aggregateStats: vi.fn<CallRepositoryPort['aggregateStats']>(),
     };
     const cursorRepository = {
@@ -170,13 +171,30 @@ describe('BackfillProjectCallsUseCase', () => {
         const { gateway, callRepository, cursorRepository, useCase } = createFixture();
         gateway.listCalls.mockResolvedValue([createSummaryDto(1)]);
         callRepository.upsertMany
-            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce([])
             .mockRejectedValueOnce(new Error('db down'));
 
         await expect(useCase.execute(PROJECT_ID)).rejects.toThrow('db down');
 
         expect(cursorRepository.set).toHaveBeenCalledTimes(1);
         expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
+        vi.useRealTimers();
+    });
+
+    it('stops paging and leaves the cursor at the last completed page when a page partially fails to persist, so it is retried next cycle', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        const { gateway, callRepository, cursorRepository, useCase } = createFixture();
+        gateway.listCalls
+            .mockResolvedValueOnce([createSummaryDto(1)])
+            .mockResolvedValueOnce([createSummaryDto(2), createSummaryDto(3)]);
+        callRepository.upsertMany.mockResolvedValueOnce([]).mockResolvedValueOnce([new CallId(3)]);
+
+        const result = await useCase.execute(PROJECT_ID);
+
+        expect(cursorRepository.set).toHaveBeenCalledTimes(1);
+        expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
+        expect(result).toEqual({ syncedCallsCount: 2 });
         vi.useRealTimers();
     });
 });

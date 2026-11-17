@@ -94,6 +94,8 @@ const statsRow = z.object({
     problematic_count: z.number(),
 });
 
+const countRow = z.object({ count: z.number() });
+
 function toTimestamp(value: Date | null): string | null {
     return value === null ? null : value.toISOString();
 }
@@ -263,23 +265,23 @@ export class CallRepository extends CallRepositoryPort {
         this.logger.setContext(CallRepository.name);
     }
 
-    /**
-     * Upserts each call in its own transaction: a failure on one call leaves the others, already
-     * committed in this batch, saved. The failed call is logged and left for the next sync cycle.
-     */
-    async upsertMany(calls: Call[]): Promise<void> {
-        if (calls.length === 0) return;
+    /** Each call is upserted in its own transaction, so a failure on one does not roll back the rest. */
+    async upsertMany(calls: Call[]): Promise<readonly CallId[]> {
+        if (calls.length === 0) return [];
 
+        const failedCallIds: CallId[] = [];
         for (const call of calls) {
             try {
                 await this.upsertOne(call);
             } catch (error: unknown) {
+                failedCallIds.push(call.callId);
                 this.logger.error(
                     { err: error, callId: call.callId.value },
                     'Vocal AI call upsert failed, will retry on the next sync cycle',
                 );
             }
         }
+        return failedCallIds;
     }
 
     private async upsertOne(call: Call): Promise<void> {
@@ -360,6 +362,7 @@ export class CallRepository extends CallRepositoryPort {
             filter.limit ?? DEFAULT_FIND_BY_FILTER_LIMIT,
             MAX_FIND_BY_FILTER_LIMIT,
         );
+        const offset = filter.offset ?? 0;
         const rows = await executor.any(sql.unsafe`
             SELECT c.call_id, c.project_id, c.manager, c.client, c.call_type, c.call_created_at,
                    c.call_completed_at, c.scored_at, c.rescored_at, c.duration_seconds,
@@ -367,7 +370,8 @@ export class CallRepository extends CallRepositoryPort {
             FROM vocal_ai_calls c
             WHERE ${where}
             ORDER BY c.call_id
-            LIMIT ${limit}`);
+            LIMIT ${limit}
+            OFFSET ${offset}`);
         const parsedRows = rows.map((row) => callRow.parse(row));
         const callIds = parsedRows.map((row) => row.call_id);
         const [metricScoresByCall, tagsByCall, summariesByCall] = await Promise.all([
@@ -383,6 +387,16 @@ export class CallRepository extends CallRepositoryPort {
                 summariesByCall.get(row.call_id) ?? [],
             ),
         );
+    }
+
+    async countByFilter(filter: CallFilter): Promise<number> {
+        const executor = this.transactions.executor();
+        const where = buildWhere(filter);
+        const row = await executor.one(sql.unsafe`
+            SELECT count(*)::int AS count
+            FROM vocal_ai_calls c
+            WHERE ${where}`);
+        return countRow.parse(row).count;
     }
 
     async aggregateStats(filter: CallFilter): Promise<CallStats> {

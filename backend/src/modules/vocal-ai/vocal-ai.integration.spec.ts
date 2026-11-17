@@ -196,23 +196,17 @@ describe.skipIf(adminUrl === undefined)('vocal-ai module integration', () => {
         const backfillResult = await backfillProjectCalls.execute(FIXTURE_PROJECT_ID);
         expect(backfillResult.syncedCallsCount).toBe(1);
 
-        const calls = await listCalls.execute({ projectId: FIXTURE_PROJECT_ID });
+        const { calls } = await listCalls.execute({ projectId: FIXTURE_PROJECT_ID });
         expect(calls.map((call) => call.callId.value)).toEqual([FIXTURE_CALL_ID.value]);
 
         const stats = await getCallStats.execute({ projectId: FIXTURE_PROJECT_ID });
         expect(stats.callCount).toBe(1);
 
-        const firstTranscript = await getCallTranscript.execute(
-            FIXTURE_CALL_ID,
-            FIXTURE_PROJECT_ID,
-        );
+        const firstTranscript = await getCallTranscript.execute(FIXTURE_CALL_ID);
         expect(firstTranscript.map((line) => line.text)).toEqual(['Добрый день!', 'Здравствуйте']);
         expect(gateway.getCallCallCount).toBe(1);
 
-        const secondTranscript = await getCallTranscript.execute(
-            FIXTURE_CALL_ID,
-            FIXTURE_PROJECT_ID,
-        );
+        const secondTranscript = await getCallTranscript.execute(FIXTURE_CALL_ID);
         expect(secondTranscript.map((line) => line.text)).toEqual(['Добрый день!', 'Здравствуйте']);
         expect(gateway.getCallCallCount).toBe(1);
     });

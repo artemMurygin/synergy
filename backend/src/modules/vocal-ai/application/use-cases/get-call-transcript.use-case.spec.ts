@@ -81,7 +81,7 @@ describe('GetCallTranscriptUseCase', () => {
             CallTranscript.create({ callId, lines: [line] }),
         );
 
-        const result = await useCase.execute(callId, projectId);
+        const result = await useCase.execute(callId);
 
         expect(result).toEqual([line]);
         expect(gateway.getCall).not.toHaveBeenCalled();
@@ -120,55 +120,17 @@ describe('GetCallTranscriptUseCase', () => {
         };
         gateway.getCall.mockResolvedValue(detail);
 
-        const result = await useCase.execute(callId, projectId);
+        const result = await useCase.execute(callId);
 
         expect(gateway.getCall).toHaveBeenCalledWith(callId, projectId);
         expect(transcriptRepository.save).toHaveBeenCalledTimes(1);
         expect(result).toEqual([line]);
     });
 
-    it('fetches the transcript using the projectId of the stored call, not the caller-supplied one', async () => {
-        const { callRepository, gateway, useCase } = createFixture();
-        const storedProjectId = 'project-1';
-        const mismatchedArgProjectId = 'project-7';
-        callRepository.findByFilter.mockResolvedValue([buildCall(callId)]);
-        const line = new CallTranscriptLine({
-            callId: 42,
-            lineIndex: 0,
-            speakerName: 'Клиент',
-            speakerRole: 'client',
-            startTimeSeconds: 0,
-            endTimeSeconds: 2,
-            text: 'Добрый день',
-        });
-        gateway.getCall.mockResolvedValue({
-            callId,
-            projectId: storedProjectId,
-            manager: null,
-            client: null,
-            callType: null,
-            callCreatedAt: null,
-            callCompletedAt: null,
-            scoredAt: null,
-            rescoredAt: null,
-            durationSeconds: null,
-            totalScore: null,
-            maxScore: null,
-            metricScores: [],
-            tags: [],
-            summaries: [],
-            transcriptLines: [line],
-        });
-
-        await useCase.execute(callId, mismatchedArgProjectId);
-
-        expect(gateway.getCall).toHaveBeenCalledWith(callId, storedProjectId);
-    });
-
     it('throws an explicit not-found error for an unknown callId instead of calling the gateway', async () => {
         const { gateway, useCase } = createFixture();
 
-        await expect(useCase.execute(callId, projectId)).rejects.toThrow(CallNotFoundError);
+        await expect(useCase.execute(callId)).rejects.toThrow(CallNotFoundError);
         expect(gateway.getCall).not.toHaveBeenCalled();
     });
 });
