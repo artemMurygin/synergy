@@ -233,9 +233,36 @@
   - MH после `npx vite build` на ширинах 700 и 400 px по `WxAFh`, `Elt3T`, `Nk6nR`, `YDMzw`: вложение отправляется и скачивается, меню профиля работает;
   - системная тёмная тема не меняет вид.
 
-## 14. Code review
-> track: review
-> depends: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+## 14. backend tasks: подписанная ссылка на вложение задачи
+> track: backend
+> depends: —
+> specs: task-attachments → «Подписанная ссылка на вложение»
+> arch: Services/AttachmentDownloadTokenPort; Services/JwtAttachmentDownloadToken; Services/CreateAttachmentDownloadLinkUseCase; Services/DownloadAttachmentByTokenUseCase; Services/TaskAttachmentsController
+> files: backend/src/modules/tasks/domain/ports/attachment-download-token.port.ts; backend/src/modules/tasks/infrastructure/jwt/**; backend/src/modules/tasks/application/{create-attachment-download-link,download-attachment-by-token}.use-case*.ts; backend/src/modules/tasks/interface/http/task-attachments.controller*.ts; backend/src/modules/tasks/interface/http/tasks.responses.ts; backend/src/modules/tasks/tasks.module.ts; backend/src/modules/tasks/README.md
+> frames: —
 
-- [ ] 14.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
-- [ ] 14.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
+- [x] 14.1 TDD: `JwtAttachmentDownloadToken` подписывает токен с `aud: 'task-attachment'` и сроком из `FILES_DOWNLOAD_LINK_TTL_SEC`. `verify` даёт false для просроченного токена, токена другого вложения, подделки и токена файла чата (другой `aud`). Без `FILES_DOWNLOAD_TOKEN_SECRET` адаптер сообщает, что ссылки недоступны. Тесты: `backend/src/modules/tasks/infrastructure/jwt/attachment-download-token.service.spec.ts`. Реализация: порт `domain/ports/attachment-download-token.port.ts` и адаптер по образцу `files/infrastructure/jwt/download-token.service.ts`, без импорта из модуля `files`
+- [x] 14.2 TDD: `CreateAttachmentDownloadLinkUseCase` возвращает `{ url: '/tasks/{id}/attachments/{attachmentId}/content?token=…', expiresAt }`. Задачи нет или вложение не из этой задачи — 404; нет доступа на чтение — та же ошибка, что у `DownloadAttachmentUseCase`; нет секрета — `TASK_ATTACHMENT_LINKS_UNAVAILABLE` (503). `DownloadAttachmentByTokenUseCase` при неверном токене — 403 `TASK_ATTACHMENT_TOKEN_INVALID`, если вложения или файла нет — 404, иначе метаданные и поток. Тесты: `backend/src/modules/tasks/application/{create-attachment-download-link,download-attachment-by-token}.use-case.spec.ts`
+- [x] 14.3 TDD: маршруты в `TaskAttachmentsController`: `POST /tasks/:id/attachments/:attachmentId/download-link` (Bearer, 200 `{ url, expiresAt }`, Swagger) и публичный `@Public() GET /tasks/:id/attachments/:attachmentId/content?token=` с `Content-Disposition: attachment` (исходное имя), типом содержимого и `X-Content-Type-Options: nosniff`. Тесты: `task-attachments.controller.spec.ts` (HTTP через supertest: ссылка, скачивание без Authorization, 403, 404, 503). Обновить `backend/src/modules/tasks/README.md`
+
+## 15. manager-helper: скачивание вложений задач по подписанной ссылке
+> track: manager-helper
+> depends: 12, 14
+> specs: task-attachments → «Подписанная ссылка на вложение»; tasks-extension-ui → «Детали задачи»
+> arch: Hooks/MH: taskAttachmentLink; Hooks/MH: downloadFile
+> files: manager-helper/src/shared/tasks-api.ts; manager-helper/src/shared/files-api.ts; manager-helper/src/sidepanel/tasks/**
+> frames: YjjPE
+
+- [x] 15.1 TDD: скачивание вложения задачи в MH. Тесты: `manager-helper/src/shared/tasks-api.test.ts`, `manager-helper/src/sidepanel/tasks/*.test.tsx`. Что проверяется:
+  - запрос `POST /tasks/{id}/attachments/{attachmentId}/download-link`;
+  - `chrome.downloads.download({ url: backendUrl + url, filename: originalName })`;
+  - понятная ошибка при 404 и 503;
+  - прежний путь `downloadAttachment` + `saveBlob` удалён, если его больше никто не использует;
+  - общий код скачивания по ссылке вынесен в `files-api.ts`, чтобы им пользовались и файлы чата.
+
+## 16. Code review
+> track: review
+> depends: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+
+- [ ] 16.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
+- [ ] 16.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
