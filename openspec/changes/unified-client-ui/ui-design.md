@@ -9,7 +9,7 @@
 - **.pen файл:** `design/synergy-design.pen`
 - **Доски:** «Единый дизайн · 01–06» и «Компоненты чата». Они стоят колонкой в порядке `ZqCio`, `N5zJ7`, `CC227`, `RSL0e`, `d34K1`, `QE24F`, `o1X1US`.
 - **UI Kit:** `design/design-kit.lib.pen`, компоненты с префиксом `t:`.
-  - Мастера новых экранов пока лежат во фреймах «Компоненты» досок: `TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`, а также `F6L43` на доске `ZqCio`.
+  - Мастера новых экранов перенесены в UI Kit (`design-kit.lib.pen`), фреймы «Компоненты» (`TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`, `F6L43`) удалены.
   - Группа 1 переносит их в UI Kit. После этого `frames` в tasks.md продолжают указывать на экраны, а мастера ищутся по имени в UI Kit.
 - **Режимы:** Desktop (CC), Tablet (MH ≥ 640 px), Mobile (MH < 640 px).
 
@@ -21,14 +21,14 @@
 | ChatsScreen (CC) + AppShell (CC) | 01 · Чат · Desktop; Desktop со скрытым списком | `VHpuS`, `b4IMkD` (доска `N5zJ7`) | Desktop | Rail `IINg3`, Chat List `p46LHd`, Tool Group `PECc1`, Composer Box `Gt1Xk`, Chat List Item `jmF1A` | ready |
 | ChatsScreen (MH) + SidePanelApp (MH) · tablet | 01 · Чат · Tablet | `WxAFh` | Tablet | Rail `UqH0z`, Chat List `VwA3L`, Header `iShgp`, Tool Group `RQb9x`, Next Steps `GHzRg` | ready |
 | ChatsScreen (MH) + SidePanelApp (MH) · mobile | 01 · Чат · Mobile (чат); Mobile (список) | `Elt3T`, `hTZ3b` | Mobile | Top bar `GboTc` / `PZ3P8`, Tab bar `CEpvB` | ready |
-| Чат — состояния (обе платформы) | 02 · Чат — состояния | секции `IY5Ex`, `y2PJn`, `G9GQ6f`, `pUB2g`, `D4V94`, `ddf2k` (доска `CC227`) | Desktop / Tablet / Mobile | компоненты `TQnaP` | ready |
-| TasksScreen (CC) | 03 · Задачи · Desktop | `qryQB` (секция `wTDH3`) | Desktop | компоненты `VKVbI` | ready |
+| Чат — состояния (обе платформы) | 02 · Чат — состояния | секции `IY5Ex`, `y2PJn`, `G9GQ6f`, `pUB2g`, `D4V94`, `ddf2k` (доска `CC227`) | Desktop / Tablet / Mobile | UI Kit | ready |
+| TasksScreen (CC) | 03 · Задачи · Desktop | `qryQB` (секция `wTDH3`) | Desktop | UI Kit | ready |
 | TasksScreen (MH) · tablet | 03 · Задачи · Tablet, меню «Ещё» открыто | `Nk6nR`, popover `IvT8b` | Tablet | View Segments, More Filters Popover | ready |
 | TasksScreen (MH) · mobile | 03 · Задачи · Mobile (список, детали) | `YDMzw`, `pXHcl` | Mobile | View Segments с «Просрочено» | ready |
-| Детали, создание, состояния задач | секции доски `RSL0e` | `YjjPE`, `FPm0J`, `c0aEh5` | все | `VKVbI` | ready |
-| Уведомления (обе платформы) | 04 · Уведомления | `tx6uv`, `SJ0NJ`, `DNt8I`, `eKukg` (доска `d34K1`) | все | `crdSZ` | ready |
-| ProfileMenu (оба), TelegramScreen (MH), Telegram (CC) | 05 · Профиль и Telegram | `TLMEl`, `JLayI`, `b8m3B`, `G2zsX`, `STkbU`, `nCcY1`, `txD2J` (доска `QE24F`) | все | Profile Menu `bfjks`, `ghJgQ` | ready |
-| AuthGate (CC, MH) | 06 · Авторизация | `xvSk3` (вход, desktop `No7bu`), `J3k93c`, `IDTFu`, `W46ZRR`, `kW2AT`, `k0ym4w`, `Pd6db`, `ZHyFP` (доска `o1X1US`) | все | Auth Brand `R41bE` (логотип), `wn9D5` | ready |
+| Детали, создание, состояния задач | секции доски `RSL0e` | `YjjPE`, `FPm0J`, `c0aEh5` | все | UI Kit | ready |
+| Уведомления (обе платформы) | 04 · Уведомления | `tx6uv`, `SJ0NJ`, `DNt8I`, `eKukg` (доска `d34K1`) | все | UI Kit | ready |
+| ProfileMenu (оба), TelegramScreen (MH), Telegram (CC) | 05 · Профиль и Telegram | `TLMEl`, `JLayI`, `b8m3B`, `G2zsX`, `STkbU`, `nCcY1`, `txD2J` (доска `QE24F`) | все | Profile Menu `t:bkkKv` | ready |
+| AuthGate (CC, MH) | 06 · Авторизация | `xvSk3` (вход, desktop `No7bu`), `J3k93c`, `IDTFu`, `W46ZRR`, `kW2AT`, `k0ym4w`, `Pd6db`, `ZHyFP` (доска `o1X1US`) | все | Auth Brand `t:FgoeA` | ready |
 | OptionsPage (MH) | отдельного макета нет | — | — | примитивы UI Kit и панели Telegram из `QE24F` | — |
 
 Компоненты чата (доска `ZqCio`): Tool Call Row `elTf3`, Tool Group `PECc1`, Tool Call Details `x6HSl`, Chat List Item `jmF1A`, Attachment Tile `jL3uw`, Composer Box `Gt1Xk`, состояния композера `cBn7j`.
@@ -107,11 +107,13 @@
 | Panel Header | `dYQp4` | inline `iShgp` (Chat Header) | Desktop, Tablet |
 | Panel Header · Mobile | `M00qXt` | inline `GboTc` (Top Bar) | Mobile |
 
+Состояние после группы 1 (1.1): фреймы «Компоненты» (`TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`) и `F6L43` удалены, локальные мастера на досках отсутствуют; все экземпляры на досках 01–06 ссылаются на мастера UI Kit (`t:<Node ID>` из таблицы). Инлайн-оболочка (Nav Rail, Tab Bar, Panel Header, Top Bar, Next Steps) заменена экземплярами там, где структура совпадает с мастером; остальные варианты (Next Steps с другим числом элементов, часть Top Bar, 4 `Chat Header`) оставлены инлайн.
+
 `Task Card Body` (`j0YMMO`) не переносился: временный компонент удалён, см. раздел про переход «уведомление → задача».
 
 ### Статус переноса на экземпляры
 - **Сделано:** мастера нарисованы в UI Kit и сохранены; `j0YMMO` удалён; переход «уведомление → задача» (`jIUZ2`, `raaoa`, `BZau2`) собран из карточки задачи доски 03 (`Details Body`).
-- **Не сделано:** экраны досок 01–06 всё ещё ссылаются на локальные мастера (колонка «Был на доске»), фреймы «Компоненты» (`TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`, `F6L43`) не удалены. Причина: открытый `synergy-design.pen` не подхватывает изменения библиотеки без перезагрузки файла, `ref` на `t:<новый ID>` не создаётся. После повторного открытия файла нужен второй проход: заменить `ref` экземпляров на `t:<Node ID>` (ключи `descendants` перенумеровать по соответствию узлов), сверить скриншоты экранов `VHpuS`, `WxAFh`, `Elt3T`, `qryQB`, `Nk6nR`, `YDMzw` и удалить локальные мастера.
+- **Сделано во втором проходе:** экземпляры на досках 01–06 переведены на `t:<Node ID>`, фреймы «Компоненты» удалены. Осталось инлайн (вне списка 1.1): часть Next Steps с иным числом элементов, часть Top Bar (мобильные, 400x64) и 4 Chat Header; для них нет подходящего мастера. Контрольные экраны сверены хэшем развёрнутого дерева и одним скриншотом; у `WxAFh` хэш разошёлся (нормализация `fill_container(N)`), визуально совпадает.
 
 ## Кандидаты на удаление
 Список для согласования с пользователем. Ничего не удалено. Фреймы Portal и презентаций не входят.
@@ -139,7 +141,7 @@ UI Kit «Дизайн-система» (`t:XyiTL`, фрейм `Решение 01
 | `CEjNm` | CC · 05 · Telegram | Дубль доски 05 |
 | `G27Xz`, `Q2eC5y` | Entity Header MH и CC | Заголовки старых документов, нужны только вместе с ними |
 | `QT961`, `p9kkD`, `vJjOt`, `bA4VT`, `CNwJW`, `c8WHFT`, `kAf4d`, `O82dg`, `E0GD5a` | Разделители внутри `DILPP` | Уходят вместе с `DILPP` |
-| `TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`, `F6L43` | Фреймы «Компоненты» на досках | Локальные мастера, дубли UI Kit; удалять после второго прохода переноса экземпляров |
+| `TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`, `F6L43` | Фреймы «Компоненты» на досках | Удалены в группе 1 (1.1); мастера в UI Kit |
 | `ZqCio` (`HU7mY`, `J6jutl`, `JQPUf`) | Компоненты чата (черновик) | Дубль досок 01 и 02. Оставить `cBn7j` (состояния композера) и `W8ash3` (редактирование) как заделы, пока они не перенесены |
 
 Вопрос пользователю: удалить фреймы из списка (кроме `ntr1Z`, `cBn7j`, `W8ash3`) после второго прохода переноса экземпляров?

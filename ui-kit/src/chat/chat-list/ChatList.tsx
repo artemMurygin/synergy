@@ -1,8 +1,8 @@
 import { ChatListItem, type ChatListThread } from './ChatListItem'
 import { ChatListSkeleton } from './ChatListSkeleton'
 import { groupOf, type ChatGroup } from './format-list-time'
-import { CloudOff, MessagesSquare, PanelLeftClose, Plus } from '../../icons'
-import type { ReactNode } from 'react'
+import { CloudOff, MessagesSquare, PanelLeftClose, Plus, Search, X } from '../../icons'
+import { useState, type ReactNode } from 'react'
 
 export type { ChatListThread }
 
@@ -43,12 +43,15 @@ const SECONDARY =
 /** List of chats (Chat List): compact rows grouped by day, create, rename, delete, hide. */
 export function ChatList(props: ChatListProps) {
   const { threads, activeId, runningIds, state, onSelect, onCreate, onRename, onDelete, onRetry } = props
+  const [query, setQuery] = useState('')
   if (props.collapsed) return null
 
   const now = new Date()
+  const needle = query.trim().toLocaleLowerCase()
+  const visible = needle ? threads.filter((thread) => thread.title.toLocaleLowerCase().includes(needle)) : threads
   const groups = GROUPS.map((name) => ({
     name,
-    items: threads.filter((thread) => groupOf(thread.lastActivityAt, now) === name),
+    items: visible.filter((thread) => groupOf(thread.lastActivityAt, now) === name),
   })).filter((group) => group.items.length > 0)
 
   return (
@@ -73,6 +76,32 @@ export function ChatList(props: ChatListProps) {
           <PanelLeftClose size={18} />
         </button>
       </header>
+
+      {state === 'ready' && (
+        <div className="shrink-0 px-3 pb-2">
+          <label className="flex h-9 items-center gap-2 rounded-full bg-surface-alt px-3.5 text-ink-40 focus-within:ring-2 focus-within:ring-brand-red/40">
+            <Search size={16} />
+            <input
+              type="search"
+              aria-label="Поиск"
+              placeholder="Поиск"
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); }}
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-40 [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Очистить поиск"
+                onClick={() => { setQuery(''); }}
+                className="flex size-5 items-center justify-center rounded-full text-ink-60 outline-none hover:text-ink"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </label>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
         {state === 'loading' && <ChatListSkeleton />}
@@ -99,6 +128,9 @@ export function ChatList(props: ChatListProps) {
               Начать чат
             </button>
           </Notice>
+        )}
+        {state === 'ready' && groups.length === 0 && (
+          <p className="px-3 py-6 text-center text-[13px] text-ink-60">Ничего не найдено</p>
         )}
         {state === 'ready' &&
           groups.map((group) => (

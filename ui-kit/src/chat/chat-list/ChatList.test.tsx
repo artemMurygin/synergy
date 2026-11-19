@@ -144,4 +144,26 @@ describe('ChatList collapsed', () => {
     )
     expect(container.firstChild).toBeNull()
   })
+  describe('search', () => {
+    it('filters by a substring of the title ignoring case and hides empty date groups', async () => {
+      const { user } = setup()
+      expect(screen.getByText('Сегодня')).toBeTruthy()
+      await user.type(screen.getByRole('searchbox', { name: 'Поиск' }), 'СКИДКИ')
+      expect(screen.queryByText('Цены на МВА')).toBeNull()
+      expect(screen.getByText('Скидки для корпоративных клиентов')).toBeTruthy()
+      expect(screen.queryByText('Сегодня')).toBeNull()
+      expect(screen.getByText('Ранее')).toBeTruthy()
+    })
+
+    it('shows "Ничего не найдено" without matches and restores the list on clear', async () => {
+      const { user } = setup()
+      const field = screen.getByRole('searchbox', { name: 'Поиск' })
+      await user.type(field, 'zzz')
+      expect(screen.getByText('Ничего не найдено')).toBeTruthy()
+      await user.clear(field)
+      expect(screen.queryByText('Ничего не найдено')).toBeNull()
+      expect(screen.getByText('Цены на МВА')).toBeTruthy()
+      expect(screen.getByText('Скидки для корпоративных клиентов')).toBeTruthy()
+    })
+  })
 })
