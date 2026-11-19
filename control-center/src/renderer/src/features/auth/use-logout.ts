@@ -6,5 +6,5 @@ export interface LogoutResult {
 }
 
 export function useLogout(): UseMutationResult<LogoutResult, Error, void> {
-  return useMutation<LogoutResult, Error, void>({ mutationFn: () => logout() })
+  return useMutation<LogoutResult>({ mutationFn: () => logout() })
 }

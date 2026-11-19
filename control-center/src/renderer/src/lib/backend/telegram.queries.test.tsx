@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -85,11 +86,11 @@ describe('useSetTelegramNotifications', () => {
     const { client, wrapper } = setup()
     client.setQueryData(TELEGRAM_LINK_KEY, linked)
     const { result } = renderHook(() => useSetTelegramNotifications(), { wrapper })
-    act(() => result.current.mutate(false))
-    await waitFor(() => expect(statusOf(client)?.notificationsEnabled).toBe(false))
+    act(() => { result.current.mutate(false); })
+    await waitFor(() => { expect(statusOf(client)?.notificationsEnabled).toBe(false); })
     expect(telegramApi.setTelegramNotifications).toHaveBeenCalledWith(false)
-    await act(async () => answer.resolve({ ...linked, notificationsEnabled: false, username: 'renamed' }))
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await act(async () => { answer.resolve({ ...linked, notificationsEnabled: false, username: 'renamed' }); })
+    await waitFor(() => { expect(result.current.isSuccess).toBe(true); })
     expect(statusOf(client)).toEqual({ ...linked, notificationsEnabled: false, username: 'renamed' })
   })
 
@@ -99,10 +100,10 @@ describe('useSetTelegramNotifications', () => {
     const { client, wrapper } = setup()
     client.setQueryData(TELEGRAM_LINK_KEY, linked)
     const { result } = renderHook(() => useSetTelegramNotifications(), { wrapper })
-    act(() => result.current.mutate(false))
-    await waitFor(() => expect(statusOf(client)?.notificationsEnabled).toBe(false))
-    await act(async () => answer.reject(new BackendError('Не удалось')))
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => { result.current.mutate(false); })
+    await waitFor(() => { expect(statusOf(client)?.notificationsEnabled).toBe(false); })
+    await act(async () => { answer.reject(new BackendError('Не удалось')); })
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(statusOf(client)?.notificationsEnabled).toBe(true)
     expect(result.current.error?.message).toBe('Не удалось')
   })
@@ -132,7 +133,9 @@ describe('useUnlinkTelegram', () => {
     await act(async () => {
       await result.current.mutateAsync().catch(() => undefined)
     })
-    expect(result.current.isError).toBe(true)
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true)
+    })
     expect(statusOf(client)).toEqual(linked)
   })
 })

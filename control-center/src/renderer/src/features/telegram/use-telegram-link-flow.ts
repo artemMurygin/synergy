@@ -97,17 +97,19 @@ export function useTelegramLinkFlow(): TelegramLinkFlow {
 
   useEffect(() => {
     if (!isWaiting) return
-    const timer = setInterval(() => setNowMs(Date.now()), COUNTDOWN_TICK_MS)
-    return () => clearInterval(timer)
+    const timer = setInterval(() => { setNowMs(Date.now()); }, COUNTDOWN_TICK_MS)
+    return () => { clearInterval(timer); }
   }, [isWaiting])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the countdown reaching zero is an event of the timer, not derivable from props
     if (isWaiting && remainingMs === 0) setPhase({ name: 'expired' })
   }, [isWaiting, remainingMs])
 
   useEffect(() => {
     if (!isLinked) return
     attemptRef.current += 1
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the server reports the account as linked: the flow in progress is over
     setPhase(IDLE)
   }, [isLinked])
 
@@ -145,12 +147,12 @@ export function useTelegramLinkFlow(): TelegramLinkFlow {
 
   const { mutate: setNotifications } = notificationsMutation
   const toggleNotifications = useCallback(
-    (isEnabled: boolean) => setNotifications(isEnabled),
+    (isEnabled: boolean) => { setNotifications(isEnabled); },
     [setNotifications]
   )
 
   const { mutate: unlinkAccount } = unlinkMutation
-  const unlink = useCallback(() => unlinkAccount(), [unlinkAccount])
+  const unlink = useCallback(() => { unlinkAccount(); }, [unlinkAccount])
 
   const state = deriveState(phase, remainingMs, status, statusQuery.isError, unlinkMutation.isPending)
   const statusErrorMessage = status === undefined && statusQuery.isError ? messageOf(statusQuery.error) : null

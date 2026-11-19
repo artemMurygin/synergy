@@ -84,7 +84,7 @@ const attachmentPath = (taskId: string, attachmentId: string): string =>
 export async function listTasks(filters: TaskFilters): Promise<TaskPage> {
   const { page, ...rest } = filters;
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(rest)) {
+  for (const [key, value] of Object.entries<string | number | boolean | undefined>(rest)) {
     if (value === undefined || value === "") continue;
     query.set(key, String(value));
   }

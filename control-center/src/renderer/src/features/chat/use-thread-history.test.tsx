@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -32,7 +33,7 @@ describe('useThreadHistory', () => {
     const { result } = renderHook(() => useThreadHistory('t1'), { wrapper: wrapper() })
     expect(result.current.isInitialLoad).toBe(true)
     expect(result.current.messages).toEqual([])
-    await waitFor(() => expect(result.current.isInitialLoad).toBe(false))
+    await waitFor(() => { expect(result.current.isInitialLoad).toBe(false); })
     expect(result.current.messages).toHaveLength(1)
     expect(result.current.running).toBe(true)
     await act(async () => {
@@ -44,7 +45,7 @@ describe('useThreadHistory', () => {
   it('404 yields ThreadNotFoundError and resets the active chat to null', async () => {
     vi.spyOn(api, 'getThreadHistory').mockRejectedValue(new ThreadNotFoundError('gone'))
     const { result } = renderHook(() => useThreadHistory('t1'), { wrapper: wrapper() })
-    await waitFor(() => expect(result.current.error).toBeInstanceOf(ThreadNotFoundError))
+    await waitFor(() => { expect(result.current.error).toBeInstanceOf(ThreadNotFoundError); })
     expect(useChatStore.getState().activeThreadId).toBeNull()
   })
 
@@ -62,7 +63,7 @@ describe('useThreadHistory', () => {
       initialProps: { id: 'a' }
     })
     rerender({ id: 'b' })
-    await waitFor(() => expect(result.current.messages[0]?.content).toBe('from-b'))
+    await waitFor(() => { expect(result.current.messages[0]?.content).toBe('from-b'); })
     await act(async () => {
       resolveA(history('from-a') as never)
     })

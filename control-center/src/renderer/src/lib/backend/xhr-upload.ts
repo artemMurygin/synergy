@@ -39,7 +39,7 @@ export function xhrUpload<T>(
       return;
     }
     const xhr = new XMLHttpRequest();
-    const onAbort = (): void => xhr.abort();
+    const onAbort = (): void => { xhr.abort(); };
     const cleanup = (): void => signal?.removeEventListener("abort", onAbort);
 
     xhr.open("POST", `${BACKEND_ORIGIN}${path}`);

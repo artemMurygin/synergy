@@ -36,7 +36,7 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'sidePanel', 'notifications', 'alarms'],
+  permissions: ['storage', 'sidePanel', 'notifications', 'alarms', 'downloads'],
   host_permissions: ['http://localhost/*', 'http://127.0.0.1/*', 'http://77.105.146.171/*'],
   optional_host_permissions: ['https://*/*', 'http://*/*'],
 })

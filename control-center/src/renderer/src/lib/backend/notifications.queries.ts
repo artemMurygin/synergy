@@ -34,7 +34,7 @@ export const unreadCountQuery = () =>
     queryFn: () => notificationsApi.getUnreadCount()
   })
 
-export function flattenNotifications(data: InfiniteData<NotificationPage, unknown> | undefined): Notification[] {
+export function flattenNotifications(data: InfiniteData<NotificationPage> | undefined): Notification[] {
   if (data === undefined) return []
   const seenIds = new Set<string>()
   const notifications: Notification[] = []
@@ -147,13 +147,14 @@ export function useMarkNotificationRead() {
       }
       return snapshot
     },
-    onError: (_error, _id, snapshot) => restoreSnapshot(queryClient, snapshot),
-    onSuccess: ({ unreadCount }) => setUnreadCount(queryClient, unreadCount)
+    onError: (_error, _id, snapshot) => { restoreSnapshot(queryClient, snapshot); },
+    onSuccess: ({ unreadCount }) => { setUnreadCount(queryClient, unreadCount); }
   })
 }
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- the action takes no variables: `void` lets callers omit the argument
   return useMutation<UnreadCount, Error, void, CacheSnapshot>({
     mutationFn: () => notificationsApi.markAllNotificationsRead(),
     onMutate: async () => {
@@ -163,7 +164,7 @@ export function useMarkAllNotificationsRead() {
       setUnreadCount(queryClient, 0)
       return snapshot
     },
-    onError: (_error, _variables, snapshot) => restoreSnapshot(queryClient, snapshot),
-    onSuccess: ({ unreadCount }) => setUnreadCount(queryClient, unreadCount)
+    onError: (_error, _variables, snapshot) => { restoreSnapshot(queryClient, snapshot); },
+    onSuccess: ({ unreadCount }) => { setUnreadCount(queryClient, unreadCount); }
   })
 }

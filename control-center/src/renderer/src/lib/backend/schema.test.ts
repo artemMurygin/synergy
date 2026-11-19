@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unused-vars -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { describe, expect, it } from "vitest";
 import { ThreadHistorySchema, ThreadSchema } from "./schema";
 

@@ -25,7 +25,7 @@ const A = makeTask('a', { title: 'Отчёт' })
 const B = makeTask('b', { title: 'КП', status: 'in_progress' })
 
 function setup() {
-  return render(<TasksSplitView userId="u1" login="anna" switcher={<div>переключатель</div>} />)
+  return render(<TasksSplitView userId="u1" login="anna" trailing={<div>уведомления</div>} />)
 }
 
 beforeEach(() => {
@@ -58,7 +58,7 @@ describe('TasksSplitView wide panel (>= 640)', () => {
     expect(row.closest('[hidden]')).toBeNull()
     const hint = screen.getByText('Выберите задачу')
     expect(hint.closest('[hidden]')).toBeNull()
-    expect(screen.getByText('переключатель')).toBeTruthy()
+    expect(screen.getByText('уведомления')).toBeTruthy()
   })
 
   it('selects a task and shows its details next to the list without "Назад"', async () => {
@@ -159,13 +159,13 @@ describe('TasksSplitView narrowing (< 640)', () => {
     expect(back.closest('[hidden]')).toBeNull()
   })
 
-  it('keeps one panel header with the switcher above the task details', async () => {
+  it('keeps one panel header with the trailing slot above the task details', async () => {
     setup()
     fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
     await screen.findByRole('heading', { name: 'Отчёт' })
     resizeTo(400)
-    const switcher = screen.getByText('переключатель')
-    expect(switcher.closest('[hidden]')).toBeNull()
+    const trailing = screen.getByText('уведомления')
+    expect(trailing.closest('[hidden]')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Новая задача' })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
   })
@@ -268,7 +268,7 @@ describe('TasksSplitView requested task', () => {
       <TasksSplitView
         userId="u1"
         login="anna"
-        switcher={null}
+       
         requestedTaskId="b"
         onTaskRequestHandled={onTaskRequestHandled}
       />,
@@ -280,18 +280,18 @@ describe('TasksSplitView requested task', () => {
 
   it('switches to a task requested later', async () => {
     const { rerender } = render(
-      <TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId={null} />,
+      <TasksSplitView userId="u1" login="anna" requestedTaskId={null} />,
     )
     await screen.findByRole('button', { name: 'Отчёт' })
     expect(screen.getByText('Выберите задачу')).toBeTruthy()
-    rerender(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="a" />)
+    rerender(<TasksSplitView userId="u1" login="anna" requestedTaskId="a" />)
     expect(await screen.findByRole('heading', { name: 'Отчёт' })).toBeTruthy()
   })
 
   it('shows "Задача не найдена" for a requested task that was deleted', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 380 })
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
-    render(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="gone" />)
+    render(<TasksSplitView userId="u1" login="anna" requestedTaskId="gone" />)
     expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
     expect(
       screen.getByText(
@@ -305,7 +305,7 @@ describe('TasksSplitView requested task', () => {
 
   it('shows "Задача не найдена" next to the list on a wide panel', async () => {
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
-    render(<TasksSplitView userId="u1" login="anna" switcher={null} requestedTaskId="gone" />)
+    render(<TasksSplitView userId="u1" login="anna" requestedTaskId="gone" />)
     expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Отчёт' }).closest('[hidden]')).toBeNull()
   })

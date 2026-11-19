@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises, @typescript-eslint/no-unused-expressions, @typescript-eslint/require-await, @typescript-eslint/restrict-template-expressions -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -56,7 +57,7 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
 }
 
 async function readBody(request: IncomingMessage): Promise<void> {
-  for await (const chunk of request) void chunk
+  for await (const chunk of request) chunk
 }
 
 async function startBackend(): Promise<FakeBackend> {
@@ -80,17 +81,17 @@ async function startBackend(): Promise<FakeBackend> {
     requests.push({ method: request.method ?? '', path, authorization })
     const isExpired = authorization !== undefined && expiredAccessTokens.has(authorization.slice('Bearer '.length))
 
-    if (path === '/auth/login') return sendJson(response, 200, issue())
+    if (path === '/auth/login') { sendJson(response, 200, issue()); return; }
     if (path === '/auth/refresh') {
       generation += 1
-      return sendJson(response, 200, issue())
+      sendJson(response, 200, issue()); return;
     }
-    if (path === '/auth/me') return sendJson(response, 200, { id: 'user-1', login: 'admin' })
+    if (path === '/auth/me') { sendJson(response, 200, { id: 'user-1', login: 'admin' }); return; }
     if (authorization === undefined || isExpired) {
       if (expiredResponseDelaysMs.length > 0) {
         const delayMs = expiredResponseDelaysMs[expiredHitCount] ?? 0
         expiredHitCount += 1
-        setTimeout(() => sendJson(response, 401, { code: 'TOKEN_EXPIRED' }), delayMs)
+        setTimeout(() => { sendJson(response, 401, { code: 'TOKEN_EXPIRED' }); }, delayMs)
         return
       }
       pendingExpired.push(response)
@@ -100,7 +101,7 @@ async function startBackend(): Promise<FakeBackend> {
       for (const entry of waiting) sendJson(entry, 401, { code: 'TOKEN_EXPIRED' })
       return
     }
-    if (path === '/threads') return sendJson(response, 200, [{ id: 'thread-1' }])
+    if (path === '/threads') { sendJson(response, 200, [{ id: 'thread-1' }]); return; }
     if (path === '/agent') {
       response.writeHead(200, { 'content-type': 'text/plain' })
       for (let index = 0; index < STREAM_CHUNK_COUNT; index += 1) {
@@ -109,7 +110,7 @@ async function startBackend(): Promise<FakeBackend> {
       }
       return response.end()
     }
-    return sendJson(response, 404, {})
+    sendJson(response, 404, {});
   })
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -133,7 +134,7 @@ async function startBackend(): Promise<FakeBackend> {
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections()
-        server.close(() => resolve())
+        server.close(() => { resolve(); })
       })
   }
 }

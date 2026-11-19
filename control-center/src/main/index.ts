@@ -36,10 +36,10 @@ function createWindow(): void {
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  win.on('ready-to-show', () => { win.show(); })
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isSafeExternalUrl(url)) shell.openExternal(url)
+    if (isSafeExternalUrl(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -50,13 +50,13 @@ function createWindow(): void {
   })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'))
+    void win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   let auth: AuthService
   try {
     const backendUrl = getBackendUrl()
@@ -70,7 +70,7 @@ app.whenReady().then(() => {
     const notifications = createNotificationsConnection(backendUrl, auth)
     registerNotificationsIpc({ ipcMain, socket: notifications, getWindows: () => BrowserWindow.getAllWindows() })
     registerPortalIpc({ ipcMain, portalUrl: getPortalUrl(), openExternal: (url) => shell.openExternal(url) })
-    app.on('before-quit', () => notifications.dispose())
+    app.on('before-quit', () => { notifications.dispose(); })
   } catch (error) {
     // A bad CC_BACKEND_URL must not leave a windowless process behind
     dialog.showErrorBox('Control Center', error instanceof Error ? error.message : String(error))

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unnecessary-condition -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 /** Minimal XMLHttpRequest stand-in for upload tests. */
 export class FakeXhr {
   static last: FakeXhr;

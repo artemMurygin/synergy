@@ -67,7 +67,11 @@ function emit(event: BaseEvent & Record<string, unknown>) {
   })
 }
 
-const card = (name: string) => screen.getByText(name).closest('li') as HTMLElement
+function card(name: string): HTMLElement {
+  const item = screen.getByText(name).closest('li')
+  if (item === null) throw new Error(`no card for ${name}`)
+  return item
+}
 
 beforeEach(() => {
   agent = new FakeAgent({ url: 'cc-api://backend/agent', threadId: 't1' })
@@ -115,7 +119,7 @@ describe('files and system messages in the feed', () => {
   it('adds the card of a file attached during the stream before the answer ends', async () => {
     history([{ id: 'u1', role: 'user', content: 'Спикер 1 — Анна', attachments: [], source: 'run' }])
     const user = mount()
-    await user.type(await screen.findByPlaceholderText('Вопрос агенту'), 'Спикер 2 — Олег{Enter}')
+    await user.type(await screen.findByPlaceholderText('Сообщение агенту'), 'Спикер 2 — Олег{Enter}')
     await waitFor(() => {
       expect(agent.inputs.length).toBeGreaterThan(0)
     })
@@ -137,7 +141,7 @@ describe('files and system messages in the feed', () => {
     })
     expect(screen.getByText('Расшифровка — встреча-12-ноя.docx')).toBeTruthy()
     // the next question carries the answer with the file card as plain text history
-    await user.type(screen.getByPlaceholderText('Вопрос агенту'), 'Спасибо{Enter}')
+    await user.type(screen.getByPlaceholderText('Сообщение агенту'), 'Спасибо{Enter}')
     await waitFor(() => {
       expect(agent.inputs).toHaveLength(2)
     })

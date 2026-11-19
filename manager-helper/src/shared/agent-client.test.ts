@@ -35,6 +35,52 @@ describe('createAgent', () => {
   })
 })
 
+describe('createAgent runs', () => {
+  const input = (forwardedProps: Record<string, unknown>) => ({
+    threadId: 't1',
+    runId: 'r1',
+    messages: [],
+    tools: [],
+    context: [],
+    state: {},
+    forwardedProps,
+  })
+
+  it('lifts the attached file ids to forwardedProps.fileIds (withFileIds)', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 500 }))
+    const agent = await createAgent('t1')
+    await new Promise<void>((resolve) => {
+      agent.run(input({ runConfig: { fileIds: ['f1', 'f2'] } })).subscribe({
+        error: () => {
+          resolve()
+        },
+      })
+    })
+    const body: unknown = JSON.parse(await new Response(firstInit().body).text())
+    expect(body).toMatchObject({ forwardedProps: { fileIds: ['f1', 'f2'] } })
+  })
+
+  it('turns a network failure into a text that points at the extension settings', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+    const agent = await createAgent('t1')
+    const error = await new Promise<unknown>((resolve) => {
+      agent.run(input({})).subscribe({ error: resolve })
+    })
+    expect(error).toBeInstanceOf(AskError)
+    expect(error).toHaveProperty('message', expect.stringContaining('настройках расширения'))
+  })
+
+  it('turns HTTP 409 into a run conflict with a ready text', async () => {
+    fetchMock.mockResolvedValue(new Response('busy', { status: 409 }))
+    const agent = await createAgent('t1')
+    const error = await new Promise<unknown>((resolve) => {
+      agent.run(input({})).subscribe({ error: resolve })
+    })
+    expect(isRunConflict(error)).toBe(true)
+    expect(error).toHaveProperty('message', expect.stringContaining('агент ещё отвечает'))
+  })
+})
+
 describe('cancelRun', () => {
   it('posts to /threads/:id/run/cancel and accepts 204', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }))

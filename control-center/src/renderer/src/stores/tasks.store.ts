@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { TaskView } from '@/features/tasks/view-filter'
+import { TASK_VIEW_DEFAULT, type TaskView } from '@synergy/ui-kit'
 import type { TaskStatus } from '@/lib/backend/tasks.schema'
 
 export type TaskSort = 'deadline' | 'createdAt' | 'updatedAt'
@@ -24,14 +24,14 @@ interface TasksActions {
   setOrder: (order: TaskOrder) => void
   setPage: (page: number) => void
   selectTask: (id: string | null) => void
-  /** Back to "all" without status or search; sorting and selection stay. */
+  /** Back to the default view without status or search; sorting and selection stay. */
   resetFilters: () => void
 }
 
 export type TasksState = TasksData & TasksActions
 
 export const INITIAL_TASKS_STATE: TasksData = {
-  view: 'all',
+  view: TASK_VIEW_DEFAULT,
   status: null,
   search: '',
   sort: 'createdAt',
@@ -43,12 +43,12 @@ export const INITIAL_TASKS_STATE: TasksData = {
 // Every filter or sort change returns to the first page.
 export const useTasksStore = create<TasksState>((set) => ({
   ...INITIAL_TASKS_STATE,
-  setView: (view) => set({ view, page: 1 }),
-  setStatus: (status) => set({ status, page: 1 }),
-  setSearch: (search) => set({ search, page: 1 }),
-  setSort: (sort) => set({ sort, page: 1 }),
-  setOrder: (order) => set({ order, page: 1 }),
-  setPage: (page) => set({ page }),
-  selectTask: (selectedTaskId) => set({ selectedTaskId }),
-  resetFilters: () => set({ view: 'all', status: null, search: '', page: 1 })
+  setView: (view) => { set({ view, page: 1 }); },
+  setStatus: (status) => { set({ status, page: 1 }); },
+  setSearch: (search) => { set({ search, page: 1 }); },
+  setSort: (sort) => { set({ sort, page: 1 }); },
+  setOrder: (order) => { set({ order, page: 1 }); },
+  setPage: (page) => { set({ page }); },
+  selectTask: (selectedTaskId) => { set({ selectedTaskId }); },
+  resetFilters: () => { set({ view: TASK_VIEW_DEFAULT, status: null, search: '', page: 1 }); }
 }))

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fetchMock = vi.hoisted(() => vi.fn())
@@ -313,11 +314,11 @@ describe('forward', () => {
     fetchMock.mockImplementation(
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
-          init.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+          init.signal?.addEventListener('abort', () => { reject(new Error('aborted')); })
         })
     )
     const pending = forward(new Request('cc-api://backend/threads'), BACKEND, auth)
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    await vi.waitFor(() => { expect(fetchMock).toHaveBeenCalled(); })
     sessionController.abort()
     const res = await pending
     expect(res.status).toBe(502)

@@ -1,8 +1,7 @@
-import { CircleAlert } from 'lucide-react'
+import { RunNotice, type MessageFile } from '@synergy/ui-kit'
+import { CircleAlert } from '@synergy/ui-kit/icons'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useDownloadFile } from '@/lib/backend/files.queries'
-import type { MessageFile } from './message-files'
-import { RunNotice } from './RunNotice'
 
 export const DOWNLOAD_FAILED_TITLE = 'Не удалось скачать файл'
 
@@ -64,7 +63,7 @@ export function DownloadErrorNotice() {
     <RunNotice
       tone="error"
       role="alert"
-      icon={<CircleAlert className="size-4" />}
+      icon={<CircleAlert size={18} />}
       title={DOWNLOAD_FAILED_TITLE}
       text={failedName}
       actionLabel="Закрыть"

@@ -8,5 +8,5 @@ interface SessionStoreState {
 
 export const useSessionStore = create<SessionStoreState>((set) => ({
   snapshot: { state: 'restoring', user: null },
-  setSnapshot: (snapshot) => set({ snapshot })
+  setSnapshot: (snapshot) => { set({ snapshot }); }
 }))

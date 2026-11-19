@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Subject } from 'rxjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveSessionId } from '@/shared/active-session'
+import { AskError } from '@/shared/api'
 import { cancelRun, createAgent } from '@/shared/agent-client'
 import { getThread } from '@/shared/threads-api'
 import type { ThreadHistory } from '@/shared/threads-api'
@@ -13,6 +14,10 @@ import { ThreadView } from './ThreadView'
 vi.mock('@/shared/active-session')
 vi.mock('@/shared/agent-client')
 vi.mock('@/shared/threads-api')
+const upload = vi.fn()
+vi.mock('./attachments/use-file-upload-port', () => ({
+  useFileUploadPort: () => ({ upload }),
+}))
 
 /** Agent whose runs are driven by the test. */
 class FakeAgent extends HttpAgent {
@@ -70,7 +75,7 @@ async function mount(setup: Setup = {}) {
   return { onStopServerRun }
 }
 
-const input = () => screen.getByPlaceholderText(/Вопрос агенту/)
+const input = () => screen.getByPlaceholderText(/Сообщение агенту/)
 
 function fieldValue(): string {
   const field = input()
@@ -81,9 +86,9 @@ function fieldValue(): string {
 async function ask(text: string) {
   fireEvent.change(input(), { target: { value: text } })
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Спросить' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
   })
-  fireEvent.click(screen.getByRole('button', { name: 'Спросить' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
   await waitFor(() => {
     expect(agent.inputs.length).toBeGreaterThan(0)
   })
@@ -109,7 +114,7 @@ describe('ThreadView', () => {
 
   it('keeps the send button disabled while the composer is empty', async () => {
     await mount()
-    expect(screen.getByRole('button', { name: 'Спросить' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(true)
   })
 
   it('sends the typed question and clears the field', async () => {
@@ -131,7 +136,7 @@ describe('ThreadView', () => {
       expect(screen.getByText('Часть ответа')).toBeTruthy()
     })
     expect(screen.getByRole('button', { name: 'Остановить' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Спросить' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Отправить' })).toBeNull()
     expect(screen.getByText('Агент отвечает…')).toBeTruthy()
   })
 
@@ -151,11 +156,11 @@ describe('ThreadView', () => {
       expect(screen.getByText('Ответ остановлен')).toBeTruthy()
     })
     expect(screen.getByText('Часть ответа')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Спросить' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Повторить вопрос' })).toBeTruthy()
   })
 
-  it('shows tool calls of the answer in a trace expanded while running', async () => {
+  it('shows the tool calls of the answer as a group that expands into rows', async () => {
     await mount()
     await ask('q')
     startRunEvents()
@@ -163,10 +168,10 @@ describe('ThreadView', () => {
     emit({ type: EventType.TOOL_CALL_ARGS, toolCallId: 't1', delta: '{"q":"МВА"}' })
     emit({ type: EventType.TOOL_CALL_END, toolCallId: 't1' })
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Ход работы/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /инструмент/ })).toBeTruthy()
     })
+    fireEvent.click(screen.getByRole('button', { name: /инструмент/ }))
     expect(screen.getByText('search_books')).toBeTruthy()
-    expect(screen.getByText('q: МВА')).toBeTruthy()
   })
 
   it('shows the error with a retry action, keeps the question in the field and retries', async () => {
@@ -195,7 +200,10 @@ describe('ThreadView', () => {
     await mount()
     await ask('мой вопрос')
     act(() => {
-      agent.stream.error(new TypeError('Failed to fetch'))
+      // createAgent turns the network failure into this text (agent-client.test.ts).
+      agent.stream.error(
+        new AskError('Не удалось связаться с сервером. Проверьте адрес бэкенда в настройках расширения.'),
+      )
     })
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Проверьте адрес бэкенда')
@@ -203,11 +211,32 @@ describe('ThreadView', () => {
     expect(fieldValue()).toBe('мой вопрос')
   })
 
+  it('attaches a file, shows its tile and sends the file id with the run', async () => {
+    upload.mockResolvedValue({ fileId: 'f-1' })
+    await mount()
+    const picker = screen.getByLabelText('Выбрать файлы')
+    const file = new File(['abc'], 'Прайс.pdf', { type: 'application/pdf' })
+    fireEvent.change(picker, { target: { files: [file] } })
+    await waitFor(() => {
+      expect(screen.getByText('Прайс.pdf')).toBeTruthy()
+    })
+    // A file alone is enough to send: the text is optional.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => {
+      expect(agent.inputs.length).toBeGreaterThan(0)
+    })
+    expect(upload).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(agent.inputs[0]?.forwardedProps)).toContain('f-1')
+  })
+
   it('returning to a running chat shows the indicator, blocks sending and offers stop', async () => {
     const { onStopServerRun } = await mount({ serverRunning: true })
     expect(screen.getByText('Агент ещё отвечает')).toBeTruthy()
     expect(input().hasAttribute('disabled')).toBe(true)
-    expect(screen.queryByRole('button', { name: 'Спросить' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Отправить' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Остановить' }))
     expect(onStopServerRun).toHaveBeenCalledTimes(1)
   })

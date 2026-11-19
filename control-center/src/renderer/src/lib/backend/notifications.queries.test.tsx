@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClient, QueryClientProvider, type InfiniteData } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -110,13 +111,13 @@ describe('useMarkNotificationRead', () => {
     const { client, wrapper } = setup()
     seed(client, [page([mk('a'), mk('b')])], 2)
     const { result } = renderHook(() => useMarkNotificationRead(), { wrapper })
-    act(() => result.current.mutate('a'))
-    await waitFor(() => expect(listOf(client)[0].readAt).not.toBeNull())
+    act(() => { result.current.mutate('a'); })
+    await waitFor(() => { expect(listOf(client)[0].readAt).not.toBeNull(); })
     expect(listOf(client)[1].readAt).toBeNull()
     expect(countOf(client)).toBe(1)
     expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('a')
-    await act(async () => pending.resolve({ unreadCount: 7 }))
-    await waitFor(() => expect(countOf(client)).toBe(7))
+    await act(async () => { pending.resolve({ unreadCount: 7 }); })
+    await waitFor(() => { expect(countOf(client)).toBe(7); })
   })
 
   it('does not decrement for an already read item', async () => {
@@ -124,8 +125,8 @@ describe('useMarkNotificationRead', () => {
     const { client, wrapper } = setup()
     seed(client, [page([mk('a', '2026-11-10T10:01:00.000Z')])], 3)
     const { result } = renderHook(() => useMarkNotificationRead(), { wrapper })
-    act(() => result.current.mutate('a'))
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalled())
+    act(() => { result.current.mutate('a'); })
+    await waitFor(() => { expect(notificationsApi.markNotificationRead).toHaveBeenCalled(); })
     expect(countOf(client)).toBe(3)
     expect(listOf(client)[0].readAt).toBe('2026-11-10T10:01:00.000Z')
   })
@@ -135,8 +136,8 @@ describe('useMarkNotificationRead', () => {
     const { client, wrapper } = setup()
     seed(client, [page([mk('a')])], 1)
     const { result } = renderHook(() => useMarkNotificationRead(), { wrapper })
-    act(() => result.current.mutate('a'))
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => { result.current.mutate('a'); })
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(listOf(client)[0].readAt).toBeNull()
     expect(countOf(client)).toBe(1)
   })
@@ -149,11 +150,11 @@ describe('useMarkAllNotificationsRead', () => {
     const { client, wrapper } = setup()
     seed(client, [page([mk('a'), mk('b')]), page([mk('c')], 1)], 3)
     const { result } = renderHook(() => useMarkAllNotificationsRead(), { wrapper })
-    act(() => result.current.mutate())
-    await waitFor(() => expect(countOf(client)).toBe(0))
+    act(() => { result.current.mutate(); })
+    await waitFor(() => { expect(countOf(client)).toBe(0); })
     expect(listOf(client).every((n) => n.readAt !== null)).toBe(true)
-    await act(async () => pending.resolve({ unreadCount: 0 }))
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await act(async () => { pending.resolve({ unreadCount: 0 }); })
+    await waitFor(() => { expect(result.current.isSuccess).toBe(true); })
   })
 
   it('rolls back when the server fails', async () => {
@@ -161,8 +162,8 @@ describe('useMarkAllNotificationsRead', () => {
     const { client, wrapper } = setup()
     seed(client, [page([mk('a'), mk('b', '2026-11-10T10:01:00.000Z')])], 1)
     const { result } = renderHook(() => useMarkAllNotificationsRead(), { wrapper })
-    act(() => result.current.mutate())
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => { result.current.mutate(); })
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(listOf(client).map((n) => n.readAt)).toEqual([null, '2026-11-10T10:01:00.000Z'])
     expect(countOf(client)).toBe(1)
   })

@@ -57,7 +57,7 @@ export function TelegramDialog({ open, onOpenChange }: TelegramDialogProps) {
     }
     onOpenChange(isOpen)
   }
-  const close = (): void => handleOpenChange(false)
+  const close = (): void => { handleOpenChange(false); }
   const isLinked = flow.status?.isLinked === true
   const username = flow.status?.username ?? ''
 
@@ -68,7 +68,7 @@ export function TelegramDialog({ open, onOpenChange }: TelegramDialogProps) {
           <TelegramUnlinkConfirm
             username={username}
             pending={flow.state === 'unlinking'}
-            onCancel={() => setConfirming(false)}
+            onCancel={() => { setConfirming(false); }}
             onConfirm={() => {
               setConfirming(false)
               flow.unlink()
@@ -84,7 +84,7 @@ export function TelegramDialog({ open, onOpenChange }: TelegramDialogProps) {
           togglePending={flow.state === 'unlinking'}
           error={flow.toggleErrorMessage !== null ? 'Сервер не принял изменение, переключатель вернулся в прежнее положение. Повторите позже.' : (flow.unlinkErrorMessage ?? undefined)}
           onToggleNotifications={flow.toggleNotifications}
-          onUnlink={() => setConfirming(true)}
+          onUnlink={() => { setConfirming(true); }}
           onClose={close}
         />
       )

@@ -9,5 +9,5 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   section: 'chats',
-  setSection: (section) => set({ section })
+  setSection: (section) => { set({ section }); }
 }))

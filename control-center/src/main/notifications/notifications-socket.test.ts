@@ -31,16 +31,16 @@ function createFakeClient() {
     map.set(event, [...(map.get(event) ?? []), handler])
   }
   const client = {
-    on: vi.fn((event: string, handler: Handler) => add(handlers, event, handler)),
+    on: vi.fn((event: string, handler: Handler) => { add(handlers, event, handler); }),
     connect: vi.fn(),
     disconnect: vi.fn(),
-    io: { on: vi.fn((event: string, handler: Handler) => add(managerHandlers, event, handler)) }
+    io: { on: vi.fn((event: string, handler: Handler) => { add(managerHandlers, event, handler); }) }
   } satisfies SocketClientPort
   return {
     client,
-    emit: (event: string, ...args: unknown[]) => handlers.get(event)?.forEach((handler) => handler(...args)),
+    emit: (event: string, ...args: unknown[]) => handlers.get(event)?.forEach((handler) => { handler(...args); }),
     emitManager: (event: string, ...args: unknown[]) =>
-      managerHandlers.get(event)?.forEach((handler) => handler(...args))
+      managerHandlers.get(event)?.forEach((handler) => { handler(...args); })
   }
 }
 
@@ -62,7 +62,7 @@ function createFakeAuth(initial: SessionSnapshot = UNAUTHENTICATED) {
     auth,
     setSnapshot(next: SessionSnapshot): void {
       snapshot = next
-      listeners.forEach((listener) => listener(next))
+      listeners.forEach((listener) => { listener(next); })
     },
     listenerCount: () => listeners.size
   }
@@ -97,7 +97,7 @@ function setup(initial: SessionSnapshot = UNAUTHENTICATED) {
 }
 
 async function resolveAuth(options: SocketClientOptions): Promise<unknown> {
-  return new Promise((resolve) => options.auth(resolve))
+  return new Promise((resolve) => { options.auth(resolve); })
 }
 
 afterEach(() => {

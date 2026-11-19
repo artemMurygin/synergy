@@ -16,7 +16,7 @@ export const telegramLinkQuery = (options: TelegramLinkQueryOptions = {}) =>
   })
 
 export function useIssueTelegramLinkToken() {
-  return useMutation<TelegramLinkToken, Error, void>({
+  return useMutation<TelegramLinkToken>({
     mutationFn: () => telegramApi.issueTelegramLinkToken()
   })
 }
@@ -53,7 +53,7 @@ export function useSetTelegramNotifications() {
 
 export function useUnlinkTelegram() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, void>({
+  return useMutation({
     mutationFn: () => telegramApi.unlinkTelegram(),
     onSuccess: async () => {
       await queryClient.cancelQueries({ queryKey: TELEGRAM_LINK_KEY })

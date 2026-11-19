@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { describe, expect, it, vi } from 'vitest'
 import { AccessToken } from '../domain/access-token'
 import { AuthError, isAuthError } from '../domain/auth-error'
@@ -216,7 +217,7 @@ describe('AuthService.restore', () => {
     api.refresh.mockReturnValue(gate.promise)
 
     const restoring = service.restore()
-    await vi.waitFor(() => expect(api.refresh).toHaveBeenCalled())
+    await vi.waitFor(() => { expect(api.refresh).toHaveBeenCalled(); })
 
     expect(service.getSnapshot().state).toBe('restoring')
     gate.resolve(issue({ marker: 'a2', refresh: 'new' }))

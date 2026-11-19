@@ -23,8 +23,8 @@ export function NotificationToaster() {
           <div
             key={notification.id}
             className="pointer-events-auto"
-            onMouseEnter={() => pause(notification.id)}
-            onMouseLeave={() => resume(notification.id)}
+            onMouseEnter={() => { pause(notification.id); }}
+            onMouseLeave={() => { resume(notification.id); }}
           >
             <NotificationToast
               title={view.title}
@@ -32,8 +32,8 @@ export function NotificationToaster() {
               tone={view.tone}
               icon={view.icon}
               actionLabel={TOAST_ACTION_LABEL[notification.target.type]}
-              onAction={() => openNotification(notification)}
-              onClose={() => dismiss(notification.id)}
+              onAction={() => { openNotification(notification); }}
+              onClose={() => { dismiss(notification.id); }}
               duration={TOAST_DURATION_MS}
             />
           </div>

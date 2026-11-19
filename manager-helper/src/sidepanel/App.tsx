@@ -1,10 +1,8 @@
-import { useAui, useAuiState } from '@assistant-ui/react'
 import {
   AppFrame,
   NotificationsButton,
   PanelHeader,
-  chatPaneVisibility,
-  useLayoutMode,
+    useLayoutMode,
 } from '@synergy/ui-kit'
 import { ListChecks, MessagesSquare } from '@synergy/ui-kit/icons'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -18,10 +16,9 @@ import { getPortalUrl } from '@/shared/settings'
 import type { NotificationDto } from '@/shared/notifications/notifications-schema'
 import type { PendingTarget } from '@/shared/notifications/pending-target'
 import type { ChatPanelMode } from '@synergy/ui-kit'
-import type { Thread, ThreadHistory } from '@/shared/threads-api'
-import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
-import { ChatSessionList } from './ChatSessionList'
-import { ChatTitleBar } from './ChatTitleBar'
+import { ChatRuntimeProvider } from './ChatRuntimeProvider'
+import { ChatPane } from './ChatPane'
+import type { FinishedRun } from './ChatPane'
 import { NotificationsOverlay } from './notifications/NotificationsOverlay'
 import { NotificationToast } from './notifications/NotificationToast'
 import { useNotifications } from './notifications/use-notifications'
@@ -30,97 +27,8 @@ import { PanelActions } from './PanelActions'
 import { ProfileMenuContainer } from './ProfileMenuContainer'
 import { TelegramPane } from './telegram/TelegramPane'
 import { TasksApp } from './tasks/TasksApp'
-import { ThreadView } from './ThreadView'
 import { useChatSessions } from './use-chat-sessions'
 import { useThreadRunStatus } from './use-thread-run-status'
-
-interface QueuedSend {
-  threadId: string
-  text: string
-}
-
-interface FinishedRun {
-  threadId: string
-  history: ThreadHistory
-}
-
-interface PaneProps {
-  activeId: string | null
-  activeSession: Thread | undefined
-  create: (title?: string) => Promise<Thread>
-  rename: (id: string, title: string) => Promise<unknown>
-  serverRunning: boolean
-  onStopServerRun: () => void
-  /** A run of this panel has ended: the list (title, activity, running flag) is stale. */
-  onSettled: () => void
-  /** A run of the chat ended on the server: its fresh history goes into the runtime in place. */
-  finished: FinishedRun | null
-  onFinishedApplied: () => void
-}
-
-/** The thread of the active chat; lives inside the runtime provider. */
-function ChatPane(props: PaneProps) {
-  const { activeId, activeSession, create, rename, onSettled, onFinishedApplied } = props
-  const aui = useAui()
-  const history = useChatHistory()
-  const messageCount = useAuiState((s) => s.thread.messages.length)
-  const running = useAuiState((s) => s.thread.isRunning)
-  // A question waiting for the freshly created chat to be loaded into the runtime.
-  const queued = useRef<QueuedSend | null>(null)
-
-  const { refresh } = history
-  const { finished } = props
-  useEffect(() => {
-    if (finished === null) return
-    refresh(finished.threadId, finished.history)
-    onFinishedApplied()
-  }, [finished, refresh, onFinishedApplied])
-
-  const wasRunning = useRef(false)
-  useEffect(() => {
-    if (wasRunning.current && !running) onSettled()
-    wasRunning.current = running
-  }, [running, onSettled])
-
-  useEffect(() => {
-    const next = queued.current
-    if (next !== null && history.threadId === next.threadId && history.status === 'ready') {
-      queued.current = null
-      aui.thread.append(next.text)
-    }
-  }, [history.threadId, history.status, aui])
-
-  const sendWithoutChat = async (text: string, title?: string): Promise<boolean> => {
-    try {
-      const created = await create(title)
-      queued.current = { threadId: created.id, text }
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  const quickSearch = (query: string, title: string) => {
-    if (activeId === null) {
-      void sendWithoutChat(query, title)
-      return
-    }
-    const blank = activeSession !== undefined && !activeSession.titleIsCustom && messageCount === 0
-    void (async () => {
-      if (blank) await rename(activeId, title).catch(() => undefined)
-      aui.thread.append(query)
-    })()
-  }
-
-  return (
-    <ThreadView
-      serverRunning={props.serverRunning}
-      onStopServerRun={props.onStopServerRun}
-      onQuickSearch={quickSearch}
-      onSendWithoutChat={activeId === null ? (text) => sendWithoutChat(text) : undefined}
-    />
-  )
-}
 
 const CHAT_SECTION = { id: 'chat', label: 'Чаты', icon: <MessagesSquare /> }
 const TASKS_SECTION = { id: 'tasks', label: 'Задачи', icon: <ListChecks /> }
@@ -230,8 +138,7 @@ export function App() {
   const barTrailing = (forSection: Section) =>
     isMobile && section === forSection ? trailing : undefined
 
-  const panes = chatPaneVisibility(layout, mode)
-  const activeSession = sessions.sessions.find((s) => s.id === activeId)
+    const activeSession = sessions.sessions.find((s) => s.id === activeId)
 
   const run = useThreadRunStatus({
     threadId: activeId,
@@ -319,60 +226,25 @@ export function App() {
               />
             }
           />
-          <div className="flex min-h-0 flex-1">
-            <div
-              className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-                panes.chat ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
-              }`}
-            >
-              <ChatSessionList
-                sessions={sessions.sessions}
-                activeId={activeId}
-                status={sessions.status}
-                createDisabled={creating}
-                onSelect={(id) => {
-                  sessions.select(id)
-                  setMode('chat')
-                }}
-                onCreate={() => void createChat()}
-                onRename={rename}
-                onDelete={sessions.remove}
-                onRetry={() => void reload()}
-                onBack={
-                  panes.chat
-                    ? undefined
-                    : () => {
-                        setMode('chat')
-                      }
-                }
-              />
-            </div>
-
-            <div className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}>
-              <ChatTitleBar
-                title={activeSession?.title ?? ''}
-                running={run.running}
-                onOpenList={
-                  panes.backToList
-                    ? () => {
-                        setMode('list')
-                      }
-                    : undefined
-                }
-              />
-              <ChatPane
-                activeId={activeId}
-                activeSession={activeSession}
-                create={create}
-                rename={rename}
-                serverRunning={run.running}
-                onStopServerRun={stopServerRun}
-                onSettled={() => void reload()}
-                finished={finished}
-                onFinishedApplied={clearFinished}
-              />
-            </div>
-          </div>
+          <ChatPane
+            sessions={sessions.sessions}
+            status={sessions.status}
+            activeId={activeId}
+            mode={mode}
+            onModeChange={setMode}
+            creating={creating}
+            onCreate={() => void createChat()}
+            onSelect={sessions.select}
+            create={create}
+            rename={rename}
+            remove={sessions.remove}
+            onRetryList={() => void reload()}
+            serverRunning={run.running}
+            onStopServerRun={stopServerRun}
+            onSettled={() => void reload()}
+            finished={finished}
+            onFinishedApplied={clearFinished}
+          />
         </div>
       </ChatRuntimeProvider>
       {showTasks && (

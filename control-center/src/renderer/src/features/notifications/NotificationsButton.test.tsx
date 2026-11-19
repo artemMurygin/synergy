@@ -48,7 +48,7 @@ describe('NotificationsButton', () => {
   it('hides the badge with no unread', async () => {
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 })
     mount()
-    await waitFor(() => expect(notificationsApi.getUnreadCount).toHaveBeenCalled())
+    await waitFor(() => { expect(notificationsApi.getUnreadCount).toHaveBeenCalled(); })
     expect(bell().textContent).toBe('')
   })
 
@@ -66,7 +66,7 @@ describe('NotificationsButton', () => {
     const user = mount()
     await user.click(bell())
     await user.click(await screen.findByRole('button', { name: /Уведомление 1/ }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull(); })
     expect(useUiStore.getState().section).toBe('tasks')
     expect(useTasksStore.getState().selectedTaskId).toBe('task-1')
     expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('1')

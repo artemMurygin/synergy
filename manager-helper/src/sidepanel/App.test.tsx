@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
 import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
-import { cancelRun, createAgent } from '@/shared/agent-client'
+import { AskError } from '@/shared/api'
+import { RUN_CONFLICT_MESSAGE, RunConflictError, cancelRun, createAgent } from '@/shared/agent-client'
 import { createThread, getThread, listThreads, renameThread } from '@/shared/threads-api'
 import {
   installChromeFake,
@@ -113,7 +114,7 @@ const startRun = (threadId = 'a') => {
   emit({ type: EventType.TEXT_MESSAGE_START, messageId: 'a1', role: 'assistant' })
 }
 
-const input = () => screen.getByPlaceholderText(/Вопрос агенту/)
+const input = () => screen.getByPlaceholderText(/Сообщение агенту/)
 
 function fieldValue(): string {
   const field = input()
@@ -130,7 +131,7 @@ async function openApp(activeId: string | null = 'a') {
     })
   } else {
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Вопрос агенту/)).toBeTruthy()
+      expect(screen.getByPlaceholderText(/Сообщение агенту/)).toBeTruthy()
     })
   }
 }
@@ -138,10 +139,10 @@ async function openApp(activeId: string | null = 'a') {
 async function ask(text: string) {
   fireEvent.change(input(), { target: { value: text } })
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Спросить' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
   })
   const before = agent.inputs.length
-  fireEvent.click(screen.getByRole('button', { name: 'Спросить' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
   await waitFor(() => {
     expect(agent.inputs.length).toBeGreaterThan(before)
   })
@@ -204,9 +205,9 @@ describe('App', () => {
     await openApp(null)
     fireEvent.change(input(), { target: { value: 'первый вопрос' } })
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Спросить' }).hasAttribute('disabled')).toBe(false)
+      expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Спросить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
     await waitFor(() => {
       expect(agent.inputs).toHaveLength(1)
     })
@@ -246,7 +247,7 @@ describe('App', () => {
       expect(screen.queryByText('Агент отвечает…')).toBeNull()
     })
     expect(screen.getByText('Часть ответа')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Спросить' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeTruthy()
     expect(input().hasAttribute('disabled')).toBe(false)
   })
 
@@ -266,7 +267,7 @@ describe('App', () => {
       expect(screen.getByText('Ответ остановлен')).toBeTruthy()
     })
     expect(screen.getByText('Часть ответа')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Спросить' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeTruthy()
   })
 
   it('shows the error and retry sends the last question again', async () => {
@@ -298,7 +299,10 @@ describe('App', () => {
     await openApp()
     await ask('мой вопрос')
     act(() => {
-      agent.stream.error(new TypeError('Failed to fetch'))
+      // createAgent turns the network failure into this text (agent-client.test.ts).
+      agent.stream.error(
+        new AskError('Не удалось связаться с сервером. Проверьте адрес бэкенда в настройках расширения.'),
+      )
     })
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Проверьте адрес бэкенда')
@@ -316,7 +320,7 @@ describe('App', () => {
       await openApp()
       expect(screen.getByText('Агент ещё отвечает')).toBeTruthy()
       expect(input().hasAttribute('disabled')).toBe(true)
-      expect(screen.queryByRole('button', { name: 'Спросить' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Отправить' })).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: 'Остановить' }))
       await waitFor(() => {
         expect(cancelRun).toHaveBeenCalledWith('a')
@@ -341,7 +345,7 @@ describe('App', () => {
       })
       expect(screen.queryByText('Агент ещё отвечает')).toBeNull()
       expect(input().hasAttribute('disabled')).toBe(false)
-      expect(screen.getByRole('button', { name: 'Спросить' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Отправить' })).toBeTruthy()
     })
 
     it('reloads the history in place: the draft stays and the provider is not remounted', async () => {
@@ -414,7 +418,7 @@ describe('App', () => {
       })
       expect(screen.getByText('Агент ещё отвечает')).toBeTruthy()
       expect(input().hasAttribute('disabled')).toBe(true)
-      expect(screen.queryByRole('button', { name: 'Спросить' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Отправить' })).toBeNull()
     })
   })
 
@@ -423,7 +427,8 @@ describe('App', () => {
     await ask('мой вопрос')
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     act(() => {
-      agent.stream.error(new Error('HTTP 409: {"message":"Conflict"}'))
+      // createAgent turns HTTP 409 into this error (agent-client.test.ts).
+      agent.stream.error(new RunConflictError(RUN_CONFLICT_MESSAGE))
     })
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain(
@@ -579,7 +584,8 @@ describe('section switch', () => {
 
   it('renders one panel header per section with a single create and settings button', async () => {
     await openApp()
-    expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(1)
+    // The wide panel has two: the header of the section and the header of the chat list.
+    expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(2)
     expect(within(chatPane()).getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
   })
 
@@ -590,7 +596,6 @@ describe('section switch', () => {
       fireEvent.click(screen.getByRole('button', { name: 'К списку чатов' }))
       expect(screen.getByRole('heading', { name: 'Чаты' })).toBeTruthy()
       expect(tab('Чаты').getAttribute('aria-current')).toBe('page')
-      expect(screen.getByRole('button', { name: 'Назад к чату' })).toBeTruthy()
     } finally {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
     }

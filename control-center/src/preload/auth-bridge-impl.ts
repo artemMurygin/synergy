@@ -17,7 +17,7 @@ export function createAuthBridge(ipcRenderer: IpcRendererPort): AuthBridge {
     retryRestore: () => ipcRenderer.invoke('auth:retryRestore'),
     getState: () => ipcRenderer.invoke('auth:getState'),
     onSessionChanged: (listener) => {
-      const wrapped: SessionListener = (_event, snapshot) => listener(snapshot)
+      const wrapped: SessionListener = (_event, snapshot) => { listener(snapshot); }
       ipcRenderer.on('session:changed', wrapped)
       return () => {
         ipcRenderer.removeListener('session:changed', wrapped)

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, FileXIcon } from '../icons'
+import { ArrowLeft, FileX } from '@synergy/ui-kit/icons'
 
 interface Props {
   onBack?: () => void
@@ -16,7 +16,7 @@ export function TaskNotFound({ onBack, onShowList }: Props) {
             className="flex size-9 shrink-0 items-center justify-center rounded-xl text-ink hover:bg-surface-alt"
             onClick={onBack}
           >
-            <ArrowLeftIcon />
+            <ArrowLeft />
           </button>
         )}
         <span className="min-w-0 flex-1 truncate px-1 font-heading text-base font-semibold text-ink">
@@ -25,7 +25,7 @@ export function TaskNotFound({ onBack, onShowList }: Props) {
       </header>
       <div className="m-auto flex max-w-[316px] flex-col items-center px-4 py-8 text-center">
         <span className="flex size-16 items-center justify-center rounded-full bg-surface-sunken text-ink-60">
-          <FileXIcon />
+          <FileX />
         </span>
         <h2 className="mt-3 font-heading text-lg font-semibold text-ink">Задача не найдена</h2>
         <p className="mt-3 max-w-[280px] text-sm leading-[1.4] text-ink-60">
@@ -33,7 +33,7 @@ export function TaskNotFound({ onBack, onShowList }: Props) {
         </p>
         <button
           type="button"
-          className="mt-3 rounded-full border border-field-line bg-white px-[18px] py-2.5 text-sm font-medium text-ink hover:bg-surface-alt"
+          className="mt-3 rounded-full border border-field-line bg-surface px-[18px] py-2.5 text-sm font-medium text-ink hover:bg-surface-alt"
           onClick={onShowList}
         >
           К списку задач

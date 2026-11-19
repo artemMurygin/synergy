@@ -4,7 +4,7 @@ import { ProfileMenuContainer } from '@/features/auth/ProfileMenuContainer'
 import { NotificationsButton } from '@/features/notifications/NotificationsButton'
 import { useUiStore, type AppSection } from '@/stores/ui.store'
 
-const SECTIONS: { id: AppSection; label: string; icon: NavItem['icon'] }[] = [
+const SECTIONS: (NavItem & { id: AppSection })[] = [
   { id: 'chats', label: 'Чаты', icon: <MessageSquare /> },
   { id: 'tasks', label: 'Задачи', icon: <ListChecks /> }
 ]
@@ -16,7 +16,7 @@ export function useNavSections() {
   const active = useUiStore((s) => s.section)
   const setSection = useUiStore((s) => s.setSection)
   return {
-    items: SECTIONS as NavItem[],
+    items: SECTIONS,
     active,
     select: (id: string) => {
       if (isSection(id)) setSection(id)

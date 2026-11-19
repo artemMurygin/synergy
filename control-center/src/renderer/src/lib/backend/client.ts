@@ -9,9 +9,8 @@ export const CLIENT_APP = "manager-app";
 export async function errorMessage(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json();
-    if (typeof body === "object" && body !== null) {
-      const message = (body as { message?: unknown }).message;
-      if (typeof message === "string") return message;
+    if (typeof body === "object" && body !== null && "message" in body && typeof body.message === "string") {
+      return body.message;
     }
   } catch {
     // the body is not JSON; fall back to the status line below
@@ -23,9 +22,8 @@ export async function errorMessage(response: Response): Promise<string> {
 export async function errorCode(response: Response): Promise<string | null> {
   try {
     const body: unknown = await response.clone().json();
-    if (typeof body === "object" && body !== null) {
-      const code = (body as { code?: unknown }).code;
-      if (typeof code === "string") return code;
+    if (typeof body === "object" && body !== null && "code" in body && typeof body.code === "string") {
+      return body.code;
     }
   } catch {
     // no JSON body

@@ -34,8 +34,10 @@ export function useRenameThread() {
 /** Next thread in the list, else the previous one, else null. */
 function neighbourOf(list: Thread[], id: string): string | null {
   const index = list.findIndex((thread) => thread.id === id)
-  if (index === -1) return list[0]?.id ?? null
-  return (list[index + 1] ?? list[index - 1])?.id ?? null
+  if (index === -1) return list.at(0)?.id ?? null
+  // `.at` wraps negative indexes around, so the first thread has no previous one
+  const previous = index > 0 ? list.at(index - 1) : undefined
+  return (list.at(index + 1) ?? previous)?.id ?? null
 }
 
 export function useDeleteThread() {

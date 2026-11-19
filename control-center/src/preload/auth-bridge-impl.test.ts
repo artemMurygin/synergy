@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionSnapshotView } from './auth-bridge'
 import { createAuthBridge } from './auth-bridge-impl'
@@ -17,7 +18,7 @@ function createFakeIpcRenderer() {
       listeners.get(channel)?.delete(listener)
     }),
     emit(channel: string, snapshot: SessionSnapshotView): void {
-      listeners.get(channel)?.forEach((listener) => listener({}, snapshot))
+      listeners.get(channel)?.forEach((listener) => { listener({}, snapshot); })
     },
     count(channel: string): number {
       return listeners.get(channel)?.size ?? 0

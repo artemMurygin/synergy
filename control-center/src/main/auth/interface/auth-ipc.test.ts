@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { describe, expect, it, vi } from 'vitest'
 import { AuthError } from '../domain/auth-error'
 import type { SessionSnapshot } from '../domain/session-snapshot'

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { authenticatedSnapshot, installBridgeMock } from './auth-test-utils'
@@ -18,7 +19,7 @@ describe('useSession', () => {
   it('loads the initial snapshot through getState', async () => {
     const mock = installBridgeMock(authenticatedSnapshot)
     const { result } = renderHook(() => useSession())
-    await waitFor(() => expect(result.current.state).toBe('authenticated'))
+    await waitFor(() => { expect(result.current.state).toBe('authenticated'); })
     expect(result.current.user).toEqual({ id: 'u1', login: 'admin' })
     expect(mock.getState).toHaveBeenCalledTimes(1)
   })
@@ -26,8 +27,8 @@ describe('useSession', () => {
   it('updates on onSessionChanged', async () => {
     const mock = installBridgeMock(authenticatedSnapshot)
     const { result } = renderHook(() => useSession())
-    await waitFor(() => expect(result.current.state).toBe('authenticated'))
-    act(() => mock.emit({ state: 'unauthenticated', user: null }))
+    await waitFor(() => { expect(result.current.state).toBe('authenticated'); })
+    act(() => { mock.emit({ state: 'unauthenticated', user: null }); })
     expect(result.current.state).toBe('unauthenticated')
     expect(result.current.user).toBeNull()
   })
@@ -41,7 +42,7 @@ describe('useSession', () => {
       })
     )
     const { result } = renderHook(() => useSession())
-    act(() => mock.emit({ state: 'unauthenticated', user: null }))
+    act(() => { mock.emit({ state: 'unauthenticated', user: null }); })
     await act(async () => {
       resolveState(authenticatedSnapshot)
     })
@@ -51,7 +52,7 @@ describe('useSession', () => {
   it('unsubscribes on unmount', async () => {
     const mock = installBridgeMock(authenticatedSnapshot)
     const { unmount } = renderHook(() => useSession())
-    await waitFor(() => expect(mock.listenerCount()).toBe(1))
+    await waitFor(() => { expect(mock.listenerCount()).toBe(1); })
     unmount()
     expect(mock.unsubscribe).toHaveBeenCalledTimes(1)
     expect(mock.listenerCount()).toBe(0)

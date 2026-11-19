@@ -32,7 +32,7 @@ function createFakeIpcRenderer() {
       listeners.get(channel)?.delete(listener)
     }),
     emit(channel: string, payload: unknown): void {
-      listeners.get(channel)?.forEach((listener) => listener({ sender: 'ipc' }, payload))
+      listeners.get(channel)?.forEach((listener) => { listener({ sender: 'ipc' }, payload); })
     },
     count(channel: string): number {
       return listeners.get(channel)?.size ?? 0

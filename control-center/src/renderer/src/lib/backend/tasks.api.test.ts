@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-unused-vars -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AttachmentLimitError,
@@ -214,7 +215,7 @@ describe("tasks.api", () => {
   describe("uploadAttachment", () => {
     class FakeXhr {
       static last: FakeXhr;
-      upload = { listeners: {} as Record<string, (e: unknown) => void> } as {
+      upload = { listeners: {} } as {
         listeners: Record<string, (e: unknown) => void>;
         addEventListener: (t: string, l: (e: unknown) => void) => void;
       };

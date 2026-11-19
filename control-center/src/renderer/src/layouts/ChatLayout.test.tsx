@@ -5,13 +5,16 @@ import { ChatLayout } from './ChatLayout'
 afterEach(cleanup)
 
 describe('ChatLayout', () => {
-  it('renders the sidebar footer slot inside the sidebar', () => {
-    render(<ChatLayout sidebar={<p>list</p>} main={<p>thread</p>} sidebarFooter={<p>footer</p>} />)
-    expect(screen.getByText('footer').closest('aside')).toBe(screen.getByText('list').closest('aside'))
+  it('shows the list beside the chat', () => {
+    render(<ChatLayout sidebar={<p>list</p>} main={<p>thread</p>} />)
+    expect(screen.getByRole('complementary', { name: 'Список чатов' }).textContent).toBe('list')
+    expect(screen.getByRole('main').textContent).toBe('thread')
   })
 
-  it('renders without a footer', () => {
-    render(<ChatLayout sidebar={<p>list</p>} main={<p>thread</p>} />)
-    expect(screen.getByText('thread')).toBeTruthy()
+  it('drops the list while it is hidden and leaves the whole width to the chat', () => {
+    render(<ChatLayout collapsed sidebar={<p>list</p>} main={<p>thread</p>} />)
+    expect(screen.queryByText('list')).toBeNull()
+    expect(screen.queryByRole('complementary')).toBeNull()
+    expect(screen.getByRole('main').className).toContain('flex-1')
   })
 })

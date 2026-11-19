@@ -28,7 +28,7 @@ export function useOpenNotification(): (notification: Notification) => void {
         const taskId = notification.target.id
         useUiStore.getState().setSection('tasks')
         useTasksStore.getState().selectTask(taskId)
-        queryClient.fetchQuery(taskQuery(taskId)).catch((error: unknown) => {
+        queryClient.query(taskQuery(taskId)).catch((error: unknown) => {
           if (error instanceof TaskNotFoundError) useNotificationsStore.getState().showNotice(TASK_NOT_FOUND_NOTICE)
         })
         return
@@ -39,7 +39,7 @@ export function useOpenNotification(): (notification: Notification) => void {
         useUiStore.getState().setSection('chats')
         useChatStore.getState().setActiveThread(threadId)
         // The open chat drops itself when its history is not found; the notice tells why
-        queryClient.fetchQuery(threadHistoryOptions(threadId)).catch((error: unknown) => {
+        queryClient.query(threadHistoryOptions(threadId)).catch((error: unknown) => {
           if (error instanceof ThreadNotFoundError) useNotificationsStore.getState().showNotice(CHAT_NOT_FOUND_NOTICE)
         })
         return
@@ -53,7 +53,7 @@ export function useOpenNotification(): (notification: Notification) => void {
             if (result === 'unavailable') useNotificationsStore.getState().showNotice(PORTAL_UNAVAILABLE_NOTICE)
             else if (result === 'invalid') useNotificationsStore.getState().showNotice(PORTAL_LINK_INVALID_NOTICE)
           })
-          .catch(() => useNotificationsStore.getState().showNotice(PORTAL_UNAVAILABLE_NOTICE))
+          .catch(() => { useNotificationsStore.getState().showNotice(PORTAL_UNAVAILABLE_NOTICE); })
       }
     },
     [queryClient, markRead]

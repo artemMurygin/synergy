@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import './features/chat/test-env'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
@@ -121,7 +122,7 @@ describe('App', () => {
     act(() => {
       agent.stream.next({ type: EventType.RUN_STARTED, threadId: 'a', runId: 'r' })
     })
-    act(() => bridge.emit(unauthenticatedSnapshot))
+    act(() => { bridge.emit(unauthenticatedSnapshot); })
     expect(await screen.findByRole('button', { name: /войти/i })).toBeTruthy()
     await waitFor(() => {
       expect(abortRun).toHaveBeenCalled()
@@ -132,7 +133,7 @@ describe('App', () => {
   it('renders the chat list in the sidebar and the thread in the main slot', async () => {
     mount()
     expect(await screen.findByText('Первый')).toBeTruthy()
-    expect(within(screen.getByRole('region', { name: 'Чаты' })).getByText('Чаты')).toBeTruthy()
+    expect(within(screen.getByRole('complementary', { name: 'Список чатов' })).getByText('Чаты')).toBeTruthy()
     expect(screen.getByText('Выберите чат')).toBeTruthy()
   })
 

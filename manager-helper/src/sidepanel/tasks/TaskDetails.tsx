@@ -13,16 +13,7 @@ import type {
   UpdateTaskInput,
   UserSummary,
 } from '@/shared/tasks-api'
-import {
-  ArrowLeftIcon,
-  CalendarIcon,
-  ChevronDownIcon,
-  CloseIcon,
-  DownloadIcon,
-  FileIcon,
-  PencilIcon,
-  UserIcon,
-} from '../icons'
+import { ArrowLeft, Calendar, ChevronDown, Download, FileText, Pencil, User, X } from '@synergy/ui-kit/icons'
 import { formatDeadline, formatSize, fromLocalInput, messageOf, toLocalInput } from './format'
 import { STATUS_LABEL } from './StatusBadge'
 import { UserSearchSelect } from './UserSearchSelect'
@@ -39,10 +30,10 @@ interface Props {
 
 // Поля формы редактирования: обводка и красный фокус как в макете.
 const field =
-  'w-full rounded-xl border border-field-line bg-white text-ink outline-none placeholder:text-ink-40 focus:border-brand-red'
+  'w-full rounded-xl border border-field-line bg-surface text-ink outline-none placeholder:text-ink-40 focus:border-brand-red'
 const fieldLabel = 'text-xs font-semibold text-ink-60'
 const secondary =
-  'rounded-full border border-field-line bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-alt'
+  'rounded-full border border-field-line bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-alt'
 const headerButton =
   'flex size-9 shrink-0 items-center justify-center rounded-xl hover:bg-surface-alt'
 
@@ -115,11 +106,11 @@ function AssigneeSelect(props: {
         }}
       >
         <span className="shrink-0 text-ink-40">
-          <UserIcon />
+          <User />
         </span>
         <span className="min-w-0 flex-1 truncate text-[15px]">{login}</span>
         <span className={`shrink-0 text-ink-60 transition-transform ${open ? 'rotate-180' : ''}`}>
-          <ChevronDownIcon />
+          <ChevronDown />
         </span>
       </button>
       {open && (
@@ -141,7 +132,7 @@ function AttachmentRow(props: { attachment: Attachment; onDownload: (a: Attachme
   return (
     <li className="flex items-center gap-3 rounded-xl bg-surface-alt py-2 pr-2 pl-3.5">
       <span className="shrink-0 text-ink-60">
-        <FileIcon />
+        <FileText />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-px">
         <span className="text-sm font-medium break-words text-ink">{attachment.originalName}</span>
@@ -150,12 +141,12 @@ function AttachmentRow(props: { attachment: Attachment; onDownload: (a: Attachme
       <button
         type="button"
         aria-label={`Скачать ${attachment.originalName}`}
-        className="flex size-8 shrink-0 items-center justify-center rounded-xl text-ink-60 hover:bg-white"
+        className="flex size-8 shrink-0 items-center justify-center rounded-xl text-ink-60 hover:bg-surface"
         onClick={() => {
           props.onDownload(attachment)
         }}
       >
-        <DownloadIcon />
+        <Download />
       </button>
     </li>
   )
@@ -263,7 +254,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
             className={`${headerButton} text-ink`}
             onClick={onBack}
           >
-            <ArrowLeftIcon />
+            <ArrowLeft />
           </button>
         )}
         <span className="min-w-0 flex-1 truncate px-1 font-heading text-base font-semibold text-ink">
@@ -283,7 +274,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
               })
             }}
           >
-            <PencilIcon />
+            <Pencil />
           </button>
         )}
       </header>
@@ -296,7 +287,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
           className={`${headerButton} text-ink`}
           onClick={cancelEdit}
         >
-          <CloseIcon />
+          <X />
         </button>
         <span className="min-w-0 flex-1 truncate px-1 font-heading text-base font-semibold text-ink">
           Редактирование
@@ -424,7 +415,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-40">
-                <CalendarIcon />
+                <Calendar />
               </span>
               <input
                 id={`${formId}-deadline`}
@@ -452,7 +443,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
                     setDraft({ ...draft, deadline: '' })
                   }}
                 >
-                  <CloseIcon />
+                  <X />
                 </button>
               )}
             </div>
@@ -493,7 +484,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
                 className={`h-8.5 rounded-full border px-3 text-[13px] font-medium ${
                   active
                     ? 'border-info bg-info-soft text-info'
-                    : 'border-field-line bg-white text-ink hover:bg-surface-alt'
+                    : 'border-field-line bg-surface text-ink hover:bg-surface-alt'
                 }`}
                 onClick={() => {
                   void changeStatus(status)
@@ -522,7 +513,7 @@ export function TaskDetails({ taskId, onBack, onChanged, onMissing }: Props) {
             ) : (
               <>
                 <span className="shrink-0 text-ink-60">
-                  <CalendarIcon />
+                  <Calendar />
                 </span>
                 {formatDeadline(task.deadline)}
               </>

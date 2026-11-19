@@ -1,5 +1,5 @@
 import type { Task, TaskStatus } from '@/shared/tasks-api'
-import { CheckIcon, ClockIcon } from '../icons'
+import { Check, Clock } from '@synergy/ui-kit/icons'
 import { DeadlineLabel } from './DeadlineLabel'
 import { StatusBadge } from './StatusBadge'
 
@@ -34,7 +34,7 @@ export function TaskRow({ task, selected, now, onOpen, onSetStatus }: Props) {
           onSetStatus(task.id, done ? 'todo' : 'done')
         }}
       >
-        {done ? <CheckIcon /> : task.status === 'in_progress' ? <ClockIcon /> : null}
+        {done ? <Check /> : task.status === 'in_progress' ? <Clock /> : null}
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <button

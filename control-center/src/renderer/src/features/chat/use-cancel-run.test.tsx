@@ -30,15 +30,15 @@ describe('useCancelRun', () => {
   it('204/404 (resolved cancelRun) is not an error', async () => {
     vi.spyOn(api, 'cancelRun').mockResolvedValue(undefined)
     const { result } = renderHook(() => useCancelRun('t1'), { wrapper: wrapper() })
-    act(() => result.current.mutate())
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    act(() => { result.current.mutate(); })
+    await waitFor(() => { expect(result.current.isSuccess).toBe(true); })
     expect(result.current.isError).toBe(false)
   })
 
   it('surfaces real failures', async () => {
     vi.spyOn(api, 'cancelRun').mockRejectedValue(new BackendError('boom'))
     const { result } = renderHook(() => useCancelRun('t1'), { wrapper: wrapper() })
-    act(() => result.current.mutate())
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    act(() => { result.current.mutate(); })
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
   })
 })

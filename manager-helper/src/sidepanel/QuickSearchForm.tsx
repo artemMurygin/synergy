@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Button, Input, SegmentedControl, Switch } from '@synergy/ui-kit'
+import { useId, useState } from 'react'
 import {
   BASES,
   COUNTS,
@@ -12,7 +13,7 @@ import {
 } from '@/shared/quick-search.config'
 import type { EgeValue, LevelId, Segment } from '@/shared/quick-search.config'
 import { buildQuickSearchQuery, buildQuickSearchTitle } from '@/shared/quick-search'
-import { ChevronDownIcon, ChevronRightIcon, SlidersIcon } from './icons'
+import { ChevronDown, ChevronRight, SlidersHorizontal } from '@synergy/ui-kit/icons'
 
 interface Props {
   open: boolean
@@ -34,29 +35,22 @@ function toggleIn(list: string[], value: string, max = Infinity): string[] {
 }
 
 function Segmented<T extends string | number>(props: {
+  label: string
   options: { id: T; label: string }[]
   value: T
   onChange: (value: T) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
-      {props.options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
-            props.value === option.id
-              ? 'border-brand-red bg-brand-red-soft text-brand-red'
-              : 'border-line bg-white text-ink hover:bg-surface-alt'
-          }`}
-          onClick={() => {
-            props.onChange(option.id)
-          }}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      aria-label={props.label}
+      className="flex-wrap rounded-2xl"
+      options={props.options.map((option) => ({ value: String(option.id), label: option.label }))}
+      value={String(props.value)}
+      onValueChange={(next) => {
+        const picked = props.options.find((option) => String(option.id) === next)
+        if (picked !== undefined) props.onChange(picked.id)
+      }}
+    />
   )
 }
 
@@ -75,7 +69,7 @@ function Tags(props: {
           className={`rounded-full border px-3 py-1 text-xs font-medium ${
             props.selected.includes(option)
               ? 'border-brand-red bg-brand-red-soft text-brand-red'
-              : 'border-line bg-white text-ink hover:bg-surface-alt'
+              : 'border-border bg-surface text-ink hover:bg-surface-alt'
           }`}
           onClick={() => {
             props.onToggle(option)
@@ -108,6 +102,7 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
   const [topicText, setTopicText] = useState('')
   const [count, setCount] = useState<number>(DEFAULT_COUNT)
 
+  const supportId = useId()
   const bases = BASES[level]
 
   const submit = () => {
@@ -126,7 +121,7 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
   }
 
   return (
-    <section className="border-t border-line bg-surface-alt">
+    <section className="border-t border-border bg-surface-alt">
       <button
         type="button"
         className="flex w-full items-center gap-2 px-4 py-3 text-left text-[13px] font-semibold text-ink disabled:text-ink-40"
@@ -134,15 +129,16 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
         disabled={pending}
         aria-expanded={open}
       >
-        <SlidersIcon />
+        <SlidersHorizontal />
         <span className="min-w-0 flex-1">Быстрый подбор</span>
-        <span className="text-ink-60">{open ? <ChevronDownIcon /> : <ChevronRightIcon />}</span>
+        <span className="text-ink-60">{open ? <ChevronDown /> : <ChevronRight />}</span>
       </button>
       {open && (
         <>
           <div className="flex max-h-72 flex-col gap-3.5 overflow-y-auto px-4 pb-3">
             <Field label="Что ищем">
               <Segmented
+                label="Что ищем"
                 options={[
                   { id: 'education', label: 'Образование' },
                   { id: 'courses', label: 'Курсы и ДПО' },
@@ -156,6 +152,7 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
               <>
                 <Field label="Уровень">
                   <Segmented
+                    label="Уровень"
                     options={LEVELS}
                     value={level}
                     onChange={(next) => {
@@ -167,6 +164,7 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
                 {bases && (
                   <Field label="База клиента">
                     <Segmented
+                      label="База клиента"
                       options={bases.map((b) => ({ id: b, label: b }))}
                       value={base}
                       onChange={(next) => {
@@ -186,20 +184,18 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
                 </Field>
                 {EGE_LEVELS.includes(level) && (
                   <Field label="ЕГЭ">
-                    <Segmented options={EGE_OPTIONS} value={ege} onChange={setEge} />
+                    <Segmented label="ЕГЭ" options={EGE_OPTIONS} value={ege} onChange={setEge} />
                   </Field>
                 )}
                 {!STATE_SUPPORT_HIDDEN.includes(level) && (
-                  <label className="flex items-center gap-2 text-xs text-ink">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center gap-2 text-xs text-ink">
+                    <Switch
+                      id={supportId}
                       checked={stateSupport}
-                      onChange={(event) => {
-                        setStateSupport(event.target.checked)
-                      }}
+                      onCheckedChange={setStateSupport}
                     />
-                    Только с господдержкой
-                  </label>
+                    <label htmlFor={supportId}>Только с господдержкой</label>
+                  </div>
                 )}
               </>
             ) : (
@@ -211,10 +207,11 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
                     setTopics((list) => toggleIn(list, v))
                   }}
                 />
-                <input
+                <Input
                   type="text"
-                  className="rounded-xl border border-line px-3 py-1.5 text-sm outline-none focus:border-brand-red"
+                  className="h-9 text-sm"
                   placeholder="Своя тема"
+                  aria-label="Своя тема"
                   value={topicText}
                   onChange={(event) => {
                     setTopicText(event.target.value)
@@ -225,21 +222,17 @@ export function QuickSearchForm({ open, onToggle, pending, onSubmit }: Props) {
 
             <Field label="Сколько показать">
               <Segmented
+                label="Сколько показать"
                 options={COUNTS.map((n) => ({ id: n, label: String(n) }))}
                 value={count}
                 onChange={setCount}
               />
             </Field>
           </div>
-          <div className="border-t border-line px-4 pt-2.5 pb-3">
-            <button
-              type="button"
-              disabled={pending}
-              className="h-11 w-full rounded-2xl bg-brand-red text-[15px] font-semibold text-white shadow-[0_8px_4px_#66000033] hover:bg-brand-red-hover disabled:bg-ink-40 disabled:shadow-none"
-              onClick={submit}
-            >
+          <div className="border-t border-border px-4 pt-2.5 pb-3">
+            <Button className="w-full" disabled={pending} onClick={submit}>
               Начать подбор
-            </button>
+            </Button>
           </div>
         </>
       )}

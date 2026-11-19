@@ -64,7 +64,8 @@ export class AuthService {
       this.transitionTo(issued.mustChangePassword ? 'mustChangePassword' : 'authenticated')
     } catch (error) {
       if (isTokenRejection(error)) return
-      if (this.state === 'restoring') this.transitionTo('connectionError')
+      // the state may have moved on while the requests were in flight
+      if (this.isIn('restoring')) this.transitionTo('connectionError')
     }
   }
 
@@ -120,7 +121,7 @@ export class AuthService {
       return refreshed.value
     } catch (error) {
       if (isTokenRejection(error)) return null
-      const current = this.access
+      const current = this.currentAccess()
       if (isServerUnavailable(error) && current !== null && !current.expiresWithin(0, this.now())) {
         return current.value
       }
@@ -203,6 +204,15 @@ export class AuthService {
     this.refreshToken = issued.refresh
     this.access = issued.access
     this.warning = persisted ? undefined : VAULT_UNAVAILABLE_WARNING
+  }
+
+  private isIn(state: SessionState): boolean {
+    return this.state === state
+  }
+
+  /** The token as it is now: it may have been replaced while a request was in flight. */
+  private currentAccess(): AccessToken | null {
+    return this.access
   }
 
   private async fetchUser(access: AccessToken): Promise<SessionUser | null> {

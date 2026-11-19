@@ -1,9 +1,23 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { InvalidCredentialsError, RateLimitedError, WeakPasswordError } from '../auth-api'
+import { LayoutModeProvider } from '@synergy/ui-kit'
+import {
+  InvalidCredentialsError,
+  RateLimitedError,
+  WeakPasswordError,
+  WrongPasswordError,
+} from '../auth-api'
 import type { AuthSession } from '../use-auth-session'
 import { useAuthSession } from '../use-auth-session'
-import { AuthGate } from './AuthGate'
+import { AuthGate as Gate } from './AuthGate'
+
+function AuthGate({ children }: { children: string }) {
+  return (
+    <LayoutModeProvider mode="tablet">
+      <Gate>{children}</Gate>
+    </LayoutModeProvider>
+  )
+}
 
 vi.mock('../use-auth-session')
 vi.mock('@/shared/settings', () => ({
@@ -64,7 +78,7 @@ describe('AuthGate', () => {
   it('shows the restoring screen', () => {
     setSession({ status: 'restoring' })
     render(<AuthGate>chat</AuthGate>)
-    expect(screen.getByText('Восстанавливаем сессию…')).toBeTruthy()
+    expect(screen.getByText('Восстанавливаем сессию')).toBeTruthy()
     expect(screen.queryByLabelText('Логин')).toBeNull()
   })
 
@@ -81,7 +95,7 @@ describe('AuthGate', () => {
     setSession({ status: 'must-change-password' })
     render(<AuthGate>chat</AuthGate>)
     expect(screen.queryByText('chat')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Смените пароль' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Смена временного пароля' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
     expect(session.logout).toHaveBeenCalledTimes(1)
   })
@@ -100,13 +114,14 @@ describe('AuthGate', () => {
     })
   })
 
-  it('blocks the form after a 429', async () => {
+  it('shows the retry countdown after a 429', async () => {
     setSession({ login: vi.fn().mockRejectedValue(new RateLimitedError('x', 90)) })
     render(<AuthGate>chat</AuthGate>)
     signIn()
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Войти (01:30)' })).toBeTruthy()
+      expect(screen.getByRole('alert').textContent).toContain('Слишком много попыток')
     })
+    expect(screen.getByRole('alert').textContent).toContain('01:30')
   })
 
   it('passes weak password violations to the dialog', async () => {
@@ -118,13 +133,37 @@ describe('AuthGate', () => {
     fireEvent.change(screen.getByLabelText('Временный пароль'), {
       target: { value: 'temp-pass-1' },
     })
-    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'newpassword' } })
+    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'newpassword1' } })
     fireEvent.change(screen.getByLabelText('Повторите новый пароль'), {
-      target: { value: 'newpassword' },
+      target: { value: 'newpassword1' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Сменить пароль' }))
     await waitFor(() => {
-      expect(screen.getByText('Нужна цифра')).toBeTruthy()
+      expect(screen.getByRole('alert').textContent).toContain('Нужна цифра')
+    })
+  })
+
+  it('shows a wrong temporary password reported by the server', async () => {
+    setSession({
+      status: 'must-change-password',
+      changePassword: vi.fn().mockRejectedValue(new WrongPasswordError('x', 401, 'WRONG_PASSWORD')),
+    })
+    render(<AuthGate>chat</AuthGate>)
+    fireEvent.change(screen.getByLabelText('Временный пароль'), { target: { value: 'temp-pass-1' } })
+    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'newpassword1' } })
+    fireEvent.change(screen.getByLabelText('Повторите новый пароль'), {
+      target: { value: 'newpassword1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить пароль' }))
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Неверный временный пароль')
+    })
+  })
+
+  it('puts the server line into the login form footer', async () => {
+    render(<AuthGate>chat</AuthGate>)
+    await waitFor(() => {
+      expect(screen.getByText('Сервер: localhost:3000')).toBeTruthy()
     })
   })
 })

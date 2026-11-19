@@ -19,8 +19,10 @@ const AgUiMessageSchema = z.custom<Message>(
   (value) =>
     typeof value === "object" &&
     value !== null &&
-    typeof (value as { id?: unknown }).id === "string" &&
-    typeof (value as { role?: unknown }).role === "string",
+    "id" in value &&
+    typeof value.id === "string" &&
+    "role" in value &&
+    typeof value.role === "string",
 );
 
 /** A file attached to a message; `status` is the current state of the stored file. */

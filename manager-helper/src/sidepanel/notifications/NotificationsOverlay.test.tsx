@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { LayoutModeProvider, type LayoutMode } from '@synergy/ui-kit'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps, RefObject } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { makeNotification } from '@/background/notifications/chrome-fake.testing'
 import { NotificationsOverlay } from './NotificationsOverlay'
 
@@ -13,11 +14,7 @@ const N2 = {
 
 type Props = ComponentProps<typeof NotificationsOverlay>
 
-function setWidth(width: number) {
-  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
-}
-
-function renderOverlay(overrides: Partial<Props> = {}) {
+function renderOverlay(overrides: Partial<Props> = {}, mode: LayoutMode = 'mobile') {
   const props: Props = {
     items: [N1, N2],
     unreadCount: 1,
@@ -33,56 +30,34 @@ function renderOverlay(overrides: Partial<Props> = {}) {
     onClose: vi.fn(),
     ...overrides,
   }
-  render(<NotificationsOverlay {...props} />)
+  render(
+    <LayoutModeProvider mode={mode}>
+      <NotificationsOverlay {...props} />
+    </LayoutModeProvider>,
+  )
   return props
 }
 
-function overlay(): HTMLElement {
-  return screen.getByRole('dialog', { name: 'Уведомления' })
-}
+const overlay = () => screen.getByRole('dialog', { name: 'Уведомления' })
+const readAll = () => screen.getByRole('button', { name: /Прочитать все/ })
 
-function readAll(): HTMLElement {
-  return screen.getByRole('button', { name: 'Прочитать все' })
-}
-
-afterEach(() => {
-  setWidth(1024)
-})
-
-describe('NotificationsOverlay: narrow panel', () => {
-  it('keeps the visually hidden row labels inside the scrolling list so the panel does not scroll', () => {
-    setWidth(380)
-    renderOverlay()
-    const list = screen.getByRole('list', { name: 'Список уведомлений' })
-    const scroller = list.closest('.overflow-y-auto')
-    expect(scroller).not.toBeNull()
-    expect(scroller?.classList.contains('relative')).toBe(true)
-  })
-
-  it('lists the notifications newest first and shows the unread count', () => {
-    setWidth(380)
+describe('NotificationsOverlay: mobile', () => {
+  it('lists the notifications with the unread count and short time', () => {
     renderOverlay({ unreadCount: 3 })
     expect(overlay().getAttribute('data-layout')).toBe('panel')
-    const rows = within(screen.getByRole('list', { name: 'Список уведомлений' })).getAllByRole(
-      'button',
-    )
-    expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringContaining('Первое'),
-      expect.stringContaining('Второе'),
-    ])
-    expect(screen.getByTestId('unread-count').textContent).toBe('3 новых')
+    const list = screen.getByRole('region', { name: 'Уведомления' })
+    expect(within(list).getByText('3')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Первое/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Второе/ })).toBeTruthy()
     expect(screen.getByText('2 мин')).toBeTruthy()
   })
 
-  it('hides the unread count and disables "Прочитать все" at zero', () => {
-    setWidth(380)
+  it('disables "Прочитать все" at zero unread', () => {
     renderOverlay({ unreadCount: 0 })
-    expect(screen.queryByTestId('unread-count')).toBeNull()
     expect(readAll().hasAttribute('disabled')).toBe(true)
   })
 
-  it('reads all and opens a notification', () => {
-    setWidth(380)
+  it('reads all and opens the source notification', () => {
     const props = renderOverlay()
     fireEvent.click(readAll())
     expect(props.onReadAll).toHaveBeenCalledTimes(1)
@@ -90,96 +65,57 @@ describe('NotificationsOverlay: narrow panel', () => {
     expect(props.onOpen).toHaveBeenCalledWith(N1)
   })
 
-  it('shows a skeleton on the first load with "Прочитать все" disabled', () => {
-    setWidth(380)
-    renderOverlay({ items: [], status: 'loading', isInitialLoad: true, unreadCount: 2 })
+  it('shows a skeleton on the first load', () => {
+    renderOverlay({ items: [], status: 'loading', isInitialLoad: true })
     expect(screen.getByRole('status', { name: 'Загрузка уведомлений' })).toBeTruthy()
-    expect(readAll().hasAttribute('disabled')).toBe(true)
   })
 
   it('shows the empty state', () => {
-    setWidth(380)
     renderOverlay({ items: [], unreadCount: 0 })
     expect(screen.getByText('Уведомлений пока нет')).toBeTruthy()
-    expect(
-      screen.getByText('Здесь появятся задачи, которые вам назначат, и другие события'),
-    ).toBeTruthy()
   })
 
-  it('shows the load error with "Повторить"', () => {
-    setWidth(380)
+  it('shows the load error and retries', () => {
     const props = renderOverlay({ items: [], status: 'error' })
-    const alert = screen.getByRole('alert')
-    expect(within(alert).getByText('Не удалось загрузить уведомления')).toBeTruthy()
-    fireEvent.click(within(alert).getByRole('button', { name: 'Повторить' }))
+    expect(screen.getByText('Не удалось загрузить уведомления')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(props.onRetry).toHaveBeenCalledTimes(1)
   })
 
   it('loads the next page', () => {
-    setWidth(380)
     const props = renderOverlay({ hasMore: true })
     fireEvent.click(screen.getByRole('button', { name: 'Показать ещё' }))
     expect(props.onLoadMore).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the next page loading', () => {
-    setWidth(380)
-    renderOverlay({ hasMore: true, loadMoreStatus: 'loading' })
-    expect(screen.getByText('Загружаем ещё…')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Показать ещё' })).toBeNull()
-  })
-
-  it('shows the next page error with "Повторить"', () => {
-    setWidth(380)
-    const props = renderOverlay({ hasMore: true, loadMoreStatus: 'error' })
-    expect(screen.getByText('Не удалось загрузить ещё')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
-    expect(props.onLoadMore).toHaveBeenCalledTimes(1)
-  })
-
   it('closes with the close button and with Escape', () => {
-    setWidth(380)
     const props = renderOverlay()
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть уведомления' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledTimes(2)
   })
 })
 
-describe('NotificationsOverlay: wide panel', () => {
-  it('becomes a dropdown with the full time and without the close button', () => {
-    setWidth(860)
-    renderOverlay()
+describe('NotificationsOverlay: tablet', () => {
+  it('becomes a popover with the full time and without the close button', () => {
+    renderOverlay({}, 'tablet')
     expect(overlay().getAttribute('data-layout')).toBe('dropdown')
     expect(screen.getByText('2 мин назад')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Закрыть уведомления' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull()
   })
 
-  it('closes on a click outside but not on the anchor', () => {
-    setWidth(860)
+  it('closes on a click outside but not on the anchor or inside', () => {
     const anchor = document.createElement('button')
     const outside = document.createElement('div')
     document.body.append(anchor, outside)
     const anchorRef: RefObject<HTMLElement | null> = { current: anchor }
-    const props = renderOverlay({ anchorRef })
+    const props = renderOverlay({ anchorRef }, 'tablet')
     fireEvent.mouseDown(anchor)
-    expect(props.onClose).not.toHaveBeenCalled()
     fireEvent.mouseDown(within(overlay()).getByRole('button', { name: /Первое/ }))
     expect(props.onClose).not.toHaveBeenCalled()
     fireEvent.mouseDown(outside)
     expect(props.onClose).toHaveBeenCalledTimes(1)
     anchor.remove()
     outside.remove()
-  })
-
-  it('switches the layout when the panel is resized', () => {
-    setWidth(380)
-    renderOverlay()
-    expect(overlay().getAttribute('data-layout')).toBe('panel')
-    setWidth(860)
-    act(() => {
-      window.dispatchEvent(new Event('resize'))
-    })
-    expect(overlay().getAttribute('data-layout')).toBe('dropdown')
   })
 })

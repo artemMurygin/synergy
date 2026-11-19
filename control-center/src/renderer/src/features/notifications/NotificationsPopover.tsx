@@ -37,7 +37,9 @@ export function NotificationsPopover({ onOpenNotification, onClose }: Notificati
   }
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    const { scrollTop, clientHeight, scrollHeight } = event.target as HTMLElement
+    // the scroll comes from the list inside the capturing wrapper
+    if (!(event.target instanceof HTMLElement)) return
+    const { scrollTop, clientHeight, scrollHeight } = event.target
     if (scrollTop + clientHeight < scrollHeight - LOAD_MORE_THRESHOLD_PX || listQuery.isFetchNextPageError) return
     loadMore()
   }
@@ -54,7 +56,7 @@ export function NotificationsPopover({ onOpenNotification, onClose }: Notificati
           const notification = notifications.find((candidate) => candidate.id === view.id)
           if (notification) onOpenNotification(notification)
         }}
-        onReadAll={() => markAllRead.mutate()}
+        onReadAll={() => { markAllRead.mutate(); }}
         onLoadMore={loadMore}
         onRetry={() => void (listQuery.data === undefined ? listQuery.refetch() : listQuery.fetchNextPage())}
         onClose={onClose}

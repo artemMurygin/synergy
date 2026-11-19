@@ -1,71 +1,100 @@
-import { ThreadPrimitive, useAui, useAuiState, useThreadViewport, useThreadViewportStore } from '@assistant-ui/react'
+import { useAui, useAuiState } from '@assistant-ui/react'
+import { Button, Composer, Skeleton, Thread, useComposerAttachments } from '@synergy/ui-kit'
+import { MessagesSquare, PanelLeftOpen, Plus } from '@synergy/ui-kit/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader, MessageSquare, MessagesSquare } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { threadsQuery, useCreateThread } from '@/lib/backend/threads.queries'
 import { formatActivity } from '@/lib/format-activity'
 import { useChatStore } from '@/stores/chat.store'
-import { AssistantMessage } from './AssistantMessage'
 import { ChatRuntimeProvider } from './ChatRuntimeProvider'
-import { Composer } from './Composer'
-import { DownloadErrorNotice, FileDownloadsProvider } from './file-downloads'
-import { NewMessageButton } from './NewMessageButton'
-import { AttachmentDropZone } from './ComposerAttachments'
-import { RunNotice } from './RunNotice'
+import { DownloadErrorNotice, FileDownloadsProvider, useFileDownloads } from './file-downloads'
 import { goneFileId, isFileGone } from './run-errors'
-import { UserMessage } from './UserMessage'
 import { useCancelRun } from './use-cancel-run'
-import { useComposerAttachments } from './use-composer-attachments'
+import { useFileUploadPort } from './use-file-upload-port'
 import { useThreadHistory } from './use-thread-history'
 
 const POLL_MS = 2000
 
-/** Dialog area: no chat selected, or the history and the composer of the active chat. */
-export function ChatThread() {
-  const activeThreadId = useChatStore((s) => s.activeThreadId)
-  if (activeThreadId === null) return <NoChat />
-  return <OpenChat key={activeThreadId} threadId={activeThreadId} />
+interface ChatThreadProps {
+  /** Set while the chat list is hidden: the button that shows it again and the one that starts a chat. */
+  onShowList?: () => void
 }
 
-function NoChat() {
+/** Dialog area: no chat selected, or the history and the composer of the active chat. */
+export function ChatThread({ onShowList }: ChatThreadProps) {
+  const activeThreadId = useChatStore((s) => s.activeThreadId)
+  if (activeThreadId === null) return <NoChat onShowList={onShowList} />
+  return <OpenChat key={activeThreadId} threadId={activeThreadId} onShowList={onShowList} />
+}
+
+/** Header pill of the dialog area (Chat Header): the buttons of the hidden list, then the title. */
+function Header({ children, onShowList }: { children?: ReactNode; onShowList?: () => void }) {
   const create = useCreateThread()
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <MessagesSquare className="size-8 text-ink-60" />
-      <h2 className="text-base font-semibold">Выберите чат</h2>
-      <p className="max-w-xs text-sm text-ink-60">
-        Откройте чат из списка слева или начните новый
-      </p>
-      <Button
-        className="rounded-xl px-5 font-semibold"
-        disabled={create.isPending}
-        onClick={() => {
-          create.mutate()
-        }}
-      >
-        Новый чат
-      </Button>
-    </div>
-  )
-}
-
-function Header({ threadId }: { threadId: string }) {
-  const { data } = useQuery(threadsQuery())
-  const thread = data?.find((t) => t.id === threadId)
-  if (thread === undefined) return null
-  return (
-    <header className="flex items-baseline gap-3 border-b px-6 py-4">
-      <h2 className="truncate text-base font-semibold">{thread.title}</h2>
-      <span className="shrink-0 text-xs text-ink-60">
-        {formatActivity(thread.lastActivityAt)}
-      </span>
+    <header className="flex h-16 shrink-0 items-center gap-2 px-3">
+      {onShowList !== undefined && (
+        <div className="flex h-11 items-center rounded-[22px] bg-surface-alt px-1">
+          <button
+            type="button"
+            aria-label="Показать список чатов"
+            onClick={onShowList}
+            className="flex size-9 items-center justify-center rounded-full text-ink-80 outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          >
+            <PanelLeftOpen />
+          </button>
+          <button
+            type="button"
+            aria-label="Новый чат"
+            disabled={create.isPending}
+            onClick={() => {
+              create.mutate()
+            }}
+            className="flex size-9 items-center justify-center rounded-full bg-brand-red text-white outline-none hover:bg-brand-red-hover focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
+          >
+            <Plus />
+          </button>
+        </div>
+      )}
+      {children}
     </header>
   )
 }
 
-function OpenChat({ threadId }: { threadId: string }) {
+function NoChat({ onShowList }: { onShowList?: () => void }) {
+  const create = useCreateThread()
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <Header onShowList={onShowList} />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        <MessagesSquare size={32} className="text-ink-40" />
+        <h2 className="font-display text-lg font-semibold text-ink">Выберите чат</h2>
+        <p className="max-w-xs text-sm text-ink-60">Откройте чат из списка слева или начните новый</p>
+        <Button
+          disabled={create.isPending}
+          onClick={() => {
+            create.mutate()
+          }}
+        >
+          Новый чат
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function TitlePill({ threadId }: { threadId: string }) {
+  const { data } = useQuery(threadsQuery())
+  const thread = data?.find((t) => t.id === threadId)
+  if (thread === undefined) return null
+  return (
+    <div className="flex h-11 min-w-0 items-center gap-2.5 rounded-[22px] bg-surface-alt px-[18px]">
+      <h2 className="truncate font-display text-base font-semibold text-ink">{thread.title}</h2>
+      <span className="shrink-0 text-xs text-ink-60">{formatActivity(thread.lastActivityAt)}</span>
+    </div>
+  )
+}
+
+function OpenChat({ threadId, onShowList }: { threadId: string; onShowList?: () => void }) {
   const queryClient = useQueryClient()
   const history = useThreadHistory(threadId)
   const { refetch } = history
@@ -101,7 +130,7 @@ function OpenChat({ threadId }: { threadId: string }) {
   let body
   if (history.isInitialLoad) {
     body = (
-      <div role="status" aria-label="Загрузка истории" className="flex flex-col gap-3 p-6">
+      <div role="status" aria-label="Загрузка истории" className="mx-auto flex w-full max-w-180 flex-col gap-3 p-6">
         <Skeleton className="h-10 w-2/3 self-end" />
         <Skeleton className="h-16 w-3/4" />
       </div>
@@ -111,7 +140,7 @@ function OpenChat({ threadId }: { threadId: string }) {
       <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
         <p className="text-sm text-ink-60">Не удалось загрузить историю чата</p>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => {
             void refetch()
           }}
@@ -122,19 +151,19 @@ function OpenChat({ threadId }: { threadId: string }) {
     )
   } else {
     body = (
-      <ChatRuntimeProvider
-        key={String(history.running)}
-        threadId={threadId}
-        initialMessages={history.messages}
-      >
-        <ThreadBody threadId={threadId} serverRunning={history.running} onStopped={refetch} />
+      <ChatRuntimeProvider key={String(history.running)} threadId={threadId} initialMessages={history.messages}>
+        <FileDownloadsProvider>
+          <ThreadBody threadId={threadId} serverRunning={history.running} onStopped={refetch} />
+        </FileDownloadsProvider>
       </ChatRuntimeProvider>
     )
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Header threadId={threadId} />
+      <Header onShowList={onShowList}>
+        <TitlePill threadId={threadId} />
+      </Header>
       {body}
     </div>
   )
@@ -154,13 +183,14 @@ interface ThreadBodyProps {
 function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
   const aui = useAui()
   const cancel = useCancelRun(threadId)
+  const { download, pending } = useFileDownloads()
   const messages = useAuiState((s) => s.thread.messages)
   const localRunning = useAuiState((s) => s.thread.isRunning)
 
   const last = messages.at(-1)
   const lastStatus = last?.role === 'assistant' ? last.status : undefined
   const failed = lastStatus?.type === 'incomplete' && lastStatus.reason === 'error'
-  const attachments = useComposerAttachments()
+  const attachments = useComposerAttachments(useFileUploadPort())
 
   // The run was refused because a sent file expired: its card comes back failed
   const lastError = failed && typeof lastStatus.error === 'string' ? lastStatus.error : ''
@@ -176,15 +206,15 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
   const question = messages.filter((m) => m.role === 'user').at(-1)
   const questionText = question === undefined ? '' : answerText(question.content)
   useEffect(() => {
-    if (!failed || questionText === '' || aui.composer().getState().text !== '') return
+    if (!failed || questionText === '' || aui.composer.getState().text !== '') return
     restored.current = questionText
-    aui.composer().setText(questionText)
+    aui.composer.setText(questionText)
   }, [failed, questionText, aui])
   // A retry sends the question again: the restored copy must not stay behind
   useEffect(() => {
     if (!localRunning) return
-    if (restored.current !== '' && aui.composer().getState().text === restored.current) {
-      aui.composer().setText('')
+    if (restored.current !== '' && aui.composer.getState().text === restored.current) {
+      aui.composer.setText('')
     }
     restored.current = ''
   }, [localRunning, aui])
@@ -202,74 +232,23 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
   }, [running, queryClient])
 
   return (
-    <AttachmentDropZone onFiles={attachments.add} disabled={serverRunning}>
-      <FileDownloadsProvider>
-        <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-          <div className="mx-auto w-full max-w-180 px-6 empty:hidden [&:not(:empty)]:pt-4">
-            <DownloadErrorNotice />
-          </div>
-          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3 px-6 py-6">
-              {messages.length === 0 && !serverRunning && (
-                <div className="m-auto flex flex-col items-center gap-2 text-center">
-                  <MessageSquare className="size-8 text-ink-60" />
-                  <h2 className="text-base font-semibold">Задайте вопрос по таблицам</h2>
-                  <p className="max-w-xs text-sm text-ink-60">
-                    Агент ответит на основе данных в Google Sheets
-                  </p>
-                </div>
-              )}
-              <ThreadPrimitive.Messages>
-                {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
-              </ThreadPrimitive.Messages>
-              {localRunning && (
-                <p className="flex items-center gap-2 text-[13px] text-ink-60">
-                  <span className="size-2 animate-pulse rounded-full bg-brand-red" />
-                  Агент отвечает…
-                </p>
-              )}
-              {serverRunning && !localRunning && (
-                <RunNotice
-                  tone="info"
-                  role="status"
-                  icon={<Loader className="size-4" />}
-                  title="Агент ещё отвечает"
-                  text="Ответ появится в чате, когда будет готов."
-                />
-              )}
-            </div>
-            <div className="pointer-events-none sticky bottom-3 flex justify-center empty:hidden [&>*]:pointer-events-auto">
-              <FeedNewMessage count={messages.length} />
-            </div>
-          </ThreadPrimitive.Viewport>
-        </ThreadPrimitive.Root>
-        <div className="mx-auto w-full max-w-180">
-          <Composer
-            running={running}
-            disabled={serverRunning}
-            attachments={attachments}
-            onStop={() => {
-              if (localRunning) aui.thread().cancelRun()
-              else cancel.mutate(undefined, { onSuccess: () => void onStopped() })
-            }}
-          />
-        </div>
-      </FileDownloadsProvider>
-    </AttachmentDropZone>
-  )
-}
-
-/** "Новое сообщение" of the feed: a message arrived while the user read the history above. */
-function FeedNewMessage({ count }: { count: number }) {
-  const isAtBottom = useThreadViewport((s) => s.isAtBottom)
-  const viewport = useThreadViewportStore()
-  return (
-    <NewMessageButton
-      messageCount={count}
-      isAtBottom={isAtBottom}
-      onScrollToBottom={() => {
-        viewport.getState().scrollToBottom({ behavior: 'smooth' })
-      }}
-    />
+    <>
+      <div className="mx-auto w-full max-w-180 px-6 empty:hidden [&:not(:empty)]:pt-2">
+        <DownloadErrorNotice />
+      </div>
+      <Thread
+        serverRunning={serverRunning}
+        onRetry={() => {
+          if (last !== undefined) aui.thread.message({ index: messages.length - 1 }).reload()
+        }}
+        onCancel={() => {
+          if (localRunning) aui.thread.cancelRun()
+          else cancel.mutate(undefined, { onSuccess: () => void onStopped() })
+        }}
+        composer={<Composer attachments={attachments} />}
+        onDownload={download}
+        pendingDownloads={pending}
+      />
+    </>
   )
 }

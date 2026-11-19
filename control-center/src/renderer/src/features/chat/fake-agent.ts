@@ -11,6 +11,6 @@ export class FakeAgent extends HttpAgent {
     this.inputs.push(input)
     this.stream = new Subject<BaseEvent>()
     // @ag-ui/client bundles its own rxjs copy: compatible at runtime, not in types
-    return this.stream.asObservable() as unknown as ReturnType<HttpAgent['run']>
+    return this.stream.asObservable()
   }
 }

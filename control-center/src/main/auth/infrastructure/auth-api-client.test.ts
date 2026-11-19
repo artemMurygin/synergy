@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccessToken } from '../domain/access-token'
 import { type AuthError, isAuthError } from '../domain/auth-error'

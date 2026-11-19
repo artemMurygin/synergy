@@ -31,7 +31,11 @@ function mount() {
   return userEvent.setup()
 }
 
-const input = () => screen.getByPlaceholderText('Вопрос агенту') as HTMLTextAreaElement
+function input(): HTMLTextAreaElement {
+  const field = screen.getByPlaceholderText('Сообщение агенту')
+  if (!(field instanceof HTMLTextAreaElement)) throw new Error('the composer field is not a textarea')
+  return field
+}
 
 function emit(event: BaseEvent & Record<string, unknown>) {
   act(() => {
@@ -42,7 +46,7 @@ function emit(event: BaseEvent & Record<string, unknown>) {
 }
 
 async function ask(user: ReturnType<typeof userEvent.setup>, text: string) {
-  await screen.findByPlaceholderText('Вопрос агенту')
+  await screen.findByPlaceholderText('Сообщение агенту')
   await user.type(input(), `${text}{Enter}`)
   await waitFor(() => {
     expect(agent.inputs.length).toBeGreaterThan(0)
@@ -67,19 +71,25 @@ beforeEach(() => {
   useChatStore.setState({ activeThreadId: 't1' })
 })
 
+function sendWith(...events: (BaseEvent & Record<string, unknown>)[]) {
+  for (const event of events) emit(event)
+}
+
+const PROGRAMS = ['1. MBA', '2. Маркетинг', '3. HR'].join('\n')
+
 describe('ChatThread', () => {
   it('asks to choose a chat when none is active', () => {
     useChatStore.setState({ activeThreadId: null })
     mount()
     expect(screen.getByText('Выберите чат')).toBeTruthy()
-    expect(screen.queryByPlaceholderText('Вопрос агенту')).toBeNull()
+    expect(screen.queryByPlaceholderText('Сообщение агенту')).toBeNull()
     expect(getThreadHistory).not.toHaveBeenCalled()
   })
 
   it('shows a hint for a new chat with an empty history', async () => {
     vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
     mount()
-    expect(await screen.findByText('Задайте вопрос по таблицам')).toBeTruthy()
+    expect(await screen.findByText('Чем помочь?')).toBeTruthy()
   })
 
   it('shows the history in chronological order', async () => {
@@ -177,7 +187,7 @@ describe('ChatThread', () => {
     act(() => {
       agent.stream.error(new Error('HTTP 409: {"message":"conflict"}'))
     })
-    expect(await screen.findByText('Агент ещё отвечает')).toBeTruthy()
+    expect(await screen.findByText(/Агент ещё отвечает/)).toBeTruthy()
     await waitFor(() => {
       expect(input().value).toBe('мой вопрос')
     })
@@ -185,7 +195,7 @@ describe('ChatThread', () => {
 
   it('does not send an empty message', async () => {
     const user = mount()
-    await screen.findByPlaceholderText('Вопрос агенту')
+    await screen.findByPlaceholderText('Сообщение агенту')
     await user.type(input(), '  {Enter}')
     expect(agent.inputs).toHaveLength(0)
   })
@@ -197,6 +207,65 @@ describe('ChatThread', () => {
     expect(input().disabled).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Остановить' }))
     expect(cancelRun).toHaveBeenCalledWith('t1')
+  })
+
+  it('groups the tool calls of the answer into one collapsed group with the overall state', async () => {
+    const user = mount()
+    await ask(user, 'найди программы')
+    sendWith(
+      { type: EventType.RUN_STARTED, threadId: 't1', runId: 'r' },
+      { type: EventType.TOOL_CALL_START, toolCallId: 'c1', toolCallName: 'search_programs' },
+      { type: EventType.TOOL_CALL_ARGS, toolCallId: 'c1', delta: '{"query":"mba"}' },
+      { type: EventType.TOOL_CALL_END, toolCallId: 'c1' }
+    )
+    expect(await screen.findByText('1 вызов инструментов')).toBeTruthy()
+    expect(screen.getByText('выполняется')).toBeTruthy()
+    expect(screen.queryByText('search_programs')).toBeNull()
+    sendWith({ type: EventType.TOOL_CALL_RESULT, messageId: 'tr1', toolCallId: 'c1', content: '["mba"]', role: 'tool' })
+    expect(await screen.findByText('1 готово')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /1 вызов инструментов/ }))
+    expect(await screen.findByText('search_programs')).toBeTruthy()
+  })
+
+  it('shows the hints of the next step above the form for a list of programs and sends the chosen one', async () => {
+    vi.mocked(getThreadHistory).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'u1', role: 'user', content: 'Какие есть программы?', attachments: [], source: 'run' },
+        { id: 'a1', role: 'assistant', content: `Подходят:\n${PROGRAMS}`, attachments: [], source: 'run' }
+      ]
+    })
+    const user = mount()
+    const hint = await screen.findByRole('button', { name: 'Вступительные' })
+    const form = input().closest('form')
+    expect(form).not.toBeNull()
+    expect(hint.compareDocumentPosition(form ?? hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.click(hint)
+    await waitFor(() => {
+      expect(agent.inputs).toHaveLength(1)
+    })
+    expect(JSON.stringify(agent.inputs[0]?.messages.at(-1))).toContain('вступительные испытания')
+    expect(screen.queryByRole('button', { name: 'Вступительные' })).toBeNull()
+  })
+
+  it('shows no hints for an answer of another kind or while the agent answers', async () => {
+    const user = mount()
+    await screen.findByText('От 420 000 ₽')
+    expect(screen.queryByRole('group', { name: 'Подсказки' })).toBeNull()
+    await ask(user, 'ещё вопрос')
+    expect(screen.queryByRole('group', { name: 'Подсказки' })).toBeNull()
+  })
+
+  it('asks again on "Повторить" after a connection error', async () => {
+    const user = mount()
+    await ask(user, 'мой вопрос')
+    act(() => {
+      agent.stream.error(new TypeError('Failed to fetch'))
+    })
+    await user.click(await screen.findByRole('button', { name: 'Повторить' }))
+    await waitFor(() => {
+      expect(agent.inputs).toHaveLength(2)
+    })
   })
 
   describe('attachments', () => {
@@ -220,18 +289,17 @@ describe('ChatThread', () => {
     })
 
     async function dropRecording() {
-      const panel = await screen.findByRole('region', { name: 'Чат' })
-      fireEvent.dragEnter(panel, { dataTransfer })
-      fireEvent.dragOver(panel, { dataTransfer })
-      expect(screen.getByText('Отпустите файлы, чтобы прикрепить')).toBeTruthy()
-      fireEvent.drop(panel, { dataTransfer })
-      expect(screen.queryByText('Отпустите файлы, чтобы прикрепить')).toBeNull()
+      const form = (await screen.findByPlaceholderText('Сообщение агенту')).closest('form')
+      if (form === null) throw new Error('composer form not found')
+      fireEvent.dragEnter(form, { dataTransfer })
+      fireEvent.dragOver(form, { dataTransfer })
+      fireEvent.drop(form, { dataTransfer })
       await waitFor(() => {
-        expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(false)
+        expect(screen.getByRole('button', { name: 'Отправить' })).toHaveProperty('disabled', false)
       })
     }
 
-    it('attaches a file dropped on the chat panel and sends its id in forwardedProps', async () => {
+    it('attaches a file dropped on the composer and sends its id in forwardedProps', async () => {
       const user = mount()
       await dropRecording()
       expect(screen.getByText('встреча.m4a')).toBeTruthy()
@@ -246,7 +314,7 @@ describe('ChatThread', () => {
     it('does not send fileIds with a message without files', async () => {
       const user = mount()
       await ask(user, 'просто вопрос')
-      expect(agent.inputs[0]?.forwardedProps?.fileIds).toBeUndefined()
+      expect(agent.inputs[0]?.forwardedProps).not.toHaveProperty('fileIds')
     })
 
     it('puts the expired file back as a failed card when the run is refused with 410', async () => {

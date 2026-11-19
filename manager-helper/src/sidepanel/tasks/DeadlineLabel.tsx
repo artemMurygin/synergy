@@ -1,5 +1,5 @@
 import type { TaskStatus } from '@/shared/tasks-api'
-import { AlarmIcon, CalendarIcon } from '../icons'
+import { AlarmClock, Calendar } from '@synergy/ui-kit/icons'
 import { formatDay, formatDeadline, isOverdue } from './format'
 
 interface Props {
@@ -14,14 +14,14 @@ export function DeadlineLabel({ deadline, status, now }: Props) {
   if (isOverdue(deadline, status, now)) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-red">
-        <AlarmIcon />
+        <AlarmClock />
         {`Просрочено · ${formatDay(deadline)}`}
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-60">
-      <CalendarIcon />
+      <Calendar />
       {formatDeadline(deadline)}
     </span>
   )

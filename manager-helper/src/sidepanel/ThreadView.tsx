@@ -1,13 +1,13 @@
-import { ComposerPrimitive, ThreadPrimitive, useAui, useAuiState } from '@assistant-ui/react'
-import { useEffect, useRef, useState } from 'react'
-import { AssistantMessage } from './AssistantMessage'
+import { useAui, useAuiState } from '@assistant-ui/react'
+import { Composer, RunNotice, Thread, useComposerAttachments } from '@synergy/ui-kit'
+import type { MessageFile } from '@synergy/ui-kit'
+import { CircleAlert } from '@synergy/ui-kit/icons'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { downloadFile } from '@/shared/files-api'
+import { useFileUploadPort } from './attachments/use-file-upload-port'
 import { useChatHistory } from './ChatRuntimeProvider'
 import { isFormOpen } from './form-visibility'
-import { NextSteps } from './NextSteps'
 import { QuickSearchForm } from './QuickSearchForm'
-import { RunningIndicator } from './RunningIndicator'
-import { SquareIcon } from './icons'
-import { UserMessage } from './UserMessage'
 
 interface Props {
   /** The server still runs the agent of this chat (the panel came back to a run in progress). */
@@ -23,10 +23,41 @@ interface Props {
   onSendWithoutChat?: (text: string) => Promise<boolean>
 }
 
-const BUTTON =
-  'h-13 shrink-0 rounded-2xl px-4 text-[15px] font-semibold transition-colors flex items-center justify-center gap-2'
+function answerText(content: readonly { type: string; text?: string }[]): string {
+  return content.map((part) => (part.type === 'text' ? (part.text ?? '') : '')).join('')
+}
 
-/** Feed of the chat, quick search form, next steps and the composer. */
+/** The run was refused because an attached file is deleted: `HTTP 410: File <id> is deleted`. */
+function goneFileId(error: string): string | null | undefined {
+  if (!/\bHTTP 410\b/.test(error)) return undefined
+  return /File (\S+?) is deleted/.exec(error)?.[1] ?? null
+}
+
+function useFileDownloads() {
+  const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set())
+  const [failedName, setFailedName] = useState<string | null>(null)
+  const download = useCallback((file: MessageFile) => {
+    setFailedName(null)
+    setPending((ids) => new Set(ids).add(file.id))
+    downloadFile(file.id, file.name)
+      .catch(() => {
+        setFailedName(file.name)
+      })
+      .finally(() => {
+        setPending((ids) => {
+          const next = new Set(ids)
+          next.delete(file.id)
+          return next
+        })
+      })
+  }, [])
+  const dismiss = useCallback(() => {
+    setFailedName(null)
+  }, [])
+  return { pending, failedName, download, dismiss }
+}
+
+/** Feed of the chat (UI kit Thread), quick search form and the form of sending with attachments. */
 export function ThreadView({
   serverRunning,
   onStopServerRun,
@@ -40,6 +71,8 @@ export function ThreadView({
   const lastMessage = messages.at(-1)
   const lastStatus = lastMessage?.role === 'assistant' ? lastMessage.status : undefined
   const failed = lastStatus?.type === 'incomplete' && lastStatus.reason === 'error'
+  const attachments = useComposerAttachments(useFileUploadPort())
+  const downloads = useFileDownloads()
 
   // Agent-reply count at which the user re-opened the form; -1 means not re-opened.
   const [openedAt, setOpenedAt] = useState(-1)
@@ -49,6 +82,16 @@ export function ThreadView({
   const running = localRunning || serverRunning
   const showContent = history.status === 'ready' || history.status === 'idle'
   const blocked = history.status === 'loading' || history.status === 'error'
+
+  // The run was refused because a sent file expired: its card comes back failed.
+  const lastError = failed && typeof lastStatus.error === 'string' ? lastStatus.error : ''
+  const lastId = lastMessage?.id
+  const { restoreExpired } = attachments
+  useEffect(() => {
+    const gone = goneFileId(lastError)
+    if (lastId === undefined || gone === undefined) return
+    restoreExpired(gone)
+  }, [lastId, lastError, restoreExpired])
 
   // The composer empties on send: when the run fails the question goes back into it.
   const restored = useRef('')
@@ -80,120 +123,106 @@ export function ThreadView({
     })
   }
 
-  const lastAnswer = lastMessage?.role === 'assistant' ? answerText(lastMessage.content) : ''
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white">
-      <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-          {history.status === 'loading' && (
-            <p className="m-auto text-sm text-ink-60">Загружаем историю…</p>
-          )}
-          {history.status === 'error' && (
-            <div className="m-auto flex flex-col items-center gap-2 text-center">
-              <p className="text-sm text-ink-60">Не удалось загрузить историю чата</p>
-              <button
-                type="button"
-                className="rounded-full border border-line bg-surface-alt px-4 py-1.5 text-sm font-semibold text-ink hover:bg-surface-sunken"
-                onClick={history.reload}
-              >
-                Повторить
-              </button>
-            </div>
-          )}
-          {showContent && messages.length === 0 && (
-            <p className="m-auto max-w-xs text-center text-sm text-ink-60">
-              Задайте вопрос по ценам, программам и условиям поступления или заполните форму ниже.
-            </p>
-          )}
-          <ThreadPrimitive.Messages>
-            {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
-          </ThreadPrimitive.Messages>
-          {localRunning && (
-            <p className="flex items-center gap-2 text-[13px] text-ink-60">
-              <span className="size-2 animate-pulse rounded-full bg-brand-red" />
-              Агент отвечает…
-            </p>
-          )}
-          {serverRunning && !localRunning && <RunningIndicator variant="running" />}
-        </ThreadPrimitive.Viewport>
-      </ThreadPrimitive.Root>
-
-      {showContent && (
-        <div className={running ? 'opacity-50' : undefined}>
-          <QuickSearchForm
-            open={formOpen}
-            onToggle={() => {
-              setOpenedAt(formOpen ? -1 : agentCount)
-            }}
-            pending={running}
-            onSubmit={(query, title) => {
-              setOpenedAt(-1)
-              onQuickSearch(query, title)
-            }}
-          />
-          {!formOpen && lastMessage?.role === 'assistant' && (
-            <NextSteps
-              disabled={running}
-              lastAnswer={lastAnswer}
-              onSend={(query) => {
-                aui.thread.append(query)
-              }}
-            />
-          )}
-        </div>
-      )}
-
-      <ComposerPrimitive.Root
-        className="flex items-end gap-2 border-t border-line p-3"
-        onSubmit={(event) => {
-          if (onSendWithoutChat === undefined) return
-          // Enter submits the form: without a chat the panel creates one first.
-          event.preventDefault()
-          submitWithoutChat()
-        }}
-      >
-        <ComposerPrimitive.Input
-          rows={1}
-          disabled={blocked || serverRunning}
-          placeholder="Вопрос агенту"
-          aria-label="Вопрос агенту (Enter — отправить)"
-          title="Enter — отправить, Shift+Enter — новая строка"
-          className="max-h-32 min-h-13 min-w-0 flex-1 resize-none rounded-xl border border-[#cacacb] px-4 py-3.5 text-[15px] leading-snug outline-none placeholder:text-ink-40 focus:border-brand-red disabled:bg-surface-alt"
-        />
-        {running ? (
+  const empty = (
+    <div className="m-auto flex max-w-xs flex-col items-center gap-2 text-center">
+      {history.status === 'loading' && <p className="text-sm text-ink-60">Загружаем историю…</p>}
+      {history.status === 'error' && (
+        <>
+          <p className="text-sm text-ink-60">Не удалось загрузить историю чата</p>
           <button
             type="button"
-            className={`${BUTTON} border border-[#cacacb] bg-white text-ink hover:bg-surface-alt`}
-            onClick={() => {
-              if (localRunning) aui.thread.cancelRun()
-              else onStopServerRun()
-            }}
+            className="rounded-full bg-surface-alt px-4 py-1.5 text-sm font-semibold text-ink hover:bg-surface-sunken"
+            onClick={history.reload}
           >
-            <SquareIcon />
-            Остановить
+            Повторить
           </button>
-        ) : onSendWithoutChat !== undefined ? (
-          <button
-            type="submit"
-            disabled={blocked || composerText.trim() === ''}
-            className={`${BUTTON} bg-brand-red text-white hover:bg-brand-red-hover disabled:bg-surface-sunken disabled:text-ink-40`}
-          >
-            Спросить
-          </button>
-        ) : (
-          <ComposerPrimitive.Send
-            disabled={blocked}
-            className={`${BUTTON} bg-brand-red text-white hover:bg-brand-red-hover disabled:bg-surface-sunken disabled:text-ink-40`}
-          >
-            Спросить
-          </ComposerPrimitive.Send>
-        )}
-      </ComposerPrimitive.Root>
+        </>
+      )}
+      {showContent && (
+        <p className="text-sm text-ink-60">
+          Задайте вопрос по ценам, программам и условиям поступления или заполните форму ниже.
+        </p>
+      )}
     </div>
   )
-}
 
-function answerText(content: readonly { type: string; text?: string }[]): string {
-  return content.map((part) => (part.type === 'text' ? (part.text ?? '') : '')).join('')
+  // Without a chat Enter and the send button go to the panel: it creates the chat first.
+  const interceptSend = onSendWithoutChat !== undefined
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col bg-surface">
+      <Thread
+        serverRunning={serverRunning}
+        onRetry={() => {
+          if (lastMessage !== undefined) aui.thread.message({ index: messages.length - 1 }).reload()
+        }}
+        onCancel={() => {
+          if (localRunning) aui.thread.cancelRun()
+          else onStopServerRun()
+        }}
+        onDownload={downloads.download}
+        pendingDownloads={downloads.pending}
+        empty={empty}
+        composer={
+          <>
+            {downloads.failedName !== null && (
+              <RunNotice
+                tone="error"
+                role="alert"
+                icon={<CircleAlert size={18} />}
+                title="Не удалось скачать файл"
+                text={downloads.failedName}
+                actionLabel="Закрыть"
+                onAction={downloads.dismiss}
+              />
+            )}
+            {showContent && (
+              <div className={running ? 'opacity-50' : undefined}>
+                <QuickSearchForm
+                  open={formOpen}
+                  onToggle={() => {
+                    setOpenedAt(formOpen ? -1 : agentCount)
+                  }}
+                  pending={running}
+                  onSubmit={(query, title) => {
+                    setOpenedAt(-1)
+                    onQuickSearch(query, title)
+                  }}
+                />
+              </div>
+            )}
+            <div
+              onSubmitCapture={
+                interceptSend
+                  ? (event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      submitWithoutChat()
+                    }
+                  : undefined
+              }
+              onKeyDownCapture={
+                interceptSend
+                  ? (event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing &&
+                        event.target instanceof HTMLTextAreaElement
+                      ) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        submitWithoutChat()
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <Composer attachments={attachments} disabled={blocked} />
+            </div>
+          </>
+        }
+      />
+    </div>
+  )
 }

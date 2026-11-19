@@ -73,7 +73,7 @@ describe('AuthGate', () => {
   it('replaces children with the login form when the session is lost', async () => {
     const mock = mount(authenticatedSnapshot)
     await screen.findByText('protected chats')
-    act(() => mock.emit(unauthenticatedSnapshot))
+    act(() => { mock.emit(unauthenticatedSnapshot); })
     await waitFor(() => {
       expect(screen.queryByText('protected chats')).toBeNull()
     })

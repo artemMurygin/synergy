@@ -54,7 +54,7 @@ export function installBridgeMock(initial: SessionSnapshotView = unauthenticated
     retryRestore,
     getState,
     unsubscribe,
-    emit: (snapshot) => listeners.forEach((listener) => listener(snapshot)),
+    emit: (snapshot) => { listeners.forEach((listener) => { listener(snapshot); }); },
     listenerCount: () => listeners.size
   }
 }

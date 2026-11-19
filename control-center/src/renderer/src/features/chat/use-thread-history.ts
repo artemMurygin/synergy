@@ -8,7 +8,7 @@ import { useChatStore } from '@/stores/chat.store'
 export const threadHistoryOptions = (threadId: string | null) =>
   queryOptions({
     queryKey: ['threads', threadId, 'history'],
-    queryFn: () => getThreadHistory(threadId as string),
+    queryFn: () => getThreadHistory(threadId ?? ''),
     enabled: threadId !== null,
     retry: false,
     refetchOnWindowFocus: false

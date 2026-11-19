@@ -50,7 +50,7 @@ describe('ProfileMenuContainer', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Выйти' }))
     expect(bridge.logout).not.toHaveBeenCalled()
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Выйти' }))
-    await waitFor(() => expect(bridge.logout).toHaveBeenCalledTimes(1))
+    await waitFor(() => { expect(bridge.logout).toHaveBeenCalledTimes(1); })
   })
 
   it('keeps the session when the logout is cancelled', async () => {
@@ -65,7 +65,7 @@ describe('ProfileMenuContainer', () => {
   it('has the Telegram item with «Не подключён» that opens the Telegram dialog', async () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     const user = mount()
-    await waitFor(() => expect(telegramApi.getTelegramLink).toHaveBeenCalled())
+    await waitFor(() => { expect(telegramApi.getTelegramLink).toHaveBeenCalled(); })
     await user.click(avatar())
     const item = await screen.findByRole('menuitem', { name: /Telegram/ })
     expect(item.textContent).toContain('Не подключён')
@@ -76,7 +76,7 @@ describe('ProfileMenuContainer', () => {
   it('shows the linked @username in the Telegram item', async () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(linkedStatus)
     const user = mount()
-    await waitFor(() => expect(telegramApi.getTelegramLink).toHaveBeenCalled())
+    await waitFor(() => { expect(telegramApi.getTelegramLink).toHaveBeenCalled(); })
     await user.click(avatar())
     expect((await screen.findByRole('menuitem', { name: /Telegram/ })).textContent).toContain('@ivanov_tg')
   })
@@ -84,7 +84,7 @@ describe('ProfileMenuContainer', () => {
   it('has no Telegram item when the bot is not configured', async () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unavailableStatus)
     const user = mount()
-    await waitFor(() => expect(telegramApi.getTelegramLink).toHaveBeenCalled())
+    await waitFor(() => { expect(telegramApi.getTelegramLink).toHaveBeenCalled(); })
     await user.click(avatar())
     expect(screen.getByText(/Вы вошли в систему/)).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: /Telegram/ })).toBeNull()
@@ -101,8 +101,8 @@ describe('ProfileMenuContainer', () => {
     await user.type(within(dialog).getByLabelText('Новый пароль'), 'NewPass12345')
     await user.type(within(dialog).getByLabelText('Повторите новый пароль'), 'NewPass12345')
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить пароль' }))
-    await waitFor(() => expect(bridge.changePassword).toHaveBeenCalledWith('OldPass12345', 'NewPass12345'))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => { expect(bridge.changePassword).toHaveBeenCalledWith('OldPass12345', 'NewPass12345'); })
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull(); })
   })
 
   it('shows the server error in the change password dialog', async () => {

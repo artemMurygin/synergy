@@ -1,20 +1,23 @@
 import type { ReactNode } from 'react'
 
 interface ChatLayoutProps {
+  /** The chat list; not rendered while it is hidden. */
   sidebar: ReactNode
   main: ReactNode
-  sidebarFooter?: ReactNode
+  /** The list is hidden: the chat takes its place. */
+  collapsed?: boolean
 }
 
-// Two columns: fixed 320px chat list and a flexible thread area
-export function ChatLayout({ sidebar, main, sidebarFooter }: ChatLayoutProps) {
+// Two panels (frames VHpuS, b4IMkD): a 300px chat list and a flexible dialog area
+export function ChatLayout({ sidebar, main, collapsed = false }: ChatLayoutProps) {
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
-      <aside className="flex h-full w-80 shrink-0 flex-col">
-        <div className="min-h-0 flex-1">{sidebar}</div>
-        {sidebarFooter}
-      </aside>
-      <main className="flex h-full min-w-0 flex-1 flex-col">{main}</main>
+    <div className="flex h-full w-full gap-2.5 overflow-hidden text-ink">
+      {!collapsed && (
+        <aside aria-label="Список чатов" className="h-full w-75 shrink-0 overflow-hidden rounded-[20px] bg-surface shadow-panel">
+          {sidebar}
+        </aside>
+      )}
+      <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-surface shadow-panel">{main}</main>
     </div>
   )
 }

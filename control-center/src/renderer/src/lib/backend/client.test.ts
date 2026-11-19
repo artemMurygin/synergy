@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { request } from "./client";
 import { BackendError, RunConflictError, ThreadNotFoundError } from "./errors";

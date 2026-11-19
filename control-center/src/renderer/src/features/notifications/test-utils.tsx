@@ -44,8 +44,8 @@ export function installNotificationsBridgeMock(initialState: NotificationConnect
   Object.defineProperty(window, 'api', { value: { ...base, notifications: bridge }, configurable: true, writable: true })
   return {
     bridge,
-    emitEvent: (event: NotificationEventView) => eventListeners.forEach((listener) => listener(event)),
-    emitState: (state: NotificationConnectionState) => stateListeners.forEach((listener) => listener(state)),
+    emitEvent: (event: NotificationEventView) => { eventListeners.forEach((listener) => { listener(event); }); },
+    emitState: (state: NotificationConnectionState) => { stateListeners.forEach((listener) => { listener(state); }); },
     listenerCount: () => eventListeners.size + stateListeners.size
   }
 }

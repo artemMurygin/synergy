@@ -22,7 +22,9 @@ export function AuthGate({ children }: AuthGateProps) {
 
   const retry = (): void => {
     setRetrying(true)
-    Promise.resolve(retryRestore()).finally(() => setRetrying(false))
+    void Promise.resolve(retryRestore()).finally(() => {
+      setRetrying(false)
+    })
   }
 
   switch (snapshot.state) {
@@ -34,7 +36,7 @@ export function AuthGate({ children }: AuthGateProps) {
           title="Вход в Control Center"
           pending={login.isPending}
           error={loginErrorText(login.error, snapshot.retryAfterSec, snapshot.warning)}
-          onSubmit={(credentials) => login.mutate(credentials)}
+          onSubmit={(credentials) => { login.mutate(credentials); }}
         />
       )
     case 'mustChangePassword':
@@ -43,10 +45,9 @@ export function AuthGate({ children }: AuthGateProps) {
           kind="forced"
           pending={changePassword.isPending}
           error={changePasswordErrorText(changePassword.error)}
-          onSubmit={({ currentPassword, newPassword }) =>
-            changePassword.mutate({ currentPassword, newPassword, confirmPassword: newPassword })
+          onSubmit={({ currentPassword, newPassword }) => { changePassword.mutate({ currentPassword, newPassword, confirmPassword: newPassword }); }
           }
-          onLogout={() => logout.mutate()}
+          onLogout={() => { logout.mutate(); }}
         />
       )
     case 'connectionError':

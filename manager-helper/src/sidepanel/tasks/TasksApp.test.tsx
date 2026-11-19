@@ -50,16 +50,16 @@ afterEach(() => {
 })
 
 describe('TasksApp', () => {
-  it('loads the open tasks of the current user and renders the switcher in the header', async () => {
-    render(<TasksApp switcher={<div>переключатель</div>} />)
+  it('loads the open tasks of the current user and renders the trailing slot in the header', async () => {
+    render(<TasksApp trailing={<div>уведомления</div>} />)
     expect(await screen.findByRole('button', { name: 'Отчёт' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'КП' })).toBeTruthy()
-    expect(screen.getByText('переключатель')).toBeTruthy()
+    expect(screen.getByText('уведомления')).toBeTruthy()
     expect(listTasks).toHaveBeenCalledWith(expect.objectContaining({ assigneeId: 'u1' }))
   })
 
   it('opens the details of a task, "Назад" returns to the same list', async () => {
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     const row = await screen.findByRole('button', { name: 'Отчёт' })
     const list = row.closest('ul')
     fireEvent.click(row)
@@ -76,7 +76,7 @@ describe('TasksApp', () => {
 
   it('returns to the list and reloads when the opened task is gone (404)', async () => {
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
     expect((await screen.findByRole('status', { name: 'Сообщение' })).textContent).toMatch(
       /не найдена/,
@@ -89,7 +89,7 @@ describe('TasksApp', () => {
 
   it('opens the quick create form from the header and from the empty state', async () => {
     vi.mocked(listTasks).mockResolvedValue({ items: [], total: 0, limit: 50, page: 0 })
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     expect(screen.queryByRole('textbox', { name: 'Название задачи' })).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: 'Создать задачу' }))
     expect(screen.getByRole('textbox', { name: 'Название задачи' })).toBeTruthy()
@@ -97,7 +97,7 @@ describe('TasksApp', () => {
 
   it('shows two columns with a hint in a wide panel and no "Назад"', async () => {
     resizeTo(700)
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }).then((b) => b))
     expect(await screen.findByRole('heading', { name: 'Отчёт' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'КП' })).toBeTruthy()
@@ -106,14 +106,14 @@ describe('TasksApp', () => {
 
   it('asks to pick a task in a wide panel until one is selected', async () => {
     resizeTo(700)
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     await screen.findByRole('button', { name: 'Отчёт' })
     expect(screen.getByText('Выберите задачу')).toBeTruthy()
   })
 
   it('keeps the selected task when the panel narrows', async () => {
     resizeTo(700)
-    render(<TasksApp switcher={null} />)
+    render(<TasksApp />)
     fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
     await screen.findByRole('heading', { name: 'Отчёт' })
     resizeTo(400)
@@ -122,10 +122,10 @@ describe('TasksApp', () => {
   })
 
   it('opens the details of a requested task, and "Задача не найдена" for a deleted one', async () => {
-    const { rerender } = render(<TasksApp switcher={null} requestedTaskId="b" />)
+    const { rerender } = render(<TasksApp requestedTaskId="b" />)
     expect(await screen.findByRole('heading', { name: 'КП' })).toBeTruthy()
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
-    rerender(<TasksApp switcher={null} requestedTaskId="gone" />)
+    rerender(<TasksApp requestedTaskId="gone" />)
     expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
   })
 })

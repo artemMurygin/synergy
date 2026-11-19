@@ -13,8 +13,9 @@ export interface NotificationsIpcRendererPort {
   removeListener<T>(channel: string, listener: ChannelListener<T>): unknown
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T ties the payload type of the channel to the listener of the caller
 function subscribe<T>(ipcRenderer: NotificationsIpcRendererPort, channel: string, listener: (payload: T) => void): () => void {
-  const wrapped: ChannelListener<T> = (_event, payload) => listener(payload)
+  const wrapped: ChannelListener<T> = (_event, payload) => { listener(payload); }
   ipcRenderer.on(channel, wrapped)
   return () => {
     ipcRenderer.removeListener(channel, wrapped)

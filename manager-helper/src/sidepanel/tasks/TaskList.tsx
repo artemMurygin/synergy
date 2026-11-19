@@ -1,6 +1,6 @@
 import type { Task, TaskStatus } from '@/shared/tasks-api'
 import type { TasksView } from '@/shared/tasks-view'
-import { CircleCheckIcon, CloudOffIcon, ListIcon, PlusIcon, SortAscIcon } from '../icons'
+import { ArrowUpDown, CircleCheck, CloudOff, MessagesSquare, Plus } from '@synergy/ui-kit/icons'
 import { TaskRow } from './TaskRow'
 
 interface Props {
@@ -28,9 +28,9 @@ interface Props {
 const primary =
   'inline-flex h-10 items-center gap-2 rounded-xl bg-brand-red px-4.5 text-[15px] font-semibold text-white shadow-[0_6px_12px_#66000033] hover:bg-brand-red-hover'
 const secondary =
-  'rounded-full border border-field-line bg-white px-5 py-2 text-sm font-semibold text-ink hover:bg-surface-alt disabled:text-ink-40'
+  'rounded-full border border-field-line bg-surface px-5 py-2 text-sm font-semibold text-ink hover:bg-surface-alt disabled:text-ink-40'
 const retry =
-  'rounded-full border border-brand-red bg-white px-4 py-1.5 text-[13px] font-semibold text-brand-red hover:bg-brand-red-soft'
+  'rounded-full border border-brand-red bg-surface px-4 py-1.5 text-[13px] font-semibold text-brand-red hover:bg-brand-red-soft'
 
 function Skeleton() {
   return (
@@ -99,7 +99,7 @@ export function TaskList(props: Props) {
   if (error !== null && items.length === 0) {
     return (
       <div role="alert" className="flex flex-1 flex-col">
-        <Notice icon={<CloudOffIcon size={24} />} title="Не удалось загрузить" text={error}>
+        <Notice icon={<CloudOff size={24} />} title="Не удалось загрузить" text={error}>
           <button type="button" className={retry} onClick={props.onRetry}>
             Повторить
           </button>
@@ -112,16 +112,16 @@ export function TaskList(props: Props) {
     const empty = EMPTY[view]
     if (props.searching === true) {
       return (
-        <Notice icon={<ListIcon />} title="Ничего не найдено" text="По этому запросу задач нет.">
+        <Notice icon={<MessagesSquare />} title="Ничего не найдено" text="По этому запросу задач нет.">
           {null}
         </Notice>
       )
     }
     return (
-      <Notice icon={<CircleCheckIcon />} title={empty.title} text={empty.text}>
+      <Notice icon={<CircleCheck />} title={empty.title} text={empty.text}>
         {view === 'mine' && (
           <button type="button" className={primary} onClick={props.onCreate}>
-            <PlusIcon />
+            <Plus />
             Создать задачу
           </button>
         )}
@@ -132,7 +132,7 @@ export function TaskList(props: Props) {
     <div className="flex flex-col">
       {props.total !== undefined && (
         <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-ink-60">
-          <SortAscIcon />
+          <ArrowUpDown />
           {`${SORT_LABEL[props.view ?? 'mine']} · ${pluralizeTasks(props.total)}`}
         </p>
       )}

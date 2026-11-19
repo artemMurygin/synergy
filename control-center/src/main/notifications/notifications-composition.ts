@@ -7,6 +7,6 @@ export function createNotificationsConnection(backendUrl: string, auth: Notifica
     backendUrl,
     auth,
     createClient: (url, options) => io(url, options),
-    logger: { warn: (message, fields) => console.warn(`[notifications] ${message}`, fields) }
+    logger: { warn: (message, fields) => { console.warn(`[notifications] ${message}`, fields); } }
   })
 }

@@ -56,9 +56,9 @@ describe('useChatStore', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new Error('quota')
     })
-    expect(() => useChatStore.getState().setActiveThread('t4')).not.toThrow()
+    expect(() => { useChatStore.getState().setActiveThread('t4'); }).not.toThrow()
     expect(useChatStore.getState().activeThreadId).toBe('t4')
-    expect(() => useChatStore.getState().setActiveThread(null)).not.toThrow()
+    expect(() => { useChatStore.getState().setActiveThread(null); }).not.toThrow()
     expect(useChatStore.getState().activeThreadId).toBeNull()
   })
 

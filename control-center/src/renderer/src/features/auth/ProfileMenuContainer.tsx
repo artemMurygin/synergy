@@ -29,9 +29,9 @@ export function ProfileMenuContainer() {
       <ProfileMenu
         user={{ name: login, login }}
         telegram={telegramStatus?.isAvailable ? { label: telegramStatusLabel(telegramStatus) } : undefined}
-        onTelegram={() => setTelegramOpen(true)}
-        onChangePassword={() => setPasswordOpen(true)}
-        onLogout={() => logout.mutate()}
+        onTelegram={() => { setTelegramOpen(true); }}
+        onChangePassword={() => { setPasswordOpen(true); }}
+        onLogout={() => { logout.mutate(); }}
       />
       <TelegramDialog open={isTelegramOpen} onOpenChange={setTelegramOpen} />
       {isPasswordOpen ? (
@@ -43,11 +43,10 @@ export function ProfileMenuContainer() {
           }}
           pending={changePassword.isPending}
           error={changePasswordErrorText(changePassword.error)}
-          onSubmit={({ currentPassword, newPassword }) =>
-            changePassword.mutate(
+          onSubmit={({ currentPassword, newPassword }) => { changePassword.mutate(
               { currentPassword, newPassword, confirmPassword: newPassword },
               { onSuccess: closePassword }
-            )
+            ); }
           }
         />
       ) : null}

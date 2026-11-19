@@ -16,7 +16,7 @@ describe('session state transitions', () => {
     ['mustChangePassword', 'unauthenticated']
   ] as const)('allows %s -> %s', (from, to) => {
     expect(canTransition(from, to)).toBe(true)
-    expect(() => assertTransition(from, to)).not.toThrow()
+    expect(() => { assertTransition(from, to); }).not.toThrow()
   })
 
   it.each([
@@ -29,7 +29,7 @@ describe('session state transitions', () => {
     ['authenticated', 'authenticated']
   ] as const)('rejects %s -> %s', (from, to) => {
     expect(canTransition(from, to)).toBe(false)
-    expect(() => assertTransition(from, to)).toThrow()
+    expect(() => { assertTransition(from, to); }).toThrow()
   })
 
   it('declares exactly the five states from the architecture', () => {

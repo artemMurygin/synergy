@@ -27,14 +27,13 @@ describe('useChangePassword', () => {
   it('does not call IPC when confirmation does not match', async () => {
     const mock = installBridgeMock()
     const { result } = renderHook(() => useChangePassword(), { wrapper: createWrapper() })
-    act(() =>
-      result.current.mutate({
+    act(() => { result.current.mutate({
         currentPassword: 'old-pass',
         newPassword: 'new-pass-1',
         confirmPassword: 'other'
-      })
+      }); }
     )
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(result.current.error).toMatchObject({ code: 'PASSWORD_MISMATCH' })
     expect(mock.changePassword).not.toHaveBeenCalled()
   })
@@ -42,14 +41,13 @@ describe('useChangePassword', () => {
   it('does not call IPC when new password equals current', async () => {
     const mock = installBridgeMock()
     const { result } = renderHook(() => useChangePassword(), { wrapper: createWrapper() })
-    act(() =>
-      result.current.mutate({
+    act(() => { result.current.mutate({
         currentPassword: 'same-pass',
         newPassword: 'same-pass',
         confirmPassword: 'same-pass'
-      })
+      }); }
     )
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(result.current.error).toMatchObject({ code: 'PASSWORD_UNCHANGED' })
     expect(mock.changePassword).not.toHaveBeenCalled()
   })
@@ -60,14 +58,13 @@ describe('useChangePassword', () => {
       const mock = installBridgeMock()
       mock.changePassword.mockResolvedValue({ ok: false, code })
       const { result } = renderHook(() => useChangePassword(), { wrapper: createWrapper() })
-      act(() =>
-        result.current.mutate({
+      act(() => { result.current.mutate({
           currentPassword: 'old-pass',
           newPassword: 'new-pass-1',
           confirmPassword: 'new-pass-1'
-        })
+        }); }
       )
-      await waitFor(() => expect(result.current.isError).toBe(true))
+      await waitFor(() => { expect(result.current.isError).toBe(true); })
       expect(result.current.error).toMatchObject({ code })
     }
   )

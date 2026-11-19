@@ -57,7 +57,7 @@ export function UserSearchSelect({
         autoFocus={autoFocus}
         placeholder={value === null ? 'Поиск по логину' : value.login}
         value={query}
-        className="w-full rounded-xl border border-field-line bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-60 focus:border-brand-red"
+        className="w-full rounded-xl border border-field-line bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-60 focus:border-brand-red"
         onChange={(event) => {
           setQuery(event.target.value)
         }}
@@ -66,7 +66,7 @@ export function UserSearchSelect({
         id={listId}
         role="listbox"
         aria-label="Пользователи"
-        className="max-h-40 overflow-y-auto rounded-xl border border-field-line bg-white"
+        className="max-h-40 overflow-y-auto rounded-xl border border-field-line bg-surface"
       >
         {failed && (
           <li className="px-3 py-2 text-xs text-ink-60">Не удалось найти пользователей</li>

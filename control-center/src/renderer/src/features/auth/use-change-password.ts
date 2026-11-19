@@ -22,6 +22,6 @@ export function useChangePassword(): UseMutationResult<
 > {
   return useMutation<SessionSnapshotView, AuthError, ChangePasswordInput>({
     mutationFn: submit,
-    onSuccess: (snapshot) => useSessionStore.getState().setSnapshot(snapshot)
+    onSuccess: (snapshot) => { useSessionStore.getState().setSnapshot(snapshot); }
   })
 }

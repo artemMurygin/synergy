@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { describe, expect, it, vi } from 'vitest'
 import { PORTAL_CHANNELS } from '../../preload/portal-bridge'
 import { registerPortalIpc } from './portal-ipc'

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -78,12 +79,12 @@ describe('tasksQuery', () => {
       wrapper,
       initialProps: { p: 1 }
     })
-    await waitFor(() => expect(hook.result.current.data?.items[0].id).toBe('a'))
+    await waitFor(() => { expect(hook.result.current.data?.items[0].id).toBe('a'); })
     hook.rerender({ p: 2 })
     expect(hook.result.current.data?.items[0].id).toBe('a')
     expect(hook.result.current.isPlaceholderData).toBe(true)
-    await act(async () => resolveSecond(page([mk('b')], 2)))
-    await waitFor(() => expect(hook.result.current.data?.items[0].id).toBe('b'))
+    await act(async () => { resolveSecond(page([mk('b')], 2)); })
+    await waitFor(() => { expect(hook.result.current.data?.items[0].id).toBe('b'); })
   })
 })
 
@@ -102,10 +103,9 @@ describe('useTask', () => {
     const { client, wrapper } = setup()
     client.setQueryData(['tasks', 'list', {}], page([mk('a'), mk('b')]))
     renderHook(() => useTask('a'), { wrapper })
-    await waitFor(() =>
-      expect(client.getQueryData<TaskPage>(['tasks', 'list', {}])?.items.map((t) => t.id)).toEqual([
+    await waitFor(() => { expect(client.getQueryData<TaskPage>(['tasks', 'list', {}])?.items.map((t) => t.id)).toEqual([
         'b'
-      ])
+      ]); }
     )
     expect(client.getQueryData(['tasks', 'detail', 'a'])).toBeUndefined()
   })
@@ -139,13 +139,12 @@ describe('useUpdateTask', () => {
     client.setQueryData(listKey, page([mk('a'), mk('b')]))
     client.setQueryData(['tasks', 'detail', 'a'], details('a'))
     const { result } = renderHook(() => useUpdateTask(), { wrapper })
-    act(() => result.current.mutate({ id: 'a', patch: { status: 'done' } }))
-    await waitFor(() =>
-      expect(client.getQueryData<TaskPage>(listKey)?.items[0].status).toBe('done')
+    act(() => { result.current.mutate({ id: 'a', patch: { status: 'done' } }); })
+    await waitFor(() => { expect(client.getQueryData<TaskPage>(listKey)?.items[0].status).toBe('done'); }
     )
     expect(client.getQueryData<TaskDetails>(['tasks', 'detail', 'a'])?.status).toBe('done')
     expect(client.getQueryData<TaskPage>(listKey)?.items[1].status).toBe('todo')
-    await act(async () => resolve({ ...mk('a', 'done'), completedAt: '2026-01-02T00:00:00Z' }))
+    await act(async () => { resolve({ ...mk('a', 'done'), completedAt: '2026-01-02T00:00:00Z' }); })
   })
 
   it('rolls back and rethrows on a server error', async () => {
@@ -178,10 +177,10 @@ describe('useUpdateTask', () => {
     const { client, wrapper } = setup()
     client.setQueryData(listKey, page([mk('a')]))
     const { result } = renderHook(() => useUpdateTask(), { wrapper })
-    act(() => result.current.mutate({ id: 'a', patch: { title: 'Новое' } }))
-    await waitFor(() => expect(result.current.isPending).toBe(true))
+    act(() => { result.current.mutate({ id: 'a', patch: { title: 'Новое' } }); })
+    await waitFor(() => { expect(result.current.isPending).toBe(true); })
     expect(client.getQueryData<TaskPage>(listKey)?.items[0].title).toBe('Задача a')
-    await act(async () => resolve(mk('a')))
+    await act(async () => { resolve(mk('a')); })
   })
 
   it('on 404 removes the task from the caches and clears the selection', async () => {
@@ -222,7 +221,7 @@ describe('useDeleteTask', () => {
     const { wrapper } = setup()
     const { result } = renderHook(() => useDeleteTask(), { wrapper })
     await act(() => result.current.mutateAsync('a'))
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await waitFor(() => { expect(result.current.isSuccess).toBe(true); })
   })
 
   it('keeps the selection when the server fails', async () => {
@@ -283,15 +282,15 @@ describe('useUsersSearch', () => {
         wrapper,
         initialProps: { s: '' }
       })
-      await waitFor(() => expect(usersApi.listUsers).toHaveBeenCalledTimes(1))
+      await waitFor(() => { expect(usersApi.listUsers).toHaveBeenCalledTimes(1); })
       rerender({ s: 'a' })
       rerender({ s: 'an' })
       act(() => void vi.advanceTimersByTime(200))
       expect(usersApi.listUsers).toHaveBeenCalledTimes(1)
       act(() => void vi.advanceTimersByTime(150))
-      await waitFor(() => expect(usersApi.listUsers).toHaveBeenCalledTimes(2))
+      await waitFor(() => { expect(usersApi.listUsers).toHaveBeenCalledTimes(2); })
       expect(usersApi.listUsers).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'an' }))
-      await waitFor(() => expect(result.current.data?.items[0].login).toBe('ann'))
+      await waitFor(() => { expect(result.current.data?.items[0].login).toBe('ann'); })
     } finally {
       vi.useRealTimers()
     }

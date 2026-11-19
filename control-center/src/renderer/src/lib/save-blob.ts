@@ -9,5 +9,5 @@ export function saveBlob(blob: Blob, fileName: string): void {
   link.click()
   link.remove()
   // the download has started by now; the URL can be released
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  setTimeout(() => { URL.revokeObjectURL(url); }, 0)
 }

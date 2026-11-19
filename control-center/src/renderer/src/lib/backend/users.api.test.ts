@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BackendError } from "./errors";
 import { listUsers } from "./users.api";

@@ -55,10 +55,10 @@ function createFakeSource() {
   } satisfies NotificationsSourcePort
   return {
     source,
-    emitEvent: (event: NotificationEventView) => eventListeners.forEach((listener) => listener(event)),
+    emitEvent: (event: NotificationEventView) => { eventListeners.forEach((listener) => { listener(event); }); },
     setState: (next: NotificationConnectionState) => {
       state = next
-      stateListeners.forEach((listener) => listener(next))
+      stateListeners.forEach((listener) => { listener(next); })
     },
     listenerCount: () => eventListeners.size + stateListeners.size
   }

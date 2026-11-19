@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unnecessary-type-assertion -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -34,7 +35,7 @@ beforeEach(() => {
 
 function Draft({ label }: { label: string }) {
   const [text, setText] = useState('')
-  return <input aria-label={label} value={text} onChange={(e) => setText(e.target.value)} />
+  return <input aria-label={label} value={text} onChange={(e) => { setText(e.target.value); }} />
 }
 
 function mount(tasks: () => void = () => {}) {
@@ -107,8 +108,7 @@ describe('AppShell', () => {
 
   it('streams notifications into toasts', () => {
     mount()
-    act(() =>
-      notificationsBridge.emitEvent({ type: 'notification.created', notification: makeNotification('1'), unreadCount: 1 })
+    act(() => { notificationsBridge.emitEvent({ type: 'notification.created', notification: makeNotification('1'), unreadCount: 1 }); }
     )
     const toaster = screen.getByRole('region', { name: 'Новые уведомления' })
     expect(within(toaster).getByText('Уведомление 1')).toBeTruthy()

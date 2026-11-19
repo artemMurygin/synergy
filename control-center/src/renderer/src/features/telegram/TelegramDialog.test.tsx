@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import '@/features/tasks/test-dom'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -32,7 +33,7 @@ function mount(open = true) {
   return {
     onOpenChange,
     user: userEvent.setup(),
-    setOpen: (next: boolean) => view.rerender(<TelegramDialog open={next} onOpenChange={onOpenChange} />)
+    setOpen: (next: boolean) => { view.rerender(<TelegramDialog open={next} onOpenChange={onOpenChange} />); }
   }
 }
 
@@ -55,7 +56,7 @@ describe('TelegramDialog', () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     mount()
     expect(await screen.findByRole('heading', { name: 'Подключите Telegram' })).toBeTruthy()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false))
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false); })
   })
 
   it('shows the linked panel with a link', async () => {
@@ -75,7 +76,7 @@ describe('TelegramDialog', () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     vi.mocked(telegramApi.issueTelegramLinkToken).mockResolvedValue(issuedToken())
     const { user } = mount()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false))
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false); })
     await user.click(screen.getByRole('button', { name: 'Подключить' }))
     expect(await screen.findByText('Ждём подтверждения в Telegram')).toBeTruthy()
     expect(openSpy).toHaveBeenCalledWith(TELEGRAM_LINK_URL, '_blank', 'noopener,noreferrer')
@@ -87,7 +88,7 @@ describe('TelegramDialog', () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     vi.mocked(telegramApi.issueTelegramLinkToken).mockRejectedValue(new TelegramNotConfiguredError('Бот не настроен'))
     const { user, onOpenChange } = mount()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false))
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false); })
     await user.click(screen.getByRole('button', { name: 'Подключить' }))
     expect(await screen.findByRole('heading', { name: 'Telegram-бот не настроен' })).toBeTruthy()
     await user.click(screen.getByText('Закрыть'))
@@ -98,7 +99,7 @@ describe('TelegramDialog', () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     vi.mocked(telegramApi.issueTelegramLinkToken).mockResolvedValue(issuedToken())
     const { user, onOpenChange, setOpen } = mount()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false))
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Подключить' })).toHaveProperty('disabled', false); })
     await user.click(screen.getByRole('button', { name: 'Подключить' }))
     await screen.findByText('Ждём подтверждения в Telegram')
     await user.keyboard('{Escape}')
@@ -125,7 +126,7 @@ describe('TelegramDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Отключить' }))
     expect(await screen.findByRole('heading', { name: 'Подключите Telegram' })).toBeTruthy()
     expect(telegramApi.unlinkTelegram).toHaveBeenCalledOnce()
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+    await waitFor(() => { expect(screen.queryByRole('alertdialog')).toBeNull(); })
   })
 
   it('rolls the switch back and shows the error when the server rejects the toggle', async () => {

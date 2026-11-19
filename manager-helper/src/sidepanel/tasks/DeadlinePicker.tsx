@@ -1,14 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  CalendarClockIcon,
-  CalendarDaysIcon,
-  CalendarXIcon,
-  CheckIcon,
-  ChevronRightIcon,
-  SunIcon,
-  SunriseIcon,
-} from '../icons'
+import { CalendarClock, CalendarDays, CalendarX, Check, ChevronRight, Sun, Sunrise } from '@synergy/ui-kit/icons'
 import { formatDeadline, fromLocalInput, quickDeadlines } from './format'
 
 interface Props {
@@ -34,15 +26,15 @@ export function DeadlinePicker({ value, onChange, now }: Props) {
   const quick = quickDeadlines(now)
   const mondayIso = fromLocalInput(quick.nextMonday)
   const options: Option[] = [
-    { label: 'Сегодня', hint: timeOf(quick.today), value: quick.today, icon: <SunIcon /> },
-    { label: 'Завтра', hint: timeOf(quick.tomorrow), value: quick.tomorrow, icon: <SunriseIcon /> },
+    { label: 'Сегодня', hint: timeOf(quick.today), value: quick.today, icon: <Sun /> },
+    { label: 'Завтра', hint: timeOf(quick.tomorrow), value: quick.tomorrow, icon: <Sunrise /> },
     {
       label: 'Следующий понедельник',
       hint: mondayIso === null ? '' : formatDeadline(mondayIso),
       value: quick.nextMonday,
-      icon: <CalendarDaysIcon />,
+      icon: <CalendarDays />,
     },
-    { label: 'Без срока', hint: '', value: '', icon: <CalendarXIcon /> },
+    { label: 'Без срока', hint: '', value: '', icon: <CalendarX /> },
   ]
   const custom = !options.some((option) => option.value === value)
   const [customOpen, setCustomOpen] = useState(custom)
@@ -74,7 +66,7 @@ export function DeadlinePicker({ value, onChange, now }: Props) {
             )}
             {checked && (
               <span className="shrink-0 text-brand-red">
-                <CheckIcon size={18} />
+                <Check size={18} />
               </span>
             )}
           </button>
@@ -91,7 +83,7 @@ export function DeadlinePicker({ value, onChange, now }: Props) {
         }}
       >
         <span className={custom ? 'text-brand-red' : 'text-ink-40'}>
-          <CalendarClockIcon />
+          <CalendarClock />
         </span>
         <span
           className={`min-w-0 flex-1 truncate text-sm text-ink ${custom ? 'font-semibold' : 'font-medium'}`}
@@ -99,7 +91,7 @@ export function DeadlinePicker({ value, onChange, now }: Props) {
           Выбрать дату и время
         </span>
         <span className="shrink-0 text-ink-40">
-          <ChevronRightIcon />
+          <ChevronRight />
         </span>
       </button>
       {customOpen && (
@@ -109,7 +101,7 @@ export function DeadlinePicker({ value, onChange, now }: Props) {
             aria-label="Дата и время"
             autoFocus
             value={custom ? value : ''}
-            className="w-full rounded-xl border border-field-line bg-white px-4 py-2.5 text-[15px] text-ink outline-none focus:border-brand-red"
+            className="w-full rounded-xl border border-field-line bg-surface px-4 py-2.5 text-[15px] text-ink outline-none focus:border-brand-red"
             onChange={(event) => {
               onChange(event.target.value)
             }}

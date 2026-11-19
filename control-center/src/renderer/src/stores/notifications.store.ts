@@ -34,7 +34,7 @@ function stopTimer(id: string): void {
 export const useNotificationsStore = create<NotificationsState>((set, get) => {
   const startTimer = (id: string, durationMs: number): void => {
     timers.set(id, {
-      handle: setTimeout(() => get().dismiss(id), durationMs),
+      handle: setTimeout(() => { get().dismiss(id); }, durationMs),
       remainingMs: durationMs,
       startedAt: Date.now()
     })
@@ -71,8 +71,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => {
       if (timer === undefined || timer.handle !== null) return
       startTimer(id, timer.remainingMs)
     },
-    showNotice: (notice) => set({ notice }),
-    clearNotice: () => set({ notice: null }),
+    showNotice: (notice) => { set({ notice }); },
+    clearNotice: () => { set({ notice: null }); },
     reset: () => {
       for (const id of [...timers.keys()]) stopTimer(id)
       shownIds.clear()

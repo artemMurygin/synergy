@@ -1,4 +1,5 @@
-import type { HttpAgent, Message, RunAgentInput } from '@ag-ui/client'
+/* eslint-disable @typescript-eslint/no-deprecated -- the message converters of assistant-ui are the experimental API this provider is specified to use */
+import type { HttpAgent, Message } from '@ag-ui/client'
 import {
   AssistantRuntimeProvider,
   ExportedMessageRepository,
@@ -6,11 +7,14 @@ import {
   generateId
 } from '@assistant-ui/react'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
+import { withFileIds } from '@synergy/ui-kit'
+import { catchError, throwError } from 'rxjs'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createAgent } from '@/lib/backend/agent'
 import type { MessageAttachment, MessageSource } from '@/lib/backend/schema'
 import { cancelRun } from '@/lib/backend/threads.api'
+import { isRunConflict, isUnreachable, UNREACHABLE_MESSAGE } from './run-errors'
 
 /** An AG-UI message of the history; the server adds its files and source. */
 export type ChatHistoryMessage = Message & {
@@ -36,35 +40,29 @@ function toRuntimeMessages(history: readonly ChatHistoryMessage[]) {
   const extras = new Map(history.map((message) => [message.id, message]))
   return fromAgUiMessages([...history]).map((like) => {
     const source = like.id === undefined ? undefined : extras.get(like.id)
-    const metadata = (like.metadata ?? {}) as { custom?: Record<string, unknown> }
+    const metadata = like.metadata ?? {}
     const custom = {
       ...metadata.custom,
       attachments: [...(source?.attachments ?? [])],
       source: source?.source ?? 'run'
     }
-    return fromThreadMessageLike({ ...like, metadata: { ...metadata, custom } } as typeof like, generateId(), COMPLETE)
+    return fromThreadMessageLike({ ...like, metadata: { ...metadata, custom } }, generateId(), COMPLETE)
   })
 }
 
-/**
- * The composer puts the attached file ids into the message run config (`runConfig.custom.fileIds`),
- * which the AG-UI runtime forwards as `forwardedProps.runConfig`. The backend reads `forwardedProps.fileIds`.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+const CONFLICT_MESSAGE = 'Агент ещё отвечает. Дождитесь ответа или остановите его.'
+
+/** The text of a failed run as the user should read it: HTTP details become a plain sentence. */
+function readableRunError(error: unknown): unknown {
+  const text = error instanceof Error ? error.message : ''
+  if (isRunConflict(text)) return new Error(CONFLICT_MESSAGE)
+  if (isUnreachable(text)) return new Error(UNREACHABLE_MESSAGE)
+  return error
 }
 
-export function liftFileIds(input: RunAgentInput): RunAgentInput {
-  const props: Record<string, unknown> = isRecord(input.forwardedProps) ? input.forwardedProps : {}
-  const runConfig = isRecord(props.runConfig) ? props.runConfig : undefined
-  const fileIds = runConfig?.fileIds
-  if (!Array.isArray(fileIds) || fileIds.length === 0) return input
-  return { ...input, forwardedProps: { ...props, fileIds } }
-}
-
-function withFileIds(agent: HttpAgent): HttpAgent {
+function withReadableErrors(agent: HttpAgent): HttpAgent {
   const run = agent.run.bind(agent)
-  agent.run = (input) => run(liftFileIds(input))
+  agent.run = (input) => run(input).pipe(catchError((error: unknown) => throwError(() => readableRunError(error))))
   return agent
 }
 
@@ -74,7 +72,7 @@ export function ChatRuntimeProvider({
   initialMessages,
   children
 }: ChatRuntimeProviderProps) {
-  const agent = useMemo(() => withFileIds(createAgent(threadId)), [threadId])
+  const agent = useMemo(() => withReadableErrors(withFileIds(createAgent(threadId))), [threadId])
 
   // Closing the chat tears the runtime down, which aborts its run and fires onCancel.
   // Only an explicit stop may cancel on the server: the answer must keep going otherwise.
@@ -95,7 +93,9 @@ export function ChatRuntimeProvider({
   })
 
   const runtimeRef = useRef(runtime)
-  runtimeRef.current = runtime
+  useLayoutEffect(() => {
+    runtimeRef.current = runtime
+  })
   const imported = useRef<readonly ChatHistoryMessage[] | null>(null)
   useLayoutEffect(() => {
     const thread = runtimeRef.current.thread

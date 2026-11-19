@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unnecessary-condition -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -66,10 +67,10 @@ describe('NotificationsPopover', () => {
     vi.mocked(notificationsApi.markAllNotificationsRead).mockResolvedValue({ unreadCount: 0 })
     const user = mount()
     await screen.findByText('Уведомление 1')
-    await waitFor(() => expect(readAllButton().hasAttribute('disabled')).toBe(false))
+    await waitFor(() => { expect(readAllButton().hasAttribute('disabled')).toBe(false); })
     await user.click(readAllButton())
     expect(notificationsApi.markAllNotificationsRead).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(readAllButton().hasAttribute('disabled')).toBe(true))
+    await waitFor(() => { expect(readAllButton().hasAttribute('disabled')).toBe(true); })
     expect(screen.queryByLabelText('Непрочитано')).toBeNull()
   })
 

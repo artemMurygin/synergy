@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-floating-promises -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -41,7 +42,7 @@ describe('NotificationToaster', () => {
 
   it('shows a toast from the store', () => {
     mountToaster()
-    act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+    act(() => { useNotificationsStore.getState().showToast(makeNotification('1')); })
     expect(within(region()).getByText('Уведомление 1').closest('[role="status"]') as HTMLElement).toBeTruthy()
   })
 
@@ -59,17 +60,17 @@ describe('NotificationToaster', () => {
 
   it('opens the notification on click and closes the toast', async () => {
     const user = mountToaster()
-    act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+    act(() => { useNotificationsStore.getState().showToast(makeNotification('1')); })
     await user.click(screen.getByRole('button', { name: 'Открыть задачу' }))
     expect(useUiStore.getState().section).toBe('tasks')
     expect(useTasksStore.getState().selectedTaskId).toBe('task-1')
-    await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('1'))
+    await waitFor(() => { expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('1'); })
     expect(toasts()).toHaveLength(0)
   })
 
   it('dismisses a toast with the cross without opening it', async () => {
     const user = mountToaster()
-    act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+    act(() => { useNotificationsStore.getState().showToast(makeNotification('1')); })
     await user.click(screen.getByRole('button', { name: 'Закрыть' }))
     expect(toasts()).toHaveLength(0)
     expect(useUiStore.getState().section).toBe('chats')
@@ -80,7 +81,7 @@ describe('NotificationToaster', () => {
     vi.useFakeTimers()
     try {
       mountToaster()
-      act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+      act(() => { useNotificationsStore.getState().showToast(makeNotification('1')); })
       const toast = within(region()).getByText('Уведомление 1').closest('[role="status"]') as HTMLElement
       fireEvent.mouseEnter(toast)
       act(() => vi.advanceTimersByTime(TOAST_DURATION_MS + 1_000))
@@ -97,7 +98,7 @@ describe('NotificationToaster', () => {
 describe('NotificationToaster content', () => {
   it('shows the title, the text and the «Открыть задачу» action for a task', () => {
     mountToaster()
-    act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+    act(() => { useNotificationsStore.getState().showToast(makeNotification('1')); })
     expect(within(region()).getByText('Уведомление 1')).toBeTruthy()
     expect(within(region()).getByText('Текст')).toBeTruthy()
     expect(within(region()).getByRole('button', { name: 'Открыть задачу' })).toBeTruthy()

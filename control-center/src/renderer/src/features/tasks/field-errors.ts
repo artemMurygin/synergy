@@ -1,7 +1,7 @@
+import type { TaskFormErrors } from '@synergy/ui-kit'
 import { BackendError } from '@/lib/backend/errors'
-import type { TaskFormErrors } from './TaskForm'
 
-const FIELD_OF_PATH: Record<string, keyof TaskFormErrors> = {
+const FIELD_OF_PATH: Partial<Record<string, keyof TaskFormErrors>> = {
   title: 'title',
   description: 'description',
   deadline: 'deadline',
@@ -20,7 +20,7 @@ export function fieldErrorsFromError(error: unknown): TaskFormErrors | null {
   for (const line of error.message.split('\n')) {
     const at = /^\s*→ at ([A-Za-z]+)/.exec(line)
     if (at) {
-      const field = FIELD_OF_PATH[at[1] ?? '']
+      const field = FIELD_OF_PATH[at[1]]
       if (field && text) result[field] ??= text
       text = ''
     } else if (line.trim() !== '') {

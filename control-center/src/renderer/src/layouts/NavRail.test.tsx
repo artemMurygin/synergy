@@ -42,7 +42,7 @@ describe('NavRail', () => {
     const { result } = renderHook(() => useNavSections())
     expect(result.current.items.map((item) => item.label)).toEqual(['Чаты', 'Задачи'])
     expect(result.current.active).toBe('chats')
-    act(() => result.current.select('tasks'))
+    act(() => { result.current.select('tasks'); })
     expect(useUiStore.getState().section).toBe('tasks')
   })
 

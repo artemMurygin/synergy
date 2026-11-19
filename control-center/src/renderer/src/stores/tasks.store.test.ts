@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-assertions -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { INITIAL_TASKS_STATE, useTasksStore } from './tasks.store'
 
@@ -6,9 +7,9 @@ beforeEach(() => {
 })
 
 describe('useTasksStore', () => {
-  it('starts with the "all" view, newest first, first page and nothing selected', () => {
+  it('starts with the "Мои" view, newest first, first page and nothing selected', () => {
     expect(useTasksStore.getState()).toMatchObject({
-      view: 'all',
+      view: 'mine',
       status: null,
       search: '',
       sort: 'createdAt',
@@ -19,7 +20,7 @@ describe('useTasksStore', () => {
   })
 
   it.each([
-    ['setView', 'mine'],
+    ['setView', 'overdue'],
     ['setStatus', 'done'],
     ['setSearch', 'отчёт'],
     ['setSort', 'deadline'],
@@ -48,9 +49,9 @@ describe('useTasksStore', () => {
   })
 
   it('setPage changes only the page', () => {
-    useTasksStore.getState().setView('mine')
+    useTasksStore.getState().setView('watching')
     useTasksStore.getState().setPage(3)
-    expect(useTasksStore.getState()).toMatchObject({ page: 3, view: 'mine' })
+    expect(useTasksStore.getState()).toMatchObject({ page: 3, view: 'watching' })
   })
 
   it('selects and clears the selected task', () => {
@@ -62,13 +63,13 @@ describe('useTasksStore', () => {
 
   it('changing a filter keeps the selected task', () => {
     useTasksStore.getState().selectTask('t1')
-    useTasksStore.getState().setView('mine')
+    useTasksStore.getState().setView('created')
     expect(useTasksStore.getState().selectedTaskId).toBe('t1')
   })
 
-  it('resetFilters restores view, status, search and page but keeps sort and selection', () => {
+  it('resetFilters restores the default view, status, search and page but keeps sort and selection', () => {
     const s = useTasksStore.getState()
-    s.setView('mine')
+    s.setView('created')
     s.setStatus('done')
     s.setSearch('x')
     s.setSort('deadline')
@@ -76,7 +77,7 @@ describe('useTasksStore', () => {
     s.selectTask('t9')
     useTasksStore.getState().resetFilters()
     expect(useTasksStore.getState()).toMatchObject({
-      view: 'all',
+      view: 'mine',
       status: null,
       search: '',
       page: 1,

@@ -30,7 +30,7 @@ export function TasksToolbar({ view, search, onViewChange, onSearchChange }: Pro
               className={`h-7.5 shrink-0 rounded-full border px-3 text-[13px] font-medium max-[359px]:px-2 ${
                 active
                   ? 'border-brand-red bg-brand-red-soft text-brand-red'
-                  : 'border-field-line bg-white text-ink hover:bg-surface-alt'
+                  : 'border-field-line bg-surface text-ink hover:bg-surface-alt'
               }`}
               onClick={() => {
                 if (!active) onViewChange(id)
@@ -46,7 +46,7 @@ export function TasksToolbar({ view, search, onViewChange, onSearchChange }: Pro
         aria-label="Поиск по названию"
         placeholder="Поиск по названию"
         value={search}
-        className="h-9 w-full min-w-0 rounded-xl border border-field-line bg-white px-3 text-sm text-ink outline-none placeholder:text-ink-40 focus:border-brand-red"
+        className="h-9 w-full min-w-0 rounded-xl border border-field-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-40 focus:border-brand-red"
         onChange={(event) => {
           onSearchChange(event.target.value)
         }}

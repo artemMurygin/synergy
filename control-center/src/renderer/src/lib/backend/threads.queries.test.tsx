@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -110,7 +111,7 @@ describe('useDeleteThread', () => {
     const { invalidate, wrapper } = setup(list)
     const { result } = renderHook(() => useDeleteThread(), { wrapper })
     await act(() => result.current.mutateAsync('a'))
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await waitFor(() => { expect(result.current.isSuccess).toBe(true); })
     expect(useChatStore.getState().activeThreadId).toBe('b')
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['threads'] })
   })
@@ -123,7 +124,7 @@ describe('useDeleteThread', () => {
     await act(async () => {
       await result.current.mutateAsync('a').catch(() => undefined)
     })
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => { expect(result.current.isError).toBe(true); })
     expect(useChatStore.getState().activeThreadId).toBe('a')
   })
 })

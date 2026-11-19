@@ -29,7 +29,7 @@ export function NotificationsButton() {
         aria-label="Уведомления"
         className="w-auto min-w-0 overflow-hidden rounded-xl p-0"
       >
-        <NotificationsPopover onOpenNotification={handleOpenNotification} onClose={() => setIsOpen(false)} />
+        <NotificationsPopover onOpenNotification={handleOpenNotification} onClose={() => { setIsOpen(false); }} />
       </PopoverContent>
     </Popover>
   )
