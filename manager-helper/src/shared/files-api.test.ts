@@ -71,4 +71,16 @@ describe('downloadByLink', () => {
       filename: 'КП.pdf',
     })
   })
+
+  it.each([
+    ['Встреча 10:00.docx', 'Встреча 10_00.docx'],
+    ['Отчёт "Q3".pdf', 'Отчёт _Q3_.pdf'],
+    ['итог?.xlsx', 'итог_.xlsx'],
+    ['план*<>|.xlsx', 'план____.xlsx'],
+    ['Отчёт.', 'Отчёт'],
+    ['  .. ', 'file'],
+  ])('sanitizes the name %j for chrome.downloads', async (name, expected) => {
+    await downloadByLink('/x?token=x', name)
+    expect(download).toHaveBeenCalledWith(expect.objectContaining({ filename: expected }))
+  })
 })

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { AttachmentNotFoundError, TaskAttachmentTokenInvalidError } from '../domain/errors';
 import { AttachmentDownloadTokenPort } from '../domain/ports/attachment-download-token.port';
 import { FileStorage } from '../domain/ports/file-storage.port';
@@ -9,13 +10,14 @@ import type { DownloadedAttachment } from './download-attachment.use-case';
 /** Доступ по токену из ссылки, без актора: 403 для плохого токена, 404 для удалённого. */
 @Injectable()
 export class DownloadAttachmentByTokenUseCase {
-    private readonly logger = new Logger(DownloadAttachmentByTokenUseCase.name);
-
     constructor(
         private readonly attachments: TaskAttachmentRepository,
         private readonly storage: FileStorage,
         private readonly tokens: AttachmentDownloadTokenPort,
-    ) {}
+        private readonly logger: PinoLogger,
+    ) {
+        this.logger.setContext(DownloadAttachmentByTokenUseCase.name);
+    }
 
     async execute(
         taskId: string,
@@ -30,7 +32,8 @@ export class DownloadAttachmentByTokenUseCase {
         const stream = await this.storage.open(attachment.storageKey);
         if (stream === null) {
             this.logger.error(
-                `File of attachment ${attachmentId} (task ${taskId}) is missing in storage: ${attachment.storageKey}`,
+                { attachmentId, taskId, storageKey: attachment.storageKey },
+                'Attachment file missing in storage',
             );
             throw new AttachmentNotFoundError(attachmentId);
         }

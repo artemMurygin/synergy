@@ -111,9 +111,16 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
   }
 }
 
+/** Chrome rejects names that are not safe portable paths: replace forbidden characters, trim dots and spaces. */
+export function safeDownloadName(name: string): string {
+  // eslint-disable-next-line no-control-regex
+  const cleaned = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/^[\s.]+|[\s.]+$/g, '')
+  return cleaned === '' ? 'file' : cleaned
+}
+
 /** Hands a signed relative link (`/…?token=`) to the browser: it saves the file under the given name. */
 export async function downloadByLink(url: string, name: string): Promise<void> {
-  await chrome.downloads.download({ url: `${await getBackendUrl()}${url}`, filename: name })
+  await chrome.downloads.download({ url: `${await getBackendUrl()}${url}`, filename: safeDownloadName(name) })
 }
 
 /** Gets a signed link and lets the browser save the file under its original name. */

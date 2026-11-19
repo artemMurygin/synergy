@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { Logger } from '@nestjs/common';
+import type { PinoLogger } from 'nestjs-pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AttachmentNotFoundError, TaskAttachmentTokenInvalidError } from '../domain/errors';
 import { FileName } from '../domain/file-name';
@@ -11,15 +11,21 @@ import { InMemoryAttachmentRepository, InMemoryFileStorage, NOW } from './test-d
 let attachments: InMemoryAttachmentRepository;
 let storage: InMemoryFileStorage;
 let verify: ReturnType<typeof vi.fn>;
+let logger: { setContext: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
 
 const useCase = (): DownloadAttachmentByTokenUseCase =>
-    new DownloadAttachmentByTokenUseCase(attachments, storage, {
-        sign: vi.fn(),
-        verify,
-    } as unknown as AttachmentDownloadTokenPort);
+    new DownloadAttachmentByTokenUseCase(
+        attachments,
+        storage,
+        {
+            sign: vi.fn(),
+            verify,
+        } as unknown as AttachmentDownloadTokenPort,
+        logger as unknown as PinoLogger,
+    );
 
 beforeEach(async () => {
-    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    logger = { setContext: vi.fn(), error: vi.fn() };
     attachments = new InMemoryAttachmentRepository();
     storage = new InMemoryFileStorage();
     verify = vi.fn(() => true);
@@ -74,6 +80,10 @@ describe('DownloadAttachmentByTokenUseCase', () => {
         storage.files.clear();
         await expect(useCase().execute('t1', 'a1', 'tok')).rejects.toBeInstanceOf(
             AttachmentNotFoundError,
+        );
+        expect(logger.error).toHaveBeenCalledWith(
+            { attachmentId: 'a1', taskId: 't1', storageKey: expect.any(String) },
+            'Attachment file missing in storage',
         );
     });
 });
