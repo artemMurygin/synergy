@@ -172,6 +172,7 @@ export function TaskDetails(props: TaskDetailsProps) {
   const { task, now, me, userSearch } = props
   const deadlineId = useId()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deadlineDraft, setDeadlineDraft] = useState<string | null>(null)
   const done = task.status === 'done'
   const overdue = isOverdue(task.status, task.deadline, now)
   const assignee = task.assignee ? (visible(task.assignee)[0] ?? null) : null
@@ -272,10 +273,15 @@ export function TaskDetails(props: TaskDetailsProps) {
               id={deadlineId}
               type="datetime-local"
               aria-label="Дедлайн"
-              value={toLocalInput(task.deadline)}
+              value={deadlineDraft ?? toLocalInput(task.deadline)}
               onChange={(event) => {
-                const iso = fromLocalInput(event.target.value)
-                if (iso !== null) props.onPatch({ deadline: iso })
+                setDeadlineDraft(event.target.value)
+              }}
+              onBlur={() => {
+                if (deadlineDraft === null) return
+                const iso = fromLocalInput(deadlineDraft)
+                setDeadlineDraft(null)
+                if (iso !== null && iso !== task.deadline) props.onPatch({ deadline: iso })
               }}
               className="h-8 rounded-lg bg-surface-alt px-2 text-[13px] font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40"
             />

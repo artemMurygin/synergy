@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionSnapshotView } from '../../../../preload/auth-bridge'
 import { AuthGate } from './AuthGate'
 import { authenticatedSnapshot, createWrapper, installBridgeMock, unauthenticatedSnapshot } from './auth-test-utils'
@@ -49,6 +49,26 @@ describe('AuthGate', () => {
   it('passes the snapshot warning to the login form', async () => {
     mount({ state: 'unauthenticated', user: null, warning: 'Сервер недоступен' })
     expect(await screen.findByText(/Сервер недоступен/)).toBeTruthy()
+  })
+
+  it('blocks the login form and counts down after a 429', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const mock = mount(unauthenticatedSnapshot)
+      mock.login.mockResolvedValue({ ok: false, code: 'RATE_LIMITED', retryAfterSec: 3 })
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      await user.type(await screen.findByPlaceholderText('Введите логин'), 'admin')
+      await user.type(screen.getByPlaceholderText('Введите пароль'), 'secret')
+      await user.click(screen.getByRole('button', { name: 'Войти' }))
+      expect(await screen.findByText(/Повторите через 3 с/)).toBeTruthy()
+      expect((screen.getByRole('button', { name: 'Войти' }) as HTMLButtonElement).disabled).toBe(true)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(screen.getByText(/Повторите через 2 с/)).toBeTruthy()
+      await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+      expect((screen.getByRole('button', { name: 'Войти' }) as HTMLButtonElement).disabled).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows the change password dialog without children when a password change is required', async () => {

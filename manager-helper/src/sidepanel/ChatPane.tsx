@@ -1,6 +1,6 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
 import { ChatList, chatPaneVisibility, useChatListCollapsed, useLayoutMode } from '@synergy/ui-kit'
-import type { ChatPanelMode } from '@synergy/ui-kit'
+import type { ChatPanelMode, MessageFile } from '@synergy/ui-kit'
 import { useEffect, useRef } from 'react'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { useChatHistory } from './ChatRuntimeProvider'
@@ -10,6 +10,7 @@ import { ThreadView } from './ThreadView'
 interface QueuedSend {
   threadId: string
   text: string
+  files: readonly MessageFile[]
 }
 
 export interface FinishedRun {
@@ -79,14 +80,27 @@ function ThreadPane(props: ThreadPaneProps) {
     const next = queued.current
     if (next !== null && history.threadId === next.threadId && history.status === 'ready') {
       queued.current = null
-      aui.thread.append(next.text)
+      if (next.files.length === 0) {
+        aui.thread.append(next.text)
+      } else {
+        aui.thread.append({
+          role: 'user',
+          content: next.text === '' ? [] : [{ type: 'text', text: next.text }],
+          runConfig: { custom: { fileIds: next.files.map((file) => file.id) } },
+          metadata: { custom: { attachments: next.files } },
+        })
+      }
     }
   }, [history.threadId, history.status, aui])
 
-  const sendWithoutChat = async (text: string, title?: string): Promise<boolean> => {
+  const sendWithoutChat = async (
+    text: string,
+    title?: string,
+    files: readonly MessageFile[] = [],
+  ): Promise<boolean> => {
     try {
       const created = await create(title)
-      queued.current = { threadId: created.id, text }
+      queued.current = { threadId: created.id, text, files }
       return true
     } catch {
       return false
@@ -110,7 +124,7 @@ function ThreadPane(props: ThreadPaneProps) {
       serverRunning={props.serverRunning}
       onStopServerRun={props.onStopServerRun}
       onQuickSearch={quickSearch}
-      onSendWithoutChat={activeId === null ? (text) => sendWithoutChat(text) : undefined}
+      onSendWithoutChat={activeId === null ? (text, files) => sendWithoutChat(text, undefined, files) : undefined}
     />
   )
 }

@@ -8,6 +8,8 @@ export type LoginFormProps = {
   onSubmit: (credentials: { login: string; password: string }) => void
   error?: string
   pending: boolean
+  /** Блокирует отправку (например, пока действует лимит попыток). */
+  disabled?: boolean
   title?: string
   subtitle?: string
   /** Слот под кнопкой: строка «Сервер: … Изменить» и т. п. */
@@ -19,6 +21,7 @@ export function LoginForm({
   onSubmit,
   error,
   pending,
+  disabled = false,
   title = 'Вход',
   subtitle = 'Введите логин и пароль, которые выдал администратор.',
   footer,
@@ -31,6 +34,7 @@ export function LoginForm({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (disabled) return
     const next = {
       login: login.trim() ? undefined : 'Введите логин',
       password: password ? undefined : 'Введите пароль',
@@ -74,7 +78,7 @@ export function LoginForm({
             />
           </AuthField>
         </div>
-        <Button type="submit" disabled={pending} className="w-full rounded-full">
+        <Button type="submit" disabled={pending || disabled} className="w-full rounded-full">
           {pending ? 'Входим…' : 'Войти'}
         </Button>
       </form>

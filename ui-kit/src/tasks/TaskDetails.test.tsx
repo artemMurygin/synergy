@@ -76,10 +76,24 @@ describe('TaskDetails', () => {
 
   it('дедлайн: изменение и очистка', async () => {
     const props = setup()
-    fireEvent.change(screen.getByLabelText('Дедлайн'), { target: { value: '2026-12-20T10:00' } })
+    const input = screen.getByLabelText('Дедлайн')
+    fireEvent.change(input, { target: { value: '2026-12-20T10:00' } })
+    fireEvent.blur(input)
     expect(props.onPatch).toHaveBeenCalledWith({ deadline: new Date('2026-12-20T10:00').toISOString() })
     await userEvent.click(screen.getByRole('button', { name: 'Убрать дедлайн' }))
     expect(props.onPatch).toHaveBeenLastCalledWith({ deadline: null })
+  })
+
+  it('дедлайн: промежуточные значения не уходят, PATCH один при потере фокуса', () => {
+    const props = setup()
+    const input = screen.getByLabelText('Дедлайн')
+    for (const v of ['0002-12-20T10:00', '0020-12-20T10:00', '0202-12-20T10:00', '2027-12-20T10:00']) {
+      fireEvent.change(input, { target: { value: v } })
+    }
+    expect(props.onPatch).not.toHaveBeenCalled()
+    fireEvent.blur(input)
+    expect(props.onPatch).toHaveBeenCalledTimes(1)
+    expect(props.onPatch).toHaveBeenCalledWith({ deadline: new Date('2027-12-20T10:00').toISOString() })
   })
 
   it('смена статуса одним действием «Готово»', async () => {

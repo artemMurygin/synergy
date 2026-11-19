@@ -1,3 +1,4 @@
+import type { MessageFile } from '@synergy/ui-kit'
 import { EventType, HttpAgent } from '@ag-ui/client'
 import type { BaseEvent, RunAgentInput } from '@ag-ui/client'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -56,6 +57,7 @@ const startRunEvents = () => {
 interface Setup {
   serverRunning?: boolean
   onStopServerRun?: () => void
+  onSendWithoutChat?: (text: string, files: MessageFile[]) => Promise<boolean>
 }
 
 async function mount(setup: Setup = {}) {
@@ -66,6 +68,7 @@ async function mount(setup: Setup = {}) {
         serverRunning={setup.serverRunning ?? false}
         onStopServerRun={onStopServerRun}
         onQuickSearch={vi.fn()}
+        onSendWithoutChat={setup.onSendWithoutChat}
       />
     </ChatRuntimeProvider>,
   )
@@ -230,6 +233,29 @@ describe('ThreadView', () => {
     })
     expect(upload).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(agent.inputs[0]?.forwardedProps)).toContain('f-1')
+  })
+
+  it('without a chat passes the attached file to the new chat and clears the tile', async () => {
+    upload.mockResolvedValue({ fileId: 'f-1' })
+    const onSendWithoutChat = vi.fn(() => Promise.resolve(true))
+    await mount({ onSendWithoutChat })
+    fireEvent.change(screen.getByLabelText('Выбрать файлы'), {
+      target: { files: [new File(['abc'], 'Прайс.pdf', { type: 'application/pdf' })] },
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => {
+      expect(onSendWithoutChat).toHaveBeenCalledTimes(1)
+    })
+    expect(onSendWithoutChat).toHaveBeenCalledWith(
+      '',
+      [expect.objectContaining({ id: 'f-1', name: 'Прайс.pdf' })],
+    )
+    await waitFor(() => {
+      expect(screen.queryByText('Прайс.pdf')).toBeNull()
+    })
   })
 
   it('returning to a running chat shows the indicator, blocks sending and offers stop', async () => {

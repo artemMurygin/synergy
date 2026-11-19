@@ -18,9 +18,9 @@ interface Props {
   onQuickSearch: (query: string, title: string) => void
   /**
    * Set while the panel has no chat: the question goes here instead of the runtime, which has
-   * no chat to run in. Resolves to `false` when it was not taken (the text stays in the field).
+   * no chat to run in; the uploaded files go along. Resolves to `false` when it was not taken (the text stays in the field).
    */
-  onSendWithoutChat?: (text: string) => Promise<boolean>
+  onSendWithoutChat?: (text: string, files: MessageFile[]) => Promise<boolean>
 }
 
 function answerText(content: readonly { type: string; text?: string }[]): string {
@@ -117,9 +117,24 @@ export function ThreadView({
   const composerText = useAuiState((s) => s.composer.text)
   const submitWithoutChat = () => {
     const text = composerText.trim()
-    if (onSendWithoutChat === undefined || text === '') return
-    void onSendWithoutChat(text).then((taken) => {
-      if (taken) aui.composer.setText('')
+    const ready = attachments.items.filter((item) => item.status === 'ready' && item.fileId !== null)
+    if (onSendWithoutChat === undefined || attachments.isUploading) return
+    if (text === '' && ready.length === 0) return
+    attachments.dismissNotice()
+    const files = ready.map(
+      (item): MessageFile => ({
+        id: item.fileId ?? '',
+        name: item.name,
+        mediaType: item.mediaType,
+        kind: item.kind,
+        sizeBytes: item.sizeBytes,
+        status: 'active',
+      }),
+    )
+    void onSendWithoutChat(text, files).then((taken) => {
+      if (!taken) return
+      attachments.take()
+      aui.composer.setText('')
     })
   }
 

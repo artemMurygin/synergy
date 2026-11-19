@@ -2,6 +2,7 @@ import { EventType, HttpAgent } from '@ag-ui/client'
 import type { BaseEvent, RunAgentInput } from '@ag-ui/client'
 import { useAui, useAuiState } from '@assistant-ui/react'
 import type { AssistantClient } from '@assistant-ui/react'
+import type { MessageFile } from '@synergy/ui-kit'
 import { act, render, waitFor } from '@testing-library/react'
 import { useEffect } from 'react'
 import { Subject } from 'rxjs'
@@ -48,6 +49,9 @@ function Probe() {
   return (
     <div>
       <output data-testid="messages">{JSON.stringify(texts)}</output>
+      <output data-testid="custom">
+        {JSON.stringify(messages.map((m) => m.metadata.custom))}
+      </output>
       <output data-testid="running">{String(running)}</output>
     </div>
   )
@@ -103,6 +107,7 @@ function mount(setup: Setup = {}) {
       view.rerender(<Harness {...props} {...next} />)
     },
     messages: (): unknown => JSON.parse(view.getByTestId('messages').textContent),
+    custom: (): unknown => JSON.parse(view.getByTestId('custom').textContent),
   }
 }
 
@@ -137,6 +142,33 @@ beforeEach(() => {
 })
 
 describe('ChatRuntimeProvider', () => {
+  it('carries the attachments and source of the history into metadata.custom', async () => {
+    const file: MessageFile = {
+      id: 'f-1',
+      name: 'Расшифровка.docx',
+      mediaType: 'application/pdf',
+      kind: 'document',
+      sizeBytes: 10,
+      status: 'active',
+    }
+    const loaded: ThreadHistory = {
+      running: false,
+      messages: [
+        { id: 'm1', role: 'user', content: 'вопрос', attachments: [file] },
+        { id: 'm2', role: 'assistant', content: 'готово', source: 'system' },
+      ],
+    }
+    vi.mocked(getThread).mockResolvedValue(loaded)
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['вопрос', 'готово'])
+    })
+    expect(view.custom()).toEqual([
+      { attachments: [file], source: 'run' },
+      { attachments: [], source: 'system' },
+    ])
+  })
+
   it('onSwitchToThread loads the history of the active chat as AG-UI messages', async () => {
     const view = mount()
     await waitFor(() => {

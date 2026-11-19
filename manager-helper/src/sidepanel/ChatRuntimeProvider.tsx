@@ -60,10 +60,19 @@ const FAILED = ''
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
 
-function toThreadMessages(messages: Awaited<ReturnType<typeof getThread>>['messages']) {
-  return fromAgUiMessages(messages).map((message): ThreadMessage =>
-    fromThreadMessageLike(message, generateId(), COMPLETE),
-  )
+/** Converts the history into runtime messages; files and source go into `metadata.custom`. */
+function toThreadMessages(messages: ThreadHistory['messages']) {
+  const extras = new Map(messages.map((message) => [message.id, message]))
+  return fromAgUiMessages([...messages]).map((like): ThreadMessage => {
+    const extra = like.id === undefined ? undefined : extras.get(like.id)
+    const metadata = like.metadata ?? {}
+    const custom = {
+      ...metadata.custom,
+      attachments: [...(extra?.attachments ?? [])],
+      source: extra?.source ?? 'run',
+    }
+    return fromThreadMessageLike({ ...like, metadata: { ...metadata, custom } }, generateId(), COMPLETE)
+  })
 }
 
 /** The chat id is the AG-UI `threadId` of every run the agent starts next. */

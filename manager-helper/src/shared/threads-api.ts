@@ -1,4 +1,5 @@
 import type { Message } from '@ag-ui/client'
+import type { MessageFile } from '@synergy/ui-kit'
 import { AskError, errorMessage, isRecord } from './api'
 import { authFetch } from './auth/auth-fetch'
 import { withClientApp } from './client-app'
@@ -17,9 +18,15 @@ export interface Thread {
   running: boolean
 }
 
+/** An AG-UI message of the history; the server adds its files and source. */
+export type HistoryMessage = Message & {
+  attachments?: readonly MessageFile[]
+  source?: 'run' | 'system'
+}
+
 export interface ThreadHistory {
   /** Thread history in AG-UI message format. */
-  messages: Message[]
+  messages: HistoryMessage[]
   running: boolean
 }
 
@@ -50,7 +57,7 @@ function isMessage(value: unknown): value is Message {
   return isRecord(value) && typeof value.id === 'string' && typeof value.role === 'string'
 }
 
-function parseMessage(value: unknown): Message {
+function parseMessage(value: unknown): HistoryMessage {
   if (!isMessage(value)) throw new AskError(UNEXPECTED)
   return value
 }
