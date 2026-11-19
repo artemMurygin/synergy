@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { useEffect } from 'react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { LayoutModeProvider, type LayoutMode } from '../layout/layout-mode'
@@ -36,7 +37,7 @@ describe('ChatsLayout', () => {
   it('shows one screen in mobile mode', () => {
     const { rerender } = setup('mobile', { mobileScreen: 'list' })
     expect(screen.getByText('Список')).toBeTruthy()
-    expect(screen.queryByText('Диалог')).toBeNull()
+    expect(screen.getByText('Диалог').closest('main')?.className).toContain('hidden')
     rerender(
       <LayoutModeProvider mode="mobile">
         <ChatsLayout list={<div>Список</div>} chat={<div>Диалог</div>} mobileScreen="chat" />
@@ -44,6 +45,27 @@ describe('ChatsLayout', () => {
     )
     expect(screen.queryByText('Список')).toBeNull()
     expect(screen.getByText('Диалог')).toBeTruthy()
+  })
+
+  it('keeps the chat mounted across the mode change and a trip to the list', () => {
+    let mounts = 0
+    function Probe() {
+      useEffect(() => {
+        mounts += 1
+      }, [])
+      return <div>Диалог</div>
+    }
+    const view = (mode: LayoutMode, screen: 'list' | 'chat') => (
+      <LayoutModeProvider mode={mode}>
+        <ChatsLayout list={<div>Список</div>} chat={<Probe />} mobileScreen={screen} />
+      </LayoutModeProvider>
+    )
+    const { rerender } = render(view('mobile', 'chat'))
+    rerender(view('mobile', 'list'))
+    rerender(view('mobile', 'chat'))
+    rerender(view('tablet', 'chat'))
+    rerender(view('desktop', 'chat'))
+    expect(mounts).toBe(1)
   })
 })
 

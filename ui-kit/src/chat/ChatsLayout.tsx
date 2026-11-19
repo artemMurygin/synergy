@@ -17,25 +17,40 @@ const PANEL = 'overflow-hidden rounded-[20px] bg-surface shadow-panel'
 export function ChatsLayout({ list, chat, listHidden = false, mobileScreen = 'chat' }: ChatsLayoutProps) {
   const mode = useLayoutMode()
 
-  if (mode === 'mobile') {
-    return (
-      <div className="flex h-full w-full flex-col overflow-hidden bg-surface text-ink">
-        {mobileScreen === 'list' ? list : chat}
-      </div>
-    )
-  }
-
+  const mobile = mode === 'mobile'
+  // One tree for every mode: the chat stays mounted (the draft, uploads, refs survive a change of
+  // the mode and a trip to the list); on mobile the inactive screen is hidden, not unmounted.
   return (
-    <div className="flex h-full w-full gap-2.5 overflow-hidden text-ink">
-      {!listHidden && (
-        <aside
-          aria-label="Список чатов"
-          className={cn('h-full shrink-0', PANEL, mode === 'desktop' ? 'w-75' : 'w-62')}
-        >
-          {list}
-        </aside>
+    <div
+      className={cn(
+        'flex h-full w-full overflow-hidden text-ink',
+        mobile ? 'flex-col bg-surface' : 'gap-2.5',
       )}
-      <main className={cn('flex h-full min-w-0 flex-1 flex-col', PANEL)}>{chat}</main>
+    >
+      {mobile ? (
+        mobileScreen === 'list' ? (
+          list
+        ) : null
+      ) : (
+        !listHidden && (
+          <aside
+            aria-label="Список чатов"
+            className={cn('h-full shrink-0', PANEL, mode === 'desktop' ? 'w-75' : 'w-62')}
+          >
+            {list}
+          </aside>
+        )
+      )}
+      <main
+        hidden={mobile && mobileScreen === 'list'}
+        className={cn(
+          'flex min-w-0 flex-1 flex-col',
+          mobile ? 'min-h-0 overflow-hidden' : cn('h-full', PANEL),
+          mobile && mobileScreen === 'list' && 'hidden',
+        )}
+      >
+        {chat}
+      </main>
     </div>
   )
 }
