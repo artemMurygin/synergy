@@ -6,7 +6,7 @@
 > files: design/design-kit.lib.pen; design/synergy-design.pen; openspec/changes/unified-client-ui/ui-design.md; .claude/rules/design-system.md; CLAUDE.md
 > frames: ZqCio; N5zJ7; CC227; RSL0e; d34K1; QE24F; o1X1US
 
-- [ ] 1.1 Перенести мастер-компоненты из фреймов «Компоненты» (`TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`) и `F6L43` доски `ZqCio` в `design/design-kit.lib.pen`, используя имена из ui-design.md, раздел «Новые компоненты UI Kit». Экраны досок 01–06 перевести на экземпляры UI Kit, а Node ID мастеров вписать в эту таблицу ui-design.md. Без тестов: работа в макетах. Готово, когда фреймы «Компоненты» на досках пусты или удалены, а скриншоты экранов `VHpuS`, `WxAFh`, `Elt3T`, `qryQB`, `Nk6nR`, `YDMzw` не изменились
+- [x] 1.1 Перенести мастер-компоненты из фреймов «Компоненты» (`TQnaP`, `VKVbI`, `crdSZ`, `ghJgQ`, `wn9D5`) и `F6L43` доски `ZqCio` в `design/design-kit.lib.pen`, используя имена из ui-design.md, раздел «Новые компоненты UI Kit». Экраны досок 01–06 перевести на экземпляры UI Kit, а Node ID мастеров вписать в эту таблицу ui-design.md. Без тестов: работа в макетах. Готово, когда фреймы «Компоненты» на досках пусты или удалены, а скриншоты экранов `VHpuS`, `WxAFh`, `Elt3T`, `qryQB`, `Nk6nR`, `YDMzw` не изменились
 - [x] 1.2 Дорисовать состояния в секциях своих досок, по три формата на состояние, где меняется разметка. Без тестов: макеты. Готово, когда Node ID записаны в ui-design.md («Ключевые состояния экранов»), а проверка layout не нашла clipping. Состояния:
   - Telegram: «бот не настроен» и «получаем ссылку…» (`QE24F`);
   - ошибки загрузки списка и статусов задач (`RSL0e`, секция `c0aEh5`);
@@ -260,9 +260,59 @@
   - прежний путь `downloadAttachment` + `saveBlob` удалён, если его больше никто не использует;
   - общий код скачивания по ссылке вынесен в `files-api.ts`, чтобы им пользовались и файлы чата.
 
-## 16. Code review
-> track: review
-> depends: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+## 16. ui-kit: раскладка экрана чатов и поиск по чатам
+> track: ui-kit
+> depends: —
+> specs: chat-session-switcher → «Поиск по чатам»; chat-session-switcher → «Адаптация к ширине панели»; chat-session-switcher → «Скрытие списка чатов»; client-ui-kit → «Режимы раскладки»; client-ui-kit → «UI Kit как эталон»
+> arch: Features/ui-kit/src/chat/chat-list; UI-компоненты/ChatList; UI-компоненты/AppFrame
+> files: ui-kit/src/chat/chat-list/**; ui-kit/src/chat/ChatsLayout*.tsx; ui-kit/src/chat/ChatHeader*.tsx; ui-kit/src/shell/MobileTopBar*.tsx; ui-kit/src/index.ts; ui-kit/src/icons.ts
+> frames: VHpuS; b4IMkD; WxAFh; Elt3T; hTZ3b
 
-- [ ] 16.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
-- [ ] 16.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
+- [x] 16.1 TDD: поле поиска в `ChatList`. Тесты: `ui-kit/src/chat/chat-list/ChatList.test.tsx`. Вёрстка по `WxAFh` (поле «Поиск» под шапкой списка) и `VHpuS`. Поведение:
+  - фильтр по подстроке в названии без учёта регистра, пустые группы по дате скрываются;
+  - «Ничего не найдено», если совпадений нет;
+  - очистка поля возвращает полный список.
+- [x] 16.2 TDD: общий `ChatsLayout` со слотами `list` и `chat`, сделан по раскладке `control-center/src/renderer/src/layouts/ChatLayout.tsx`, которая уже совпадает с `VHpuS`. Тесты: `ui-kit/src/chat/ChatsLayout.test.tsx`. Вёрстка по `VHpuS`, `b4IMkD`, `WxAFh`, `Elt3T`, `hTZ3b`. Состав:
+  - в режимах desktop и tablet список и чат — две отдельные белые панели (радиус 20, `shadow-panel`, зазор 10);
+  - шапка списка: «Чаты», красная кнопка нового чата, кнопка скрытия, поиск;
+  - `ChatHeader`: капсула с названием и временем, иконки действий справа;
+  - при скрытом списке чат занимает всё место;
+  - в mobile показан один экран. `MobileTopBar` чата: круглая кнопка к списку, название и время, красная «+», уведомления, аватар. Шапка списка — по `hTZ3b`.
+
+## 17. manager-helper: раскладка экрана чатов по макетам
+> track: manager-helper
+> depends: 16
+> specs: chat-session-switcher → «Адаптация к ширине панели»; chat-session-switcher → «Поиск по чатам»; client-ui-kit → «Режимы раскладки»; client-ui-kit → «Навигация между разделами»; client-ui-kit → «Кнопка и меню профиля»
+> arch: Pages/SidePanelApp (MH); Pages/ChatsScreen (MH)
+> files: manager-helper/src/sidepanel/App.tsx; manager-helper/src/sidepanel/ChatPane.tsx; manager-helper/src/sidepanel/ThreadView.tsx; manager-helper/src/sidepanel/ChatTitleBar.tsx; manager-helper/src/sidepanel/ProfileMenuContainer.tsx; manager-helper/src/sidepanel/*.test.tsx
+> frames: WxAFh; Elt3T; hTZ3b; TLMEl
+
+- [x] 17.1 TDD: планшетный режим (≥ 640 px) по `WxAFh`. Тесты: `sidepanel/App.test.tsx`, `sidepanel/ChatPane.test.tsx`. Состав:
+  - общей шапки «Чат с агентом» нет;
+  - экран собран из `ChatsLayout` пакета, список и чат в отдельных панелях;
+  - колокольчик и аватар внизу рейла, как в CC;
+  - вход в настройки расширения — пункт «Настройки расширения» в меню профиля, только в MH, вызывает `chrome.runtime.openOptionsPage()`; если `ProfileMenu` не умеет дополнительные пункты, добавить проп `extraItems` в пакет;
+  - «Быстрый подбор» остаётся над формой отправки.
+- [x] 17.2 TDD: мобильный режим (< 640 px) по `Elt3T` и `hTZ3b`. Тесты: `sidepanel/ChatPane.test.tsx`. Состав:
+  - одна верхняя панель `MobileTopBar`: кнопка к списку, название чата и время, «+», колокольчик, аватар; второй строки с названием нет;
+  - экран списка с поиском по `hTZ3b`;
+  - таб-бар внизу без изменений.
+
+  Проверка в этой же задаче: после `npx vite build` через MCP `extension` (Chromium с расширением, вход user10 / Test123456, бэкенд на localhost:3000) скриншоты на 400 и 700 px сверить с `Elt3T` и `WxAFh`.
+
+## 18. control-center: общий ChatsLayout и поиск по чатам
+> track: control-center
+> depends: 16
+> specs: chat-session-switcher → «Поиск по чатам»; chat-session-switcher → «Скрытие списка чатов»
+> arch: Pages/ChatsScreen (CC)
+> files: control-center/src/renderer/src/layouts/ChatLayout*.tsx; control-center/src/renderer/src/features/chat/{ChatsScreen,ChatListContainer}*.tsx
+> frames: VHpuS; b4IMkD
+
+- [x] 18.1 TDD: CC собирает экран чатов из `ChatsLayout` и `ChatHeader` пакета, локальная раскладка в `layouts/ChatLayout.tsx` удаляется или становится тонкой обёрткой; поиск по чатам работает. Тесты: `layouts/ChatLayout.test.tsx` и `features/chat/ChatsScreen.test.tsx`. Вид не должен измениться: проверка через electron-stagewright (`npx electron-vite build`, запуск `out/main/index.js`, сессия user10) — скриншот сверить с `VHpuS` и `b4IMkD`
+
+## 19. Code review
+> track: review
+> depends: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+
+- [x] 19.1 Code review всех изменений change от base commit по измерениям: соответствие specs/design, стандарты проекта, корректность (выполняет фаза Review workflow `apply-openspec-change`)
+- [x] 19.2 Исправить blocking и major (дефекты поведения — через тест, воспроизводящий ошибку), не больше 2 раундов ревью; оставшиеся minor перечислить в итоге; регрессия зелёная
