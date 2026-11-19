@@ -36,3 +36,107 @@ export { Popover, PopoverAnchor, PopoverClose, PopoverContent, PopoverTrigger } 
 export { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from './primitives/Menu'
 export { Sheet, SheetClose, SheetContent, SheetTrigger } from './primitives/Sheet'
 export type { SheetContentProps } from './primitives/Sheet'
+
+export { TaskList } from './tasks/TaskList'
+export type { TaskListProps } from './tasks/TaskList'
+export { TaskRow, pluralizeAttachments } from './tasks/TaskRow'
+export type { TaskRowProps } from './tasks/TaskRow'
+export { TaskFilters, SEARCH_DEBOUNCE_MS } from './tasks/TaskFilters'
+export type { TaskFiltersProps } from './tasks/TaskFilters'
+export { StatusBadge } from './tasks/StatusBadge'
+export { DeadlineLabel } from './tasks/DeadlineLabel'
+export type { DeadlineLabelProps } from './tasks/DeadlineLabel'
+export { TaskDetails } from './tasks/TaskDetails'
+export type { TaskDetailsProps, TaskPatch } from './tasks/TaskDetails'
+export { TaskFormFields, EMPTY_TASK_FORM, TITLE_MAX, DESCRIPTION_MAX } from './tasks/TaskFormFields'
+export type { TaskFormErrors, TaskFormFieldsProps, TaskFormValue } from './tasks/TaskFormFields'
+export { UserPicker, WATCHERS_LIMIT } from './tasks/UserPicker'
+export type { UserPickerProps, UserSearchProps } from './tasks/UserPicker'
+export { AttachmentList, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from './tasks/AttachmentList'
+export type { AttachmentListProps, UploadOptions } from './tasks/AttachmentList'
+export { TaskNotFound } from './tasks/TaskNotFound'
+export { UserAvatar } from './tasks/UserAvatar'
+export { TASK_VIEW_DEFAULT, TASK_VIEW_LABEL, selectedSegment, taskViewLayout } from './tasks/task-views'
+export type { TaskView } from './tasks/task-views'
+export {
+  formatDay,
+  formatDeadline,
+  formatFullDateTime,
+  formatRelativeDateTime,
+  fromLocalInput,
+  isOverdue,
+  toLocalInput,
+} from './tasks/deadline'
+export { formatSize } from './tasks/format-size'
+export { STATUS_LABEL, TASK_STATUSES, loginOf } from './tasks/types'
+export type {
+  TaskAttachment,
+  TaskDetailsData,
+  TaskItem,
+  TaskSort,
+  TaskStatus,
+  TaskStatusFilter,
+  TaskUser,
+  UserSummary,
+} from './tasks/types'
+
+export { AppFrame } from './shell/AppFrame'
+export type { AppFrameProps } from './shell/AppFrame'
+export { NavRail } from './shell/NavRail'
+export type { NavItem, NavProps } from './shell/NavRail'
+export { TabBar } from './shell/TabBar'
+export { PanelHeader, PanelHeaderButton } from './shell/PanelHeader'
+export type { PanelHeaderProps, PanelHeaderButtonProps } from './shell/PanelHeader'
+export { ProfileButton } from './shell/ProfileButton'
+export type { ProfileButtonProps } from './shell/ProfileButton'
+export { ProfileMenu } from './shell/ProfileMenu'
+export type { ProfileMenuProps } from './shell/ProfileMenu'
+
+export { formatBadgeCount } from './notifications/format-badge-count'
+export { NotificationsButton } from './notifications/NotificationsButton'
+export type { NotificationsButtonProps } from './notifications/NotificationsButton'
+export { NotificationsList } from './notifications/NotificationsList'
+export type { NotificationsListProps, NotificationsListState } from './notifications/NotificationsList'
+export { NotificationItem } from './notifications/NotificationItem'
+export type { NotificationItemProps, NotificationView } from './notifications/NotificationItem'
+export { NotificationToast } from './notifications/NotificationToast'
+export type { NotificationToastProps } from './notifications/NotificationToast'
+export type { NotificationTone } from './notifications/tones'
+
+export { AuthBrand } from './auth/AuthBrand'
+export { LoginForm } from './auth/LoginForm'
+export type { LoginFormProps } from './auth/LoginForm'
+export { ChangePasswordDialog } from './auth/ChangePasswordDialog'
+export type { ChangePasswordDialogProps } from './auth/ChangePasswordDialog'
+export { ConnectionError } from './auth/ConnectionError'
+export type { ConnectionErrorProps } from './auth/ConnectionError'
+export { RestoringScreen } from './auth/RestoringScreen'
+
+export { TelegramConnectPanel } from './telegram/TelegramConnectPanel'
+export type { TelegramConnectPanelProps, TelegramConnectStatus } from './telegram/TelegramConnectPanel'
+export { TelegramLinkedPanel } from './telegram/TelegramLinkedPanel'
+export type { TelegramLinkedPanelProps } from './telegram/TelegramLinkedPanel'
+export { TelegramUnlinkConfirm } from './telegram/TelegramUnlinkConfirm'
+export type { TelegramUnlinkConfirmProps } from './telegram/TelegramUnlinkConfirm'
+export { TelegramMenuItem } from './telegram/TelegramMenuItem'
+export type { TelegramMenuItemProps } from './telegram/TelegramMenuItem'
+
+export { Thread } from './chat/Thread'
+export type { ThreadProps } from './chat/Thread'
+export { AssistantMessage, SYSTEM_MESSAGE_LABEL } from './chat/AssistantMessage'
+export { UserMessage } from './chat/UserMessage'
+export { MarkdownText } from './chat/MarkdownText'
+export { ToolGroup, ToolGroupParts, ToolCallRow, ToolFallback } from './chat/ToolGroup'
+export { callStatus, formatArgs, groupSummary, pluralizeCalls, statusLabel } from './chat/tool-status'
+export type { ToolCallStatus, ToolCallView } from './chat/tool-status'
+export { RunningIndicator } from './chat/RunningIndicator'
+export { RunNotice } from './chat/RunNotice'
+export type { RunNoticeTone } from './chat/RunNotice'
+export { NextSteps } from './chat/NextSteps'
+export { CARD_STEPS, OVERVIEW_STEPS, classifyAnswer, nextStepsFor } from './chat/next-steps'
+export type { AnswerKind, NextStep } from './chat/next-steps'
+export { Composer } from './chat/Composer'
+export type { ComposerProps } from './chat/Composer'
+export { NewMessageButton } from './chat/NewMessageButton'
+export * from './chat/attachments'
+export * from './chat/chat-list'

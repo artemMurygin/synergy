@@ -5,3 +5,9 @@ export function describedBy(el: Element): string {
     .join(' ')
     .trim()
 }
+
+/** Element of a list the test knows to be there. */
+export function must<T>(value: T | undefined | null): T {
+  if (value === undefined || value === null) throw new Error('expected a value')
+  return value
+}

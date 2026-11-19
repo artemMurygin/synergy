@@ -1,0 +1,82 @@
+import { MessagePrimitive, useAuiState } from '@assistant-ui/react'
+import { Bell, CircleAlert, Square } from '../icons'
+import { MessageAttachments } from './attachments/MessageAttachments'
+import { messageFiles, messageSource } from './attachments/message-files'
+import { MarkdownText } from './MarkdownText'
+import { RunNotice } from './RunNotice'
+import { useThreadActions } from './thread-context'
+import { ToolFallback, ToolGroupParts } from './ToolGroup'
+
+export const FAILED_TEXT = 'Запуск агента завершился ошибкой.'
+export const SYSTEM_MESSAGE_LABEL = 'Сообщение о расшифровке'
+
+function errorText(error: unknown): string {
+  if (typeof error === 'string' && error !== '') return error
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' && error.message !== '') {
+    return error.message
+  }
+  return FAILED_TEXT
+}
+
+/**
+ * Answer of the agent: group of tool calls, text bubble, files and a note on how the run ended.
+ * A system message (posted by the server on an event) carries a label instead of the run notes.
+ */
+export function AssistantMessage() {
+  const message = useAuiState((s) => s.message)
+  const { onRetry, onDownload, pendingDownloads } = useThreadActions()
+  const { status } = message
+  const system = messageSource(message) === 'system'
+  const failed = !system && status?.type === 'incomplete' && status.reason === 'error'
+  const stopped = !system && status?.type === 'incomplete' && status.reason === 'cancelled'
+
+  return (
+    <MessagePrimitive.Root className="flex w-full flex-col gap-1.5">
+      {system && (
+        <span className="flex items-center gap-1.5 self-start font-chat text-xs text-ink-60">
+          <Bell size={14} />
+          {SYSTEM_MESSAGE_LABEL}
+        </span>
+      )}
+      <MessagePrimitive.Parts
+        components={{
+          Text: ({ text }) =>
+            text.trim().length > 0 ? (
+              <div className="max-w-[85%] self-start rounded-2xl bg-surface-alt px-3.5 py-2.5 font-chat text-sm leading-[1.4] break-words text-ink">
+                <MarkdownText text={text} />
+              </div>
+            ) : null,
+          ToolGroup: ToolGroupParts,
+          tools: { Fallback: ToolFallback },
+        }}
+      />
+      <MessageAttachments
+        files={messageFiles(message)}
+        pending={pendingDownloads}
+        onDownload={onDownload ?? (() => undefined)}
+      />
+      {failed && (
+        <RunNotice
+          tone="error"
+          role="alert"
+          icon={<CircleAlert size={18} />}
+          title="Не удалось получить ответ"
+          text={errorText(status.error)}
+          actionLabel="Повторить"
+          onAction={onRetry}
+        />
+      )}
+      {stopped && (
+        <RunNotice
+          tone="neutral"
+          role="status"
+          icon={<Square size={18} />}
+          title="Ответ остановлен"
+          text="Показана полученная часть. В историю чата она не сохранена."
+          actionLabel="Повторить вопрос"
+          onAction={onRetry}
+        />
+      )}
+    </MessagePrimitive.Root>
+  )
+}
