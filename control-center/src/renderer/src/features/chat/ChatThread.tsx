@@ -1,8 +1,8 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
-import { Button, Composer, Skeleton, Thread, useComposerAttachments } from '@synergy/ui-kit'
+import { Button, ChatHeader, Composer, PanelHeaderButton, Skeleton, Thread, useComposerAttachments } from '@synergy/ui-kit'
 import { MessagesSquare, PanelLeftOpen, Plus } from '@synergy/ui-kit/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef } from 'react'
 import { threadsQuery, useCreateThread } from '@/lib/backend/threads.queries'
 import { formatActivity } from '@/lib/format-activity'
 import { useChatStore } from '@/stores/chat.store'
@@ -27,37 +27,27 @@ export function ChatThread({ onShowList }: ChatThreadProps) {
   return <OpenChat key={activeThreadId} threadId={activeThreadId} onShowList={onShowList} />
 }
 
-/** Header pill of the dialog area (Chat Header): the buttons of the hidden list, then the title. */
-function Header({ children, onShowList }: { children?: ReactNode; onShowList?: () => void }) {
+/** Header of the dialog area (ChatHeader of the package): the buttons of the hidden list, then the title. */
+function Header({ title = '', meta, onShowList }: { title?: string; meta?: string; onShowList?: () => void }) {
   const create = useCreateThread()
-  return (
-    <header className="flex h-16 shrink-0 items-center gap-2 px-3">
-      {onShowList !== undefined && (
-        <div className="flex h-11 items-center rounded-[22px] bg-surface-alt px-1">
-          <button
-            type="button"
-            aria-label="Показать список чатов"
-            onClick={onShowList}
-            className="flex size-9 items-center justify-center rounded-full text-ink-80 outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-brand-red/40"
-          >
-            <PanelLeftOpen />
-          </button>
-          <button
-            type="button"
-            aria-label="Новый чат"
-            disabled={create.isPending}
-            onClick={() => {
-              create.mutate()
-            }}
-            className="flex size-9 items-center justify-center rounded-full bg-brand-red text-white outline-none hover:bg-brand-red-hover focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
-          >
-            <Plus />
-          </button>
-        </div>
-      )}
-      {children}
-    </header>
-  )
+  const leading =
+    onShowList === undefined ? undefined : (
+      <div className="flex h-11 items-center rounded-[22px] bg-surface-alt px-1">
+        <PanelHeaderButton label="Показать список чатов" icon={<PanelLeftOpen />} onClick={onShowList} />
+        <PanelHeaderButton
+          label="Новый чат"
+          tone="primary"
+          icon={<Plus />}
+          disabled={create.isPending}
+          onClick={() => {
+            create.mutate()
+          }}
+        />
+      </div>
+    )
+  // No title yet (no chat open or the list is still loading): only the list buttons, no empty capsule
+  if (title === '') return <header className="flex h-16 shrink-0 items-center gap-2 px-3">{leading}</header>
+  return <ChatHeader title={title} meta={meta} leading={leading} />
 }
 
 function NoChat({ onShowList }: { onShowList?: () => void }) {
@@ -82,16 +72,10 @@ function NoChat({ onShowList }: { onShowList?: () => void }) {
   )
 }
 
-function TitlePill({ threadId }: { threadId: string }) {
+function OpenHeader({ threadId, onShowList }: { threadId: string; onShowList?: () => void }) {
   const { data } = useQuery(threadsQuery())
   const thread = data?.find((t) => t.id === threadId)
-  if (thread === undefined) return null
-  return (
-    <div className="flex h-11 min-w-0 items-center gap-2.5 rounded-[22px] bg-surface-alt px-[18px]">
-      <h2 className="truncate font-display text-base font-semibold text-ink">{thread.title}</h2>
-      <span className="shrink-0 text-xs text-ink-60">{formatActivity(thread.lastActivityAt)}</span>
-    </div>
-  )
+  return <Header title={thread?.title ?? ''} meta={thread ? formatActivity(thread.lastActivityAt) : undefined} onShowList={onShowList} />
 }
 
 function OpenChat({ threadId, onShowList }: { threadId: string; onShowList?: () => void }) {
@@ -161,9 +145,7 @@ function OpenChat({ threadId, onShowList }: { threadId: string; onShowList?: () 
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Header onShowList={onShowList}>
-        <TitlePill threadId={threadId} />
-      </Header>
+      <OpenHeader threadId={threadId} onShowList={onShowList} />
       {body}
     </div>
   )

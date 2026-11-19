@@ -1,10 +1,20 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
-import { ChatList, chatPaneVisibility, useChatListCollapsed, useLayoutMode } from '@synergy/ui-kit'
+import {
+  ChatHeader,
+  ChatList,
+  ChatsLayout,
+  MobileTopBar,
+  chatPaneVisibility,
+  formatRelativeDateTime,
+  useChatListCollapsed,
+  useLayoutMode,
+} from '@synergy/ui-kit'
 import type { ChatPanelMode, MessageFile } from '@synergy/ui-kit'
+import { MessagesSquare } from '@synergy/ui-kit/icons'
 import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { useChatHistory } from './ChatRuntimeProvider'
-import { ChatTitleBar } from './ChatTitleBar'
 import { ThreadView } from './ThreadView'
 
 interface QueuedSend {
@@ -39,6 +49,17 @@ interface Props {
   /** A run of the chat ended on the server: its fresh history goes into the runtime in place. */
   finished: FinishedRun | null
   onFinishedApplied: () => void
+  /** Notifications button of the mobile top bar (the rail carries it on a wide panel). */
+  notifications?: ReactNode
+  /** Profile button of the mobile top bar (the rail carries it on a wide panel). */
+  profile?: ReactNode
+}
+
+/** "Сегодня, 14:32" for the header; empty while the chat is not in the list yet. */
+function chatMeta(iso: string | undefined): string | undefined {
+  if (iso === undefined) return undefined
+  const text = formatRelativeDateTime(iso)
+  return text.charAt(0).toLocaleUpperCase('ru') + text.slice(1)
 }
 
 interface ThreadPaneProps {
@@ -124,85 +145,123 @@ function ThreadPane(props: ThreadPaneProps) {
       serverRunning={props.serverRunning}
       onStopServerRun={props.onStopServerRun}
       onQuickSearch={quickSearch}
-      onSendWithoutChat={activeId === null ? (text, files) => sendWithoutChat(text, undefined, files) : undefined}
+      onSendWithoutChat={
+        activeId === null ? (text, files) => sendWithoutChat(text, undefined, files) : undefined
+      }
     />
   )
 }
 
 /**
- * Chats of the panel: the list (package `ChatList`) next to the chat on a wide panel, one of
- * them on a narrow one. Both panes stay mounted across the 640 px threshold, so the draft and
- * the active chat survive the switch.
+ * Chats of the panel (package `ChatsLayout`): the list and the chat in two panels on a wide
+ * panel, one screen with the `MobileTopBar` on a narrow one. The runtime lives above, so the
+ * draft and the active chat survive the 640 px threshold.
  */
 export function ChatPane(props: Props) {
   const layout = useLayoutMode()
   const [collapsed, toggleCollapsed] = useChatListCollapsed()
   const panes = chatPaneVisibility(layout, props.mode)
   const wide = layout !== 'mobile'
-  const listShown = wide ? !collapsed : panes.list
   const activeSession = props.sessions.find((s) => s.id === props.activeId)
+  const title = activeSession?.title.trim() ? activeSession.title : 'Новый чат'
+  const meta = chatMeta(activeSession?.lastActivityAt)
 
-  const listState =
-    props.status === 'ready' && props.sessions.length === 0 ? 'empty' : props.status
-  const openList = wide
-    ? collapsed
-      ? toggleCollapsed
-      : undefined
-    : panes.backToList
-      ? () => {
-          props.onModeChange('list')
+  const listState = props.status === 'ready' && props.sessions.length === 0 ? 'empty' : props.status
+
+  const list = (
+    <ChatList
+      threads={props.sessions}
+      activeId={props.activeId}
+      runningIds={props.sessions.filter((s) => s.running).map((s) => s.id)}
+      state={listState}
+      createDisabled={props.creating}
+      hideHeader={!wide}
+      collapsed={false}
+      onToggleCollapsed={toggleCollapsed}
+      onSelect={(id) => {
+        props.onSelect(id)
+        props.onModeChange('chat')
+      }}
+      onCreate={props.onCreate}
+      onRename={props.rename}
+      onDelete={props.remove}
+      onRetry={props.onRetryList}
+    />
+  )
+
+  const thread = (
+    <ThreadPane
+      activeId={props.activeId}
+      activeSession={activeSession}
+      create={props.create}
+      rename={props.rename}
+      serverRunning={props.serverRunning}
+      onStopServerRun={props.onStopServerRun}
+      onSettled={props.onSettled}
+      finished={props.finished}
+      onFinishedApplied={props.onFinishedApplied}
+    />
+  )
+
+  if (!wide) {
+    const createBar = (bar: { title: string; meta?: string; onBack?: () => void }) => (
+      <MobileTopBar
+        {...bar}
+        onCreate={props.onCreate}
+        notifications={props.notifications}
+        profile={props.profile}
+      />
+    )
+    return (
+      <ChatsLayout
+        mobileScreen={panes.chat ? 'chat' : 'list'}
+        list={
+          <>
+            {createBar({ title: 'Чаты' })}
+            {list}
+          </>
         }
-      : undefined
+        chat={
+          <>
+            {createBar({
+              title,
+              meta,
+              onBack: () => {
+                props.onModeChange('list')
+              },
+            })}
+            {thread}
+          </>
+        }
+      />
+    )
+  }
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div
-        data-pane="list"
-        className={`${listShown ? 'flex' : 'hidden'} min-h-0 flex-col ${
-          panes.chat ? 'w-62 shrink-0 border-r border-border' : 'min-w-0 flex-1'
-        } ${wide ? '' : '[&_button[aria-label="Скрыть список чатов"]]:hidden'}`}
-      >
-        <ChatList
-          threads={props.sessions}
-          activeId={props.activeId}
-          runningIds={props.sessions.filter((s) => s.running).map((s) => s.id)}
-          state={listState}
-          createDisabled={props.creating}
-          collapsed={wide ? collapsed : false}
-          onToggleCollapsed={toggleCollapsed}
-          onSelect={(id) => {
-            props.onSelect(id)
-            props.onModeChange('chat')
-          }}
-          onCreate={props.onCreate}
-          onRename={props.rename}
-          onDelete={props.remove}
-          onRetry={props.onRetryList}
-        />
-      </div>
-
-      <div
-        data-pane="chat"
-        className={`${panes.chat ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col`}
-      >
-        <ChatTitleBar
-          title={activeSession?.title ?? ''}
-          running={props.serverRunning}
-          onOpenList={openList}
-          openListLabel={wide ? 'Показать список чатов' : 'К списку чатов'}
-        />
-        <ThreadPane
-          activeId={props.activeId}
-          activeSession={activeSession}
-          create={props.create}
-          rename={props.rename}
-          serverRunning={props.serverRunning}
-          onStopServerRun={props.onStopServerRun}
-          onSettled={props.onSettled}
-          finished={props.finished}
-          onFinishedApplied={props.onFinishedApplied}
-        />
-      </div>
-    </div>
+    <ChatsLayout
+      listHidden={collapsed}
+      list={list}
+      chat={
+        <>
+          <ChatHeader
+            title={title}
+            meta={meta}
+            leading={
+              collapsed ? (
+                <button
+                  type="button"
+                  aria-label="Показать список чатов"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-alt text-ink hover:bg-surface-sunken"
+                  onClick={toggleCollapsed}
+                >
+                  <MessagesSquare />
+                </button>
+              ) : undefined
+            }
+          />
+          {thread}
+        </>
+      }
+    />
   )
 }

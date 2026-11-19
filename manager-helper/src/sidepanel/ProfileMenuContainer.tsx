@@ -1,4 +1,5 @@
 import { ChangePasswordDialog, ProfileMenu } from '@synergy/ui-kit'
+import { Settings } from '@synergy/ui-kit/icons'
 import { useState } from 'react'
 import type { TelegramLink, TelegramLinkState } from '@/options/telegram/use-telegram-link'
 import { useAuthSession } from '@/shared/auth/use-auth-session'
@@ -25,7 +26,7 @@ function telegramLabel(state: TelegramLinkState): string | null {
   }
 }
 
-/** Profile menu of the panel: logout, password change and the Telegram entry. */
+/** Profile menu of the panel: logout, password change, the Telegram entry and the extension settings. */
 export function ProfileMenuContainer({ link, onOpenTelegram }: Props) {
   const session = useAuthSession()
   const [passwordOpen, setPasswordOpen] = useState(false)
@@ -63,6 +64,14 @@ export function ProfileMenuContainer({ link, onOpenTelegram }: Props) {
           setPasswordOpen(true)
         }}
         onLogout={() => void session.logout()}
+        extraItems={[
+          {
+            id: 'extension-settings',
+            label: 'Настройки расширения',
+            icon: <Settings className="text-ink-80" />,
+            onSelect: () => void chrome.runtime.openOptionsPage(),
+          },
+        ]}
       />
       <ChangePasswordDialog
         kind="voluntary"

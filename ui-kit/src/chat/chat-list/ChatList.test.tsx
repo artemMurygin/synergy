@@ -30,6 +30,13 @@ function setup(overrides: Partial<ChatListProps> = {}) {
 }
 
 describe('ChatList', () => {
+  it('hides its own header when the app draws the top bar (mobile)', () => {
+    setup({ hideHeader: true })
+    expect(screen.queryByRole('heading', { name: 'Чаты' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Новый чат' })).toBeNull()
+    expect(screen.getByRole('searchbox', { name: 'Поиск' })).toBeTruthy()
+  })
+
   it('shows compact rows with the title and the time, and marks the active one', () => {
     setup()
     expect(screen.getByText('Цены на МВА')).toBeTruthy()

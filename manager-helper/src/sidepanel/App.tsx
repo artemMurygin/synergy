@@ -1,9 +1,4 @@
-import {
-  AppFrame,
-  NotificationsButton,
-  PanelHeader,
-    useLayoutMode,
-} from '@synergy/ui-kit'
+import { AppFrame, NotificationsButton, useLayoutMode } from '@synergy/ui-kit'
 import { ListChecks, MessagesSquare } from '@synergy/ui-kit/icons'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTelegramLink } from '@/options/telegram/use-telegram-link'
@@ -23,7 +18,6 @@ import { NotificationsOverlay } from './notifications/NotificationsOverlay'
 import { NotificationToast } from './notifications/NotificationToast'
 import { useNotifications } from './notifications/use-notifications'
 import { usePendingTarget } from './notifications/use-pending-target'
-import { PanelActions } from './PanelActions'
 import { ProfileMenuContainer } from './ProfileMenuContainer'
 import { TelegramPane } from './telegram/TelegramPane'
 import { TasksApp } from './tasks/TasksApp'
@@ -114,23 +108,29 @@ export function App() {
     setIsNotificationsOpen(false)
   }, [])
 
+  const bell = signedIn ? (
+    <NotificationsButton
+      ref={notificationsAnchor}
+      count={notifications.unreadCount}
+      open={isOverlayVisible}
+      onClick={() => {
+        if (!isNotificationsOpen) notifications.dismissToast()
+        setIsNotificationsOpen(!isNotificationsOpen)
+      }}
+    />
+  ) : undefined
+  const profile = signedIn ? (
+    <ProfileMenuContainer
+      link={telegram}
+      onOpenTelegram={() => {
+        setIsTelegramOpen(true)
+      }}
+    />
+  ) : undefined
   const trailing = signedIn ? (
     <>
-      <NotificationsButton
-        ref={notificationsAnchor}
-        count={notifications.unreadCount}
-        open={isOverlayVisible}
-        onClick={() => {
-          if (!isNotificationsOpen) notifications.dismissToast()
-          setIsNotificationsOpen(!isNotificationsOpen)
-        }}
-      />
-      <ProfileMenuContainer
-        link={telegram}
-        onOpenTelegram={() => {
-          setIsTelegramOpen(true)
-        }}
-      />
+      {bell}
+      {profile}
     </>
   ) : undefined
   // The rail carries notifications and the profile on tablet; the top bar of the active section on mobile.
@@ -138,7 +138,7 @@ export function App() {
   const barTrailing = (forSection: Section) =>
     isMobile && section === forSection ? trailing : undefined
 
-    const activeSession = sessions.sessions.find((s) => s.id === activeId)
+  const activeSession = sessions.sessions.find((s) => s.id === activeId)
 
   const run = useThreadRunStatus({
     threadId: activeId,
@@ -197,65 +197,59 @@ export function App() {
         }}
         nav={isMobile ? undefined : trailing}
         body={
-          <div
-            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface ${
-              isMobile ? '' : 'rounded-xl shadow-panel'
-            }`}
-          >
-      <ChatRuntimeProvider
-        activeId={activeId}
-        onRunningChange={(threadId, running) => {
-          setReported({ threadId, running })
-        }}
-        onSelect={sessions.select}
-        onCreate={() => create()}
-      >
-        <div
-          data-section="chat"
-          className={section === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
-        >
-          <PanelHeader
-            title="Чат с агентом"
-            actions={
-              <PanelActions
-                actionLabel="Новый чат"
-                actionDisabled={creating}
-                onAction={() => void createChat()}
-                onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-                trailing={barTrailing('chat')}
-              />
-            }
-          />
-          <ChatPane
-            sessions={sessions.sessions}
-            status={sessions.status}
-            activeId={activeId}
-            mode={mode}
-            onModeChange={setMode}
-            creating={creating}
-            onCreate={() => void createChat()}
-            onSelect={sessions.select}
-            create={create}
-            rename={rename}
-            remove={sessions.remove}
-            onRetryList={() => void reload()}
-            serverRunning={run.running}
-            onStopServerRun={stopServerRun}
-            onSettled={() => void reload()}
-            finished={finished}
-            onFinishedApplied={clearFinished}
-          />
-        </div>
-      </ChatRuntimeProvider>
-      {showTasks && (
-        <div className={section === 'tasks' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
-          <TasksApp
-            requestedTaskId={requestedTaskId}
-            onTaskRequestHandled={clearTaskRequest}
-            trailing={barTrailing('tasks')}
-          />
-        </div>
-      )}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <ChatRuntimeProvider
+              activeId={activeId}
+              onRunningChange={(threadId, running) => {
+                setReported({ threadId, running })
+              }}
+              onSelect={sessions.select}
+              onCreate={() => create()}
+            >
+              <div
+                data-section="chat"
+                className={section === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+              >
+                <ChatPane
+                  sessions={sessions.sessions}
+                  status={sessions.status}
+                  activeId={activeId}
+                  mode={mode}
+                  onModeChange={setMode}
+                  creating={creating}
+                  onCreate={() => void createChat()}
+                  onSelect={sessions.select}
+                  create={create}
+                  rename={rename}
+                  remove={sessions.remove}
+                  onRetryList={() => void reload()}
+                  serverRunning={run.running}
+                  onStopServerRun={stopServerRun}
+                  onSettled={() => void reload()}
+                  finished={finished}
+                  onFinishedApplied={clearFinished}
+                  notifications={isMobile && section === 'chat' ? bell : undefined}
+                  profile={isMobile && section === 'chat' ? profile : undefined}
+                />
+              </div>
+            </ChatRuntimeProvider>
+            {showTasks && (
+              <div
+                className={
+                  section === 'tasks'
+                    ? `flex min-h-0 flex-1 flex-col overflow-hidden bg-surface ${
+                        isMobile ? '' : 'rounded-xl shadow-panel'
+                      }`
+                    : 'hidden'
+                }
+              >
+                <TasksApp
+                  requestedTaskId={requestedTaskId}
+                  onTaskRequestHandled={clearTaskRequest}
+                  trailing={barTrailing('tasks')}
+                />
+              </div>
+            )}
           </div>
         }
       />

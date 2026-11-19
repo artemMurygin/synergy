@@ -583,11 +583,24 @@ describe('section switch', () => {
     expect(tab('Задачи').getAttribute('aria-current')).toBe('page')
   })
 
-  it('renders one panel header per section with a single create and settings button', async () => {
+  it('has no common "Чат с агентом" header on a tablet: the list and the chat are separate panels', async () => {
     await openApp()
-    // The wide panel has two: the header of the section and the header of the chat list.
-    expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(2)
-    expect(within(chatPane()).getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
+    expect(screen.queryByText('Чат с агентом')).toBeNull()
+    expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(1)
+    expect(within(chatPane()).queryByRole('button', { name: 'Настройки' })).toBeNull()
+    expect(within(chatPane()).getByRole('complementary', { name: 'Список чатов' })).toBeTruthy()
+    expect(within(chatPane()).getByRole('main')).toBeTruthy()
+  })
+
+  it('opens the extension settings from the profile menu', async () => {
+    await openApp()
+    const rail = screen.getByRole('navigation', { name: 'Разделы' })
+    fireEvent.pointerDown(within(rail).getByRole('button', { name: /^Профиль/ }), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Настройки расширения/ }))
+    expect(chromeFake.runtime.openOptionsPage).toHaveBeenCalledOnce()
   })
 
   it('shows the bottom tab bar instead of the rail in a narrow panel', async () => {

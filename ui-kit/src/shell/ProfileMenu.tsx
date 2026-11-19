@@ -16,6 +16,15 @@ export type ProfileMenuProps = {
   onTelegram: () => void
   onChangePassword: () => void
   onLogout: () => void
+  /** Пункты приложения между «Сменить пароль» и «Выйти» (например, «Настройки расширения» в MH). */
+  extraItems?: ProfileMenuExtraItem[]
+}
+
+export type ProfileMenuExtraItem = {
+  id: string
+  label: string
+  icon?: ReactNode
+  onSelect: () => void
 }
 
 function Identity({ name, login }: { name: string; login?: string }) {
@@ -26,7 +35,9 @@ function Identity({ name, login }: { name: string; login?: string }) {
       </span>
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-[15px] font-semibold text-ink">{name}</span>
-        <span className="truncate text-xs text-ink-60">{login ? `${login} · Вы вошли в систему` : 'Вы вошли в систему'}</span>
+        <span className="truncate text-xs text-ink-60">
+          {login ? `${login} · Вы вошли в систему` : 'Вы вошли в систему'}
+        </span>
       </div>
     </div>
   )
@@ -46,7 +57,14 @@ function RowContent({ icon, label, danger }: { icon: ReactNode; label: string; d
 }
 
 /** Кнопка профиля и меню: popover рядом с кнопкой (desktop/tablet) или нижняя шторка (mobile). Выход — с подтверждением. */
-export function ProfileMenu({ user, telegram, onTelegram, onChangePassword, onLogout }: ProfileMenuProps) {
+export function ProfileMenu({
+  user,
+  telegram,
+  onTelegram,
+  onChangePassword,
+  onLogout,
+  extraItems = [],
+}: ProfileMenuProps) {
   const mode = useLayoutMode()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -81,10 +99,22 @@ export function ProfileMenu({ user, telegram, onTelegram, onChangePassword, onLo
           <SheetContent side="bottom" title="Профиль" className="pb-4">
             <Identity name={user.name} login={user.login} />
             <MenuSeparator />
-            {telegram ? <TelegramMenuItem status={telegram.label} onClick={pick(onTelegram)} /> : null}
+            {telegram ? (
+              <TelegramMenuItem status={telegram.label} onClick={pick(onTelegram)} />
+            ) : null}
             <button type="button" className={rowClass} onClick={pick(onChangePassword)}>
               <RowContent icon={<KeyRound className="text-ink-80" />} label="Сменить пароль" />
             </button>
+            {extraItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={rowClass}
+                onClick={pick(item.onSelect)}
+              >
+                <RowContent icon={item.icon} label={item.label} />
+              </button>
+            ))}
             <MenuSeparator />
             <button
               type="button"
@@ -119,6 +149,11 @@ export function ProfileMenu({ user, telegram, onTelegram, onChangePassword, onLo
           <MenuItem className={rowClass} onSelect={onChangePassword}>
             <RowContent icon={<KeyRound className="text-ink-80" />} label="Сменить пароль" />
           </MenuItem>
+          {extraItems.map((item) => (
+            <MenuItem key={item.id} className={rowClass} onSelect={item.onSelect}>
+              <RowContent icon={item.icon} label={item.label} />
+            </MenuItem>
+          ))}
           <MenuSeparator />
           <MenuItem
             className={cn(rowClass, 'text-brand-red')}
@@ -168,7 +203,12 @@ function LogoutConfirm({ mode, open, login, onOpenChange, onConfirm }: LogoutCon
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={title} description={description} footer={footer} className="max-w-[440px]" />
+      <DialogContent
+        title={title}
+        description={description}
+        footer={footer}
+        className="max-w-[440px]"
+      />
     </Dialog>
   )
 }

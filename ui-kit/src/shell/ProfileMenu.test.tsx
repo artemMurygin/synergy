@@ -49,6 +49,21 @@ describe('ProfileMenu', () => {
     expect(h.onChangePassword).toHaveBeenCalledOnce()
   })
 
+  it('shows extra items and calls their handler', async () => {
+    const onSelect = vi.fn()
+    setup({ extraItems: [{ id: 'extension-settings', label: 'Настройки расширения', onSelect }] })
+    await open()
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Настройки расширения/ }))
+    expect(onSelect).toHaveBeenCalledOnce()
+  })
+
+  it('has no extra items by default', async () => {
+    setup()
+    await open()
+    await screen.findByText('Анна Петрова')
+    expect(screen.queryByRole('menuitem', { name: /Настройки расширения/ })).toBeNull()
+  })
+
   it('asks for confirmation before logging out', async () => {
     const h = setup()
     await open()

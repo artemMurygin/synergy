@@ -92,7 +92,7 @@ export type { MobileTopBarProps } from './shell/MobileTopBar'
 export { ProfileButton } from './shell/ProfileButton'
 export type { ProfileButtonProps } from './shell/ProfileButton'
 export { ProfileMenu } from './shell/ProfileMenu'
-export type { ProfileMenuProps } from './shell/ProfileMenu'
+export type { ProfileMenuProps, ProfileMenuExtraItem } from './shell/ProfileMenu'
 
 export { formatBadgeCount } from './notifications/format-badge-count'
 export { NotificationsButton } from './notifications/NotificationsButton'

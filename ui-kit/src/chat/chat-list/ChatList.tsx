@@ -18,6 +18,8 @@ export type ChatListProps = {
   onDelete: (id: string) => unknown
   onRetry?: () => void
   createDisabled?: boolean
+  /** The app draws its own top bar above the list (mobile): no title row, create and hide buttons. */
+  hideHeader?: boolean
   collapsed: boolean
   onToggleCollapsed: () => void
 }
@@ -42,13 +44,16 @@ const SECONDARY =
 
 /** List of chats (Chat List): compact rows grouped by day, create, rename, delete, hide. */
 export function ChatList(props: ChatListProps) {
-  const { threads, activeId, runningIds, state, onSelect, onCreate, onRename, onDelete, onRetry } = props
+  const { threads, activeId, runningIds, state, onSelect, onCreate, onRename, onDelete, onRetry } =
+    props
   const [query, setQuery] = useState('')
   if (props.collapsed) return null
 
   const now = new Date()
   const needle = query.trim().toLocaleLowerCase()
-  const visible = needle ? threads.filter((thread) => thread.title.toLocaleLowerCase().includes(needle)) : threads
+  const visible = needle
+    ? threads.filter((thread) => thread.title.toLocaleLowerCase().includes(needle))
+    : threads
   const groups = GROUPS.map((name) => ({
     name,
     items: visible.filter((thread) => groupOf(thread.lastActivityAt, now) === name),
@@ -56,26 +61,30 @@ export function ChatList(props: ChatListProps) {
 
   return (
     <section aria-label="Чаты" className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-15 shrink-0 items-center gap-1.5 pr-3 pl-5">
-        <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-ink">Чаты</h2>
-        <button
-          type="button"
-          aria-label="Новый чат"
-          disabled={props.createDisabled}
-          onClick={onCreate}
-          className="flex size-9 items-center justify-center rounded-full bg-brand-red text-white outline-none hover:bg-brand-red-hover focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
-        >
-          <Plus size={18} />
-        </button>
-        <button
-          type="button"
-          aria-label="Скрыть список чатов"
-          onClick={props.onToggleCollapsed}
-          className="flex size-9 items-center justify-center rounded-full bg-surface-alt text-ink-80 outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-brand-red/40"
-        >
-          <PanelLeftClose size={18} />
-        </button>
-      </header>
+      {!props.hideHeader && (
+        <header className="flex h-15 shrink-0 items-center gap-1.5 pr-3 pl-5">
+          <h2 className="min-w-0 flex-1 truncate font-display text-lg font-semibold text-ink">
+            Чаты
+          </h2>
+          <button
+            type="button"
+            aria-label="Новый чат"
+            disabled={props.createDisabled}
+            onClick={onCreate}
+            className="flex size-9 items-center justify-center rounded-full bg-brand-red text-white outline-none hover:bg-brand-red-hover focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
+          >
+            <Plus size={18} />
+          </button>
+          <button
+            type="button"
+            aria-label="Скрыть список чатов"
+            onClick={props.onToggleCollapsed}
+            className="flex size-9 items-center justify-center rounded-full bg-surface-alt text-ink-80 outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        </header>
+      )}
 
       {state === 'ready' && (
         <div className="shrink-0 px-3 pb-2">
@@ -86,14 +95,18 @@ export function ChatList(props: ChatListProps) {
               aria-label="Поиск"
               placeholder="Поиск"
               value={query}
-              onChange={(event) => { setQuery(event.target.value); }}
+              onChange={(event) => {
+                setQuery(event.target.value)
+              }}
               className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-40 [&::-webkit-search-cancel-button]:hidden"
             />
             {query && (
               <button
                 type="button"
                 aria-label="Очистить поиск"
-                onClick={() => { setQuery(''); }}
+                onClick={() => {
+                  setQuery('')
+                }}
                 className="flex size-5 items-center justify-center rounded-full text-ink-60 outline-none hover:text-ink"
               >
                 <X size={14} />
@@ -124,7 +137,12 @@ export function ChatList(props: ChatListProps) {
             title="Чатов пока нет"
             text="Начните новый чат по любой теме: цены, программы, документы."
           >
-            <button type="button" className={PRIMARY} disabled={props.createDisabled} onClick={onCreate}>
+            <button
+              type="button"
+              className={PRIMARY}
+              disabled={props.createDisabled}
+              onClick={onCreate}
+            >
               Начать чат
             </button>
           </Notice>

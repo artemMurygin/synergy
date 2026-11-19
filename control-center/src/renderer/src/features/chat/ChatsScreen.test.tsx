@@ -1,4 +1,5 @@
 import './test-env'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -28,7 +29,9 @@ function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <ChatsScreen />
+      <LayoutModeProvider mode="desktop">
+        <ChatsScreen />
+      </LayoutModeProvider>
     </QueryClientProvider>
   )
   return userEvent.setup()
@@ -86,5 +89,34 @@ describe('ChatsScreen', () => {
     mount()
     expect(await screen.findByRole('button', { name: 'Показать список чатов' })).toBeTruthy()
     expect(screen.queryByRole('complementary', { name: 'Список чатов' })).toBeNull()
+  })
+
+  it('searches the chats by a substring and brings the list back when cleared', async () => {
+    const user = mount()
+    await screen.findByText('Цены на MBA')
+    const search = screen.getByRole('searchbox', { name: 'Поиск' })
+    await user.type(search, 'скид')
+    expect(screen.getByText('Скидки')).toBeTruthy()
+    expect(screen.queryByText('Цены на MBA')).toBeNull()
+    await user.clear(search)
+    expect(screen.getByText('Цены на MBA')).toBeTruthy()
+  })
+
+  it('says nothing was found when no chat matches', async () => {
+    const user = mount()
+    await screen.findByText('Цены на MBA')
+    await user.type(screen.getByRole('searchbox', { name: 'Поиск' }), 'zzz')
+    expect(screen.getByText('Ничего не найдено')).toBeTruthy()
+  })
+
+  it('shows the chat header of the package with the list buttons while the list is hidden', async () => {
+    const user = mount()
+    await user.click(await screen.findByRole('button', { name: /Цены на MBA/ }))
+    await screen.findByRole('heading', { name: 'Цены на MBA' })
+    await user.click(screen.getByRole('button', { name: 'Скрыть список чатов' }))
+    const header = screen.getByRole('banner')
+    expect(within(header).getByRole('button', { name: 'Показать список чатов' })).toBeTruthy()
+    expect(within(header).getByRole('button', { name: 'Новый чат' })).toBeTruthy()
+    expect(within(header).getByRole('heading', { name: 'Цены на MBA' })).toBeTruthy()
   })
 })

@@ -1,5 +1,4 @@
-import { useChatListCollapsed } from '@synergy/ui-kit'
-import { ChatLayout } from '@/layouts/ChatLayout'
+import { ChatsLayout, useChatListCollapsed } from '@synergy/ui-kit'
 import { ChatListContainer } from './ChatListContainer'
 import { ChatThread } from './ChatThread'
 
@@ -7,10 +6,10 @@ import { ChatThread } from './ChatThread'
 export function ChatsScreen() {
   const [collapsed, toggleCollapsed] = useChatListCollapsed()
   return (
-    <ChatLayout
-      collapsed={collapsed}
-      sidebar={<ChatListContainer collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />}
-      main={<ChatThread onShowList={collapsed ? toggleCollapsed : undefined} />}
+    <ChatsLayout
+      listHidden={collapsed}
+      list={<ChatListContainer collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />}
+      chat={<ChatThread onShowList={collapsed ? toggleCollapsed : undefined} />}
     />
   )
 }

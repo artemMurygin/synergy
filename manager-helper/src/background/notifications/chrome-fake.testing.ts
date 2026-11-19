@@ -66,6 +66,7 @@ export function createChromeFake() {
       onInstalled: new FakeEvent<() => void>(),
       getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
       connect: vi.fn((info: { name: string }) => new FakePort(info.name)),
+      openOptionsPage: vi.fn(),
     },
     storage: {
       local: fakeStorageArea(),
