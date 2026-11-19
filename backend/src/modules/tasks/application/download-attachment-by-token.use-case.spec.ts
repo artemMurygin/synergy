@@ -11,7 +11,8 @@ import { InMemoryAttachmentRepository, InMemoryFileStorage, NOW } from './test-d
 let attachments: InMemoryAttachmentRepository;
 let storage: InMemoryFileStorage;
 let verify: ReturnType<typeof vi.fn>;
-let logger: { setContext: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+type LogErrorFn = (fields: Record<string, unknown>, message: string) => void;
+let logger: { setContext: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn<LogErrorFn>> };
 
 const useCase = (): DownloadAttachmentByTokenUseCase =>
     new DownloadAttachmentByTokenUseCase(
@@ -25,7 +26,7 @@ const useCase = (): DownloadAttachmentByTokenUseCase =>
     );
 
 beforeEach(async () => {
-    logger = { setContext: vi.fn(), error: vi.fn() };
+    logger = { setContext: vi.fn(), error: vi.fn<LogErrorFn>() };
     attachments = new InMemoryAttachmentRepository();
     storage = new InMemoryFileStorage();
     verify = vi.fn(() => true);
@@ -81,9 +82,10 @@ describe('DownloadAttachmentByTokenUseCase', () => {
         await expect(useCase().execute('t1', 'a1', 'tok')).rejects.toBeInstanceOf(
             AttachmentNotFoundError,
         );
-        expect(logger.error).toHaveBeenCalledWith(
-            { attachmentId: 'a1', taskId: 't1', storageKey: expect.any(String) },
-            'Attachment file missing in storage',
-        );
+        expect(logger.error).toHaveBeenCalledTimes(1);
+        const [fields, message] = logger.error.mock.calls[0] ?? [{}, ''];
+        expect(fields).toMatchObject({ attachmentId: 'a1', taskId: 't1' });
+        expect(typeof fields.storageKey).toBe('string');
+        expect(message).toBe('Attachment file missing in storage');
     });
 });
