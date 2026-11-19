@@ -61,14 +61,24 @@ describe('AuthGate', () => {
       await user.type(screen.getByPlaceholderText('Введите пароль'), 'secret')
       await user.click(screen.getByRole('button', { name: 'Войти' }))
       expect(await screen.findByText(/Повторите через 3 с/)).toBeTruthy()
-      expect((screen.getByRole('button', { name: 'Войти' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(screen.getByRole('button', { name: 'Войти' }).hasAttribute('disabled')).toBe(true)
       await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
       expect(screen.getByText(/Повторите через 2 с/)).toBeTruthy()
       await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
-      expect((screen.getByRole('button', { name: 'Войти' }) as HTMLButtonElement).disabled).toBe(false)
+      expect(screen.getByRole('button', { name: 'Войти' }).hasAttribute('disabled')).toBe(false)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('shows the generic rate-limit message when a 429 has no retry delay', async () => {
+    const mock = mount(unauthenticatedSnapshot)
+    mock.login.mockResolvedValue({ ok: false, code: 'RATE_LIMITED' })
+    const user = userEvent.setup()
+    await user.type(await screen.findByPlaceholderText('Введите логин'), 'admin')
+    await user.type(screen.getByPlaceholderText('Введите пароль'), 'secret')
+    await user.click(screen.getByRole('button', { name: 'Войти' }))
+    expect(await screen.findByText(/Слишком много попыток входа/)).toBeTruthy()
   })
 
   it('shows the change password dialog without children when a password change is required', async () => {

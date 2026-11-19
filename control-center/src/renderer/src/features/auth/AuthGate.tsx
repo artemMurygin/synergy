@@ -51,20 +51,21 @@ export function AuthGate({ children }: AuthGateProps) {
 }
 
 function useCountdown(seconds: number | undefined, token: unknown): number {
-  const [remaining, setRemaining] = useState(seconds && seconds > 0 ? Math.ceil(seconds) : 0)
+  const start = seconds && seconds > 0 ? Math.ceil(seconds) : 0
+  const [state, setState] = useState({ start, token, remaining: start })
+  const stale = state.start !== start || state.token !== token
+  if (stale) setState({ start, token, remaining: start })
   useEffect(() => {
-    const start = seconds && seconds > 0 ? Math.ceil(seconds) : 0
-    setRemaining(start)
     if (start === 0) return undefined
     const endAt = Date.now() + start * 1000
     const timer = setInterval(() => {
       const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
-      setRemaining(left)
+      setState((prev) => ({ ...prev, remaining: left }))
       if (left === 0) clearInterval(timer)
     }, 250)
     return () => { clearInterval(timer); }
-  }, [seconds, token])
-  return remaining
+  }, [start, token])
+  return stale ? start : state.remaining
 }
 
 function LoginScreen({ login, retryAfterSec, warning }: {
@@ -78,7 +79,7 @@ function LoginScreen({ login, retryAfterSec, warning }: {
   const limited = remaining > 0
   const text = limited
     ? `Слишком много попыток входа. Повторите через ${String(remaining)} с.`
-    : error?.code === 'RATE_LIMITED' || (!error && retryAfterSec)
+    : limitSec && limitSec > 0
       ? undefined
       : loginErrorText(error, undefined, warning)
   return (

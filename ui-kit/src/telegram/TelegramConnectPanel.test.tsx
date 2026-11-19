@@ -63,3 +63,11 @@ describe('TelegramConnectPanel', () => {
     expect(h.onClose).toHaveBeenCalledOnce()
   })
 })
+
+describe('TelegramConnectPanel without a bot name', () => {
+  it('does not print an empty mention', () => {
+    render(<TelegramConnectPanel status="idle" onConnect={() => undefined} onOpenLink={() => undefined} onCancel={() => undefined} onRenew={() => undefined} />)
+    expect(screen.getByText(/чат с ботом\. Откроется/)).toBeTruthy()
+    expect(document.body.textContent).not.toContain('@')
+  })
+})

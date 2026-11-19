@@ -50,7 +50,7 @@ export function NavRail({ items, active, onSelect, footer }: NavProps) {
               <span
                 className={cn(
                   'relative flex h-[30px] w-12 items-center justify-center rounded-[15px] transition-colors',
-                  isActive ? 'bg-brand-red-soft text-brand-red' : 'text-ink-60 hover:bg-surface-alt',
+                  isActive ? 'text-brand-red' : 'text-ink-60 hover:bg-surface-alt',
                 )}
               >
                 {item.icon}
