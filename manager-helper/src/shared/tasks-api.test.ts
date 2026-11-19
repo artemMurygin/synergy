@@ -8,10 +8,11 @@ import {
   createTask,
   deleteAttachment,
   deleteTask,
-  downloadAttachment,
   getTask,
   listTasks,
   searchUsers,
+  taskAttachmentLink,
+  AttachmentLinksUnavailableError,
   TaskNotFoundError,
   TaskUserNotFoundError,
   updateTask,
@@ -218,33 +219,36 @@ describe('updateTask', () => {
   })
 })
 
-describe('downloadAttachment', () => {
-  it('returns the blob and the original name from filename*', async () => {
+describe('taskAttachmentLink', () => {
+  it('posts to download-link and returns the relative url', async () => {
     fetchMock.mockResolvedValue(
-      new Response('data', {
-        headers: {
-          'content-disposition': `attachment; filename="_.pdf"; filename*=UTF-8''%D0%9F%D1%80%D0%B0%D0%B9%D1%81.pdf`,
-        },
-      }),
+      json({ url: '/tasks/t1/attachments/a1/content?token=x', expiresAt: '2026-11-19T10:00:00Z' }),
     )
-    const file = await downloadAttachment('t1', 'a1')
-    expect(lastCall().url).toBe('http://api.test/tasks/t1/attachments/a1')
-    expect(file.fileName).toBe('Прайс.pdf')
-    expect(await file.blob.text()).toBe('data')
+    const link = await taskAttachmentLink('t1', 'a1')
+    expect(lastCall().url).toBe('http://api.test/tasks/t1/attachments/a1/download-link')
+    expect(lastCall().init.method).toBe('POST')
+    expect(link.url).toBe('/tasks/t1/attachments/a1/content?token=x')
   })
 
-  it('falls back to the quoted filename, then to a generic name', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response('x', { headers: { 'content-disposition': 'attachment; filename="a.txt"' } }),
-    )
-    expect((await downloadAttachment('t1', 'a1')).fileName).toBe('a.txt')
-    fetchMock.mockResolvedValueOnce(new Response('x'))
-    expect((await downloadAttachment('t1', 'a1')).fileName).toBe('attachment')
-  })
-
-  it('maps 404 to TaskNotFoundError', async () => {
+  it('maps 404 to a readable TaskNotFoundError', async () => {
     fetchMock.mockResolvedValue(json({ message: 'nf' }, 404))
-    await expect(downloadAttachment('t1', 'a1')).rejects.toBeInstanceOf(TaskNotFoundError)
+    const error = await taskAttachmentLink('t1', 'a1').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(TaskNotFoundError)
+    expect(error).toHaveProperty('message', 'Вложение не найдено: возможно, его удалили')
+  })
+
+  it('maps 503 to a readable LinksUnavailableError', async () => {
+    fetchMock.mockResolvedValue(
+      json({ message: 'x', code: 'TASK_ATTACHMENT_LINKS_UNAVAILABLE' }, 503),
+    )
+    const error = await taskAttachmentLink('t1', 'a1').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(AttachmentLinksUnavailableError)
+    expect(error).toHaveProperty('message', 'Скачивание вложений сейчас недоступно на сервере')
+  })
+
+  it('rejects an unexpected body', async () => {
+    fetchMock.mockResolvedValue(json({ nope: 1 }))
+    await expect(taskAttachmentLink('t1', 'a1')).rejects.toThrow('неожиданном формате')
   })
 })
 

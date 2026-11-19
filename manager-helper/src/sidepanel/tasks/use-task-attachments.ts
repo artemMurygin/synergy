@@ -1,12 +1,12 @@
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from '@synergy/ui-kit'
 import type { AttachmentListProps, FileUploadPort } from '@synergy/ui-kit'
 import { useMemo } from 'react'
-import { saveBlob } from '@/shared/save-blob'
+import { downloadByLink } from '@/shared/files-api'
 import {
   AttachmentLimitError,
   AttachmentTooLargeError,
   deleteAttachment,
-  downloadAttachment,
+  taskAttachmentLink,
   uploadAttachment,
 } from '@/shared/tasks-api'
 
@@ -78,8 +78,8 @@ export function useTaskAttachments({ taskId, attachments, port, onChanged }: Opt
     },
     async onDownload(attachment) {
       try {
-        const file = await downloadAttachment(taskId, attachment.id)
-        saveBlob(file.blob, file.fileName)
+        const link = await taskAttachmentLink(taskId, attachment.id)
+        await downloadByLink(link.url, attachment.originalName)
       } catch (error) {
         throw failure(error, 'Не удалось скачать файл')
       }

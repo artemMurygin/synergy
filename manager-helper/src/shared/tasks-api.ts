@@ -12,6 +12,8 @@ export class TaskUserNotFoundError extends AskError {}
 export class AttachmentTooLargeError extends AskError {}
 /** The task already has the maximum number of attachments (422 TASK_ATTACHMENT_LIMIT). */
 export class AttachmentLimitError extends AskError {}
+/** The server cannot sign attachment links (503 TASK_ATTACHMENT_LINKS_UNAVAILABLE). */
+export class AttachmentLinksUnavailableError extends AskError {}
 /** Any other backend failure; the message comes from the server. */
 export class BackendError extends AskError {}
 
@@ -91,9 +93,10 @@ export interface CreateTaskInput {
 
 export type UpdateTaskInput = Partial<CreateTaskInput> & { status?: TaskStatus }
 
-export interface DownloadedAttachment {
-  blob: Blob
-  fileName: string
+export interface AttachmentLink {
+  /** Relative to the backend: `/tasks/:id/attachments/:attachmentId/content?token=…`. */
+  url: string
+  expiresAt: string
 }
 
 const UNEXPECTED = 'Сервер вернул ответ в неожиданном формате'
@@ -196,6 +199,9 @@ async function toError(response: Response): Promise<AskError> {
   const code = await errorCode(response)
   const message = await errorMessage(response)
   if (response.status === 404) return new TaskNotFoundError(message)
+  if (response.status === 503 && code === 'TASK_ATTACHMENT_LINKS_UNAVAILABLE') {
+    return new AttachmentLinksUnavailableError('Скачивание вложений сейчас недоступно на сервере')
+  }
   if (response.status === 413) return new AttachmentTooLargeError(message)
   if (response.status === 422) {
     if (code === 'TASK_USER_NOT_FOUND') return new TaskUserNotFoundError(message)
@@ -250,33 +256,27 @@ export async function updateTask(taskId: string, patch: UpdateTaskInput): Promis
   return parseTask(await response.json())
 }
 
-function fileNameOf(disposition: string | null): string {
-  if (disposition !== null) {
-    const encoded = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(disposition)?.[1]
-    if (encoded !== undefined) {
-      try {
-        return decodeURIComponent(encoded.trim())
-      } catch {
-        // malformed escape; try the plain filename below
-      }
-    }
-    const plain = /filename\s*=\s*"([^"]*)"/i.exec(disposition)?.[1]
-    if (plain !== undefined && plain !== '') return plain
-  }
-  return 'attachment'
-}
-
-export async function downloadAttachment(
+/** Signed one-time link to the file of the attachment; the browser downloads it without a bearer token. */
+export async function taskAttachmentLink(
   taskId: string,
   attachmentId: string,
-): Promise<DownloadedAttachment> {
-  const response = await request(
-    `/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(attachmentId)}`,
-  )
-  return {
-    blob: await response.blob(),
-    fileName: fileNameOf(response.headers.get('content-disposition')),
+): Promise<AttachmentLink> {
+  let response: Response
+  try {
+    response = await request(
+      `/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(attachmentId)}/download-link`,
+      { method: 'POST' },
+    )
+  } catch (error) {
+    if (error instanceof TaskNotFoundError) {
+      throw new TaskNotFoundError('Вложение не найдено: возможно, его удалили', { cause: error })
+    }
+    throw error
   }
+  const link = rec(await response.json().catch(bad))
+  const url = str(link.url)
+  if (!url.startsWith('/')) bad()
+  return { url, expiresAt: str(link.expiresAt) }
 }
 
 export async function deleteTask(taskId: string): Promise<void> {

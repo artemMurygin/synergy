@@ -6,18 +6,19 @@ import {
   AttachmentLimitError,
   AttachmentTooLargeError,
   deleteAttachment,
-  downloadAttachment,
+  taskAttachmentLink,
+  TaskNotFoundError,
 } from '@/shared/tasks-api'
-import { saveBlob } from '@/shared/save-blob'
+import { downloadByLink } from '@/shared/files-api'
 import { useTaskAttachments } from './use-task-attachments'
 
 vi.mock('@/shared/tasks-api', async (importOriginal) => ({
   ...(await importOriginal<typeof TasksApi>()),
   deleteAttachment: vi.fn(),
-  downloadAttachment: vi.fn(),
+  taskAttachmentLink: vi.fn(),
   uploadAttachment: vi.fn(),
 }))
-vi.mock('@/shared/save-blob', () => ({ saveBlob: vi.fn() }))
+vi.mock('@/shared/files-api', () => ({ downloadByLink: vi.fn() }))
 
 const MB = 1024 * 1024
 const file = (size = 10) => new File([new Uint8Array(size)], 'КП.pdf')
@@ -39,8 +40,8 @@ beforeEach(() => {
   upload.mockReset().mockResolvedValue({ fileId: 'a9' })
   onChanged.mockReset()
   vi.mocked(deleteAttachment).mockReset().mockResolvedValue(undefined)
-  vi.mocked(downloadAttachment).mockReset()
-  vi.mocked(saveBlob).mockReset()
+  vi.mocked(taskAttachmentLink).mockReset()
+  vi.mocked(downloadByLink).mockReset()
 })
 
 describe('useTaskAttachments', () => {
@@ -108,12 +109,20 @@ describe('useTaskAttachments', () => {
     expect(onChanged).not.toHaveBeenCalled()
   })
 
-  it('downloads and saves the file under its original name', async () => {
-    const blob = new Blob(['x'])
-    vi.mocked(downloadAttachment).mockResolvedValue({ blob, fileName: 'КП.pdf' })
+  it('asks for a signed link and downloads it under the original name', async () => {
+    vi.mocked(taskAttachmentLink).mockResolvedValue({ url: '/tasks/t1/attachments/a0/content?token=x', expiresAt: 'e' })
     const { result } = setup(1)
     await result.current.onDownload({ id: 'a0', originalName: 'КП.pdf', sizeBytes: 1 })
-    expect(downloadAttachment).toHaveBeenCalledWith('t1', 'a0')
-    expect(saveBlob).toHaveBeenCalledWith(blob, 'КП.pdf')
+    expect(taskAttachmentLink).toHaveBeenCalledWith('t1', 'a0')
+    expect(downloadByLink).toHaveBeenCalledWith('/tasks/t1/attachments/a0/content?token=x', 'КП.pdf')
+  })
+
+  it('shows a readable error when the link is not available', async () => {
+    vi.mocked(taskAttachmentLink).mockRejectedValue(new TaskNotFoundError('Вложение не найдено'))
+    const { result } = setup(1)
+    await expect(
+      result.current.onDownload({ id: 'a0', originalName: 'КП.pdf', sizeBytes: 1 }),
+    ).rejects.toThrow('Вложение не найдено')
+    expect(downloadByLink).not.toHaveBeenCalled()
   })
 })

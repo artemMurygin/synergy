@@ -111,6 +111,11 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
   }
 }
 
+/** Hands a signed relative link (`/…?token=`) to the browser: it saves the file under the given name. */
+export async function downloadByLink(url: string, name: string): Promise<void> {
+  await chrome.downloads.download({ url: `${await getBackendUrl()}${url}`, filename: name })
+}
+
 /** Gets a signed link and lets the browser save the file under its original name. */
 export async function downloadFile(id: string, name: string): Promise<void> {
   const baseUrl = await getBackendUrl()
@@ -131,5 +136,5 @@ export async function downloadFile(id: string, name: string): Promise<void> {
   } catch {
     throw new AskError('Сервер вернул ответ в неожиданном формате')
   }
-  await chrome.downloads.download({ url: `${baseUrl}${link.url}`, filename: name })
+  await downloadByLink(link.url, name)
 }

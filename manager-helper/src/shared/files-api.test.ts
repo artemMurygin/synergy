@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAccessToken, setAccessToken } from './auth/access-token-store'
 import { resetAuthState } from './auth/auth-state'
-import { downloadFile } from './files-api'
+import { downloadByLink, downloadFile } from './files-api'
 
 vi.mock('./settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
 
@@ -60,5 +60,15 @@ describe('downloadFile', () => {
   it('rejects an unexpected link body', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ nope: 1 }))
     await expect(downloadFile('f1', 'a.pdf')).rejects.toThrow('неожиданном формате')
+  })
+})
+
+describe('downloadByLink', () => {
+  it('prefixes the backend url and passes the original name to chrome.downloads', async () => {
+    await downloadByLink('/tasks/t1/attachments/a1/content?token=x', 'КП.pdf')
+    expect(download).toHaveBeenCalledWith({
+      url: 'http://api.test/tasks/t1/attachments/a1/content?token=x',
+      filename: 'КП.pdf',
+    })
   })
 })
