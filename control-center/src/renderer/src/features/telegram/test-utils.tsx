@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import type { ReactNode } from 'react'
 import type { TelegramLinkStatus } from '@/lib/backend/telegram.schema'
 
@@ -18,5 +19,7 @@ export const unavailableStatus: TelegramLinkStatus = { isAvailable: false, isLin
 
 export function createTelegramWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>
+      <LayoutModeProvider mode="desktop">{children}</LayoutModeProvider>
+    </QueryClientProvider>
 }

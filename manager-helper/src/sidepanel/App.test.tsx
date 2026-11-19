@@ -1,4 +1,5 @@
 import { EventType, HttpAgent } from '@ag-ui/client'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import type { BaseEvent, RunAgentInput } from '@ag-ui/client'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type * as AgentClient from '@/shared/agent-client'
@@ -26,9 +27,13 @@ import type * as TasksApi from '@/shared/tasks-api'
 import { TaskNotFoundError, getTask, listTasks } from '@/shared/tasks-api'
 import { makeDetails, makeTask } from './tasks/fixtures'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
-import { App } from './App'
+import { App as AppUnderTest } from './App'
+import { makeLink } from './telegram/link-fixtures.testing'
 import { RUN_POLL_INTERVAL_MS } from './use-thread-run-status'
 
+vi.mock('@/options/telegram/use-telegram-link', () => ({
+  useTelegramLink: () => makeLink({ kind: 'unavailable' }),
+}))
 vi.mock('@/shared/active-session')
 vi.mock('@/shared/active-section')
 vi.mock('@/shared/agent-client', async (importOriginal) => ({
@@ -52,6 +57,14 @@ vi.mock('@/shared/tasks-api', async (importOriginal) => ({
   createTask: vi.fn(),
   searchUsers: vi.fn(),
 }))
+
+function App() {
+  return (
+    <LayoutModeProvider>
+      <AppUnderTest />
+    </LayoutModeProvider>
+  )
+}
 
 /** Agent whose runs are driven by the test. */
 class FakeAgent extends HttpAgent {
@@ -507,14 +520,9 @@ async function openApp0(marker?: string) {
   }
 }
 
-/** Both sections carry a switch; the one inside the hidden section is not reachable. */
+/** Section button of the rail (tablet) or of the tab bar (mobile). */
 function tab(name: string): HTMLElement {
-  const visible = screen
-    .getAllByRole('tab', { name })
-    .filter((el) => el.closest('.hidden') === null)
-  const [first] = visible
-  if (first === undefined || visible.length > 1) throw new Error(`Expected one visible tab ${name}`)
-  return first
+  return within(screen.getByRole('navigation', { name: 'Разделы' })).getByRole('button', { name })
 }
 
 describe('section switch', () => {
@@ -524,9 +532,9 @@ describe('section switch', () => {
     return element
   }
 
-  it('shows the switch with the chat selected', async () => {
+  it('shows the rail with the chat selected on a tablet', async () => {
     await openApp()
-    expect(tab('Чат').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Чаты').getAttribute('aria-current')).toBe('page')
     expect(screen.queryByRole('region', { name: 'Задачи' })).toBeNull()
   })
 
@@ -536,7 +544,7 @@ describe('section switch', () => {
     expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
     expect(chatPane().classList.contains('hidden')).toBe(true)
     expect(document.body.contains(input())).toBe(true)
-    fireEvent.click(tab('Чат'))
+    fireEvent.click(tab('Чаты'))
     expect(chatPane().classList.contains('hidden')).toBe(false)
   })
 
@@ -547,7 +555,7 @@ describe('section switch', () => {
     emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'a1', delta: 'Часть' })
     fireEvent.click(tab('Задачи'))
     emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'a1', delta: ' ответа' })
-    fireEvent.click(tab('Чат'))
+    fireEvent.click(tab('Чаты'))
     await waitFor(() => {
       expect(screen.getByText('Часть ответа')).toBeTruthy()
     })
@@ -566,24 +574,57 @@ describe('section switch', () => {
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
     })
-    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Задачи').getAttribute('aria-current')).toBe('page')
   })
 
   it('renders one panel header per section with a single create and settings button', async () => {
     await openApp()
     expect(within(chatPane()).getAllByRole('button', { name: 'Новый чат' })).toHaveLength(1)
     expect(within(chatPane()).getAllByRole('button', { name: 'Настройки' })).toHaveLength(1)
-    expect(within(chatPane()).getAllByRole('tablist')).toHaveLength(1)
   })
 
-  it('keeps the switch in the narrow chat list', async () => {
+  it('shows the bottom tab bar instead of the rail in a narrow panel', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 380 })
     try {
       await openApp()
       fireEvent.click(screen.getByRole('button', { name: 'К списку чатов' }))
       expect(screen.getByRole('heading', { name: 'Чаты' })).toBeTruthy()
-      expect(tab('Чат').getAttribute('aria-selected')).toBe('true')
+      expect(tab('Чаты').getAttribute('aria-current')).toBe('page')
       expect(screen.getByRole('button', { name: 'Назад к чату' })).toBeTruthy()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+    }
+  })
+
+  it.each([
+    [700, 'nav-rail'],
+    [400, 'tab-bar'],
+  ])('at %i px the sections live in the %s', async (width, slot) => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+    try {
+      await openApp()
+      expect(screen.getByRole('navigation', { name: 'Разделы' }).getAttribute('data-slot')).toBe(
+        slot,
+      )
+      expect(screen.getByRole('button', { name: 'Чаты' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Задачи' })).toBeTruthy()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+    }
+  })
+
+  it('puts notifications and the profile into the rail on a tablet and into the top bar on mobile', async () => {
+    await openApp()
+    const rail = screen.getByRole('navigation', { name: 'Разделы' })
+    expect(within(rail).getByRole('button', { name: /^Профиль/ })).toBeTruthy()
+    expect(within(rail).getByRole('button', { name: /^Уведомления/ })).toBeTruthy()
+    cleanup()
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 400 })
+    try {
+      await openApp()
+      const bar = screen.getByRole('navigation', { name: 'Разделы' })
+      expect(within(bar).queryByRole('button', { name: /^Профиль/ })).toBeNull()
+      expect(screen.getAllByRole('button', { name: /^Профиль/ })).toHaveLength(1)
     } finally {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
     }
@@ -594,7 +635,7 @@ describe('section switch', () => {
     setAuthState({ status: 'anonymous', user: null })
     vi.mocked(getActiveSection).mockResolvedValue('tasks')
     await openApp()
-    expect(screen.queryAllByRole('tab', { name: 'Задачи' })).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: 'Задачи' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Задачи' })).toBeNull()
     expect(chatPane().classList.contains('hidden')).toBe(false)
   })
@@ -630,7 +671,7 @@ describe('notifications', () => {
 
   it('shows the button with the unread count in the panel header', async () => {
     await openApp()
-    expect(await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })).toBeTruthy()
   })
 
   it('has no notifications button without a session', async () => {
@@ -642,7 +683,7 @@ describe('notifications', () => {
 
   it('opens the list and switches to the task of a clicked notification', async () => {
     await openApp()
-    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
     fireEvent.click(bell())
     const overlay = screen.getByRole('dialog', { name: 'Уведомления' })
     fireEvent.click(await within(overlay).findByRole('button', { name: /Вам назначена задача/ }))
@@ -650,17 +691,17 @@ describe('notifications', () => {
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Задачи' })).toBeTruthy()
     })
-    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Задачи').getAttribute('aria-current')).toBe('page')
     expect(await screen.findByRole('heading', { name: 'Детали t1' })).toBeTruthy()
     expect(getTask).toHaveBeenCalledWith('t1')
     expect(screen.queryByRole('dialog', { name: 'Уведомления' })).toBeNull()
-    expect(await screen.findByRole('button', { name: 'Уведомления: 2 непрочитанных' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 2' })).toBeTruthy()
   })
 
   it('shows "Задача не найдена" for a notification about a deleted task', async () => {
     vi.mocked(getTask).mockRejectedValue(new TaskNotFoundError('нет'))
     await openApp()
-    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
     fireEvent.click(bell())
     fireEvent.click(await screen.findByRole('button', { name: /Вам назначена задача/ }))
     expect(await screen.findByRole('heading', { name: 'Задача не найдена' })).toBeTruthy()
@@ -669,7 +710,7 @@ describe('notifications', () => {
 
   it('shows a toast for a new notification and opens its task', async () => {
     await openApp()
-    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
     const fresh = makeNotification('n9', new Date().toISOString(), {
       title: 'Новая задача от petrova',
       taskId: 't9',
@@ -680,20 +721,20 @@ describe('notifications', () => {
         event: { type: 'notification.created', payload: { notification: fresh, unreadCount: 4 } },
       })
     })
-    const toast = await screen.findByRole('status', { name: 'Новое уведомление' })
+    const toast = await screen.findByRole('status')
     expect(toast.textContent).toContain('Новая задача от petrova')
-    expect(screen.getByRole('button', { name: 'Уведомления: 4 непрочитанных' })).toBeTruthy()
-    fireEvent.click(within(toast).getByRole('button', { name: /Новая задача от petrova/ }))
+    expect(screen.getByRole('button', { name: 'Уведомления, непрочитанных: 4' })).toBeTruthy()
+    fireEvent.click(within(toast).getByRole('button', { name: /Открыть задачу/ }))
     expect(markNotificationRead).toHaveBeenCalledWith('n9')
     expect(await screen.findByRole('heading', { name: 'Детали t9' })).toBeTruthy()
-    expect(screen.queryByRole('status', { name: 'Новое уведомление' })).toBeNull()
+    expect(screen.queryByText('Новая задача от petrova')).toBeNull()
   })
 
   it('opens the task left by a click on a system notification', async () => {
     chromeFake.storage.session.store.pendingTarget = { kind: 'task', taskId: 't5' }
     await openApp()
     expect(await screen.findByRole('heading', { name: 'Детали t5' })).toBeTruthy()
-    expect(tab('Задачи').getAttribute('aria-selected')).toBe('true')
+    expect(tab('Задачи').getAttribute('aria-current')).toBe('page')
   })
 
   it('opens the list for a click on the summary system notification', async () => {
@@ -716,7 +757,7 @@ describe('notifications', () => {
 
     async function clickRequest() {
       await openApp()
-      await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+      await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
       fireEvent.click(bell())
       fireEvent.click(await screen.findByRole('button', { name: /Статус заявки изменён/ }))
     }
@@ -751,7 +792,7 @@ describe('notifications', () => {
 
   it('reads all notifications from the list', async () => {
     await openApp()
-    await screen.findByRole('button', { name: 'Уведомления: 3 непрочитанных' })
+    await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
     fireEvent.click(bell())
     fireEvent.click(screen.getByRole('button', { name: 'Прочитать все' }))
     expect(markAllNotificationsRead).toHaveBeenCalledTimes(1)

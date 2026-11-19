@@ -12,7 +12,7 @@ interface ComposerAttachmentsProps {
 }
 
 const ACTION =
-  'flex size-8 shrink-0 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring'
+  'flex size-8 shrink-0 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-red/40'
 
 /** Cards of the files attached to the draft, above the question field. */
 export function ComposerAttachments({ items, onRemove, onCancel, onRetry }: ComposerAttachmentsProps) {

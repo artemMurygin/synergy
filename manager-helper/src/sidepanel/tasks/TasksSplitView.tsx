@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { TaskStatus } from '@/shared/tasks-api'
-import { isWidePanel } from '../panel-layout'
-import { CloseIcon } from '../icons'
-import { PanelHeader } from '../PanelHeader'
-import { useViewportSize } from '../use-viewport-size'
+import { layoutModeForWidth, tasksPaneVisibility, useViewportWidth } from '@synergy/ui-kit'
+import { X } from '@synergy/ui-kit/icons'
+import { PanelHeader } from '@synergy/ui-kit'
+import { PanelActions } from '../PanelActions'
 import { TaskCreateSheet } from './TaskCreateSheet'
 import { TaskDetails } from './TaskDetails'
 import { TaskList } from './TaskList'
 import { TaskNotFound } from './TaskNotFound'
 import { TasksToolbar } from './TasksToolbar'
-import { tasksPaneVisibility } from './tasks-layout'
 import { useTasks } from './use-tasks'
 
 /**
@@ -21,27 +20,26 @@ import { useTasks } from './use-tasks'
 export function TasksSplitView({
   userId,
   login,
-  switcher,
   requestedTaskId = null,
   onTaskRequestHandled,
-  notifications,
+  trailing,
 }: {
   userId: string
   login: string
-  switcher: ReactNode
   requestedTaskId?: string | null
   onTaskRequestHandled?: () => void
-  notifications?: ReactNode
+  /** Notifications and profile for the top bar of a narrow panel. */
+  trailing?: ReactNode
 }) {
   const tasks = useTasks(userId)
   const { reload } = tasks
-  const { widthPx } = useViewportSize()
+  const layout = layoutModeForWidth(useViewportWidth())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   // Details are re-read after the list changed the selected task.
   const [detailsVersion, setDetailsVersion] = useState(0)
-  const panes = tasksPaneVisibility(widthPx, selectedId)
+  const panes = tasksPaneVisibility(layout, selectedId)
   const createButton = useRef<HTMLButtonElement>(null)
 
   const [openedRequest, setOpenedRequest] = useState<string | null>(null)
@@ -83,7 +81,7 @@ export function TasksSplitView({
       setMessage('Задача не найдена: возможно, её удалили')
       void reload()
     },
-    [reload, lastRequestedId],
+    [reload, lastRequestedId, setMissingRequestedId, setSelectedId, setMessage],
   )
   const changed = useCallback(() => {
     void reload()
@@ -95,21 +93,25 @@ export function TasksSplitView({
     <section aria-label="Задачи" className="flex min-h-0 flex-1 flex-col">
       <div inert={creating} className="flex min-h-0 flex-1 flex-col">
         <PanelHeader
-          actionRef={createButton}
-          switcher={switcher}
-          actionLabel="Новая задача"
-          actionExpanded={creating}
-          onAction={() => {
-            setCreating((open) => !open)
-          }}
-          onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-          notifications={notifications}
+          title="Задачи"
+          actions={
+            <PanelActions
+              actionRef={createButton}
+              actionLabel="Новая задача"
+              actionExpanded={creating}
+              onAction={() => {
+                setCreating((open) => !open)
+              }}
+              onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+              trailing={trailing}
+            />
+          }
         />
         <div className="flex min-h-0 flex-1">
           <div
             hidden={!panes.list}
             className={`${panes.list ? 'flex' : 'hidden'} min-h-0 flex-col ${
-              isWidePanel(widthPx) ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
+              layout !== 'mobile' ? 'w-85 shrink-0 border-r border-line' : 'min-w-0 flex-1'
             }`}
           >
             <TasksToolbar
@@ -134,7 +136,7 @@ export function TasksSplitView({
                     setMessage(null)
                   }}
                 >
-                  <CloseIcon />
+                  <X />
                 </button>
               </div>
             )}

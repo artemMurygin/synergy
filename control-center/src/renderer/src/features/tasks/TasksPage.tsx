@@ -16,7 +16,7 @@ export function TasksPage() {
   const total = useQuery(tasksQuery(useTaskFilters())).data?.total
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 overflow-hidden bg-surface">
       {/* the list narrows when the details panel opens beside it */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b px-8">

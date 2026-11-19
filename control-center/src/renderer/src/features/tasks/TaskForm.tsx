@@ -232,7 +232,7 @@ export function TaskForm({ initial, onSubmit, onCancel, submitting, fieldErrors,
                 <button
                   type="button"
                   onClick={() => setAssignee({ id: me.id, login: me.login })}
-                  className="self-start rounded text-xs font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  className="self-start rounded text-xs font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-red/40"
                 >
                   Назначить на себя
                 </button>

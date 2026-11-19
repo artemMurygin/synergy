@@ -28,7 +28,18 @@
 
 ## Токены «старое -> новое»
 
-Заполняется в группах миграции приложений.
+| shadcn (CC) | UI Kit |
+|---|---|
+| `bg-background`, `bg-card` | `bg-surface` |
+| `text-foreground`, `text-card-foreground`, `text-secondary-foreground` | `text-ink` |
+| `bg-secondary`, `bg-muted` | `bg-surface-alt` |
+| `text-muted-foreground` | `text-ink-60` |
+| `bg-primary` / `text-primary` / `text-primary-foreground` | `bg-brand-red` / `text-brand-red` / `text-surface` |
+| `bg-accent` / `hover:text-accent-foreground` | `bg-brand-red-soft` / `hover:text-brand-red-hover` |
+| `bg-destructive`, `text-destructive`, `border-destructive` | `*-brand-red-hover` |
+| `border-input` | `border-border` |
+| `ring-ring` | `ring-brand-red/40` |
+| `dark:*` | нет, только светлая тема |
 
 ## Команды
 

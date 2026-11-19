@@ -1,55 +1,35 @@
-import { ListChecks, MessageSquare, Moon, Sun, type LucideIcon } from 'lucide-react'
-import { AccountMenu } from '@/features/auth/AccountMenu'
+import { ListChecks, MessageSquare } from '@synergy/ui-kit/icons'
+import type { NavItem } from '@synergy/ui-kit'
+import { ProfileMenuContainer } from '@/features/auth/ProfileMenuContainer'
 import { NotificationsButton } from '@/features/notifications/NotificationsButton'
-import { cn } from '@/lib/utils'
 import { useUiStore, type AppSection } from '@/stores/ui.store'
 
-const ITEMS: { section: AppSection; label: string; icon: LucideIcon }[] = [
-  { section: 'chats', label: 'Чаты', icon: MessageSquare },
-  { section: 'tasks', label: 'Задачи', icon: ListChecks }
+const SECTIONS: { id: AppSection; label: string; icon: NavItem['icon'] }[] = [
+  { id: 'chats', label: 'Чаты', icon: <MessageSquare /> },
+  { id: 'tasks', label: 'Задачи', icon: <ListChecks /> }
 ]
 
-// Vertical rail: section switch, notifications, theme and the account menu with logout (frames A6WsC, GCorB)
-export function NavRail() {
-  const section = useUiStore((s) => s.section)
-  const setSection = useUiStore((s) => s.setSection)
-  const dark = useUiStore((s) => s.dark)
-  const toggleDark = useUiStore((s) => s.toggleDark)
+const isSection = (id: string): id is AppSection => SECTIONS.some((section) => section.id === id)
 
+// Sections of the rail (package NavRail inside AppFrame) come from the ui store
+export function useNavSections() {
+  const active = useUiStore((s) => s.section)
+  const setSection = useUiStore((s) => s.setSection)
+  return {
+    items: SECTIONS as NavItem[],
+    active,
+    select: (id: string) => {
+      if (isSection(id)) setSection(id)
+    }
+  }
+}
+
+// Bottom group of the rail: notifications and the profile menu (frames VHpuS, TLMEl)
+export function NavRailFooter() {
   return (
-    <nav
-      aria-label="Разделы"
-      className="flex h-full w-16 shrink-0 flex-col items-center gap-2 border-r bg-surface-alt px-2 py-3"
-    >
-      {ITEMS.map(({ section: id, label, icon: Icon }) => {
-        const active = section === id
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-current={active ? 'page' : undefined}
-            onClick={() => setSection(id)}
-            className={cn(
-              'flex h-[54px] w-12 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring',
-              active && 'bg-brand-red-soft text-brand-red hover:bg-brand-red-soft'
-            )}
-          >
-            <Icon aria-hidden className="size-5" />
-            <span className="text-[10px] leading-3 font-semibold">{label}</span>
-          </button>
-        )
-      })}
-      <div className="flex-1" />
+    <>
       <NotificationsButton />
-      <button
-        type="button"
-        aria-label={dark ? 'Светлая тема' : 'Тёмная тема'}
-        onClick={toggleDark}
-        className="flex size-9 items-center justify-center rounded-xl text-muted-foreground outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {dark ? <Sun aria-hidden className="size-4" /> : <Moon aria-hidden className="size-4" />}
-      </button>
-      <AccountMenu />
-    </nav>
+      <ProfileMenuContainer />
+    </>
   )
 }

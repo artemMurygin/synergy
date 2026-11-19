@@ -23,9 +23,9 @@ import { UserAvatar } from './UserAvatar'
 const GONE_NOTICE_MS = 5000
 // a column beside the list (not an overlay): the list narrows while the panel is open
 const PANEL_CLASS =
-  'flex h-full w-[480px] shrink-0 flex-col border-l bg-background shadow-[-8px_0_24px_rgba(0,0,0,0.06)] outline-none'
+  'flex h-full w-[480px] shrink-0 flex-col border-l bg-surface shadow-[-8px_0_24px_rgba(0,0,0,0.06)] outline-none'
 const ICON_BUTTON_CLASS =
-  'flex size-9 items-center justify-center rounded-md text-ink outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-ring'
+  'flex size-9 items-center justify-center rounded-md text-ink outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-brand-red/40'
 const SECTION_LABEL_CLASS = 'text-[11px] font-bold tracking-wide text-ink-40 uppercase'
 
 const loginOf = (user: TaskUser): string => user.login ?? 'Неактивный пользователь'
@@ -63,7 +63,7 @@ function Person({ user }: { user: TaskUser | null }) {
 
 function Chip({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex h-8 items-center rounded-full border border-border-strong bg-background px-2.5 text-[13px] font-medium">
+    <span className="inline-flex h-8 items-center rounded-full border border-border-strong bg-surface px-2.5 text-[13px] font-medium">
       {children}
     </span>
   )
@@ -317,7 +317,7 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
                         closeStatus()
                       }
                     }}
-                    className="h-8 rounded-md border border-border-strong bg-background px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-8 rounded-md border border-border-strong bg-surface px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40"
                   >
                     {TASK_STATUSES.map((status) => (
                       <option key={status} value={status}>
@@ -333,7 +333,7 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
                       ref={statusButton}
                       aria-label="Изменить статус"
                       onClick={() => setStatusOpen(true)}
-                      className="rounded text-[13px] font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded text-[13px] font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-red/40"
                     >
                       Изменить
                     </button>
@@ -397,7 +397,7 @@ function DrawerBody({ id, onOpen, onGone }: BodyProps) {
           <button
             type="button"
             onClick={() => setConfirmOpen(true)}
-            className="-ml-3 flex h-10 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-ring"
+            className="-ml-3 flex h-10 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-brand-red/40"
           >
             <Trash2 aria-hidden className="size-[18px]" />
             Удалить задачу

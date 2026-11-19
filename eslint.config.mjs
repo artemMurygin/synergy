@@ -79,6 +79,29 @@ export default tseslint.config(
     },
   },
   {
+    // MH: иконки только из `@synergy/ui-kit/icons`, пакет только через публичный API (D5, D15).
+    files: ['manager-helper/src/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'lucide-react',
+              message: 'Иконки берутся из @synergy/ui-kit/icons.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@synergy/ui-kit/src/*', '**/ui-kit/src/*'],
+              message: 'Глубокие импорты пакета запрещены: используйте @synergy/ui-kit.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.config.ts', '**/*.config.mjs', '**/scripts/**'],
     ...tseslint.configs.disableTypeChecked,
   },

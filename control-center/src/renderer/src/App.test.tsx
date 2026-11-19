@@ -74,6 +74,13 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Задачи' })).toBeNull()
   })
 
+  it('has no dark theme: no class on the root and no theme switch', async () => {
+    mount()
+    await screen.findByRole('navigation')
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(screen.queryByRole('button', { name: /тема/i })).toBeNull()
+  })
+
   it('shows the navigation rail after sign-in and keeps the selected chat when switching sections', async () => {
     const user = mount()
     await user.click(await screen.findByText('Второй'))
@@ -90,9 +97,11 @@ describe('App', () => {
     bridge.logout.mockResolvedValue({ serverRevoked: true })
     const user = mount()
     await user.click(await screen.findByRole('button', { name: 'Задачи' }))
-    await user.click(screen.getByRole('button', { name: 'Учётная запись admin' }))
-    expect(screen.getByText('admin')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Выйти' }))
+    await user.click(screen.getByRole('button', { name: 'Профиль: admin' }))
+    expect(screen.getByText(/Вы вошли в систему/)).toBeTruthy()
+    await user.click(await screen.findByRole('menuitem', { name: 'Выйти' }))
+    expect(bridge.logout).not.toHaveBeenCalled()
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Выйти' }))
     await waitFor(() => {
       expect(bridge.logout).toHaveBeenCalledTimes(1)
     })

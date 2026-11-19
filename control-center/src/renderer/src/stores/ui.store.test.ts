@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useUiStore } from './ui.store'
 
 beforeEach(() => {
-  useUiStore.setState({ section: 'chats', dark: false })
+  useUiStore.setState({ section: 'chats' })
 })
 
 describe('ui store section', () => {
@@ -15,5 +15,13 @@ describe('ui store section', () => {
     expect(useUiStore.getState().section).toBe('tasks')
     useUiStore.getState().setSection('chats')
     expect(useUiStore.getState().section).toBe('chats')
+  })
+})
+
+describe('ui store has no dark theme', () => {
+  it('keeps neither the flag nor the toggle', () => {
+    const state = useUiStore.getInitialState()
+    expect('dark' in state).toBe(false)
+    expect('toggleDark' in state).toBe(false)
   })
 })

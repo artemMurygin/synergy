@@ -98,7 +98,7 @@ describe('files and system messages in the feed', () => {
     history([{ id: 'u1', role: 'user', content: '', attachments: [recording], source: 'run' }])
     mount()
     await screen.findByText('встреча-12-ноя.m4a')
-    expect(document.querySelector('.bg-primary.rounded-2xl')).toBeNull()
+    expect(document.querySelector('.bg-brand-red.rounded-2xl')).toBeNull()
   })
 
   it('shows the files of an answer after its text', async () => {

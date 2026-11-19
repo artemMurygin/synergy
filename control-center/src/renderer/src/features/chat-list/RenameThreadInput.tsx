@@ -46,7 +46,7 @@ export function RenameThreadInput({
           autoFocus
           aria-label="Название чата"
           aria-invalid={!valid}
-          className="h-10 min-w-0 flex-1 rounded-xl border-destructive px-3"
+          className="h-10 min-w-0 flex-1 rounded-xl border-brand-red-hover px-3"
           value={value}
           disabled={disabled}
           onChange={(event) => setValue(event.target.value)}
@@ -67,7 +67,7 @@ export function RenameThreadInput({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0 rounded-xl text-muted-foreground"
+          className="size-8 shrink-0 rounded-xl text-ink-60"
           aria-label="Отменить переименование"
           onClick={onCancel}
         >
@@ -75,7 +75,7 @@ export function RenameThreadInput({
         </Button>
       </div>
       {!valid && (
-        <p className="text-xs text-destructive">Название: от 1 до {MAX_TITLE_LENGTH} символов</p>
+        <p className="text-xs text-brand-red-hover">Название: от 1 до {MAX_TITLE_LENGTH} символов</p>
       )}
     </div>
   )

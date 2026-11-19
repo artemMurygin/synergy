@@ -16,7 +16,7 @@ function Notice(props: {
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
       {props.icon}
       <h2 className="text-base font-semibold">{props.title}</h2>
-      <p className="max-w-[260px] text-[13px] leading-snug text-muted-foreground">{props.text}</p>
+      <p className="max-w-[260px] text-[13px] leading-snug text-ink-60">{props.text}</p>
       {props.children}
     </div>
   )
@@ -32,7 +32,7 @@ export function ChatList() {
   const createChat = () => create.mutate()
 
   return (
-    <section className="flex h-full min-h-0 flex-col border-r bg-secondary">
+    <section className="flex h-full min-h-0 flex-col border-r bg-surface-alt">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <h2 className="flex-1 text-lg font-semibold">Чаты</h2>
         <Button
@@ -51,7 +51,7 @@ export function ChatList() {
         {query.isPending && <ChatListSkeleton />}
         {query.isError && (
           <Notice
-            icon={<CloudOff className="size-9 text-primary" />}
+            icon={<CloudOff className="size-9 text-brand-red" />}
             title="Не удалось загрузить чаты"
             text="Не удалось связаться с сервером. Он запущен?"
           >
@@ -67,7 +67,7 @@ export function ChatList() {
         )}
         {query.isSuccess && query.data.length === 0 && (
           <Notice
-            icon={<MessagesSquare className="size-9 text-muted-foreground" />}
+            icon={<MessagesSquare className="size-9 text-ink-60" />}
             title="Чатов пока нет"
             text="Начните новый чат по любой теме: цены, программы, документы"
           >

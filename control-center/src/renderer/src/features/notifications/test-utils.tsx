@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import type { Notification } from '@/lib/backend/notifications.schema'
@@ -54,7 +55,9 @@ export function createTestQueryClient(): QueryClient {
 }
 
 export function createWrapper(client: QueryClient) {
-  return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>
+      <LayoutModeProvider mode="desktop">{children}</LayoutModeProvider>
+    </QueryClientProvider>
 }
 
 export function installPortalBridgeMock(result: PortalOpenResult) {

@@ -1,7 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useChatStore } from '@/stores/chat.store'
-import { useUiStore } from '@/stores/ui.store'
 import { authenticatedSnapshot, createQueryClient, createWrapper, installBridgeMock } from './auth-test-utils'
 import { useSessionStore } from './session.store'
 import { useSessionReset } from './session-reset'
@@ -12,7 +11,6 @@ describe('useSessionReset', () => {
     installBridgeMock()
     useSessionStore.setState(useSessionStore.getInitialState())
     useChatStore.getState().setActiveThread('t1')
-    useUiStore.setState({ dark: true })
   })
 
   function setup() {
@@ -29,13 +27,6 @@ describe('useSessionReset', () => {
     act(() => useSessionStore.getState().setSnapshot({ state: 'unauthenticated', user: null }))
     expect(client.getQueryData(['threads'])).toBeUndefined()
     expect(useChatStore.getState().activeThreadId).toBeNull()
-  })
-
-  it('keeps appearance settings', () => {
-    setup()
-    act(() => useSessionStore.getState().setSnapshot(authenticatedSnapshot))
-    act(() => useSessionStore.getState().setSnapshot({ state: 'unauthenticated', user: null }))
-    expect(useUiStore.getState().dark).toBe(true)
   })
 
   it('does not clear on other transitions', () => {

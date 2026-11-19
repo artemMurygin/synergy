@@ -37,7 +37,7 @@ export function AssistantMessage() {
         </span>
       )}
       {hasText && (
-        <div className="max-w-[85%] self-start rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-[1.5] break-words text-foreground">
+        <div className="max-w-[85%] self-start rounded-2xl bg-surface-alt px-3.5 py-2.5 text-sm leading-[1.5] break-words text-ink">
           <MessagePrimitive.Parts components={{ Text: ({ text }) => <MarkdownText text={text} /> }} />
         </div>
       )}

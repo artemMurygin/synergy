@@ -33,9 +33,9 @@ function NoChat() {
   const create = useCreateThread()
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <MessagesSquare className="size-8 text-muted-foreground" />
+      <MessagesSquare className="size-8 text-ink-60" />
       <h2 className="text-base font-semibold">Выберите чат</h2>
-      <p className="max-w-xs text-sm text-muted-foreground">
+      <p className="max-w-xs text-sm text-ink-60">
         Откройте чат из списка слева или начните новый
       </p>
       <Button
@@ -58,7 +58,7 @@ function Header({ threadId }: { threadId: string }) {
   return (
     <header className="flex items-baseline gap-3 border-b px-6 py-4">
       <h2 className="truncate text-base font-semibold">{thread.title}</h2>
-      <span className="shrink-0 text-xs text-muted-foreground">
+      <span className="shrink-0 text-xs text-ink-60">
         {formatActivity(thread.lastActivityAt)}
       </span>
     </header>
@@ -109,7 +109,7 @@ function OpenChat({ threadId }: { threadId: string }) {
   } else if (history.error !== null) {
     body = (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="text-sm text-muted-foreground">Не удалось загрузить историю чата</p>
+        <p className="text-sm text-ink-60">Не удалось загрузить историю чата</p>
         <Button
           variant="outline"
           onClick={() => {
@@ -212,9 +212,9 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
             <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3 px-6 py-6">
               {messages.length === 0 && !serverRunning && (
                 <div className="m-auto flex flex-col items-center gap-2 text-center">
-                  <MessageSquare className="size-8 text-muted-foreground" />
+                  <MessageSquare className="size-8 text-ink-60" />
                   <h2 className="text-base font-semibold">Задайте вопрос по таблицам</h2>
-                  <p className="max-w-xs text-sm text-muted-foreground">
+                  <p className="max-w-xs text-sm text-ink-60">
                     Агент ответит на основе данных в Google Sheets
                   </p>
                 </div>
@@ -223,8 +223,8 @@ function ThreadBody({ threadId, serverRunning, onStopped }: ThreadBodyProps) {
                 {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
               </ThreadPrimitive.Messages>
               {localRunning && (
-                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                  <span className="size-2 animate-pulse rounded-full bg-primary" />
+                <p className="flex items-center gap-2 text-[13px] text-ink-60">
+                  <span className="size-2 animate-pulse rounded-full bg-brand-red" />
                   Агент отвечает…
                 </p>
               )}

@@ -6,7 +6,6 @@ import * as tasksApi from '@/lib/backend/tasks.api'
 import { TOAST_DURATION_MS, useNotificationsStore } from '@/stores/notifications.store'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
-import { NotificationToast } from './NotificationToast'
 import { NotificationToaster } from './NotificationToaster'
 import { createTestQueryClient, createWrapper, makeNotification } from './test-utils'
 
@@ -32,29 +31,7 @@ function mountToaster() {
 }
 
 const region = () => screen.getByRole('region', { name: 'Новые уведомления' })
-const toasts = () => within(region()).queryAllByRole('group')
-
-describe('NotificationToast', () => {
-  it('shows the title, the text and the «Открыть задачу» hint', () => {
-    render(<NotificationToast notification={makeNotification('1')} onOpen={() => {}} onDismiss={() => {}} />)
-    const toast = screen.getByRole('group', { name: 'Уведомление 1' })
-    expect(toast.textContent).toContain('Текст')
-    expect(toast.textContent).toContain('Открыть задачу')
-  })
-
-  it('calls onOpen on click and onDismiss on the cross', async () => {
-    const onOpen = vi.fn()
-    const onDismiss = vi.fn()
-    const notification = makeNotification('1')
-    render(<NotificationToast notification={notification} onOpen={onOpen} onDismiss={onDismiss} />)
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Закрыть уведомление' }))
-    expect(onDismiss).toHaveBeenCalledWith('1')
-    expect(onOpen).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: /Уведомление 1/ }))
-    expect(onOpen).toHaveBeenCalledWith(notification)
-  })
-})
+const toasts = () => within(region()).queryAllByRole('status')
 
 describe('NotificationToaster', () => {
   it('renders nothing visible without toasts', () => {
@@ -65,7 +42,7 @@ describe('NotificationToaster', () => {
   it('shows a toast from the store', () => {
     mountToaster()
     act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
-    expect(within(region()).getByRole('group', { name: 'Уведомление 1' })).toBeTruthy()
+    expect(within(region()).getByText('Уведомление 1').closest('[role="status"]') as HTMLElement).toBeTruthy()
   })
 
   it('keeps at most 3 toasts, the newest last', () => {
@@ -73,7 +50,7 @@ describe('NotificationToaster', () => {
     act(() => {
       for (const id of ['1', '2', '3', '4']) useNotificationsStore.getState().showToast(makeNotification(id))
     })
-    expect(toasts().map((toast) => toast.getAttribute('aria-label'))).toEqual([
+    expect(toasts().map((toast) => within(toast).getByText(/^Уведомление/).textContent)).toEqual([
       'Уведомление 2',
       'Уведомление 3',
       'Уведомление 4'
@@ -83,7 +60,7 @@ describe('NotificationToaster', () => {
   it('opens the notification on click and closes the toast', async () => {
     const user = mountToaster()
     act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
-    await user.click(screen.getByRole('button', { name: /Уведомление 1/ }))
+    await user.click(screen.getByRole('button', { name: 'Открыть задачу' }))
     expect(useUiStore.getState().section).toBe('tasks')
     expect(useTasksStore.getState().selectedTaskId).toBe('task-1')
     await waitFor(() => expect(notificationsApi.markNotificationRead).toHaveBeenCalledWith('1'))
@@ -93,7 +70,7 @@ describe('NotificationToaster', () => {
   it('dismisses a toast with the cross without opening it', async () => {
     const user = mountToaster()
     act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
-    await user.click(screen.getByRole('button', { name: 'Закрыть уведомление' }))
+    await user.click(screen.getByRole('button', { name: 'Закрыть' }))
     expect(toasts()).toHaveLength(0)
     expect(useUiStore.getState().section).toBe('chats')
     expect(notificationsApi.markNotificationRead).not.toHaveBeenCalled()
@@ -104,7 +81,7 @@ describe('NotificationToaster', () => {
     try {
       mountToaster()
       act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
-      const toast = within(region()).getByRole('group', { name: 'Уведомление 1' })
+      const toast = within(region()).getByText('Уведомление 1').closest('[role="status"]') as HTMLElement
       fireEvent.mouseEnter(toast)
       act(() => vi.advanceTimersByTime(TOAST_DURATION_MS + 1_000))
       expect(toasts()).toHaveLength(1)
@@ -114,5 +91,15 @@ describe('NotificationToaster', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('NotificationToaster content', () => {
+  it('shows the title, the text and the «Открыть задачу» action for a task', () => {
+    mountToaster()
+    act(() => useNotificationsStore.getState().showToast(makeNotification('1')))
+    expect(within(region()).getByText('Уведомление 1')).toBeTruthy()
+    expect(within(region()).getByText('Текст')).toBeTruthy()
+    expect(within(region()).getByRole('button', { name: 'Открыть задачу' })).toBeTruthy()
   })
 })

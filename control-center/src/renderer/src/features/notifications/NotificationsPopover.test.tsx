@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackendError } from '@/lib/backend/errors'
@@ -29,34 +29,34 @@ function mount(onOpenNotification: (notification: Notification) => void = () => 
 }
 
 const readAllButton = () => screen.getByRole('button', { name: 'Прочитать все' })
-const list = () => screen.getByRole('list', { name: 'Уведомления' })
+const rows = () => screen.getAllByRole('button', { name: /^Уведомление \d+/ })
+const scroller = () => screen.getByText('Уведомление 1').closest('[aria-busy]') as HTMLElement
 
 beforeEach(() => {
   vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 })
 })
 
 describe('NotificationsPopover', () => {
-  it('lists notifications newest first and highlights unread ones', async () => {
+  it('lists notifications in the order of the server and marks unread ones', async () => {
     vi.mocked(notificationsApi.listNotifications).mockResolvedValue(
       page([makeNotification('1'), makeNotification('2'), makeNotification('3', '2026-11-10T10:05:00.000Z')])
     )
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 2 })
     mount()
-    const rows = await within(await screen.findByRole('list', { name: 'Уведомления' })).findAllByRole('button')
-    expect(rows.map((row) => row.querySelector('[data-slot="title"]')?.textContent)).toEqual([
+    await screen.findByText('Уведомление 1')
+    expect(rows().map((row) => row.textContent?.match(/Уведомление \d/)?.[0])).toEqual([
       'Уведомление 1',
       'Уведомление 2',
       'Уведомление 3'
     ])
-    expect(rows.map((row) => row.getAttribute('data-unread'))).toEqual(['true', 'true', 'false'])
-    expect(await screen.findByText('2 новых')).toBeTruthy()
+    expect(rows().map((row) => row.querySelector('[aria-label="Непрочитано"]') !== null)).toEqual([true, true, false])
+    expect(await screen.findByRole('heading', { name: /Уведомления\s*2/ })).toBeTruthy()
   })
 
-  it('hides the new count and disables «Прочитать все» with no unread', async () => {
+  it('disables «Прочитать все» with no unread', async () => {
     vi.mocked(notificationsApi.listNotifications).mockResolvedValue(page(many(1, 2)))
     mount()
     await screen.findByText('Уведомление 1')
-    expect(screen.queryByText(/новых/)).toBeNull()
     expect(readAllButton().hasAttribute('disabled')).toBe(true)
   })
 
@@ -65,13 +65,12 @@ describe('NotificationsPopover', () => {
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 1 })
     vi.mocked(notificationsApi.markAllNotificationsRead).mockResolvedValue({ unreadCount: 0 })
     const user = mount()
-    await screen.findByText('1 новых')
+    await screen.findByText('Уведомление 1')
     await waitFor(() => expect(readAllButton().hasAttribute('disabled')).toBe(false))
     await user.click(readAllButton())
     expect(notificationsApi.markAllNotificationsRead).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.queryByText(/новых/)).toBeNull())
-    expect(within(list()).getByRole('button').getAttribute('data-unread')).toBe('false')
-    expect(readAllButton().hasAttribute('disabled')).toBe(true)
+    await waitFor(() => expect(readAllButton().hasAttribute('disabled')).toBe(true))
+    expect(screen.queryByLabelText('Непрочитано')).toBeNull()
   })
 
   it('shows a skeleton while loading with «Прочитать все» disabled', () => {
@@ -95,27 +94,31 @@ describe('NotificationsPopover', () => {
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 2 })
     const user = mount()
     expect(await screen.findByText('Не удалось загрузить уведомления')).toBeTruthy()
-    await waitFor(() => expect(notificationsApi.getUnreadCount).toHaveBeenCalled())
-    expect(screen.queryByText(/новых/)).toBeNull()
     expect(readAllButton().hasAttribute('disabled')).toBe(true)
     await user.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByText('Уведомление 1')).toBeTruthy()
     expect(notificationsApi.listNotifications).toHaveBeenCalledTimes(2)
   })
 
-  it('loads the next page on scroll and shows «Загружаем ещё…» meanwhile', async () => {
-    let resolveNext: (value: NotificationPage) => void = () => {}
+  it('loads the next page on scroll', async () => {
     vi.mocked(notificationsApi.listNotifications)
       .mockResolvedValueOnce(page(many(1, NOTIFICATIONS_PAGE_SIZE), 0, 25))
-      .mockReturnValueOnce(new Promise((resolve) => (resolveNext = resolve)))
+      .mockResolvedValueOnce(page(many(21, 5), 1, 25))
     mount()
     await screen.findByText('Уведомление 1')
-    fireEvent.scroll(list())
-    expect(await screen.findByText('Загружаем ещё…')).toBeTruthy()
-    expect(notificationsApi.listNotifications).toHaveBeenLastCalledWith({ page: 1, limit: NOTIFICATIONS_PAGE_SIZE })
-    resolveNext(page(many(21, 5), 1, 25))
+    fireEvent.scroll(scroller())
     expect(await screen.findByText('Уведомление 25')).toBeTruthy()
-    expect(screen.queryByText('Загружаем ещё…')).toBeNull()
+    expect(notificationsApi.listNotifications).toHaveBeenLastCalledWith({ page: 1, limit: NOTIFICATIONS_PAGE_SIZE })
+  })
+
+  it('loads the next page with «Показать ещё»', async () => {
+    vi.mocked(notificationsApi.listNotifications)
+      .mockResolvedValueOnce(page(many(1, NOTIFICATIONS_PAGE_SIZE), 0, 25))
+      .mockResolvedValueOnce(page(many(21, 5), 1, 25))
+    const user = mount()
+    await user.click(await screen.findByRole('button', { name: 'Показать ещё' }))
+    expect(await screen.findByText('Уведомление 25')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Показать ещё' })).toBeNull()
   })
 
   it('shows the next page error with «Повторить» and keeps the loaded list', async () => {
@@ -125,8 +128,8 @@ describe('NotificationsPopover', () => {
       .mockResolvedValueOnce(page(many(21, 5), 1, 25))
     const user = mount()
     await screen.findByText('Уведомление 1')
-    fireEvent.scroll(list())
-    expect(await screen.findByText('Не удалось загрузить ещё')).toBeTruthy()
+    fireEvent.scroll(scroller())
+    expect(await screen.findByText('Не удалось обновить уведомления')).toBeTruthy()
     expect(screen.getByText('Уведомление 1')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByText('Уведомление 25')).toBeTruthy()
@@ -136,7 +139,7 @@ describe('NotificationsPopover', () => {
     vi.mocked(notificationsApi.listNotifications).mockResolvedValue(page(many(1, 3)))
     mount()
     await screen.findByText('Уведомление 1')
-    fireEvent.scroll(list())
+    fireEvent.scroll(scroller())
     expect(notificationsApi.listNotifications).toHaveBeenCalledTimes(1)
   })
 

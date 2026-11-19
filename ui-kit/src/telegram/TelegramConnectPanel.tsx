@@ -6,7 +6,8 @@ export type TelegramConnectStatus = 'idle' | 'requesting' | 'waiting' | 'expired
 
 export type TelegramConnectPanelProps = {
   status: TelegramConnectStatus
-  botName: string
+  /** Имя бота без «@»; пока ссылка не выдана, его может не быть. */
+  botName?: string
   /** Ссылка на бота; открывается только через `onOpenLink`. */
   link?: string
   /** Сколько секунд ещё действует ссылка (ожидание подтверждения). */
@@ -53,7 +54,7 @@ export function TelegramConnectPanel({
           Ждём подтверждения в Telegram
         </div>
         <p className="text-sm text-ink-60">
-          Откройте чат с @{botName} и нажмите «Start». Окно обновится само, как только Telegram будет подключён.
+          Откройте чат с {botName ? `@${botName}` : 'ботом'} и нажмите «Start». Окно обновится само, как только Telegram будет подключён.
         </p>
         {secondsLeft !== undefined ? (
           <p className="flex items-center gap-1.5 text-xs text-ink-60">
@@ -112,7 +113,7 @@ export function TelegramConnectPanel({
       <div className="flex flex-col gap-2">
         <h3 className="text-base font-semibold text-ink">Подключите Telegram</h3>
         <p className="text-sm text-ink-60">
-          Уведомления о задачах будут приходить в чат с ботом @{botName}. Откроется Telegram — там нажмите «Start».
+          Уведомления о задачах будут приходить в чат с ботом{botName ? ` @${botName}` : ''}. Откроется Telegram — там нажмите «Start».
         </p>
       </div>
       <ol className="flex flex-col gap-2.5">

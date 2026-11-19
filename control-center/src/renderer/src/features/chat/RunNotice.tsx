@@ -15,7 +15,7 @@ interface RunNoticeProps {
 }
 
 // The UI kit draws every notice on the soft brand red; tones differ by icon only
-const SOFT = 'bg-brand-red-soft text-primary dark:bg-destructive/10 dark:text-destructive'
+const SOFT = 'bg-brand-red-soft text-brand-red'
 const toneClass: Record<RunNoticeTone, string> = {
   error: SOFT,
   neutral: SOFT,
@@ -28,12 +28,12 @@ export function RunNotice({ tone, icon, title, text, role, actionLabel, onAction
     <div role={role} className={cn('flex w-full gap-2.5 rounded-xl px-3.5 py-3', toneClass[tone])}>
       <span className="mt-px shrink-0">{icon}</span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-[13px] font-semibold text-foreground">{title}</span>
-        <span className="text-xs leading-[1.4] text-foreground/80">{text}</span>
+        <span className="text-[13px] font-semibold text-ink">{title}</span>
+        <span className="text-xs leading-[1.4] text-ink/80">{text}</span>
         {actionLabel && onAction && (
           <button
             type="button"
-            className="self-start text-[13px] font-semibold text-primary hover:underline"
+            className="self-start text-[13px] font-semibold text-brand-red hover:underline"
             onClick={onAction}
           >
             {actionLabel}

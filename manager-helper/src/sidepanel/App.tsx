@@ -1,5 +1,14 @@
 import { useAui, useAuiState } from '@assistant-ui/react'
+import {
+  AppFrame,
+  NotificationsButton,
+  PanelHeader,
+  chatPaneVisibility,
+  useLayoutMode,
+} from '@synergy/ui-kit'
+import { ListChecks, MessagesSquare } from '@synergy/ui-kit/icons'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useTelegramLink } from '@/options/telegram/use-telegram-link'
 import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
@@ -8,24 +17,22 @@ import { buildRequestUrl } from '@/shared/portal-link'
 import { getPortalUrl } from '@/shared/settings'
 import type { NotificationDto } from '@/shared/notifications/notifications-schema'
 import type { PendingTarget } from '@/shared/notifications/pending-target'
+import type { ChatPanelMode } from '@synergy/ui-kit'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 import { ChatSessionList } from './ChatSessionList'
 import { ChatTitleBar } from './ChatTitleBar'
-import { NotificationsButton } from './notifications/NotificationsButton'
 import { NotificationsOverlay } from './notifications/NotificationsOverlay'
 import { NotificationToast } from './notifications/NotificationToast'
 import { useNotifications } from './notifications/use-notifications'
 import { usePendingTarget } from './notifications/use-pending-target'
-import { paneVisibility } from './panel-layout'
-import type { PanelMode } from './panel-layout'
-import { PanelHeader } from './PanelHeader'
-import { SectionSwitch } from './SectionSwitch'
+import { PanelActions } from './PanelActions'
+import { ProfileMenuContainer } from './ProfileMenuContainer'
+import { TelegramPane } from './telegram/TelegramPane'
 import { TasksApp } from './tasks/TasksApp'
 import { ThreadView } from './ThreadView'
 import { useChatSessions } from './use-chat-sessions'
 import { useThreadRunStatus } from './use-thread-run-status'
-import { useViewportSize } from './use-viewport-size'
 
 interface QueuedSend {
   threadId: string
@@ -115,17 +122,22 @@ function ChatPane(props: PaneProps) {
   )
 }
 
+const CHAT_SECTION = { id: 'chat', label: 'Чаты', icon: <MessagesSquare /> }
+const TASKS_SECTION = { id: 'tasks', label: 'Задачи', icon: <ListChecks /> }
+
 export function App() {
   const sessions = useChatSessions()
   const { activeId, create, rename, reload } = sessions
-  const { widthPx } = useViewportSize()
-  const [mode, setMode] = useState<PanelMode>('chat')
+  const layout = useLayoutMode()
+  const [mode, setMode] = useState<ChatPanelMode>('chat')
   const [creating, setCreating] = useState(false)
   // Run flag reported by the loaded history or a refused question: fresher than the chat list.
   const [reported, setReported] = useState<{ threadId: string; running: boolean } | null>(null)
   const [finished, setFinished] = useState<FinishedRun | null>(null)
   const auth = useSyncExternalStore(subscribeAuth, getAuthState)
   const signedIn = auth.status === 'authenticated'
+  const telegram = useTelegramLink(auth.status)
+  const [isTelegramOpen, setIsTelegramOpen] = useState(false)
   const [storedSection, setStoredSection] = useState<Section>('chat')
   // The tasks are mounted on first open and then stay mounted with their state.
   const [tasksOpened, setTasksOpened] = useState(false)
@@ -137,6 +149,7 @@ export function App() {
   const [portalUnavailable, setPortalUnavailable] = useState(false)
   const notificationsAnchor = useRef<HTMLButtonElement>(null)
   const isOverlayVisible = signedIn && isNotificationsOpen
+  const sections = signedIn ? [CHAT_SECTION, TASKS_SECTION] : [CHAT_SECTION]
 
   useEffect(() => {
     void getActiveSection().then((stored) => {
@@ -193,41 +206,31 @@ export function App() {
     setIsNotificationsOpen(false)
   }, [])
 
-  const notificationsSlot = signedIn ? (
+  const trailing = signedIn ? (
     <>
       <NotificationsButton
-        buttonRef={notificationsAnchor}
-        unreadCount={notifications.unreadCount}
-        isOpen={isOverlayVisible}
+        ref={notificationsAnchor}
+        count={notifications.unreadCount}
+        open={isOverlayVisible}
         onClick={() => {
           if (!isNotificationsOpen) notifications.dismissToast()
           setIsNotificationsOpen(!isNotificationsOpen)
         }}
       />
-      {isOverlayVisible && (
-        <NotificationsOverlay
-          items={notifications.items}
-          unreadCount={notifications.unreadCount}
-          status={notifications.status}
-          isInitialLoad={notifications.isInitialLoad}
-          hasMore={notifications.hasMore}
-          loadMoreStatus={notifications.loadMoreStatus}
-          anchorRef={notificationsAnchor}
-          onOpen={openNotification}
-          onReadAll={() => void notifications.markAllRead()}
-          onLoadMore={notifications.loadMore}
-          onRetry={notifications.retry}
-          onClose={closeNotifications}
-        />
-      )}
+      <ProfileMenuContainer
+        link={telegram}
+        onOpenTelegram={() => {
+          setIsTelegramOpen(true)
+        }}
+      />
     </>
   ) : undefined
+  // The rail carries notifications and the profile on tablet; the top bar of the active section on mobile.
+  const isMobile = layout === 'mobile'
+  const barTrailing = (forSection: Section) =>
+    isMobile && section === forSection ? trailing : undefined
 
-  const sectionSwitch = signedIn ? (
-    <SectionSwitch section={section} onChange={changeSection} />
-  ) : undefined
-
-  const panes = paneVisibility(widthPx, mode)
+  const panes = chatPaneVisibility(layout, mode)
   const activeSession = sessions.sessions.find((s) => s.id === activeId)
 
   const run = useThreadRunStatus({
@@ -278,7 +281,20 @@ export function App() {
   }
 
   return (
-    <main className="relative flex h-screen flex-col bg-white text-ink">
+    <main className="relative h-screen overflow-hidden bg-surface text-ink">
+      <AppFrame
+        sections={sections}
+        activeSection={section}
+        onSectionChange={(id) => {
+          changeSection(id === 'tasks' ? 'tasks' : 'chat')
+        }}
+        nav={isMobile ? undefined : trailing}
+        body={
+          <div
+            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-surface ${
+              isMobile ? '' : 'rounded-xl shadow-panel'
+            }`}
+          >
       <ChatRuntimeProvider
         activeId={activeId}
         onRunningChange={(threadId, running) => {
@@ -292,12 +308,16 @@ export function App() {
           className={section === 'chat' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
         >
           <PanelHeader
-            switcher={sectionSwitch}
-            actionLabel="Новый чат"
-            actionDisabled={creating}
-            onAction={() => void createChat()}
-            onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-            notifications={section === 'chat' ? notificationsSlot : undefined}
+            title="Чат с агентом"
+            actions={
+              <PanelActions
+                actionLabel="Новый чат"
+                actionDisabled={creating}
+                onAction={() => void createChat()}
+                onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+                trailing={barTrailing('chat')}
+              />
+            }
           />
           <div className="flex min-h-0 flex-1">
             <div
@@ -358,12 +378,33 @@ export function App() {
       {showTasks && (
         <div className={section === 'tasks' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
           <TasksApp
-            switcher={sectionSwitch}
             requestedTaskId={requestedTaskId}
             onTaskRequestHandled={clearTaskRequest}
-            notifications={section === 'tasks' ? notificationsSlot : undefined}
+            trailing={barTrailing('tasks')}
           />
         </div>
+      )}
+          </div>
+        }
+      />
+      {isOverlayVisible && (
+        <NotificationsOverlay
+          items={notifications.items}
+          unreadCount={notifications.unreadCount}
+          status={notifications.status}
+          isInitialLoad={notifications.isInitialLoad}
+          hasMore={notifications.hasMore}
+          loadMoreStatus={notifications.loadMoreStatus}
+          anchorRef={notificationsAnchor}
+          onOpen={openNotification}
+          onReadAll={() => void notifications.markAllRead()}
+          onLoadMore={notifications.loadMore}
+          onRetry={notifications.retry}
+          onClose={closeNotifications}
+        />
+      )}
+      {signedIn && (
+        <TelegramPane open={isTelegramOpen} onOpenChange={setIsTelegramOpen} link={telegram} />
       )}
       {portalUnavailable && (
         <div

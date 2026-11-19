@@ -62,7 +62,7 @@ export function Composer({ running, disabled, onStop, attachments }: ComposerPro
             type="button"
             aria-label="Закрыть сообщение"
             onClick={attachments.dismissNotice}
-            className="flex size-6 items-center justify-center rounded-full outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-6 items-center justify-center rounded-full outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-red/40"
           >
             <X aria-hidden className="size-3.5" />
           </button>
@@ -106,7 +106,7 @@ export function Composer({ running, disabled, onStop, attachments }: ComposerPro
               submit()
             }
           }}
-          className="max-h-32 min-h-13 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="max-h-32 min-h-13 flex-1 resize-none rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none placeholder:text-ink-60 focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:cursor-not-allowed disabled:opacity-50"
         />
         {running ? (
           <Button type="button" className="h-13 rounded-xl px-4 font-semibold" onClick={onStop}>

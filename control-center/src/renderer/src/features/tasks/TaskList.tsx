@@ -9,7 +9,7 @@ import { useTasksStore } from '@/stores/tasks.store'
 import { TASK_GRID, TaskRow } from './TaskRow'
 import { useTaskFilters } from './use-task-filters'
 
-const PAGER_BUTTON = 'size-9 rounded-md border-border-strong bg-background text-ink'
+const PAGER_BUTTON = 'size-9 rounded-md border-border-strong bg-surface text-ink'
 
 /** "1–20 из 128" for a 1-based page. */
 export function pageRange(page: number, limit: number, total: number): string {
@@ -27,7 +27,7 @@ function Notice(props: { icon: React.ReactNode; title: string; text: string; chi
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
       {props.icon}
       <h2 className="text-base font-semibold">{props.title}</h2>
-      <p className="max-w-[320px] text-[13px] leading-snug text-muted-foreground">{props.text}</p>
+      <p className="max-w-[320px] text-[13px] leading-snug text-ink-60">{props.text}</p>
       {props.children}
     </div>
   )
@@ -97,7 +97,7 @@ export function TaskList({ onCreateTask }: TaskListProps) {
       {(query.isPending || stranded) && <ListSkeleton />}
       {query.isError && !data && (
         <Notice
-          icon={<CloudOff aria-hidden className="size-9 text-primary" />}
+          icon={<CloudOff aria-hidden className="size-9 text-brand-red" />}
           title="Не удалось загрузить задачи"
           text="Не удалось связаться с сервером. Он запущен?"
         >
@@ -109,7 +109,7 @@ export function TaskList({ onCreateTask }: TaskListProps) {
       {data && data.items.length === 0 && !stranded && (
         hasFilters ? (
           <Notice
-            icon={<ClipboardList aria-hidden className="size-9 text-muted-foreground" />}
+            icon={<ClipboardList aria-hidden className="size-9 text-ink-60" />}
             title="Ничего не найдено"
             text="Под выбранные фильтры не подходит ни одна задача."
           >
@@ -119,7 +119,7 @@ export function TaskList({ onCreateTask }: TaskListProps) {
           </Notice>
         ) : (
           <Notice
-            icon={<ClipboardList aria-hidden className="size-9 text-muted-foreground" />}
+            icon={<ClipboardList aria-hidden className="size-9 text-ink-60" />}
             title="Задач пока нет"
             text="Создайте первую задачу, чтобы назначить ответственного и срок."
           >

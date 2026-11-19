@@ -37,7 +37,7 @@ export function ConfirmDialog({
             <Trash2 aria-hidden className="size-[22px] text-brand-red" />
           </div>
           <AlertDialog.Title className="text-xl font-semibold">{title}</AlertDialog.Title>
-          <AlertDialog.Description className="text-sm leading-relaxed text-muted-foreground">
+          <AlertDialog.Description className="text-sm leading-relaxed text-ink-60">
             {description}
           </AlertDialog.Description>
           <div className="flex justify-end gap-3">

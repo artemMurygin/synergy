@@ -28,7 +28,7 @@ const SORT_OPTIONS: { value: `${TaskSort}:${TaskOrder}`; label: string }[] = [
 
 // Field look from the mock: h 40, radius 12, border-strong, 15px text.
 const fieldClass =
-  'h-10 w-full rounded-md border border-border-strong bg-background text-[15px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'h-10 w-full rounded-md border border-border-strong bg-surface text-[15px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40'
 const selectClass = cn(fieldClass, 'cursor-pointer appearance-none pr-10')
 const fieldIconClass = 'pointer-events-none absolute top-1/2 size-[18px] -translate-y-1/2'
 
@@ -72,10 +72,10 @@ export function TaskToolbar() {
               aria-pressed={active}
               onClick={() => setView(id)}
               className={cn(
-                'h-9 rounded-full border px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'h-9 rounded-full border px-4 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40',
                 active
                   ? 'border-brand-red bg-brand-red-soft text-brand-red'
-                  : cn('border-border-strong bg-background hover:bg-surface-alt', overdue ? 'text-brand-red' : 'text-ink')
+                  : cn('border-border-strong bg-surface hover:bg-surface-alt', overdue ? 'text-brand-red' : 'text-ink')
               )}
             >
               {VIEW_LABELS[id]}

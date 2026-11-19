@@ -75,7 +75,7 @@ export function TaskRow({ task, selected, now, onSelect, onStatusChange }: TaskR
     <li
       className={cn(
         // focus ring of the open button is drawn on the whole row, inset so it is not clipped
-        'flex min-h-16 items-center gap-4 border-b px-6 has-[[data-task-id]:focus-visible]:ring-2 has-[[data-task-id]:focus-visible]:ring-ring has-[[data-task-id]:focus-visible]:ring-inset',
+        'flex min-h-16 items-center gap-4 border-b px-6 has-[[data-task-id]:focus-visible]:ring-2 has-[[data-task-id]:focus-visible]:ring-brand-red/40 has-[[data-task-id]:focus-visible]:ring-inset',
         selected ? 'bg-brand-red-soft' : 'hover:bg-surface-alt'
       )}
     >
@@ -83,7 +83,7 @@ export function TaskRow({ task, selected, now, onSelect, onStatusChange }: TaskR
         type="button"
         aria-label={toggleLabel}
         onClick={() => onStatusChange(task.id, next)}
-        className="relative flex size-[22px] shrink-0 items-center justify-center rounded-full outline-none before:absolute before:-inset-[5px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="relative flex size-[22px] shrink-0 items-center justify-center rounded-full outline-none before:absolute before:-inset-[5px] focus-visible:ring-2 focus-visible:ring-brand-red/40 focus-visible:ring-offset-2"
       >
         <StatusToggleIcon status={task.status} />
       </button>

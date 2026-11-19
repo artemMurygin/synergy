@@ -2,18 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { createTask } from '@/shared/tasks-api'
 import type { CreateTaskInput, UserSummary } from '@/shared/tasks-api'
-import {
-  AlertCircleIcon,
-  ArrowLeftIcon,
-  CalendarIcon,
-  ChevronRightIcon,
-  CloseIcon,
-  LoaderIcon,
-  UserIcon,
-  UsersIcon,
-} from '../icons'
-import { isWidePanel } from '../panel-layout'
-import { useViewportSize } from '../use-viewport-size'
+import { ArrowLeft, Calendar, ChevronRight, CircleAlert, Loader, User, Users, X } from '@synergy/ui-kit/icons'
+import { layoutModeForWidth, useViewportWidth } from '@synergy/ui-kit'
 import { DeadlinePicker } from './DeadlinePicker'
 import { formatLocalDeadline, fromLocalInput, messageOf } from './format'
 import { UserSearchSelect } from './UserSearchSelect'
@@ -55,7 +45,7 @@ function SheetHeader(props: {
           className={`${square} text-ink`}
           onClick={props.onBack}
         >
-          <ArrowLeftIcon />
+          <ArrowLeft />
         </button>
       )}
       <h2
@@ -71,7 +61,7 @@ function SheetHeader(props: {
         className={`${square} text-ink-60`}
         onClick={props.onClose}
       >
-        <CloseIcon size={18} />
+        <X size={18} />
       </button>
     </div>
   )
@@ -104,7 +94,7 @@ function FieldRow(props: {
         {props.value}
       </span>
       <span className="shrink-0 text-ink-40">
-        <ChevronRightIcon />
+        <ChevronRight />
       </span>
     </button>
   )
@@ -115,8 +105,7 @@ function FieldRow(props: {
  * dialog in a wide one. Deadline, assignee and watchers are picked on a second level of the sheet.
  */
 export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
-  const { widthPx } = useViewportSize()
-  const wide = isWidePanel(widthPx)
+  const wide = layoutModeForWidth(useViewportWidth()) !== 'mobile'
   const dialog = useRef<HTMLDivElement>(null)
   const [level, setLevel] = useState<Level>('main')
   const [title, setTitle] = useState('')
@@ -274,7 +263,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
         </div>
         <div className="flex shrink-0 flex-col border-t border-[#e8e8ea]">
           <FieldRow
-            icon={<CalendarIcon size={18} />}
+            icon={<Calendar size={18} />}
             label="Дедлайн"
             value={deadline === '' ? 'Не указан' : formatLocalDeadline(deadline, new Date())}
             empty={deadline === ''}
@@ -284,7 +273,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
             }}
           />
           <FieldRow
-            icon={<UserIcon />}
+            icon={<User />}
             label="Исполнитель"
             value={assignee.id === me.id ? `Я · ${me.login}` : assignee.login}
             empty={false}
@@ -294,7 +283,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
             }}
           />
           <FieldRow
-            icon={<UsersIcon />}
+            icon={<Users />}
             label="Наблюдатели"
             value={
               watchers.length === 0 ? 'Добавить' : watchers.map((user) => user.login).join(', ')
@@ -314,7 +303,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
             }`}
           >
             <span className="mt-px shrink-0 text-brand-red">
-              <AlertCircleIcon size={16} />
+              <CircleAlert size={16} />
             </span>
             <span className="min-w-0 flex-1 text-[13px] font-medium break-words text-ink">
               {error}
@@ -326,7 +315,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
             busy ? (
               <>
                 <span className="animate-spin">
-                  <LoaderIcon />
+                  <Loader />
                 </span>
                 Создаём…
               </>
@@ -381,12 +370,12 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
                   <button
                     type="button"
                     aria-label={`Убрать ${user.login}`}
-                    className="flex size-5 items-center justify-center rounded-full text-ink-60 hover:bg-white"
+                    className="flex size-5 items-center justify-center rounded-full text-ink-60 hover:bg-surface"
                     onClick={() => {
                       toggleWatcher(user)
                     }}
                   >
-                    <CloseIcon size={12} />
+                    <X size={12} />
                   </button>
                 </li>
               ))}
@@ -419,7 +408,7 @@ export function TaskCreateSheet({ me, onCreated, onCancel }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Новая задача"
-        className={`flex max-h-full flex-col overflow-hidden bg-white ${
+        className={`flex max-h-full flex-col overflow-hidden bg-surface ${
           wide
             ? 'w-150 max-w-full rounded-2xl shadow-[0_12px_32px_#00000033]'
             : 'w-full rounded-t-2xl shadow-[0_-4px_24px_#00000026]'

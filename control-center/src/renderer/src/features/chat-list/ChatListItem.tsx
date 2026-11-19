@@ -16,7 +16,7 @@ interface ChatListItemProps {
 
 type Mode = 'normal' | 'rename' | 'confirmDelete'
 
-const actionButton = 'size-8 shrink-0 rounded-xl text-muted-foreground'
+const actionButton = 'size-8 shrink-0 rounded-xl text-ink-60'
 
 export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: ChatListItemProps) {
   const [mode, setMode] = useState<Mode>('normal')
@@ -41,11 +41,11 @@ export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: C
     }
   }
 
-  const errorText = error !== null && <p className="text-xs text-destructive">{error}</p>
+  const errorText = error !== null && <p className="text-xs text-brand-red-hover">{error}</p>
 
   if (mode === 'rename') {
     return (
-      <li className="flex flex-col gap-2.5 border-b bg-background px-4 py-3">
+      <li className="flex flex-col gap-2.5 border-b bg-surface px-4 py-3">
         <RenameThreadInput
           initialTitle={thread.title}
           disabled={busy}
@@ -63,7 +63,7 @@ export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: C
     <li
       className={cn(
         'flex flex-col gap-2.5 border-b px-4 py-3',
-        active ? 'bg-accent' : 'bg-background'
+        active ? 'bg-brand-red-soft' : 'bg-surface'
       )}
     >
       <div className="flex items-center gap-2">
@@ -79,11 +79,11 @@ export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: C
               <span
                 role="img"
                 aria-label="Агент отвечает"
-                className="size-2 shrink-0 animate-pulse rounded-full bg-destructive"
+                className="size-2 shrink-0 animate-pulse rounded-full bg-brand-red-hover"
               />
             )}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-ink-60">
             {formatActivity(thread.lastActivityAt)}
           </span>
         </button>
@@ -104,7 +104,7 @@ export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: C
           type="button"
           variant="ghost"
           size="icon"
-          className={cn(actionButton, mode === 'confirmDelete' && 'text-destructive')}
+          className={cn(actionButton, mode === 'confirmDelete' && 'text-brand-red-hover')}
           aria-label="Удалить чат"
           onClick={() => {
             setError(null)
@@ -120,7 +120,7 @@ export function ChatListItem({ thread, active, onSelect, onRename, onDelete }: C
             Удалить чат вместе с историей? Это необратимо.
           </p>
           {thread.running && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-brand-red-hover">
               Агент сейчас отвечает в этом чате, ответ будет прерван.
             </p>
           )}

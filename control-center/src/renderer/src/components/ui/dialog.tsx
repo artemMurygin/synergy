@@ -9,7 +9,7 @@ export const DialogDescription = DialogPrimitive.Description
 
 export const overlayClass = 'fixed inset-0 z-50 bg-black/40'
 export const dialogSurfaceClass =
-  'fixed top-1/2 left-1/2 z-50 max-h-[calc(100vh-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-background shadow-xl outline-none'
+  'fixed top-1/2 left-1/2 z-50 max-h-[calc(100vh-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-surface shadow-xl outline-none'
 
 /**
  * Radix returns focus only to a `Trigger` element. These dialogs are opened by arbitrary buttons,
@@ -45,7 +45,7 @@ export function DialogContent({ className, children, closeLabel = 'Закрыт�
         {children}
         <DialogPrimitive.Close
           aria-label={closeLabel}
-          className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-brand-red/40"
         >
           <X aria-hidden className="size-5" />
         </DialogPrimitive.Close>

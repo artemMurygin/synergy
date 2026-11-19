@@ -13,8 +13,8 @@ import {
 import * as notificationsApi from '@/lib/backend/notifications.api'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { useUiStore } from '@/stores/ui.store'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import { AppShell } from './AppShell'
-import { NavRail } from './NavRail'
 
 vi.mock('@/lib/backend/notifications.api')
 
@@ -28,7 +28,7 @@ let notificationsBridge: ReturnType<typeof installNotificationsBridgeMock>
 beforeEach(() => {
   notificationsBridge = installNotificationsBridgeMock()
   vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 })
-  useUiStore.setState({ section: 'chats', dark: false })
+  useUiStore.setState({ section: 'chats' })
   useSessionStore.setState({ snapshot: authenticatedSnapshot })
 })
 
@@ -44,7 +44,9 @@ function mount(tasks: () => void = () => {}) {
   }
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <AppShell rail={<NavRail />} chats={<Draft label="Сообщение" />} tasks={<Tasks />} />
+      <LayoutModeProvider mode="desktop">
+        <AppShell chats={<Draft label="Сообщение" />} tasks={<Tasks />} />
+      </LayoutModeProvider>
     </QueryClientProvider>
   )
   return userEvent.setup()
@@ -96,12 +98,11 @@ describe('AppShell', () => {
     expect(screen.getByLabelText('Фильтр задач')).toBeTruthy()
   })
 
-  it('puts the notifications button in the bottom group of the rail, above the theme toggle', () => {
+  it('puts the notifications button and the profile in the bottom group of the rail', () => {
     mount()
     const buttons = within(screen.getByRole('navigation')).getAllByRole('button')
     const labels = buttons.map((button) => button.getAttribute('aria-label') ?? button.textContent)
-    expect(labels.slice(0, 3)).toEqual(['Чаты', 'Задачи', 'Уведомления'])
-    expect(labels[3]).toBe('Тёмная тема')
+    expect(labels).toEqual(['Чаты', 'Задачи', 'Уведомления', 'Профиль: admin'])
   })
 
   it('streams notifications into toasts', () => {
@@ -110,6 +111,6 @@ describe('AppShell', () => {
       notificationsBridge.emitEvent({ type: 'notification.created', notification: makeNotification('1'), unreadCount: 1 })
     )
     const toaster = screen.getByRole('region', { name: 'Новые уведомления' })
-    expect(within(toaster).getByRole('group', { name: 'Уведомление 1' })).toBeTruthy()
+    expect(within(toaster).getByText('Уведомление 1')).toBeTruthy()
   })
 })

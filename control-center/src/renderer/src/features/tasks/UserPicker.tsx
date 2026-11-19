@@ -198,7 +198,7 @@ export function UserPicker(props: UserPickerProps) {
             aria-invalid={invalid || undefined}
             aria-describedby={describedBy}
             className={cn(
-              'flex h-12 w-full items-center gap-2.5 rounded-md border bg-background px-4 text-left text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex h-12 w-full items-center gap-2.5 rounded-md border bg-surface px-4 text-left text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40',
               invalid ? 'border-brand-red' : 'border-border-strong'
             )}
           >
@@ -227,7 +227,7 @@ export function UserPicker(props: UserPickerProps) {
                 type="button"
                 aria-label={`Убрать ${user.login}`}
                 onClick={() => props.onChange(props.value.filter((s) => s.id !== user.id))}
-                className="flex size-5 items-center justify-center rounded-full outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex size-5 items-center justify-center rounded-full outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-brand-red/40"
               >
                 <X aria-hidden className="size-3" />
               </button>

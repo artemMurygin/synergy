@@ -15,12 +15,12 @@ export const TableBody = (p: React.ComponentProps<'tbody'>) => (
   <tbody {...p} className={cn('[&_tr:last-child]:border-0', p.className)} />
 )
 export const TableRow = (p: React.ComponentProps<'tr'>) => (
-  <tr {...p} className={cn('border-b transition-colors hover:bg-muted/50', p.className)} />
+  <tr {...p} className={cn('border-b transition-colors hover:bg-surface-alt/50', p.className)} />
 )
 export const TableHead = (p: React.ComponentProps<'th'>) => (
   <th
     {...p}
-    className={cn('h-10 px-3 text-left align-middle font-medium text-muted-foreground', p.className)}
+    className={cn('h-10 px-3 text-left align-middle font-medium text-ink-60', p.className)}
   />
 )
 export const TableCell = (p: React.ComponentProps<'td'>) => (

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { LayoutModeProvider } from '@synergy/ui-kit'
 import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import type { AuthBridge, SessionSnapshotView } from '../../../../preload/auth-bridge'
@@ -64,6 +65,8 @@ export function createQueryClient(): QueryClient {
 
 export function createWrapper(client: QueryClient = createQueryClient()) {
   return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <LayoutModeProvider mode="desktop">{children}</LayoutModeProvider>
+    </QueryClientProvider>
   )
 }

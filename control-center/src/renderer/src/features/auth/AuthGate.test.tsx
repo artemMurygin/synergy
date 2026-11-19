@@ -48,7 +48,7 @@ describe('AuthGate', () => {
 
   it('passes the snapshot warning to the login form', async () => {
     mount({ state: 'unauthenticated', user: null, warning: 'Сервер недоступен' })
-    expect(await screen.findByText('Сервер недоступен')).toBeTruthy()
+    expect(await screen.findByText(/Сервер недоступен/)).toBeTruthy()
   })
 
   it('shows the change password dialog without children when a password change is required', async () => {

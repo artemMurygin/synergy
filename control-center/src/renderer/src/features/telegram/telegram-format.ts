@@ -19,3 +19,7 @@ export function formatLinkedAt(linkedAt: string): string {
 export function formatTelegramUsername(username: string | null | undefined): string | null {
   return username ? `@${username}` : null
 }
+
+export function telegramStatusLabel(status: { isLinked: boolean; username?: string | null }): string {
+  return status.isLinked ? (formatTelegramUsername(status.username) ?? 'Подключён') : 'Не подключён'
+}

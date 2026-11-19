@@ -21,7 +21,7 @@ function mount() {
   return userEvent.setup()
 }
 
-const bell = () => screen.getByRole('button', { name: 'Уведомления' })
+const bell = () => screen.getByRole('button', { name: /^Уведомления/ })
 
 beforeEach(() => {
   vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 5 })
@@ -42,7 +42,7 @@ describe('NotificationsButton', () => {
   it('shows the unread count from unreadCountQuery', async () => {
     mount()
     expect(await screen.findByText('5')).toBeTruthy()
-    expect(bell().textContent).toContain('5')
+    expect(bell().getAttribute('aria-label')).toBe('Уведомления, непрочитанных: 5')
   })
 
   it('hides the badge with no unread', async () => {
@@ -50,11 +50,6 @@ describe('NotificationsButton', () => {
     mount()
     await waitFor(() => expect(notificationsApi.getUnreadCount).toHaveBeenCalled())
     expect(bell().textContent).toBe('')
-  })
-
-  it('has a tooltip «Уведомления»', () => {
-    mount()
-    expect(screen.getByRole('tooltip', { hidden: true }).textContent).toBe('Уведомления')
   })
 
   it('opens the popover with the list on click', async () => {

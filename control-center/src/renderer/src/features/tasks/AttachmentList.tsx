@@ -182,7 +182,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
             type="button"
             aria-label="Закрыть сообщение"
             onClick={() => setProblems((list) => list.filter((item) => item.key !== problem.key))}
-            className="flex size-6 items-center justify-center rounded-full outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-6 items-center justify-center rounded-full outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-red/40"
           >
             <X aria-hidden className="size-3.5" />
           </button>
@@ -201,7 +201,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
               type="button"
               aria-label={`Скачать: ${attachment.originalName}`}
               onClick={() => void download(attachment)}
-              className="flex size-8 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-red/40"
             >
               <Download aria-hidden className="size-4" />
             </button>
@@ -209,7 +209,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
               type="button"
               aria-label={`Удалить вложение: ${attachment.originalName}`}
               onClick={() => setToDelete(attachment)}
-              className="flex size-8 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 items-center justify-center rounded-full text-ink-60 outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-brand-red/40"
             >
               <Trash2 aria-hidden className="size-4" />
             </button>
@@ -225,7 +225,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
                 type="button"
                 aria-label={`Отменить загрузку: ${item.name}`}
                 onClick={() => item.controller.abort()}
-                className="rounded text-[13px] font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded text-[13px] font-semibold text-brand-red outline-none hover:underline focus-visible:ring-2 focus-visible:ring-brand-red/40"
               >
                 Отменить
               </button>

@@ -20,7 +20,7 @@ export function FileCard({ file, downloading = false, onDownload }: FileCardProp
 
   if (file.status === 'deleted') {
     return (
-      <div aria-disabled="true" className={cn(ROW, 'cursor-default text-foreground opacity-60')}>
+      <div aria-disabled="true" className={cn(ROW, 'cursor-default text-ink opacity-60')}>
         <Icon aria-hidden className="size-5 shrink-0 text-ink-60" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{file.name}</p>
@@ -40,7 +40,7 @@ export function FileCard({ file, downloading = false, onDownload }: FileCardProp
       }}
       className={cn(
         ROW,
-        'text-foreground outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring'
+        'text-ink outline-none hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-brand-red/40'
       )}
     >
       <Icon aria-hidden className="size-5 shrink-0 text-ink-60" />
