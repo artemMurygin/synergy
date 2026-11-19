@@ -26,7 +26,7 @@ const M = A.models || {}
 const CHEAP = { model: M.cheap || 'haiku', effort: 'low' }
 const IMPL = { model: M.impl || 'sonnet' }
 const REV = { model: M.review || 'opus' }
-const PACKAGES = ['backend', 'portal', 'control-center', 'manager-helper']
+const PACKAGES = ['backend', 'portal', 'control-center', 'manager-helper', 'ui-kit']
 const CO_AUTHOR = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
 
 // ---------- схемы ----------
@@ -35,7 +35,7 @@ const PLAN_SCHEMA = {
   properties: {
     groups: { type: 'array', items: { type: 'object', properties: {
       n: { type: 'integer' }, title: { type: 'string' },
-      track: { type: 'string', description: 'backend | portal | control-center | manager-helper | integration | review' },
+      track: { type: 'string', description: 'backend | portal | control-center | manager-helper | ui-kit | integration | review' },
       depends: { type: 'array', items: { type: 'integer' } },
       specs: { type: 'array', items: { type: 'string' } },
       arch: { type: 'array', items: { type: 'string' } },
@@ -259,7 +259,7 @@ phase('Preflight')
 const pre = await agent([
   'Репозиторий ' + ROOT + ', change ' + CHANGE + '. Подготовь реализацию. Ничего не реализуй и не коммить.',
   '1. baseCommit: ' + (A.baseCommit ? 'используй ' + A.baseCommit : 'git rev-parse HEAD') + '.',
-  '2. Базовое состояние пакетов ' + (touched.join(', ') || '—') + ': в каждом `npm run typecheck 2>&1 | tail -20` и `npm test 2>&1 | tail -30`. В failing — тесты и ошибки, которые падают уже до изменений.',
+  '2. Базовое состояние пакетов ' + (touched.join(', ') || '—') + ': в каждом `npm run typecheck 2>&1 | tail -20` и `npm test 2>&1 | tail -30`. В failing — тесты и ошибки, которые падают уже до изменений. Если папки пакета ещё нет (его создаёт этот change, например ui-kit/), команды не запускай: failing пустой.',
   touched.includes('backend') ? '3. БД для тестов: проверь `docker ps`; если PostgreSQL backend не запущен, а Docker работает — `cd backend && npm run infra:up`. Проверь URL postgresql://audit:audit@127.0.0.1:5433/postgres (например, тестом миграции auth). Рабочий URL — в dbUrl, иначе пустая строка. Другие пароли и порты не подбирай. nextMigration — следующий номер в backend/db/migrations.' : '3. БД не нужна: dbUrl пустой.',
   needPencil ? '4. Pencil: ToolSearch select:mcp__pencil__get_app_state, затем get_app_state по ' + PEN + '. Работает — pencilAvailable=true.' : '4. Pencil не нужен: pencilAvailable=true.',
   '5. Создай ' + PACK + ' (каталог .apply создай; он в .gitignore). Объём — не больше ~8k токенов, только факты, без пересказа proposal. Разделы:',
@@ -331,7 +331,7 @@ phase('Regression')
 async function regression(pkg, phaseName) {
   const base = (pre.packages || []).find((p) => p.name === pkg)
   const regPrompt = [
-    'Репозиторий ' + ROOT + ', пакет ' + pkg + '/. Полная проверка: npm run typecheck, npm test' + (pkg === 'backend' || pkg === 'manager-helper' ? ', npm run lint' : '') + '. Вывод обрезай `2>&1 | tail -60`.',
+    'Репозиторий ' + ROOT + ', пакет ' + pkg + '/. Полная проверка: npm run typecheck, npm test' + (pkg === 'backend' || pkg === 'manager-helper' || pkg === 'ui-kit' ? ', npm run lint' : '') + '. Вывод обрезай `2>&1 | tail -60`.',
     pkg === 'backend' && pre.dbUrl ? 'Тесты запускай с PROGRAMS_ETL_TEST_ADMIN_URL=' + pre.dbUrl + '.' : '',
     'Падения, которые были до изменений (не считаются новыми): ' + list(base ? base.failing : []),
     'newFailures — только новые падения (имя теста или ошибка typecheck/lint с файлом). Ничего не исправляй.',
