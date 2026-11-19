@@ -1,0 +1,38 @@
+/* Токены UI Kit (design/design-kit.lib.pen), имена без префикса `t:`. Только светлая тема. */
+@theme {
+  --color-surface: #ffffff;
+  --color-surface-alt: #f5f5f6;
+  --color-surface-sunken: #ecedf0;
+  --color-border: #e0e1e5;
+  --color-border-strong: #cacacb;
+  --color-ink: #1c1c1c;
+  --color-ink-80: #3a3a3a;
+  --color-ink-60: #7e7f81;
+  --color-ink-40: #a8a9ac;
+  --color-brand-red: #ed131c;
+  --color-brand-red-hover: #c81018;
+  --color-brand-red-soft: #fde8e9;
+  --color-accent-blue: #4561c8;
+  --color-info: #2563d9;
+  --color-info-soft: #e9effc;
+  --color-success: #1e9e62;
+  --color-success-soft: #e6f4ec;
+  --color-warning: #e08a00;
+  --color-warning-soft: #fdf1dc;
+  --color-shadow-card: #0000000f;
+  --color-shadow-red: #66000033;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 100px;
+
+  --font-ui: 'Raleway Variable', sans-serif;
+  --font-display: 'Onest Variable', sans-serif;
+  --font-chat: 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+
+  --shadow-panel: 0 2px 12px #0000000f;
+}
