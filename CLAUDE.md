@@ -10,7 +10,7 @@
 | `portal/` | Веб-портал (Vite SPA) | React, React Router, TanStack Query, Zustand, Zod, Tailwind 4 | `portal/CLAUDE.md` |
 | `control-center/` | Десктоп-клиент | Electron (electron-vite), React, assistant-ui | `control-center/CLAUDE.md` |
 | `manager-helper/` | Расширение Chrome (боковая панель) | Vite + CRX, React, assistant-ui | `manager-helper/CLAUDE.md` |
-| `design/` | Макеты: `synergy-design.pen` (все экраны), `design-kit.lib.pen` (UI Kit) | Pencil | только через `mcp__pencil__*` |
+| `design/` | Макеты: `synergy-design.pen` (доски «Единый дизайн · 01–06» в режимах Desktop/Tablet/Mobile), `design-kit.lib.pen` (UI Kit: токены и мастера, имена токенов без `t:` = имена CSS-токенов кода) | Pencil | только через `mcp__pencil__*`, правила в `.claude/rules/design-system.md` |
 | `openspec/` | Спеки и change'и, schema `end-to-end-feature-design` | OpenSpec | `openspec/config.yaml` |
 
 Правила из `.claude/rules/` подключаются автоматически по путям файлов — не читай их вручную через `cat`.

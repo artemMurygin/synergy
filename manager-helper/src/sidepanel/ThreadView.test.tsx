@@ -22,9 +22,7 @@ class FakeAgent extends HttpAgent {
   override run(input: RunAgentInput): ReturnType<HttpAgent['run']> {
     this.inputs.push(input)
     this.stream = new Subject<BaseEvent>()
-    // @ag-ui/client bundles its own rxjs copy: the observable is compatible at runtime, not in types.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return this.stream.asObservable() as unknown as ReturnType<HttpAgent['run']>
+    return this.stream.asObservable()
   }
 }
 

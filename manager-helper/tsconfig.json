@@ -12,7 +12,7 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["chrome", "vite/client"],
+    "types": ["chrome", "node", "vite/client"],
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]
