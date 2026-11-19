@@ -185,4 +185,43 @@ describe('AgUiEventMapper', () => {
             expect(actual).toEqual(expected);
         });
     });
+
+    describe('user-message-saved', () => {
+        it('maps to CUSTOM user-message-saved with the message id', () => {
+            expect(newMapper().map(AgentEvent.userMessageSaved('42'))).toEqual([
+                {
+                    type: EventType.CUSTOM,
+                    name: 'user-message-saved',
+                    value: { messageId: '42' },
+                },
+            ]);
+        });
+
+        it('comes before RUN_STARTED and before the first text fragment', () => {
+            const mapper = newMapper();
+            const all = [
+                AgentEvent.userMessageSaved('42'),
+                AgentEvent.runStarted(),
+                AgentEvent.textDelta('Привет'),
+            ].flatMap((event) => mapper.map(event));
+            expect(types(all)).toEqual([
+                EventType.CUSTOM,
+                EventType.RUN_STARTED,
+                EventType.TEXT_MESSAGE_START,
+                EventType.TEXT_MESSAGE_CONTENT,
+            ]);
+        });
+
+        it('does not open a text message', () => {
+            const mapper = newMapper();
+            mapper.map(AgentEvent.userMessageSaved('42'));
+            expect(
+                types(
+                    mapper.map(
+                        AgentEvent.runFinished({ answer: '', toolCalls: [], durationMs: 1 }),
+                    ),
+                ),
+            ).toEqual([EventType.RUN_FINISHED]);
+        });
+    });
 });

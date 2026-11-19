@@ -53,6 +53,7 @@ import { MeetingTranscriptionProcessor } from './meeting/infrastructure/queue/me
 import { MeetingTranscriptRepository } from './meeting/infrastructure/persistence/meeting-transcript.repository';
 import { MeetingsAgentCapability } from './meeting/interface/agent/meetings-agent.capability';
 import { MeetingTranscriptsController } from './meeting/interface/http/meeting-transcripts.controller';
+import { VoiceTranscriptionsController } from './interface/http/voice-transcriptions.controller';
 import { TranscriptionModule } from './transcription.module';
 
 const values: Record<string, unknown> = {
@@ -179,13 +180,13 @@ describe('TranscriptionModule', () => {
         );
     });
 
-    it('serves the transcripts controller', () => {
+    it('serves the transcripts and voice controllers', () => {
         const controllers: unknown = Reflect.getMetadata(
             MODULE_METADATA.CONTROLLERS,
             TranscriptionModule,
         );
 
-        expect(controllers).toEqual([MeetingTranscriptsController]);
+        expect(controllers).toEqual([MeetingTranscriptsController, VoiceTranscriptionsController]);
     });
 
     it('wires the meeting transcription use cases and adapters', async () => {

@@ -47,6 +47,8 @@ describe('ChatMessage', () => {
                 durationMs: null,
                 attachments: [],
                 dedupKey: null,
+                agentCheckpointId: null,
+                rewindable: false,
                 createdAt,
             }),
         ).toThrow(InvalidChatMessageError);
@@ -88,6 +90,8 @@ describe('ChatMessage', () => {
             text: 't',
             attachments: [],
             dedupKey: 'k',
+            agentCheckpointId: null,
+            rewindable: false,
             createdAt,
         };
         expect(() =>
@@ -151,5 +155,54 @@ describe('MessageAttachment', () => {
                 status: 'active',
             }),
         ).toThrow();
+    });
+
+    it('a question created with a rewind point is rewindable and keeps the checkpoint', () => {
+        const message = ChatMessage.user({
+            id: 1,
+            sessionId: 's',
+            text: 'q',
+            createdAt,
+            rewind: { checkpointId: 'cp-1' },
+        });
+        expect(message.rewindable).toBe(true);
+        expect(message.agentCheckpointId).toBe('cp-1');
+    });
+
+    it('a question without a rewind point is not rewindable', () => {
+        const message = ChatMessage.user({ id: 1, sessionId: 's', text: 'q', createdAt });
+        expect(message.rewindable).toBe(false);
+        expect(message.agentCheckpointId).toBeNull();
+    });
+
+    it('a question of the first turn is rewindable with an empty checkpoint', () => {
+        const message = ChatMessage.user({
+            id: 1,
+            sessionId: 's',
+            text: 'q',
+            createdAt,
+            rewind: { checkpointId: null },
+        });
+        expect(message.rewindable).toBe(true);
+        expect(message.agentCheckpointId).toBeNull();
+    });
+
+    it('rejects a rewindable agent message', () => {
+        expect(() =>
+            ChatMessage.restore({
+                id: 1,
+                sessionId: 's',
+                role: 'agent',
+                source: 'run',
+                text: 'a',
+                toolCalls: [],
+                durationMs: 1,
+                attachments: [],
+                dedupKey: null,
+                agentCheckpointId: null,
+                rewindable: true,
+                createdAt,
+            }),
+        ).toThrow(InvalidChatMessageError);
     });
 });

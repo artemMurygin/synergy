@@ -98,7 +98,14 @@ export class AgentRunner extends AgentRunnerPort {
                     version: 'v2',
                     recursionLimit: options.maxSteps,
                     signal: AbortSignal.any([signal, timeoutSignal]),
-                    configurable: { thread_id: input.threadId, userId: scope.userId },
+                    configurable: {
+                        thread_id: input.threadId,
+                        userId: scope.userId,
+                        // A fork: the new checkpoint continues from this one, the old branch is left behind.
+                        ...(scope.fromCheckpointId === undefined
+                            ? {}
+                            : { checkpoint_id: scope.fromCheckpointId }),
+                    },
                 },
             );
             for await (const raw of events) {

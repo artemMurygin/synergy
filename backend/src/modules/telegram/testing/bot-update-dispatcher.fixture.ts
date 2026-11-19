@@ -57,7 +57,10 @@ export function testBotUpdateDispatcher(): BotUpdateDispatcher {
         new AssistantDialogReset(
             new ResetTelegramDialogUseCase(
                 new InMemoryChatSessionRepository(),
-                { deleteThread: () => Promise.resolve() },
+                {
+                    deleteThread: () => Promise.resolve(),
+                    latestCheckpointId: () => Promise.resolve(null),
+                },
                 new ActiveRunRegistry(),
             ),
         ),

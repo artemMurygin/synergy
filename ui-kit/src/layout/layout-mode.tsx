@@ -29,3 +29,8 @@ export function useLayoutMode(): LayoutMode {
   if (mode === null) throw new Error('useLayoutMode must be used inside LayoutModeProvider')
   return mode
 }
+
+/** Режим без исключения: `null`, когда провайдера нет (компонент пакета в тесте или в чужом дереве). */
+export function useOptionalLayoutMode(): LayoutMode | null {
+  return useContext(LayoutModeContext)
+}

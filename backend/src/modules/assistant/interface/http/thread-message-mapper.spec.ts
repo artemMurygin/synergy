@@ -20,6 +20,7 @@ describe('ThreadMessageMapper', () => {
                 content: 'Сколько стоит МВА?',
                 attachments: [],
                 source: 'run',
+                editable: false,
             },
         ]);
     });
@@ -156,5 +157,63 @@ describe('ThreadMessageMapper', () => {
                 ],
             },
         ]);
+    });
+
+    it('marks a question stored with a rewind point as editable and an old one as not', () => {
+        const fresh = ChatMessage.user({
+            id: 1,
+            sessionId: 's',
+            text: 'q',
+            createdAt,
+            rewind: { checkpointId: 'cp-1' },
+        });
+        const first = ChatMessage.user({
+            id: 2,
+            sessionId: 's',
+            text: 'q',
+            createdAt,
+            rewind: { checkpointId: null },
+        });
+        const old = ChatMessage.user({ id: 3, sessionId: 's', text: 'q', createdAt });
+        expect(
+            ThreadMessageMapper.toAgUi([fresh, first, old]).map(
+                (m) => 'editable' in m && m.editable,
+            ),
+        ).toEqual([true, true, false]);
+    });
+
+    it('does not give an agent message or a tool result the editable flag', () => {
+        const message = ChatMessage.agent({
+            id: 8,
+            sessionId: 's',
+            text: 'a',
+            toolCalls: [{ name: 'search', args: {}, durationMs: 400 }],
+            durationMs: 5,
+            createdAt,
+        });
+        for (const mapped of ThreadMessageMapper.toAgUi([message])) {
+            expect(mapped).not.toHaveProperty('editable');
+        }
+    });
+
+    it('gives each tool call its duration; calls stored before the field have none', () => {
+        const message = ChatMessage.agent({
+            id: 9,
+            sessionId: 's',
+            text: 'a',
+            toolCalls: [
+                { name: 'search', args: {}, durationMs: 400 },
+                { name: 'read', args: {} },
+            ],
+            durationMs: 5,
+            createdAt,
+        });
+        const [assistant] = ThreadMessageMapper.toAgUi([message]);
+        const calls = 'toolCalls' in assistant ? (assistant.toolCalls ?? []) : [];
+        expect(calls.map((call) => ('durationMs' in call ? call.durationMs : undefined))).toEqual([
+            400,
+            undefined,
+        ]);
+        expect(calls[1]).not.toHaveProperty('durationMs');
     });
 });

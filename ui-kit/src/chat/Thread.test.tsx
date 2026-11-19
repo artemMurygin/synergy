@@ -164,4 +164,44 @@ describe('Thread', () => {
     mount(withTools, {}, 'найди')
     expect(await screen.findByRole('button', { name: /1 вызов инструментов/ })).toBeTruthy()
   })
+
+  it('shows the welcome cards of a new chat', () => {
+    mount(answering('x'))
+    expect(screen.getByRole('button', { name: /Цены на программу/ })).toBeTruthy()
+  })
+
+  it('shows the conflict notice when the agent still answers', () => {
+    mount(answering('x'), { runConflict: true })
+    expect(screen.getByRole('status').textContent).toContain('дождитесь ответа или остановите его')
+  })
+
+  it('with connection offline shows the banner, blocks the field and keeps the draft', async () => {
+    const onProbe = vi.fn()
+    const view = render(
+      <RuntimeHarness adapter={answering('x')}>
+        <Subject connection="online" onProbe={onProbe} />
+      </RuntimeHarness>,
+    )
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox'), 'черновик')
+    view.rerender(
+      <RuntimeHarness adapter={answering('x')}>
+        <Subject connection="offline" onProbe={onProbe} connectionHint="Проверьте адрес бэкенда" />
+      </RuntimeHarness>,
+    )
+    expect(screen.getByText('Сервер недоступен')).toBeTruthy()
+    expect(screen.getByText('Проверьте адрес бэкенда')).toBeTruthy()
+    const field = screen.getByRole<HTMLTextAreaElement>('textbox')
+    expect(field.disabled).toBe(true)
+    expect(field.placeholder).toBe('Нет связи с сервером')
+    expect(field.value).toBe('черновик')
+    await user.click(screen.getByRole('button', { name: 'Повторить' }))
+    expect(onProbe).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no "Копировать" under the answer of the agent', async () => {
+    mount(answering('ответ'), {}, 'вопрос')
+    await screen.findByText('ответ')
+    expect(screen.getAllByRole('button', { name: 'Копировать' })).toHaveLength(1)
+  })
 })

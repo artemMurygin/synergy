@@ -10,6 +10,7 @@ import {
     Post,
     Req,
     Res,
+    UnprocessableEntityException,
     UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -24,11 +25,13 @@ import {
     ChatAttachmentNotFoundError,
 } from '../../domain/chat-attachment.errors';
 import { ChatSessionNotFoundError } from '../../domain/chat-session-not-found.error';
+import { MessageNotFoundError } from '../../domain/message-not-found.error';
+import { MessageNotRewindableError } from '../../domain/message-not-rewindable.error';
 import { RunConflictError } from '../../domain/run-conflict.error';
 import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/http/decorators';
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
 import { AgUiEventMapper } from './ag-ui-event-mapper';
-import { ClientAppGuard } from './client-app.guard';
+import { ClientAppGuard } from '../../../../shared/http/client-app.guard';
 import { ClientResolver } from './client-resolver';
 import { assertChatSessionIdFormat } from './chat-session-id';
 import { ownerOf } from './owner-of';
@@ -42,7 +45,10 @@ const messageSchema = z
     })
     .loose();
 const forwardedPropsSchema = z
-    .object({ fileIds: z.array(z.uuid()).optional() })
+    .object({
+        fileIds: z.array(z.uuid()).optional(),
+        replaceFromMessageId: z.string().min(1).optional(),
+    })
     .loose()
     .optional();
 const runInputSchema = z
@@ -96,6 +102,12 @@ export class AgentController {
         type: ApiErrorResponse,
     })
     @ApiResponse({
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        description:
+            'forwardedProps.replaceFromMessageId names a question that cannot be edited (code MESSAGE_NOT_EDITABLE)',
+        type: ApiErrorResponse,
+    })
+    @ApiResponse({
         status: HttpStatus.GONE,
         description: 'An attached file is deleted: its retention period is over',
         type: ApiErrorResponse,
@@ -125,20 +137,36 @@ export class AgentController {
             );
         }
         const { threadId, runId } = parsed.data;
+        const replaceFromMessageId = parsed.data.forwardedProps?.replaceFromMessageId;
         assertChatSessionIdFormat(threadId);
 
         const observer = new SseRunObserver(res, new AgUiEventMapper({ threadId, runId }));
         try {
             await this.startRun.execute(
                 ownerId,
-                { threadId, runId, question, fileIds },
+                {
+                    threadId,
+                    runId,
+                    question,
+                    fileIds,
+                    ...(replaceFromMessageId === undefined ? {} : { replaceFromMessageId }),
+                },
                 observer,
                 client,
             );
         } catch (error) {
             if (error instanceof InvalidQuestionError) throw new BadRequestException(error.message);
-            if (error instanceof ChatSessionNotFoundError) {
+            if (
+                error instanceof ChatSessionNotFoundError ||
+                error instanceof MessageNotFoundError
+            ) {
                 throw new NotFoundException(error.message);
+            }
+            if (error instanceof MessageNotRewindableError) {
+                throw new UnprocessableEntityException({
+                    message: 'Это сообщение нельзя изменить',
+                    code: 'MESSAGE_NOT_EDITABLE',
+                });
             }
             if (error instanceof ChatAttachmentNotFoundError) {
                 throw new NotFoundException({

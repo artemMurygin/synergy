@@ -1,7 +1,8 @@
 import { MessagePrimitive, useAuiState } from '@assistant-ui/react'
-import { Bell, CircleAlert, Square } from '../icons'
+import { Bell } from '../icons'
 import { MessageAttachments } from './attachments/MessageAttachments'
 import { messageFiles, messageSource } from './attachments/message-files'
+import { cn } from '../lib/cn'
 import { MarkdownText } from './MarkdownText'
 import { RunNotice } from './RunNotice'
 import { useThreadActions } from './thread-context'
@@ -24,14 +25,16 @@ function errorText(error: unknown): string {
  */
 export function AssistantMessage() {
   const message = useAuiState((s) => s.message)
-  const { onRetry, onDownload, pendingDownloads } = useThreadActions()
+  const { onRetry, onDownload, pendingDownloads, editingMessageId } = useThreadActions()
+  const replaced = editingMessageId != null && message.parentId === editingMessageId
   const { status } = message
   const system = messageSource(message) === 'system'
   const failed = !system && status?.type === 'incomplete' && status.reason === 'error'
   const stopped = !system && status?.type === 'incomplete' && status.reason === 'cancelled'
 
   return (
-    <MessagePrimitive.Root className="flex w-full flex-col gap-1.5">
+    <MessagePrimitive.Root className={cn('flex w-full flex-col gap-1.5', replaced && 'opacity-40')}>
+      {replaced && <span className="self-start font-chat text-xs text-ink-60">Будет заменён</span>}
       {system && (
         <span className="flex items-center gap-1.5 self-start font-chat text-xs text-ink-60">
           <Bell size={14} />
@@ -55,28 +58,8 @@ export function AssistantMessage() {
         pending={pendingDownloads}
         onDownload={onDownload ?? (() => undefined)}
       />
-      {failed && (
-        <RunNotice
-          tone="error"
-          role="alert"
-          icon={<CircleAlert size={18} />}
-          title="Не удалось получить ответ"
-          text={errorText(status.error)}
-          actionLabel="Повторить"
-          onAction={onRetry}
-        />
-      )}
-      {stopped && (
-        <RunNotice
-          tone="neutral"
-          role="status"
-          icon={<Square size={18} />}
-          title="Ответ остановлен"
-          text="Показана полученная часть. В историю чата она не сохранена."
-          actionLabel="Повторить вопрос"
-          onAction={onRetry}
-        />
-      )}
+      {failed && <RunNotice kind="error" text={errorText(status.error)} onRetry={onRetry} />}
+      {stopped && <RunNotice kind="stopped" onRetry={onRetry} />}
     </MessagePrimitive.Root>
   )
 }

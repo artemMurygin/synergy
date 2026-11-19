@@ -141,6 +141,8 @@ describe('ChatMessage', () => {
                 durationMs: 5,
                 attachments: [],
                 dedupKey: null,
+                agentCheckpointId: null,
+                rewindable: false,
                 createdAt: NOW,
             }),
         ).toThrow();

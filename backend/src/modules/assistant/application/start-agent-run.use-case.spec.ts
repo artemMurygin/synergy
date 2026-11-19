@@ -16,6 +16,9 @@ import type { ChatSessionRepositoryPort } from '../domain/ports/chat-session-rep
 import type { ChatThreadPort } from '../domain/ports/chat-thread.port';
 import type { AgentRunnerPort } from '../domain/ports/agent-runner.port';
 import { RunConflictError } from '../domain/run-conflict.error';
+import { MessageNotFoundError } from '../domain/message-not-found.error';
+import { MessageNotRewindableError } from '../domain/message-not-rewindable.error';
+import type { RewindPoint } from '../domain/rewind-point';
 import { MAX_QUESTION_LENGTH, type RunInput } from '../domain/run-input';
 import {
     InvalidQuestionError,
@@ -63,6 +66,9 @@ interface Setup {
     findOwned: Mock;
     appendUserMessage: Mock;
     appendAgentAnswer: Mock;
+    findRewindPoint: Mock;
+    replaceFrom: Mock;
+    latestCheckpointId: Mock;
     stream: Mock;
     deleteThread: Mock;
     findFiles: Mock;
@@ -102,9 +108,17 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         calls.push('find');
         return Promise.resolve(session);
     });
-    const appendUserMessage = vi.fn(() => {
+    const appendUserMessage = vi.fn((..._args: unknown[]) => {
         calls.push('appendUser');
-        return Promise.resolve({});
+        return Promise.resolve({ id: 7 });
+    });
+    const findRewindPoint = vi.fn((..._args: unknown[]): Promise<RewindPoint> => {
+        calls.push('findRewindPoint');
+        return Promise.resolve({ messageId: '5', attachments: [], checkpointId: 'cp-1' });
+    });
+    const replaceFrom = vi.fn((..._args: unknown[]) => {
+        calls.push('replaceFrom');
+        return Promise.resolve({ id: 9 });
     });
     const appendAgentAnswer = vi.fn(() => {
         calls.push('appendAgent');
@@ -119,6 +133,8 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         findOwned,
         appendUserMessage,
         appendAgentAnswer,
+        findRewindPoint,
+        replaceFrom,
     } as unknown as ChatSessionRepositoryPort;
 
     const stream = vi.fn((_input: unknown, signal: AbortSignal, _scope: unknown) => {
@@ -127,8 +143,15 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
     });
     const assistant = { stream } as unknown as AgentRunnerPort;
 
-    const deleteThread = vi.fn().mockResolvedValue(undefined);
-    const threads = { deleteThread } as unknown as ChatThreadPort;
+    const deleteThread = vi.fn((..._args: unknown[]) => {
+        calls.push('deleteThread');
+        return Promise.resolve();
+    });
+    const latestCheckpointId = vi.fn((..._args: unknown[]) => {
+        calls.push('latestCheckpointId');
+        return Promise.resolve<string | null>('cp-latest');
+    });
+    const threads = { deleteThread, latestCheckpointId } as unknown as ChatThreadPort;
 
     const findFiles = vi.fn((_ownerId: string, fileIds: readonly string[]) => {
         calls.push('findFiles');
@@ -171,6 +194,9 @@ function setup(options: { session?: ChatSession | null; stream?: StreamFn } = {}
         findOwned,
         appendUserMessage,
         appendAgentAnswer,
+        findRewindPoint,
+        replaceFrom,
+        latestCheckpointId,
         stream,
         deleteThread,
         findFiles,
@@ -278,7 +304,9 @@ describe('StartAgentRunUseCase', () => {
         const { useCase, observer, closed, calls, appendUserMessage, stream } = setup();
         await useCase.execute(OWNER, input('  Сколько стоит?  '), observer);
         await closed;
-        expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, 'Сколько стоит?', []);
+        expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, 'Сколько стоит?', [], {
+            checkpointId: 'cp-latest',
+        });
         expect(calls.indexOf('appendUser')).toBeLessThan(calls.indexOf('stream'));
         const passed = stream.mock.calls[0]?.[0] as { question: string; threadId: string };
         expect(passed).toMatchObject({ question: 'Сколько стоит?', threadId: 's1', runId: 'r1' });
@@ -322,7 +350,12 @@ describe('StartAgentRunUseCase', () => {
         });
         await useCase.execute(OWNER, input(), observer);
         await closed;
-        expect(events).toEqual([AgentEvent.runStarted(), delta, FINISHED]);
+        expect(events).toEqual([
+            AgentEvent.userMessageSaved('7'),
+            AgentEvent.runStarted(),
+            delta,
+            FINISHED,
+        ]);
     });
 
     it('stores the answer with an auto title on run-finished and marks the run finished', async () => {
@@ -527,12 +560,12 @@ describe('StartAgentRunUseCase', () => {
         };
         const run = await useCase.execute(OWNER, input(), observer);
         await vi.waitFor(() => {
-            expect(received).toHaveLength(1);
+            expect(received).toHaveLength(2);
         });
         attached = false; // detach: the connection is gone
         gate.resolve();
         await done.promise;
-        expect(received).toEqual([AgentEvent.runStarted()]);
+        expect(received).toEqual([AgentEvent.userMessageSaved('7'), AgentEvent.runStarted()]);
         expect(run.status).toBe('finished');
         expect(appendAgentAnswer).toHaveBeenCalledOnce();
         expect(runs.size).toBe(0);
@@ -551,7 +584,7 @@ describe('StartAgentRunUseCase', () => {
             },
         });
         await done.promise;
-        expect(next).toHaveBeenCalledTimes(2);
+        expect(next).toHaveBeenCalledTimes(3);
         expect(run.status).toBe('finished');
         expect(appendAgentAnswer).toHaveBeenCalledOnce();
         expect(runs.size).toBe(0);
@@ -610,7 +643,9 @@ describe('StartAgentRunUseCase', () => {
             await useCase.execute(OWNER, withFiles(['f1', 'f2']), observer);
             await closed;
             expect(findFiles).toHaveBeenCalledWith(OWNER, ['f1', 'f2']);
-            expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, '', ['f1', 'f2']);
+            expect(appendUserMessage).toHaveBeenCalledWith('s1', OWNER, '', ['f1', 'f2'], {
+                checkpointId: 'cp-latest',
+            });
             expect(calls.indexOf('findFiles')).toBeLessThan(calls.indexOf('tryStart'));
             const passed = stream.mock.calls[0]?.[0] as RunInput;
             expect(passed.attachments.map((a) => a.fileId)).toEqual(['f1', 'f2']);
@@ -696,6 +731,7 @@ describe('StartAgentRunUseCase', () => {
             await useCase.execute(OWNER, input(), observer);
             await closed;
             expect(events.map((e) => e.type)).toEqual([
+                'user-message-saved',
                 'run-started',
                 'file-attached',
                 'run-finished',
@@ -712,6 +748,227 @@ describe('StartAgentRunUseCase', () => {
             await useCase.execute(OWNER, input(), observer);
             await closed;
             expect(appendAgentAnswer).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('saving the question', () => {
+        it('writes the latest checkpoint as the rewind point of an ordinary question', async () => {
+            const { useCase, observer, closed, calls, latestCheckpointId, appendUserMessage } =
+                setup();
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(latestCheckpointId).toHaveBeenCalledWith('s1');
+            expect(calls.indexOf('latestCheckpointId')).toBeLessThan(calls.indexOf('appendUser'));
+            expect(appendUserMessage.mock.calls[0]?.[4]).toEqual({ checkpointId: 'cp-latest' });
+        });
+
+        it('writes an empty rewind point when the chat has no agent context yet', async () => {
+            const { useCase, observer, closed, latestCheckpointId, appendUserMessage } = setup();
+            latestCheckpointId.mockResolvedValueOnce(null);
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(appendUserMessage.mock.calls[0]?.[4]).toEqual({ checkpointId: null });
+        });
+
+        it('sends user-message-saved with the id of the stored question before everything else', async () => {
+            const { useCase, observer, closed, events } = setup();
+            await useCase.execute(OWNER, input(), observer);
+            await closed;
+            expect(events[0]).toEqual(AgentEvent.userMessageSaved('7'));
+            expect(events[1]?.type).toBe('run-started');
+        });
+
+        it('does not send user-message-saved when storing the question failed', async () => {
+            const { useCase, observer, appendUserMessage, events, runs } = setup();
+            appendUserMessage.mockRejectedValueOnce(new Error('db down'));
+            await expect(useCase.execute(OWNER, input(), observer)).rejects.toThrow('db down');
+            expect(events).toEqual([]);
+            expect(runs.size).toBe(0);
+        });
+
+        it('releases the registry when reading the checkpoint failed', async () => {
+            const { useCase, observer, latestCheckpointId, appendUserMessage, runs, stream } =
+                setup();
+            latestCheckpointId.mockRejectedValueOnce(new Error('pg down'));
+            await expect(useCase.execute(OWNER, input(), observer)).rejects.toThrow('pg down');
+            expect(appendUserMessage).not.toHaveBeenCalled();
+            expect(stream).not.toHaveBeenCalled();
+            expect(runs.size).toBe(0);
+        });
+    });
+
+    describe('restart from a message (replaceFromMessageId)', () => {
+        const restart = (question = 'Новый вопрос', fileIds?: string[]): StartAgentRunProps => ({
+            ...input(question),
+            replaceFromMessageId: '5',
+            ...(fileIds === undefined ? {} : { fileIds }),
+        });
+
+        it('replaces the question, keeps the rewind point and starts the agent from its checkpoint', async () => {
+            const { useCase, observer, closed, replaceFrom, appendUserMessage, stream, calls } =
+                setup();
+            await useCase.execute(OWNER, restart(), observer);
+            await closed;
+            expect(replaceFrom).toHaveBeenCalledWith('s1', OWNER, '5', {
+                text: 'Новый вопрос',
+                attachments: [],
+                checkpointId: 'cp-1',
+            });
+            expect(appendUserMessage).not.toHaveBeenCalled();
+            expect(stream.mock.calls[0]?.[2]).toEqual({
+                userId: OWNER,
+                client: 'app',
+                fromCheckpointId: 'cp-1',
+            });
+            const order = ['tryStart', 'findRewindPoint', 'replaceFrom', 'stream'];
+            expect(order.map((name) => calls.indexOf(name))).toEqual(
+                [...order.map((name) => calls.indexOf(name))].sort((a, b) => a - b),
+            );
+        });
+
+        it('sends user-message-saved with the id of the new question right after saving it', async () => {
+            const { useCase, observer, closed, events } = setup();
+            await useCase.execute(OWNER, restart(), observer);
+            await closed;
+            expect(events[0]).toEqual(AgentEvent.userMessageSaved('9'));
+            expect(events[1]?.type).toBe('run-started');
+        });
+
+        it('answers 409 for an active run before anything is read or written', async () => {
+            const { useCase, observer, runs, findRewindPoint, replaceFrom, deleteThread, stream } =
+                setup();
+            runs.set('s1', AgentRun.start({ threadId: 's1', runId: 'other' }));
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toBeInstanceOf(
+                RunConflictError,
+            );
+            expect(findRewindPoint).not.toHaveBeenCalled();
+            expect(replaceFrom).not.toHaveBeenCalled();
+            expect(deleteThread).not.toHaveBeenCalled();
+            expect(stream).not.toHaveBeenCalled();
+            expect(runs.get('s1')?.runId).toBe('other');
+        });
+
+        it('MessageNotFoundError: nothing is written and the registry is released', async () => {
+            const { useCase, observer, findRewindPoint, replaceFrom, runs, stream } = setup();
+            findRewindPoint.mockRejectedValueOnce(new MessageNotFoundError('5'));
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toBeInstanceOf(
+                MessageNotFoundError,
+            );
+            expect(replaceFrom).not.toHaveBeenCalled();
+            expect(stream).not.toHaveBeenCalled();
+            expect(runs.size).toBe(0);
+        });
+
+        it('MessageNotRewindableError: nothing is written and the registry is released', async () => {
+            const { useCase, observer, findRewindPoint, replaceFrom, runs } = setup();
+            findRewindPoint.mockRejectedValueOnce(new MessageNotRewindableError('5'));
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toBeInstanceOf(
+                MessageNotRewindableError,
+            );
+            expect(replaceFrom).not.toHaveBeenCalled();
+            expect(runs.size).toBe(0);
+        });
+
+        it('a failure of replaceFrom releases the registry and does not start the agent', async () => {
+            const { useCase, observer, replaceFrom, runs, stream, events } = setup();
+            replaceFrom.mockRejectedValueOnce(new Error('db down'));
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toThrow('db down');
+            expect(stream).not.toHaveBeenCalled();
+            expect(events).toEqual([]);
+            expect(runs.size).toBe(0);
+        });
+
+        it('deletes the agent thread and starts without a checkpoint when the question opened the context', async () => {
+            const { useCase, observer, closed, findRewindPoint, deleteThread, stream, calls } =
+                setup();
+            findRewindPoint.mockResolvedValueOnce({
+                messageId: '5',
+                attachments: [],
+                checkpointId: null,
+            });
+            await useCase.execute(OWNER, restart(), observer);
+            await closed;
+            expect(deleteThread).toHaveBeenCalledWith('s1');
+            expect(calls.indexOf('replaceFrom')).toBeLessThan(calls.indexOf('deleteThread'));
+            expect(calls.indexOf('deleteThread')).toBeLessThan(calls.indexOf('stream'));
+            expect(stream.mock.calls[0]?.[2]).toEqual({ userId: OWNER, client: 'app' });
+        });
+
+        it('does not delete the thread when there is a checkpoint', async () => {
+            const { useCase, observer, closed, deleteThread } = setup();
+            await useCase.execute(OWNER, restart(), observer);
+            await closed;
+            expect(deleteThread).not.toHaveBeenCalled();
+        });
+
+        it('failing to delete the thread releases the registry and does not start the agent', async () => {
+            const { useCase, observer, findRewindPoint, deleteThread, runs, stream } = setup();
+            findRewindPoint.mockResolvedValueOnce({
+                messageId: '5',
+                attachments: [],
+                checkpointId: null,
+            });
+            deleteThread.mockRejectedValueOnce(new Error('pg down'));
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toThrow('pg down');
+            expect(stream).not.toHaveBeenCalled();
+            expect(runs.size).toBe(0);
+        });
+
+        it('takes the files from the original message and ignores fileIds of the request', async () => {
+            const { useCase, observer, closed, findRewindPoint, replaceFrom, findFiles, stream } =
+                setup();
+            findRewindPoint.mockResolvedValueOnce({
+                messageId: '5',
+                attachments: ['old-1', 'old-2'],
+                checkpointId: 'cp-1',
+            });
+            await useCase.execute(OWNER, restart('Вопрос', ['other-file']), observer);
+            await closed;
+            expect(findFiles).toHaveBeenCalledWith(OWNER, ['old-1', 'old-2']);
+            expect(replaceFrom.mock.calls[0]?.[3]).toMatchObject({
+                attachments: ['old-1', 'old-2'],
+            });
+            const passed = stream.mock.calls[0]?.[0] as RunInput;
+            expect(passed.attachments.map((file) => file.fileId)).toEqual(['old-1', 'old-2']);
+        });
+
+        it('does not change the title of the chat', async () => {
+            const { useCase, observer, closed, appendAgentAnswer } = setup();
+            await useCase.execute(OWNER, restart(), observer);
+            await closed;
+            expect(appendAgentAnswer).toHaveBeenCalledOnce();
+            expect(appendAgentAnswer.mock.calls[0]?.[3]).toBeUndefined();
+        });
+
+        it('rejects an empty question without files and releases the registry', async () => {
+            const { useCase, observer, replaceFrom, runs } = setup();
+            await expect(useCase.execute(OWNER, restart('  '), observer)).rejects.toBeInstanceOf(
+                InvalidQuestionError,
+            );
+            expect(replaceFrom).not.toHaveBeenCalled();
+            expect(runs.size).toBe(0);
+        });
+
+        it('a foreign chat is not found before the registry is touched', async () => {
+            const { useCase, observer, tryStart, findRewindPoint } = setup({ session: null });
+            await expect(useCase.execute(OWNER, restart(), observer)).rejects.toBeInstanceOf(
+                ChatSessionNotFoundError,
+            );
+            expect(tryStart).not.toHaveBeenCalled();
+            expect(findRewindPoint).not.toHaveBeenCalled();
+        });
+
+        it('repeating the restart with the new id keeps one question: it replaces, it never adds', async () => {
+            const { useCase, observer, closed, appendUserMessage, replaceFrom } = setup();
+            await useCase.execute(
+                OWNER,
+                { ...restart('Тот же текст'), replaceFromMessageId: '9' },
+                observer,
+            );
+            await closed;
+            expect(replaceFrom).toHaveBeenCalledTimes(1);
+            expect(replaceFrom.mock.calls[0]?.[2]).toBe('9');
+            expect(appendUserMessage).not.toHaveBeenCalled();
         });
     });
 });

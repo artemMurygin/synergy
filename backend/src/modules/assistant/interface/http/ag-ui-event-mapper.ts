@@ -2,6 +2,7 @@ import { EventType, type BaseEvent } from '@ag-ui/core';
 import type { AgentEvent } from '../../domain/agent-event';
 
 export const FILE_ATTACHED_EVENT_NAME = 'file-attached';
+export const USER_MESSAGE_SAVED_EVENT_NAME = 'user-message-saved';
 
 export interface AgUiRunContext {
     readonly threadId: string;
@@ -17,6 +18,15 @@ export class AgUiEventMapper {
 
     map(event: AgentEvent): BaseEvent[] {
         switch (event.type) {
+            case 'user-message-saved':
+                // Before RUN_STARTED; clients that do not know CUSTOM ignore it.
+                return [
+                    {
+                        type: EventType.CUSTOM,
+                        name: USER_MESSAGE_SAVED_EVENT_NAME,
+                        value: { messageId: event.messageId },
+                    },
+                ];
             case 'run-started':
                 return [{ type: EventType.RUN_STARTED, ...this.context }];
             case 'text-delta':

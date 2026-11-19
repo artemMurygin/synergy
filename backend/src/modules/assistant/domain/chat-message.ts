@@ -19,6 +19,10 @@ export interface ChatMessageProps {
     readonly attachments: readonly MessageAttachment[];
     /** Idempotency key of a system message; null for other messages. */
     readonly dedupKey: string | null;
+    /** Last agent checkpoint before a rewindable question; null otherwise. */
+    readonly agentCheckpointId: string | null;
+    /** Whether the answer can be restarted from this question (only questions stored with a rewind point). */
+    readonly rewindable: boolean;
     readonly createdAt: Date;
 }
 
@@ -49,6 +53,9 @@ function validate(props: ChatMessageProps): ChatMessageProps {
             );
         }
     }
+    if (props.rewindable && props.role !== 'user') {
+        throw new InvalidChatMessageError('Only a user message can be rewindable');
+    }
     if (props.source === 'system' && (props.toolCalls !== null || props.durationMs !== null)) {
         throw new InvalidChatMessageError('A system message has no toolCalls and no durationMs');
     }
@@ -65,15 +72,21 @@ export class ChatMessage {
         this.props = validate(props);
     }
 
-    static user(input: NewMessageBase): ChatMessage {
+    /** A question; `rewind` marks it as rewindable with the checkpoint that precedes it. */
+    static user(
+        input: NewMessageBase & { readonly rewind?: { readonly checkpointId: string | null } },
+    ): ChatMessage {
+        const { rewind, ...base } = input;
         return new ChatMessage({
-            ...input,
+            ...base,
             role: 'user',
             source: 'run',
             toolCalls: null,
             durationMs: null,
             attachments: input.attachments ?? [],
             dedupKey: null,
+            agentCheckpointId: rewind?.checkpointId ?? null,
+            rewindable: rewind !== undefined,
         });
     }
 
@@ -89,6 +102,8 @@ export class ChatMessage {
             source: 'run',
             attachments: input.attachments ?? [],
             dedupKey: null,
+            agentCheckpointId: null,
+            rewindable: false,
         });
     }
 
@@ -101,6 +116,8 @@ export class ChatMessage {
             toolCalls: null,
             durationMs: null,
             attachments: input.attachments ?? [],
+            agentCheckpointId: null,
+            rewindable: false,
         });
     }
 
@@ -135,6 +152,12 @@ export class ChatMessage {
     }
     get dedupKey(): string | null {
         return this.props.dedupKey;
+    }
+    get agentCheckpointId(): string | null {
+        return this.props.agentCheckpointId;
+    }
+    get rewindable(): boolean {
+        return this.props.rewindable;
     }
     get createdAt(): Date {
         return this.props.createdAt;

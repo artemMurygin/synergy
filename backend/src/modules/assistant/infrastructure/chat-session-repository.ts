@@ -16,6 +16,9 @@ import {
     type SystemMessageInput,
 } from '../domain/ports/chat-session-repository.port';
 import type { AssistantAnswer } from '../domain/ports/agent-runner.port';
+import { MessageNotFoundError } from '../domain/message-not-found.error';
+import { MessageNotRewindableError } from '../domain/message-not-rewindable.error';
+import type { ReplacementMessage, RewindPoint } from '../domain/rewind-point';
 
 const timestamp = z.union([z.number(), z.string(), z.date()]).transform((v) => new Date(v));
 
@@ -29,7 +32,9 @@ const sessionRow = z.object({
     last_activity_at: timestamp,
 });
 
-const toolCallsSchema = z.array(z.object({ name: z.string(), args: z.unknown() }));
+const toolCallsSchema = z.array(
+    z.object({ name: z.string(), args: z.unknown(), durationMs: z.number().optional() }),
+);
 
 const messageRow = z.object({
     id: z.coerce.number(),
@@ -40,7 +45,15 @@ const messageRow = z.object({
     duration_ms: z.number().nullable(),
     source: z.enum(MESSAGE_SOURCES),
     dedup_key: z.string().nullable(),
+    agent_checkpoint_id: z.string().nullable(),
+    rewindable: z.boolean(),
     created_at: timestamp,
+});
+
+const rewindRow = z.object({
+    id: z.coerce.number(),
+    rewindable: z.boolean(),
+    agent_checkpoint_id: z.string().nullable(),
 });
 
 const attachmentRow = z.object({
@@ -61,6 +74,7 @@ const SESSION_COLUMNS = sql.fragment`
 
 const MESSAGE_COLUMNS = sql.fragment`
     id, session_id, role, text, tool_calls, duration_ms, source, dedup_key,
+    agent_checkpoint_id, rewindable,
     (extract(epoch FROM created_at) * 1000)::float8 AS created_at`;
 
 // The file status is never copied into the history: it is read from stored_file.
@@ -109,6 +123,8 @@ function toMessage(raw: unknown, attachments: readonly MessageAttachment[] = [])
         durationMs: row.duration_ms,
         attachments,
         dedupKey: row.dedup_key,
+        agentCheckpointId: row.agent_checkpoint_id,
+        rewindable: row.rewindable,
         createdAt: row.created_at,
     });
 }
@@ -215,18 +231,60 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
         ownerId: string,
         text: string,
         attachments: readonly string[] = [],
+        rewind?: { readonly checkpointId: string | null },
     ): Promise<ChatMessage> {
         return this.transactions.run(async () => {
             const { db } = this;
             const row = await db.maybeOne(sql.unsafe`
-                INSERT INTO chat_message (session_id, role, text)
-                SELECT id, 'user', ${text} FROM chat_session
+                INSERT INTO chat_message (session_id, role, text, agent_checkpoint_id, rewindable)
+                SELECT id, 'user', ${text}, ${rewind?.checkpointId ?? null}, ${rewind !== undefined}
+                FROM chat_session
                 WHERE id = ${sessionId} AND owner_id = ${ownerId}
                 RETURNING ${MESSAGE_COLUMNS}
             `);
             if (row === null) throw new ChatSessionNotFoundError(sessionId);
             const message = await this.withAttachments(db, row, attachments);
             await this.rememberFirstSession(db, sessionId, ownerId, attachments);
+            return message;
+        });
+    }
+
+    async findRewindPoint(
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+    ): Promise<RewindPoint> {
+        return this.rewindPointOf(this.db, sessionId, ownerId, messageId);
+    }
+
+    async replaceFrom(
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+        replacement: ReplacementMessage,
+    ): Promise<ChatMessage> {
+        return this.transactions.run(async () => {
+            const tx = this.db;
+            // The row lock keeps two restarts of one chat from interleaving their deletes and inserts.
+            const locked = await tx.maybeOne(sql.unsafe`
+                SELECT id FROM chat_session WHERE id = ${sessionId} AND owner_id = ${ownerId}
+                FOR UPDATE
+            `);
+            if (locked === null) throw new ChatSessionNotFoundError(sessionId);
+            await this.rewindPointOf(tx, sessionId, ownerId, messageId);
+            // The attachment links go with the messages (ON DELETE CASCADE).
+            await tx.query(sql.unsafe`
+                DELETE FROM chat_message WHERE session_id = ${sessionId} AND id >= ${Number(messageId)}
+            `);
+            const row = await tx.one(sql.unsafe`
+                INSERT INTO chat_message (session_id, role, text, agent_checkpoint_id, rewindable)
+                VALUES (${sessionId}, 'user', ${replacement.text}, ${replacement.checkpointId}, true)
+                RETURNING ${MESSAGE_COLUMNS}
+            `);
+            const message = await this.withAttachments(tx, row, replacement.attachments);
+            await tx.query(sql.unsafe`
+                UPDATE chat_session SET last_activity_at = now() WHERE id = ${sessionId}
+            `);
             return message;
         });
     }
@@ -355,6 +413,35 @@ export class ChatSessionRepository extends ChatSessionRepositoryPort {
             row,
             attachments.map((raw) => toAttachment(raw).attachment),
         );
+    }
+
+    /** A user question of the owner's chat with a stored rewind point. */
+    private async rewindPointOf(
+        db: CommonQueryMethods,
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+    ): Promise<RewindPoint> {
+        // Ids of the history are decimal strings; anything else cannot name a message.
+        if (!/^\d{1,15}$/.test(messageId)) throw new MessageNotFoundError(messageId);
+        const row = await db.maybeOne(sql.unsafe`
+            SELECT m.id, m.rewindable, m.agent_checkpoint_id
+            FROM chat_message m JOIN chat_session s ON s.id = m.session_id
+            WHERE m.id = ${Number(messageId)} AND m.session_id = ${sessionId}
+              AND s.owner_id = ${ownerId} AND m.role = 'user'
+        `);
+        if (row === null) throw new MessageNotFoundError(messageId);
+        const point = rewindRow.parse(row);
+        if (!point.rewindable) throw new MessageNotRewindableError(messageId);
+        const files = await db.any(sql.unsafe`
+            SELECT file_id FROM chat_message_attachment
+            WHERE message_id = ${point.id} ORDER BY position
+        `);
+        return {
+            messageId: String(point.id),
+            attachments: files.map((file) => z.object({ file_id: z.string() }).parse(file).file_id),
+            checkpointId: point.agent_checkpoint_id,
+        };
     }
 
     private async requireOwned(

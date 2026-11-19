@@ -14,17 +14,19 @@ export type ComposerProps = {
   placeholder?: string
 }
 
+const OFFLINE_PLACEHOLDER = 'Нет связи с сервером'
+
 const ROUND = 'flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40'
 
 /** Form of sending (Composer Box): field, attach button, drop of files, round send / stop button. */
 export function Composer({ attachments, disabled = false, placeholder = 'Сообщение агенту' }: ComposerProps) {
   const aui = useAui()
-  const { serverRunning, onCancel } = useThreadActions()
+  const { serverRunning, onCancel, offline = false } = useThreadActions()
   const localRunning = useAuiState((s) => s.thread.isRunning)
   const text = useAuiState((s) => s.composer.text)
   const picker = useRef<HTMLInputElement>(null)
   const running = localRunning || serverRunning
-  const blocked = disabled || serverRunning
+  const blocked = disabled || serverRunning || offline
   const blank = text.trim() === ''
   const hasFiles = attachments.fileIds.length > 0
   const canSend = !blocked && !running && !attachments.isUploading && (!blank || hasFiles)
@@ -87,8 +89,9 @@ export function Composer({ attachments, disabled = false, placeholder = 'Соо�
       <ComposerPrimitive.Input
         rows={1}
         autoFocus
+        data-chat-composer-input=""
         disabled={blocked}
-        placeholder={placeholder}
+        placeholder={offline ? OFFLINE_PLACEHOLDER : placeholder}
         aria-label="Сообщение агенту"
         onKeyDown={(event) => {
           // Sending goes through submit: it carries the files and blocks while they upload

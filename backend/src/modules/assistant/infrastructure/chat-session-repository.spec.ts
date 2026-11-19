@@ -5,9 +5,12 @@ import { createPool, type DatabasePool } from 'slonik';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { migrate } from '../../../database/postgres/migrator';
 import { TransactionRunner } from '../../../database/postgres/transaction-runner';
+import type { ChatMessage } from '../domain/chat-message';
 import { ChatSession } from '../domain/chat-session';
 import { ChatSessionNotFoundError } from '../domain/chat-session-not-found.error';
 import { ChatTitle } from '../domain/chat-title';
+import { MessageNotFoundError } from '../domain/message-not-found.error';
+import { MessageNotRewindableError } from '../domain/message-not-rewindable.error';
 import type { AssistantAnswer } from '../domain/ports/agent-runner.port';
 import { ChatSessionRepository } from './chat-session-repository';
 
@@ -485,6 +488,221 @@ describe.skipIf(adminUrl === undefined)('ChatSessionRepository', () => {
                 dedupKey: key,
             });
             expect(await repo.hasDedupKey(key)).toBe(true);
+        });
+    });
+
+    describe('rewind points and replaceFrom', () => {
+        const rewind = (checkpointId: string | null): { checkpointId: string | null } => ({
+            checkpointId,
+        });
+
+        /** q1, a1, q2, a2 of a chat; q1 opens the context, q2 follows checkpoint cp-1. */
+        const twoPairs = async (
+            files: string[] = [],
+        ): Promise<{
+            s: ChatSession;
+            q1: ChatMessage;
+            a1: ChatMessage;
+            q2: ChatMessage;
+            a2: ChatMessage;
+        }> => {
+            const s = await repo.create(ChatSession.create(mine));
+            const q1 = await repo.appendUserMessage(s.id, ownerId, 'q1', files, rewind(null));
+            const a1 = await repo.appendAgentAnswer(s.id, ownerId, answer('a1'));
+            const q2 = await repo.appendUserMessage(s.id, ownerId, 'q2', [], rewind('cp-1'));
+            const a2 = await repo.appendAgentAnswer(s.id, ownerId, answer('a2'));
+            return { s, q1, a1, q2, a2 };
+        };
+
+        it('appendUserMessage stores the rewind point and rewindable = true', async () => {
+            const { q1, q2 } = await twoPairs();
+            expect(q1.rewindable).toBe(true);
+            expect(q1.agentCheckpointId).toBeNull();
+            expect(q2.rewindable).toBe(true);
+            expect(q2.agentCheckpointId).toBe('cp-1');
+        });
+
+        it('appendUserMessage without a rewind point stores a question that cannot be edited', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const message = await repo.appendUserMessage(s.id, ownerId, 'из Telegram');
+            expect(message.rewindable).toBe(false);
+            const [stored] = await repo.listMessages(s.id, ownerId);
+            expect(stored.rewindable).toBe(false);
+        });
+
+        it('findRewindPoint returns the id, the files in order and the checkpoint', async () => {
+            const first = await createFile('a.m4a');
+            const second = await createFile('b.pdf', { kind: 'document' });
+            const { s, q2 } = await twoPairs();
+            const withFiles = await repo.appendUserMessage(
+                s.id,
+                ownerId,
+                'с файлами',
+                [second, first],
+                rewind('cp-2'),
+            );
+            expect(await repo.findRewindPoint(s.id, ownerId, String(q2.id))).toEqual({
+                messageId: String(q2.id),
+                attachments: [],
+                checkpointId: 'cp-1',
+            });
+            expect(await repo.findRewindPoint(s.id, ownerId, String(withFiles.id))).toEqual({
+                messageId: String(withFiles.id),
+                attachments: [second, first],
+                checkpointId: 'cp-2',
+            });
+        });
+
+        it('findRewindPoint: MessageNotFoundError for an agent message, a foreign and an unknown one', async () => {
+            const { s, a1, q1 } = await twoPairs();
+            const other = await createUser();
+            await expect(repo.findRewindPoint(s.id, ownerId, String(a1.id))).rejects.toBeInstanceOf(
+                MessageNotFoundError,
+            );
+            await expect(repo.findRewindPoint(s.id, ownerId, '999999999')).rejects.toBeInstanceOf(
+                MessageNotFoundError,
+            );
+            await expect(repo.findRewindPoint(s.id, ownerId, 'abc')).rejects.toBeInstanceOf(
+                MessageNotFoundError,
+            );
+            await expect(repo.findRewindPoint(s.id, other, String(q1.id))).rejects.toBeInstanceOf(
+                MessageNotFoundError,
+            );
+            const another = await repo.create(ChatSession.create(mine));
+            await expect(
+                repo.findRewindPoint(another.id, ownerId, String(q1.id)),
+            ).rejects.toBeInstanceOf(MessageNotFoundError);
+        });
+
+        it('findRewindPoint: MessageNotRewindableError for a question without a stored point', async () => {
+            const s = await repo.create(ChatSession.create(mine));
+            const old = await repo.appendUserMessage(s.id, ownerId, 'старый');
+            await expect(
+                repo.findRewindPoint(s.id, ownerId, String(old.id)),
+            ).rejects.toBeInstanceOf(MessageNotRewindableError);
+        });
+
+        it('replaceFrom removes the question and everything after it and adds the new question', async () => {
+            const { s, q1, a1, q2 } = await twoPairs();
+            const replaced = await repo.replaceFrom(s.id, ownerId, String(q2.id), {
+                text: 'новый q2',
+                attachments: [],
+                checkpointId: 'cp-1',
+            });
+            const messages = await repo.listMessages(s.id, ownerId);
+            expect(messages.map((m) => m.text)).toEqual(['q1', 'a1', 'новый q2']);
+            expect(messages.map((m) => m.id)).toEqual([q1.id, a1.id, replaced.id]);
+            expect(replaced.id).toBeGreaterThan(q2.id);
+            expect(replaced.rewindable).toBe(true);
+            expect(replaced.agentCheckpointId).toBe('cp-1');
+        });
+
+        it('replaceFrom of the first question empties the chat but for the new question', async () => {
+            const { s, q1 } = await twoPairs();
+            await repo.replaceFrom(s.id, ownerId, String(q1.id), {
+                text: 'новый q1',
+                attachments: [],
+                checkpointId: null,
+            });
+            const messages = await repo.listMessages(s.id, ownerId);
+            expect(messages.map((m) => m.text)).toEqual(['новый q1']);
+            expect(messages[0]?.agentCheckpointId).toBeNull();
+        });
+
+        it('replaceFrom keeps the files of the question in the same order and drops the old links', async () => {
+            const first = await createFile('a.m4a');
+            const second = await createFile('b.pdf', { kind: 'document' });
+            const s = await repo.create(ChatSession.create(mine));
+            const q = await repo.appendUserMessage(
+                s.id,
+                ownerId,
+                'q',
+                [second, first],
+                rewind(null),
+            );
+            await repo.appendAgentAnswer(s.id, ownerId, answer('a'));
+
+            const replaced = await repo.replaceFrom(s.id, ownerId, String(q.id), {
+                text: 'новый q',
+                attachments: [second, first],
+                checkpointId: null,
+            });
+
+            expect(replaced.attachments.map((a) => a.fileId)).toEqual([second, first]);
+            const { rows } = await client.query(
+                `SELECT message_id FROM chat_message_attachment WHERE file_id = $1`,
+                [first],
+            );
+            expect(rows).toHaveLength(1);
+            expect(Number((rows[0] as { message_id: string }).message_id)).toBe(replaced.id);
+        });
+
+        it('replaceFrom bumps lastActivityAt and does not change the title', async () => {
+            const { s, q2 } = await twoPairs();
+            const renamed = await repo.rename(s.id, ownerId, ChatTitle.of('Мой чат'));
+            await repo.replaceFrom(s.id, ownerId, String(q2.id), {
+                text: 'новый',
+                attachments: [],
+                checkpointId: 'cp-1',
+            });
+            const after = await repo.findById(s.id);
+            expect(after?.title.value).toBe('Мой чат');
+            expect(after?.lastActivityAt.getTime()).toBeGreaterThan(
+                renamed.lastActivityAt.getTime(),
+            );
+        });
+
+        it('replaceFrom does not touch messages of other chats', async () => {
+            const { s, q2 } = await twoPairs();
+            const other = await repo.create(ChatSession.create(mine));
+            await repo.appendUserMessage(other.id, ownerId, 'чужой вопрос', [], rewind(null));
+            await repo.replaceFrom(s.id, ownerId, String(q2.id), {
+                text: 'новый',
+                attachments: [],
+                checkpointId: 'cp-1',
+            });
+            expect((await repo.listMessages(other.id, ownerId)).map((m) => m.text)).toEqual([
+                'чужой вопрос',
+            ]);
+        });
+
+        it('replaceFrom is atomic: nothing changes when a step fails', async () => {
+            const { s, q2 } = await twoPairs();
+            await client.query(`
+                CREATE OR REPLACE FUNCTION fail_chat_update() RETURNS trigger AS $$
+                BEGIN RAISE EXCEPTION 'boom'; END $$ LANGUAGE plpgsql`);
+            await client.query(`CREATE TRIGGER fail_update BEFORE UPDATE ON chat_session
+                FOR EACH ROW EXECUTE FUNCTION fail_chat_update()`);
+            await expect(
+                repo.replaceFrom(s.id, ownerId, String(q2.id), {
+                    text: 'новый',
+                    attachments: [],
+                    checkpointId: 'cp-1',
+                }),
+            ).rejects.toThrow();
+            await client.query('DROP TRIGGER fail_update ON chat_session');
+            expect((await repo.listMessages(s.id, ownerId)).map((m) => m.text)).toEqual([
+                'q1',
+                'a1',
+                'q2',
+                'a2',
+            ]);
+        });
+
+        it('replaceFrom rejects an agent message, an old question and an unknown chat', async () => {
+            const { s, a1 } = await twoPairs();
+            const replacement = { text: 'новый', attachments: [], checkpointId: null };
+            await expect(
+                repo.replaceFrom(s.id, ownerId, String(a1.id), replacement),
+            ).rejects.toBeInstanceOf(MessageNotFoundError);
+            const old = await repo.appendUserMessage(s.id, ownerId, 'старый');
+            await expect(
+                repo.replaceFrom(s.id, ownerId, String(old.id), replacement),
+            ).rejects.toBeInstanceOf(MessageNotRewindableError);
+            await expect(
+                repo.replaceFrom(randomUUID(), ownerId, String(old.id), replacement),
+            ).rejects.toBeInstanceOf(ChatSessionNotFoundError);
+            expect(await repo.listMessages(s.id, ownerId)).toHaveLength(5);
         });
     });
 });

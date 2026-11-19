@@ -73,7 +73,12 @@ export function mapStreamEvent(raw: unknown): AgentEvent[] {
 export class StreamEventMapper {
     private readonly startedAt: number;
     private answer = '';
-    private readonly toolCalls: ToolCallTrace[] = [];
+    private readonly toolCalls: { -readonly [K in keyof ToolCallTrace]: ToolCallTrace[K] }[] = [];
+    /** Calls in flight: the trace entry and the moment the call started. */
+    private readonly running = new Map<
+        string,
+        { entry: { durationMs?: number }; startedAt: number }
+    >();
 
     constructor(private readonly now: () => number = () => performance.now()) {
         this.startedAt = now();
@@ -84,7 +89,18 @@ export class StreamEventMapper {
         for (const event of events) {
             if (event.type === 'text-delta') this.answer += event.text;
             else if (event.type === 'tool-call-started') {
-                this.toolCalls.push({ name: event.name, args: event.args });
+                const entry: { name: string; args: unknown; durationMs?: number } = {
+                    name: event.name,
+                    args: event.args,
+                };
+                this.toolCalls.push(entry);
+                this.running.set(event.callId, { entry, startedAt: this.now() });
+            } else if (event.type === 'tool-call-finished') {
+                const call = this.running.get(event.callId);
+                if (call !== undefined) {
+                    call.entry.durationMs = Math.round(this.now() - call.startedAt);
+                    this.running.delete(event.callId);
+                }
             }
         }
         return events;

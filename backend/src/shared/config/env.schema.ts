@@ -69,6 +69,8 @@ export const envSchema = z
         VOCAL_AI_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(5),
         VOCAL_AI_SYNC_ATTEMPTS: z.coerce.number().int().positive().default(3),
         VOCAL_AI_SYNC_BACKOFF_MS: z.coerce.number().int().nonnegative().default(5000),
+        // Дата (ISO), с которой начинается первичный backfill нового проекта; без неё backfill идёт с эпохи
+        VOCAL_AI_BACKFILL_FROM_DATE: z.iso.date().optional(),
         TELEGRAM_BOT_TOKEN: z.string().optional(),
         TELEGRAM_BOT_USERNAME: z.string().regex(TELEGRAM_BOT_USERNAME_PATTERN).optional(),
         TELEGRAM_UPDATES_MODE: z.enum(['webhook', 'polling', 'off']).default('off'),
@@ -172,6 +174,9 @@ export const envSchema = z
         // Предел сжатого файла, байты: в base64 (24 000 000) с JSON укладывается в 25 МБ OpenRouter
         MEETING_TRANSCRIPTION_MAX_AUDIO_BYTES: positiveInt(18_000_000),
         MEETING_TRANSCRIPTION_LANGUAGE: z.string().min(1).optional(),
+        // Расшифровка голоса по HTTP: запросов на пользователя в минуту (окно 60 с)
+        VOICE_TRANSCRIPTION_MAX_PER_MINUTE: positiveInt(20),
+
         MEETING_TRANSCRIPTION_MAX_DURATION_SEC: positiveInt(4500),
         MEETING_TRANSCRIPTION_ATTEMPTS: positiveInt(3),
         MEETING_TRANSCRIPTION_CONCURRENCY: positiveInt(2),

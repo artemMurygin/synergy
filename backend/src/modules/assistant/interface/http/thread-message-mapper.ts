@@ -1,8 +1,12 @@
-import type { Message } from '@ag-ui/core';
 import type { ChatMessage } from '../../domain/chat-message';
 import type { MessageAttachment } from '../../domain/message-attachment';
 import type { MessageSource } from '../../domain/message-source';
-import type { HistoryAttachment, HistoryMessage } from './thread-history.response';
+import type {
+    HistoryAgUiMessage,
+    HistoryAttachment,
+    HistoryMessage,
+    HistoryToolCall,
+} from './thread-history.response';
 
 function toAttachment(attachment: MessageAttachment): HistoryAttachment {
     return {
@@ -33,25 +37,28 @@ export const ThreadMessageMapper = {
             ...agUi,
             // Only the message itself has the files; the completed tool results have none.
             ...(index === 0 ? own : extras([])),
+            ...(message.role === 'user' && index === 0 ? { editable: message.rewindable } : {}),
         }));
     },
 
-    agUi(message: ChatMessage): Message[] {
+    agUi(message: ChatMessage): HistoryAgUiMessage[] {
         const id = String(message.id);
         if (message.role === 'user') return [{ id, role: 'user', content: message.text }];
 
         const trace = message.toolCalls ?? [];
         if (trace.length === 0) return [{ id, role: 'assistant', content: message.text }];
 
-        const calls = trace.map((call, index) => ({
+        const calls = trace.map((call, index): HistoryToolCall => ({
             id: `${id}-tool-${String(index)}`,
-            type: 'function' as const,
+            type: 'function',
             function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) },
+            // Absent for calls stored before the duration was measured.
+            ...(call.durationMs === undefined ? {} : { durationMs: call.durationMs }),
         }));
         return [
             { id, role: 'assistant', content: message.text, toolCalls: calls },
             // Stored calls are completed; the output itself is not kept (it may hold hidden data).
-            ...calls.map((call): Message => ({
+            ...calls.map((call): HistoryAgUiMessage => ({
                 id: `${call.id}-result`,
                 role: 'tool',
                 toolCallId: call.id,

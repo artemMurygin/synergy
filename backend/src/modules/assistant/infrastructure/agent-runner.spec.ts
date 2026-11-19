@@ -1,4 +1,4 @@
-import { AIMessage } from '@langchain/core/messages';
+import { AIMessage, type BaseMessage } from '@langchain/core/messages';
 import { fakeModel } from '@langchain/core/testing';
 import { FakeListChatModel } from '@langchain/core/utils/testing';
 import { MemorySaver } from '@langchain/langgraph';
@@ -99,6 +99,55 @@ describe('AgentRunner.stream', () => {
         const [secondClient, secondCtx] = build.mock.calls[1] as [string, AgentRunContext];
         expect(secondClient).toBe('telegram');
         expect(secondCtx).toMatchObject({ userId: 'user-8', threadId: 't-b' });
+    });
+
+    it('with fromCheckpointId the agent continues from that checkpoint and does not see what came after it', async () => {
+        const checkpointer = new MemorySaver();
+        const seen: string[][] = [];
+        const model = fakeModel()
+            .respond(new AIMessage('ответ-1'))
+            .respond(new AIMessage('ответ-2'))
+            .respond((messages: BaseMessage[]) => {
+                seen.push(messages.map((message) => message.text));
+                return new AIMessage('ответ-3');
+            });
+        const runner = create({
+            build: () => createAgent({ model, tools: [], checkpointer }),
+        });
+        const ask = async (question: string, fromCheckpointId?: string): Promise<void> => {
+            await collect(
+                runner.stream(
+                    RunInput.of({ threadId: 'fork-1', runId: 'r', question }),
+                    new AbortController().signal,
+                    { ...scope, ...(fromCheckpointId === undefined ? {} : { fromCheckpointId }) },
+                ),
+            );
+        };
+        const latest = async (): Promise<string | undefined> =>
+            (
+                await checkpointer.getTuple({
+                    configurable: { thread_id: 'fork-1', checkpoint_ns: '' },
+                })
+            )?.config.configurable?.checkpoint_id as string | undefined;
+
+        await ask('первый');
+        const beforeSecond = await latest();
+        await ask('второй');
+        expect(beforeSecond).toBeDefined();
+
+        await ask('новый-второй', beforeSecond);
+
+        expect(seen[0]).toContain('первый');
+        expect(seen[0]).toContain('новый-второй');
+        expect(seen[0]).not.toContain('второй');
+        expect(seen[0]).not.toContain('ответ-2');
+        const head = await checkpointer.getTuple({
+            configurable: { thread_id: 'fork-1', checkpoint_ns: '' },
+        });
+        const texts = (head?.checkpoint.channel_values.messages as BaseMessage[]).map(
+            (m) => m.text,
+        );
+        expect(texts).toEqual(['первый', 'ответ-1', 'новый-второй', 'ответ-3']);
     });
 
     it('uses the threadId as the checkpoint thread_id and puts userId into configurable', async () => {
@@ -231,7 +280,9 @@ describe('AgentRunner.stream', () => {
         const last = events.at(-1);
         expect(last?.type).toBe('run-finished');
         if (last?.type !== 'run-finished') return;
-        expect(last.toolCalls).toEqual([{ name: 'noop', args: { q: 1 } }]);
+        expect(last.toolCalls).toEqual([
+            { name: 'noop', args: { q: 1 }, durationMs: expect.any(Number) as number },
+        ]);
         expect(events.map((e) => e.type)).toContain('tool-call-started');
     });
 });

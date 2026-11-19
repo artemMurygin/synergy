@@ -3,6 +3,9 @@ import { ChatSession } from '../../../domain/chat-session';
 import { ChatSessionNotFoundError } from '../../../domain/chat-session-not-found.error';
 import type { ChatTitle } from '../../../domain/chat-title';
 import { MessageAttachment, type MessageAttachmentProps } from '../../../domain/message-attachment';
+import { MessageNotFoundError } from '../../../domain/message-not-found.error';
+import { MessageNotRewindableError } from '../../../domain/message-not-rewindable.error';
+import type { ReplacementMessage, RewindPoint } from '../../../domain/rewind-point';
 import {
     ChatSessionRepositoryPort,
     type SystemMessageInput,
@@ -75,6 +78,7 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
         ownerId: string,
         text: string,
         attachments: readonly string[] = [],
+        rewind?: { readonly checkpointId: string | null },
     ): Promise<ChatMessage> {
         return this.require(sessionId, ownerId, () => {
             const message = ChatMessage.user({
@@ -83,6 +87,7 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
                 text,
                 createdAt: new Date(),
                 attachments: this.attach(attachments),
+                ...(rewind === undefined ? {} : { rewind }),
             });
             this.messages.get(sessionId)?.push(message);
             for (const fileId of attachments) {
@@ -92,6 +97,44 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
             }
             return message;
         });
+    }
+    findRewindPoint(sessionId: string, ownerId: string, messageId: string): Promise<RewindPoint> {
+        return this.require(sessionId, ownerId, () => this.rewindPointOf(sessionId, messageId));
+    }
+    replaceFrom(
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+        replacement: ReplacementMessage,
+    ): Promise<ChatMessage> {
+        return this.require(sessionId, ownerId, () => {
+            this.rewindPointOf(sessionId, messageId);
+            const kept = (this.messages.get(sessionId) ?? []).filter(
+                (message) => message.id < Number(messageId),
+            );
+            const message = ChatMessage.user({
+                id: this.nextId++,
+                sessionId,
+                text: replacement.text,
+                createdAt: new Date(),
+                attachments: this.attach(replacement.attachments),
+                rewind: { checkpointId: replacement.checkpointId },
+            });
+            this.messages.set(sessionId, [...kept, message]);
+            return message;
+        });
+    }
+    private rewindPointOf(sessionId: string, messageId: string): RewindPoint {
+        const message = (this.messages.get(sessionId) ?? []).find(
+            (m) => String(m.id) === messageId && m.role === 'user',
+        );
+        if (message === undefined) throw new MessageNotFoundError(messageId);
+        if (!message.rewindable) throw new MessageNotRewindableError(messageId);
+        return {
+            messageId,
+            attachments: message.attachments.map((a) => a.fileId),
+            checkpointId: message.agentCheckpointId,
+        };
     }
     appendAgentAnswer(
         sessionId: string,
@@ -162,6 +205,10 @@ export class InMemoryChatSessionRepository extends ChatSessionRepositoryPort {
     private require<T>(sessionId: string, ownerId: string, action: () => T): Promise<T> {
         if (this.sessions.get(sessionId)?.ownerId !== ownerId)
             return Promise.reject(new ChatSessionNotFoundError(sessionId));
-        return Promise.resolve(action());
+        try {
+            return Promise.resolve(action());
+        } catch (error) {
+            return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+        }
     }
 }

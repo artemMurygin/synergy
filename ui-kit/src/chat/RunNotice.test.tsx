@@ -21,3 +21,29 @@ describe('RunNotice', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 })
+
+describe('RunNotice by kind', () => {
+  it('error: shows the text as an alert with "Повторить"', async () => {
+    const onRetry = vi.fn()
+    render(<RunNotice kind="error" text="Агент вернул ошибку" onRetry={onRetry} />)
+    expect(screen.getByRole('alert').textContent).toContain('Агент вернул ошибку')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Повторить' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('stopped: says the answer is stopped, that a part is not saved, and offers a small "Повторить"', async () => {
+    const onRetry = vi.fn()
+    const { container } = render(<RunNotice kind="stopped" onRetry={onRetry} />)
+    expect(screen.getByText('Ответ остановлен')).toBeTruthy()
+    expect(screen.getByText(/не сохранена/)).toBeTruthy()
+    expect(container.querySelector('svg.lucide-circle-stop')).not.toBeNull()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Повторить' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('conflict: tells to wait or stop the agent', () => {
+    render(<RunNotice kind="conflict" />)
+    expect(screen.getByRole('status').textContent).toContain('Агент ещё отвечает — дождитесь ответа или остановите его')
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+})

@@ -23,6 +23,9 @@ class FakeThread extends ChatThreadPort {
         this.deleted.push(sessionId);
         return Promise.resolve();
     }
+    latestCheckpointId(): Promise<string | null> {
+        return Promise.resolve(null);
+    }
 }
 
 class FakeContext extends AgentContextWriterPort {

@@ -11,6 +11,8 @@ export interface RunInputProps {
     readonly runId: string;
     readonly question: string;
     readonly attachments?: readonly AttachmentRef[];
+    /** Id of the history question this run replaces; absent for an ordinary run. */
+    readonly replaceFromMessageId?: string;
 }
 
 /** What can be checked before the attached files are resolved. */
@@ -47,6 +49,7 @@ export class RunInput {
         readonly runId: string,
         readonly question: string,
         readonly attachments: readonly AttachmentRef[],
+        readonly replaceFromMessageId?: string,
     ) {}
 
     /** Text or at least one file, no more than MAX_RUN_ATTACHMENTS files, text within the limit. */
@@ -85,6 +88,7 @@ export class RunInput {
             props.runId,
             props.question.trim(),
             Object.freeze(attachments),
+            props.replaceFromMessageId,
         );
     }
 

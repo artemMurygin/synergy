@@ -33,7 +33,11 @@ function setup(): {
         calls.push(`delete:${id}`);
         return remove(id, ownerId);
     });
-    const useCase = new ResetTelegramDialogUseCase(repo, { deleteThread }, registry);
+    const useCase = new ResetTelegramDialogUseCase(
+        repo,
+        { deleteThread, latestCheckpointId: () => Promise.resolve(null) },
+        registry,
+    );
     return { repo, registry, deleteThread, calls, remove: removeSpy, useCase };
 }
 

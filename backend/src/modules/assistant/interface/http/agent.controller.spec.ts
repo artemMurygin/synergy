@@ -15,7 +15,7 @@ import { ActiveRunRegistryPort } from '../../domain/ports/active-run-registry.po
 import { AttachmentFilesPort } from '../../domain/ports/attachment-files.port';
 import { ChatSessionRepositoryPort } from '../../domain/ports/chat-session-repository.port';
 import { ChatThreadPort } from '../../domain/ports/chat-thread.port';
-import { AgentRunnerPort } from '../../domain/ports/agent-runner.port';
+import { AgentRunnerPort, type AgentRunScope } from '../../domain/ports/agent-runner.port';
 import type { RunInput } from '../../domain/run-input';
 import { ActiveRunRegistry } from '../../infrastructure/active-run-registry';
 import {
@@ -32,10 +32,16 @@ import { InMemoryChatSessionRepository } from './testing/in-memory-chat-session-
 class ScriptedAssistant extends AgentRunnerPort {
     script: (AgentEvent | Promise<void>)[] = [];
     inputs: RunInput[] = [];
+    scopes: AgentRunScope[] = [];
     aborted = false;
 
-    async *stream(input: RunInput, signal: AbortSignal): AsyncIterable<AgentEvent> {
+    async *stream(
+        input: RunInput,
+        signal: AbortSignal,
+        scope: AgentRunScope,
+    ): AsyncIterable<AgentEvent> {
         this.inputs.push(input);
+        this.scopes.push(scope);
         signal.addEventListener('abort', () => {
             this.aborted = true;
         });
@@ -93,8 +99,14 @@ class FakeFiles extends AttachmentFilesPort {
 }
 
 class FakeThread extends ChatThreadPort {
-    deleteThread(): Promise<void> {
+    checkpointId: string | null = null;
+    deleted: string[] = [];
+    deleteThread(threadId: string): Promise<void> {
+        this.deleted.push(threadId);
         return Promise.resolve();
+    }
+    latestCheckpointId(): Promise<string | null> {
+        return Promise.resolve(this.checkpointId);
     }
 }
 
@@ -127,6 +139,7 @@ describe('AgentController', () => {
     const assistant = new ScriptedAssistant();
     const repository = new InMemoryChatSessionRepository();
     let registry: ActiveRunRegistry;
+    const thread = new FakeThread();
     let threadId: string;
 
     function body(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -162,7 +175,7 @@ describe('AgentController', () => {
                 StartAgentRunUseCase,
                 { provide: PinoLogger, useValue: fakeLogger },
                 { provide: ChatSessionRepositoryPort, useValue: repository },
-                { provide: ChatThreadPort, useValue: new FakeThread() },
+                { provide: ChatThreadPort, useValue: thread },
                 { provide: ActiveRunRegistryPort, useValue: registry },
                 { provide: AgentRunnerPort, useValue: assistant },
                 { provide: AttachmentFilesPort, useValue: new FakeFiles() },
@@ -183,6 +196,9 @@ describe('AgentController', () => {
         repository.messages.clear();
         assistant.script = [];
         assistant.inputs = [];
+        assistant.scopes = [];
+        thread.deleted = [];
+        thread.checkpointId = null;
         assistant.aborted = false;
         const session = await repository.create(
             ChatSession.create({ ownerId: TEST_USER, channel: 'app' }),
@@ -207,6 +223,7 @@ describe('AgentController', () => {
         expect(response.headers.get('content-type')).toContain('text/event-stream');
         const events = parseSse(await response.text());
         expect(events.map((event) => event.type)).toEqual([
+            'CUSTOM',
             'RUN_STARTED',
             'TEXT_MESSAGE_START',
             'TEXT_MESSAGE_CONTENT',
@@ -221,7 +238,8 @@ describe('AgentController', () => {
             'TEXT_MESSAGE_END',
             'RUN_FINISHED',
         ]);
-        expect(events[0]).toMatchObject({ threadId, runId: 'run-1' });
+        expect(events[0]).toMatchObject({ name: 'user-message-saved' });
+        expect(events[1]).toMatchObject({ threadId, runId: 'run-1' });
         expect(assistant.inputs[0]).toMatchObject({ threadId, question: 'Сколько стоит МВА?' });
     });
 
@@ -476,7 +494,9 @@ describe('AgentController', () => {
 
             const events = parseSse(await (await post(body())).text());
 
-            const custom = events.findIndex((e) => e.type === 'CUSTOM');
+            const custom = events.findIndex(
+                (e) => e.type === 'CUSTOM' && e.name === 'file-attached',
+            );
             expect(custom).toBeGreaterThan(-1);
             expect(custom).toBeLessThan(events.findIndex((e) => e.type === 'RUN_FINISHED'));
             expect(events[custom]).toMatchObject({
@@ -485,6 +505,163 @@ describe('AgentController', () => {
             });
             const answer = (await repository.listMessages(threadId, TEST_USER)).at(-1);
             expect(answer?.attachments.map((a) => a.fileId)).toEqual([OWN_FILE]);
+        });
+    });
+
+    describe('restart from a message (forwardedProps.replaceFromMessageId)', () => {
+        const finishedRun = (answer: string): AgentEvent[] => [
+            AgentEvent.runStarted(),
+            AgentEvent.textDelta(answer),
+            AgentEvent.runFinished({ answer, toolCalls: [], durationMs: 1 }),
+        ];
+
+        /** Two rewindable pairs; the second question follows checkpoint cp-1. */
+        async function twoPairs(): Promise<{ q1: string; q2: string }> {
+            const q1 = await repository.appendUserMessage(threadId, TEST_USER, 'q1', [], {
+                checkpointId: null,
+            });
+            await repository.appendAgentAnswer(threadId, TEST_USER, {
+                answer: 'a1',
+                toolCalls: [],
+                durationMs: 1,
+            });
+            const q2 = await repository.appendUserMessage(threadId, TEST_USER, 'q2', [], {
+                checkpointId: 'cp-1',
+            });
+            await repository.appendAgentAnswer(threadId, TEST_USER, {
+                answer: 'a2',
+                toolCalls: [],
+                durationMs: 1,
+            });
+            return { q1: String(q1.id), q2: String(q2.id) };
+        }
+
+        const restart = (messageId: string, text = 'новый q2'): Record<string, unknown> =>
+            body({
+                messages: [{ id: 'm9', role: 'user', content: text }],
+                forwardedProps: { replaceFromMessageId: messageId },
+            });
+
+        it('replaces the question and the answer; the stream starts with user-message-saved', async () => {
+            const { q2 } = await twoPairs();
+            assistant.script = finishedRun('новый a2');
+
+            const response = await post(restart(q2));
+
+            expect(response.status).toBe(200);
+            const events = parseSse(await response.text());
+            const stored = await repository.listMessages(threadId, TEST_USER);
+            expect(stored.map((m) => m.text)).toEqual(['q1', 'a1', 'новый q2', 'новый a2']);
+            expect(events[0]).toMatchObject({
+                type: 'CUSTOM',
+                name: 'user-message-saved',
+                value: { messageId: String(stored[2]?.id) },
+            });
+            expect(events[1]?.type).toBe('RUN_STARTED');
+        });
+
+        it('starts the agent from the checkpoint of the replaced question', async () => {
+            const { q2 } = await twoPairs();
+            assistant.script = finishedRun('x');
+            await (await post(restart(q2))).text();
+            expect(assistant.scopes[0]).toMatchObject({ fromCheckpointId: 'cp-1' });
+        });
+
+        it('for the first question drops the agent context and starts without a checkpoint', async () => {
+            const { q1 } = await twoPairs();
+            assistant.script = finishedRun('x');
+            await (await post(restart(q1, 'новый q1'))).text();
+            expect(thread.deleted).toEqual([threadId]);
+            expect(assistant.scopes[0]?.fromCheckpointId).toBeUndefined();
+            const stored = await repository.listMessages(threadId, TEST_USER);
+            expect(stored.map((m) => m.text)).toEqual(['новый q1', 'x']);
+        });
+
+        it('keeps the title of the chat', async () => {
+            const { q1 } = await twoPairs();
+            assistant.script = finishedRun('x');
+            const before = (await repository.findById(threadId))?.title.value;
+            await (await post(restart(q1, 'совсем другой вопрос'))).text();
+            expect((await repository.findById(threadId))?.title.value).toBe(before);
+        });
+
+        it('ignores fileIds of the request: the files come from the replaced question', async () => {
+            const q = await repository.appendUserMessage(threadId, TEST_USER, 'q', [OWN_FILE], {
+                checkpointId: null,
+            });
+            assistant.script = finishedRun('x');
+            await (
+                await post(
+                    body({
+                        messages: [{ id: 'm9', role: 'user', content: 'новый' }],
+                        forwardedProps: {
+                            replaceFromMessageId: String(q.id),
+                            fileIds: [OWN_FILE_2],
+                        },
+                    }),
+                )
+            ).text();
+            expect(assistant.inputs[0]?.attachments.map((file) => file.fileId)).toEqual([OWN_FILE]);
+        });
+
+        it('answers 404 for an agent message, an unknown id and a message of another chat, before the stream', async () => {
+            await twoPairs();
+            const stored = await repository.listMessages(threadId, TEST_USER);
+            const agent = stored.find((m) => m.role === 'agent');
+            const other = await repository.create(
+                ChatSession.create({ ownerId: TEST_USER, channel: 'app' }),
+            );
+            const foreign = await repository.appendUserMessage(other.id, TEST_USER, 'x', [], {
+                checkpointId: null,
+            });
+            for (const id of [String(agent?.id), '99999', String(foreign.id), 'abc']) {
+                const response = await post(restart(id));
+                expect(response.status).toBe(404);
+                expect(response.headers.get('content-type')).not.toContain('text/event-stream');
+            }
+            expect(assistant.inputs).toEqual([]);
+            expect(await repository.listMessages(threadId, TEST_USER)).toHaveLength(4);
+        });
+
+        it('answers 422 MESSAGE_NOT_EDITABLE for a question without a rewind point, changing nothing', async () => {
+            const old = await repository.appendUserMessage(threadId, TEST_USER, 'старый');
+            const response = await post(restart(String(old.id)));
+            expect(response.status).toBe(422);
+            expect(await response.json()).toMatchObject({ code: 'MESSAGE_NOT_EDITABLE' });
+            expect(assistant.inputs).toEqual([]);
+            expect(await repository.listMessages(threadId, TEST_USER)).toHaveLength(1);
+        });
+
+        it('answers 409 while the chat is running and leaves the history intact', async () => {
+            const { q2 } = await twoPairs();
+            const hold = deferred();
+            assistant.script = [AgentEvent.runStarted(), hold.promise];
+            const first = await post(body({ runId: 'run-a' }));
+            const reader = first.body?.getReader();
+            await reader?.read();
+            await reader?.cancel();
+            await waitFor(() => registry.isRunning(threadId));
+            const before = (await repository.listMessages(threadId, TEST_USER)).map((m) => m.text);
+
+            const second = await post({ ...restart(q2), runId: 'run-b' });
+
+            expect(second.status).toBe(409);
+            expect(second.headers.get('content-type')).not.toContain('text/event-stream');
+            const after = (await repository.listMessages(threadId, TEST_USER)).map((m) => m.text);
+            expect(after).toEqual([...before.slice(0, 4), 'Сколько стоит МВА?']);
+            hold.resolve();
+        });
+
+        it('answers 400 for a replaceFromMessageId that is not a string', async () => {
+            const response = await post(body({ forwardedProps: { replaceFromMessageId: 5 } }));
+            expect(response.status).toBe(400);
+        });
+
+        it("answers 404 for another user's chat", async () => {
+            const { q2 } = await twoPairs();
+            const response = await post(restart(q2), OTHER_TEST_USER);
+            expect(response.status).toBe(404);
+            expect(await repository.listMessages(threadId, TEST_USER)).toHaveLength(4);
         });
     });
 });

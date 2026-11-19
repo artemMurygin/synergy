@@ -34,6 +34,7 @@ describe('AssistantDialogReset', () => {
                         deletedThreads.push(id);
                         return Promise.resolve();
                     },
+                    latestCheckpointId: () => Promise.resolve(null),
                 },
                 new ActiveRunRegistry(),
             ),

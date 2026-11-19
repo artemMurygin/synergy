@@ -1,14 +1,25 @@
 import { MessagePrimitive, useAuiState } from '@assistant-ui/react'
 import { MessageAttachments } from './attachments/MessageAttachments'
 import { messageFiles } from './attachments/message-files'
+import { EditComposer } from './EditComposer'
 import { useThreadActions } from './thread-context'
+import { UserActionBar } from './UserActionBar'
 
 /** Question of the user: files above an accent bubble on the right; a message of files only has no bubble. */
 export function UserMessage() {
   const message = useAuiState((s) => s.message)
-  const { onDownload, pendingDownloads } = useThreadActions()
+  const editing = useAuiState((s) => s.composer.isEditing)
+  const { onDownload, pendingDownloads, isEditable } = useThreadActions()
   const files = messageFiles(message)
   const hasText = message.content.some((part) => part.type === 'text' && part.text.trim().length > 0)
+
+  if (editing) {
+    return (
+      <MessagePrimitive.Root className="flex w-full flex-col items-end gap-1.5">
+        <EditComposer />
+      </MessagePrimitive.Root>
+    )
+  }
 
   return (
     <MessagePrimitive.Root className="flex w-full flex-col items-end gap-1.5">
@@ -18,6 +29,7 @@ export function UserMessage() {
           <MessagePrimitive.Parts />
         </div>
       )}
+      {hasText && <UserActionBar canEdit={isEditable?.(message.id) ?? false} />}
     </MessagePrimitive.Root>
   )
 }

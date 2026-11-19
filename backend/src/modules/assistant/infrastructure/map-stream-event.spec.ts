@@ -94,8 +94,9 @@ describe('StreamEventMapper', () => {
                     {
                         name: 'task',
                         args: { description: 'Найди дизайн', subagent_type: 'searcher' },
+                        durationMs: 0, // the clock does not move while the events are mapped
                     },
-                    { name: 'lookup', args: { query: 'дизайн' } },
+                    { name: 'lookup', args: { query: 'дизайн' }, durationMs: 0 },
                 ],
                 durationMs: 250,
             }),
@@ -103,6 +104,54 @@ describe('StreamEventMapper', () => {
         expect(finished.type === 'run-finished' && finished.answer).toBe(
             'Сейчас проверю. Нашёл программу: Дизайн, 120000 руб.',
         );
+    });
+});
+
+describe('StreamEventMapper: tool call durations', () => {
+    const started = (id: string, name: string): unknown => ({
+        event: 'on_chat_model_end',
+        data: { output: { tool_calls: [{ id, name, args: {} }] } },
+    });
+    const finished = (id: string): unknown => ({
+        event: 'on_tool_end',
+        data: { output: { tool_call_id: id } },
+    });
+
+    it('measures each call from its start to its end', () => {
+        let now = 1000;
+        const mapper = new StreamEventMapper(() => now);
+        mapper.map(started('c1', 'search'));
+        now = 1400;
+        mapper.map(finished('c1'));
+        mapper.map(started('c2', 'read'));
+        now = 1500;
+        mapper.map(finished('c2'));
+        const done = mapper.finish();
+        expect(done.type === 'run-finished' && done.toolCalls).toEqual([
+            { name: 'search', args: {}, durationMs: 400 },
+            { name: 'read', args: {}, durationMs: 100 },
+        ]);
+    });
+
+    it('a call that never finished has no duration', () => {
+        let now = 0;
+        const mapper = new StreamEventMapper(() => now);
+        mapper.map(started('c1', 'search'));
+        now = 50;
+        const done = mapper.finish();
+        expect(done.type === 'run-finished' && done.toolCalls).toEqual([
+            { name: 'search', args: {} },
+        ]);
+    });
+
+    it('rounds the duration to whole milliseconds', () => {
+        let now = 0;
+        const mapper = new StreamEventMapper(() => now);
+        mapper.map(started('c1', 'search'));
+        now = 12.6;
+        mapper.map(finished('c1'));
+        const done = mapper.finish();
+        expect(done.type === 'run-finished' && done.toolCalls[0]?.durationMs).toBe(13);
     });
 });
 

@@ -66,7 +66,7 @@ function setup(): {
         repo,
         deleteThread,
         port: repo as unknown as ChatSessionRepositoryPort,
-        thread: { deleteThread },
+        thread: { deleteThread, latestCheckpointId: () => Promise.resolve(null) },
         registry: new ActiveRunRegistry(),
     };
 }

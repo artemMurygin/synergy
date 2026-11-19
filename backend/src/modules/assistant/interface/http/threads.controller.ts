@@ -25,7 +25,7 @@ import { ChatSessionNotFoundError } from '../../domain/chat-session-not-found.er
 import { InvalidChatTitleError } from '../../domain/chat-title';
 import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/http/decorators';
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
-import { ClientAppGuard } from './client-app.guard';
+import { ClientAppGuard } from '../../../../shared/http/client-app.guard';
 import { assertChatSessionIdFormat } from './chat-session-id';
 import { ownerOf } from './owner-of';
 import { ChatSessionResponse } from './chat-session.response';

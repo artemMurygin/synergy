@@ -15,6 +15,8 @@ export interface AssistantAnswer {
 export interface AgentRunScope {
     readonly userId: string;
     readonly client: ClientId;
+    /** Continue the agent context from this checkpoint (a fork), dropping what came after it. */
+    readonly fromCheckpointId?: string;
 }
 
 export abstract class AgentRunnerPort {

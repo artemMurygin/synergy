@@ -24,6 +24,11 @@ export interface StartAgentRunProps {
     readonly question: string;
     /** Ids of the user's uploaded files attached to the message. */
     readonly fileIds?: readonly string[];
+    /**
+     * Id (as in the history) of the question this run replaces: the question and everything after
+     * it are dropped, the files come from that question and `fileIds` are ignored.
+     */
+    readonly replaceFromMessageId?: string;
 }
 
 export interface RunObserver {
@@ -50,6 +55,15 @@ export class StartAgentRunUseCase {
         observer: RunObserver,
         client: AppClientId = 'app',
     ): Promise<AgentRun> {
+        if (props.replaceFromMessageId !== undefined) {
+            return this.executeReplacement(
+                ownerId,
+                props,
+                props.replaceFromMessageId,
+                observer,
+                client,
+            );
+        }
         const fileIds = props.fileIds ?? [];
         this.guard(() => {
             RunInput.assertDraft({
@@ -68,13 +82,18 @@ export class StartAgentRunUseCase {
         const run = await this.registry.startAfterSystemMessages(input.threadId, input.runId);
         if (run === null) throw new RunConflictError(input.threadId);
 
+        let messageId: string;
         try {
-            await this.sessions.appendUserMessage(
+            // The checkpoint before this question: a later edit of the question forks from it.
+            const checkpointId = await this.threads.latestCheckpointId(input.threadId);
+            const message = await this.sessions.appendUserMessage(
                 input.threadId,
                 ownerId,
                 input.question,
                 input.attachments.map((file) => file.fileId),
+                { checkpointId },
             );
+            messageId = String(message.id);
         } catch (error) {
             this.registry.release(input.threadId, input.runId);
             if ((await this.sessions.findById(input.threadId)) === null) {
@@ -83,7 +102,71 @@ export class StartAgentRunUseCase {
             throw error;
         }
 
+        this.forward(observer, AgentEvent.userMessageSaved(messageId));
         void this.drive(run, session, input, observer, { userId: ownerId, client });
+        return run;
+    }
+
+    /** Edit of a question: the chat and the agent context go back to the point before it. */
+    private async executeReplacement(
+        ownerId: string,
+        props: StartAgentRunProps,
+        replaceFromMessageId: string,
+        observer: RunObserver,
+        client: AppClientId,
+    ): Promise<AgentRun> {
+        const session = await findAppSession(this.sessions, ownerId, props.threadId);
+        const run = await this.registry.startAfterSystemMessages(props.threadId, props.runId);
+        if (run === null) throw new RunConflictError(props.threadId);
+
+        let input: RunInput;
+        let messageId: string;
+        let fromCheckpointId: string | null;
+        try {
+            const point = await this.sessions.findRewindPoint(
+                props.threadId,
+                ownerId,
+                replaceFromMessageId,
+            );
+            fromCheckpointId = point.checkpointId;
+            // The files are those of the replaced question; the request's fileIds are not read.
+            const attachments =
+                point.attachments.length === 0
+                    ? []
+                    : await this.files.findOwned(ownerId, point.attachments);
+            input = this.guard(() =>
+                RunInput.of({
+                    threadId: props.threadId,
+                    runId: props.runId,
+                    question: props.question,
+                    attachments,
+                    replaceFromMessageId,
+                }),
+            );
+            const message = await this.sessions.replaceFrom(
+                props.threadId,
+                ownerId,
+                replaceFromMessageId,
+                {
+                    text: input.question,
+                    attachments: point.attachments,
+                    checkpointId: point.checkpointId,
+                },
+            );
+            messageId = String(message.id);
+            // No checkpoint before the question: the whole agent context is the dropped part.
+            if (point.checkpointId === null) await this.threads.deleteThread(props.threadId);
+        } catch (error) {
+            this.registry.release(props.threadId, props.runId);
+            throw error;
+        }
+
+        this.forward(observer, AgentEvent.userMessageSaved(messageId));
+        void this.drive(run, session, input, observer, {
+            userId: ownerId,
+            client,
+            ...(fromCheckpointId === null ? {} : { fromCheckpointId }),
+        });
         return run;
     }
 
@@ -168,7 +251,10 @@ export class StartAgentRunUseCase {
                         durationMs: terminal.durationMs,
                         attachments: terminal.attachments.map((file) => file.fileId),
                     },
-                    session.proposeAutoTitle(input.question),
+                    // A restart keeps the title: it already comes from the question that was edited.
+                    input.replaceFromMessageId === undefined
+                        ? session.proposeAutoTitle(input.question)
+                        : undefined,
                 );
             } catch (err) {
                 this.logger.error(

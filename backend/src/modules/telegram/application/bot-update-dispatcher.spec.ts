@@ -350,6 +350,7 @@ describe('BotUpdateDispatcher', () => {
                     deletedThreads.push(id);
                     return Promise.resolve();
                 },
+                latestCheckpointId: () => Promise.resolve(null),
             },
             new ActiveRunRegistry(),
         );
@@ -641,7 +642,7 @@ describe('BotUpdateDispatcher', () => {
     });
 
     describe('voice messages', () => {
-        it('echoes the transcript and then sends the agent answer for it', async () => {
+        it('sends only the agent answer for a transcribed voice, without echoing the transcript', async () => {
             const link = await linkIvanov();
             const recording = new RecordingFreeTextHandler(['Карточка задачи']);
             freeText = recording;
@@ -649,10 +650,7 @@ describe('BotUpdateDispatcher', () => {
             await expect(sendContent(voiceContent())).resolves.toBe('handled');
             await settle();
 
-            expect(repliesToIvanov()).toEqual([
-                BotReplies.voiceRecognized(VOICE_TRANSCRIPT),
-                'Карточка задачи',
-            ]);
+            expect(repliesToIvanov()).toEqual(['Карточка задачи']);
             expect(recording.calls).toEqual([
                 {
                     sender: { kind: 'linked', userId: IVANOV_ID, login: 'ivanov', link },

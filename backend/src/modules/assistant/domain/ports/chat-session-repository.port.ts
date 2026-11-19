@@ -1,6 +1,7 @@
 import type { ChatMessage } from '../chat-message';
 import type { ChatSession } from '../chat-session';
 import type { ChatTitle } from '../chat-title';
+import type { ReplacementMessage, RewindPoint } from '../rewind-point';
 import type { AssistantAnswer } from './agent-runner.port';
 
 export interface SystemMessageInput {
@@ -28,12 +29,38 @@ export abstract class ChatSessionRepositoryPort {
     abstract findTelegram(ownerId: string): Promise<ChatSession | null>;
     /** Chronological order. */
     abstract listMessages(sessionId: string, ownerId: string): Promise<ChatMessage[]>;
-    /** The attachments are ids of checked files, stored in the given order. */
+    /**
+     * The attachments are ids of checked files, stored in the given order. With `rewind` the
+     * question is stored as rewindable, with the agent checkpoint that precedes it; without it
+     * (Telegram) the question cannot be edited.
+     */
     abstract appendUserMessage(
         sessionId: string,
         ownerId: string,
         text: string,
         attachments?: readonly string[],
+        rewind?: { readonly checkpointId: string | null },
+    ): Promise<ChatMessage>;
+    /**
+     * Where a restart from this question goes back to.
+     * @throws MessageNotFoundError for an agent message, a message of another chat or owner, an unknown id
+     * @throws MessageNotRewindableError when the question has no stored rewind point
+     */
+    abstract findRewindPoint(
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+    ): Promise<RewindPoint>;
+    /**
+     * One transaction: deletes the message and everything after it (with the attachment links),
+     * inserts the new question with the given files and rewind point, touches lastActivityAt.
+     * A failure changes nothing. The title is not touched.
+     */
+    abstract replaceFrom(
+        sessionId: string,
+        ownerId: string,
+        messageId: string,
+        replacement: ReplacementMessage,
     ): Promise<ChatMessage>;
     /**
      * One transaction: the agent message with its attachments, lastActivityAt and (when given

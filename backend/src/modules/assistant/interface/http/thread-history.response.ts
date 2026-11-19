@@ -1,4 +1,4 @@
-import type { Message } from '@ag-ui/core';
+import type { Message, ToolCall } from '@ag-ui/core';
 import { ApiProperty } from '@nestjs/swagger';
 import type { AttachmentKind } from '../../../../shared/agent-capability';
 import type { AttachmentFileStatus } from '../../domain/message-attachment';
@@ -14,10 +14,23 @@ export interface HistoryAttachment {
     readonly status: AttachmentFileStatus;
 }
 
-/** An AG-UI message of the history with its attachments and its source. */
-export type HistoryMessage = Message & {
+/** A tool call of an assistant message of the history: AG-UI call plus its measured duration. */
+export type HistoryToolCall = ToolCall & { readonly durationMs?: number };
+
+/**
+ * An AG-UI message of the history with its attachments and its source. A question also has
+ * `editable` (the answer can be restarted from it); an assistant message has timed tool calls.
+ */
+export type HistoryAgUiMessage =
+    | Exclude<Message, { role: 'assistant' }>
+    | (Omit<Extract<Message, { role: 'assistant' }>, 'toolCalls'> & {
+          readonly toolCalls?: readonly HistoryToolCall[];
+      });
+
+export type HistoryMessage = HistoryAgUiMessage & {
     readonly attachments: readonly HistoryAttachment[];
     readonly source: MessageSource;
+    readonly editable?: boolean;
 };
 
 export class ThreadHistoryResponse {
@@ -46,6 +59,11 @@ export class ThreadHistoryResponse {
                         },
                         required: ['id', 'name', 'mediaType', 'kind', 'sizeBytes', 'status'],
                     },
+                },
+                editable: {
+                    type: 'boolean',
+                    description:
+                        'Only on a question: the answer can be restarted from it (false for questions stored before the feature)',
                 },
                 source: {
                     type: 'string',

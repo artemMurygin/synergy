@@ -32,11 +32,11 @@
 | Стартовое окно (оба) | Секция 1 · Новый чат — ThreadWelcome | `IY5Ex`: Desktop `RECQu` (карточки `T2USTi`: `MoF5g`, `U6Ovf`, `KaPwn`, `m6TUBe`), Tablet `XNgpW`, Mobile `WqKs7`; шапка нового чата `n3IJCx` / `VjCYU`; меню `YRqp3` | все | Composer | ready |
 | Сообщение пользователя: «Копировать» / «Изменить» | ActionBar под сообщением | `CiIUc` → `tEqQh` / `vW6li` (Копировать), `l3iY4` (Изменить); Mobile `Elt3T` | все | — | ready |
 | Редактирование (EditComposer) | Секция 3 · Редактирование | `W8ash3`: Desktop `ICYYe`, Tablet `fEPKG`, Mobile `mPEvR`; ответ «будет заменён» `PFJkB`; мастер `t:Qi8IW` | все | Edit Composer | ready |
-| Голосовой ввод (Composer) | Composer States | `cBn7j`: пустой `S1rtF`, запись `iJP1F` (`KcO4q`, `R7I47b`), расшифровка `kdkog` (`JuIPQ`); микрофон `Gt1Xk` → `CTxJe`; «+» `WreQ3` | все | Composer | ready; ошибок голоса нет — группа 1 (design) |
+| Голосовой ввод (Composer) | Composer States | `cBn7j`: пустой `S1rtF`, запись `iJP1F` (`KcO4q`, `R7I47b`), расшифровка `kdkog` (`JuIPQ`); микрофон `Gt1Xk` → `CTxJe`; «+» `WreQ3` | все | Composer | ready; ошибки голоса — секция `v0WDO` (доска `CC227`) |
 | Группа инструментов | Tool Group во время работы, ошибка, история | `y2PJn` → `eiCIQ`; `JQPUf` → `f6Cju`, `ChtUA`; `G9GQ6f` → `IMMUP`; длительность `elTf3`, `Y4dmd`; ошибка `EVT6N` | все | Tool Group, Tool Call Row | ready (состояние «ожидает» `circle-dashed` в `y2PJn` не реализуется) |
-| Быстрый подбор (MH) | 07 · Быстрый подбор | `DYxox`: кнопка, вариант A — Tablet `MpzNH`, Mobile `h2cqd`; пустая форма `B1Cic` / `DRfkj`; заполненная `zF7nu` / `NPaEx`; лимит направлений `znHOi` / `FZkVJ`; «Курсы и ДПО» `kOTfw` / `RMJUu`; после отправки `OqKTZ` / `I5YIoq` | Tablet, Mobile | Composer, Sheet | ready; метку «Быстрый подбор» над сообщением в `OqKTZ` / `I5YIoq` убрать и удалить вариант B — группа 1 (design) |
-| TasksScreen (CC) | 03 · Задачи · Desktop | `qryQB` (секция `wTDH3`): подвал «Изменена…» `I6r3X`; номер `G710E` и ссылка `llz0q` удаляются — группа 1 (design) | Desktop | Task Row | ready после группы 1 |
-| TasksApp (MH) · tablet / mobile | 03 · Задачи · Tablet / Mobile | `Nk6nR`, `YDMzw`, `pXHcl`; группы по сроку T `LH6TB`, `d3Seh`, `smmmR`, `jCijl`, M `o9BBX`; «Показать ещё» `s6iDNw`; «Закрыть» `Vymkn`; удаление в верхней панели `BeUHh`; номер и ссылка `LUnkr`, `SIQpe`, `j09HC`, `m7QLpo` удаляются — группа 1 (design) | Tablet, Mobile | Task Row · Compact | ready после группы 1 |
+| Быстрый подбор (MH) | 07 · Быстрый подбор | `DYxox`: кнопка, вариант A — Tablet `MpzNH`, Mobile `h2cqd`; пустая форма `B1Cic` / `DRfkj`; заполненная `zF7nu` / `NPaEx`; лимит направлений `znHOi` / `FZkVJ`; «Курсы и ДПО» `kOTfw` / `RMJUu`; после отправки `OqKTZ` / `I5YIoq` | Tablet, Mobile | Composer, Sheet | ready; метка «Быстрый подбор» над сообщением и вариант B удалены (группа 1) |
+| TasksScreen (CC) | 03 · Задачи · Desktop | `qryQB` (секция `wTDH3`): подвал «Изменена…» `I6r3X`; номер `#1284` и «Копировать ссылку» убраны из `G710E` (группа 1) | Desktop | Task Row | ready |
+| TasksApp (MH) · tablet / mobile | 03 · Задачи · Tablet / Mobile | `Nk6nR`, `YDMzw`, `pXHcl`; группы по сроку T `LH6TB`, `d3Seh`, `smmmR`, `jCijl`, M `o9BBX`; «Показать ещё» `s6iDNw`; «Закрыть» `Vymkn`; удаление в верхней панели `BeUHh`; номер и «Копировать ссылку» убраны из `LUnkr`, `j09HC` (Mobile: «изменена …»), кнопки `llz0q`, `SIQpe`, `m7QLpo` удалены (группа 1) | Tablet, Mobile | Task Row · Compact | ready |
 | Создание задачи и дедлайн | Секция `FPm0J` | Ctrl+Enter D `bQEw8`, T `gaFeq`; дедлайн T `wsVSM`, M `U2q8r` (`WtwHU`, `axTVg`); выбор пользователя D `oPK56`, M `qvMfS`, `r5jfj4`; диалог на планшете `m8ddx`; быстрое создание M `ZzHmH` (захват `aLr5O`); вложенные шторки `AxP1M`, `U2q8r` | все | Field, Button, Sheet | ready |
 | Удаление задачи | Секция `YjjPE` | T `RVl1S`, M `AKFlk` (захват `sS9me`) | Tablet, Mobile | Button | ready |
 | NotificationsOverlay (MH), уведомления CC | 04 · Уведомления | группы `SJ0NJ` → `JVaZq`, `ySJGK`, `kceWr`; иконки `t:zaUw1`, `t:U8o8w`, `t:K1knz`, `t:mfDBu`, `t:QKRZe`; мобильный список `U5dtI`; тост «Открыть чат» `DNt8I` → `c03Rm` | все | Notification Item, Notification Toast | ready |
@@ -50,9 +50,9 @@
 | Чат | Сервер недоступен: баннер, поле заблокировано | секция | `pUB2g`: D `cCOWQ`, T `c4IDcM`, M `i2H1sh` |
 | Чат | Ответ остановлен + «Повторить» | секция | `G9GQ6f` → D `obt14` (`l7TqqO`, `wvaFq`), T `ak0ha` |
 | Чат | Индикатор «Агент отвечает…» со спиннером | строка | `y2PJn` → `eiCIQ` |
-| Чат | Ошибки голоса: нет доступа к микрофону, речь не распознана, слишком длинная запись, сервис недоступен, слишком много запросов | **нет макета — группа 1 (design)**, рядом с `cBn7j` | — |
-| Чат | Поиск в шапке: строка, «N из M», подсветка | **нет макета — группа 1 (design)**, секция на доске `CC227` | — |
-| Чат | Меню «…» в шапке и у строки списка | **нет макета — группа 1 (design)**: состав «Переименовать», «Удалить» | `dMCgn`, `lAjtD` |
+| Чат | Ошибки голоса: нет доступа к микрофону, речь не распознана, слишком длинная запись, сервис недоступен, слишком много запросов | секция `v0WDO` на доске `CC227`: D `U78VrM`, T `M9S7eE`, M `T8Kok` (по пять состояний; мастер композера рядом с `cBn7j` без изменений) | `J1XfB`, `og4yp`, `jg9EL`, `SwDh3`, `fVpNv` (Desktop) |
+| Чат | Поиск в шапке: строка, «N из M», подсветка | секция `jScoT` на доске `CC227` (Desktop и Tablet; на Mobile кнопки поиска нет): найдено «1 из 2» D `jcA4K`, T `tAyPe`; «Нет совпадений» D `D5knpb`, T `aPZ48` | `jcA4K`, `D5knpb`, `tAyPe`, `aPZ48` |
+| Чат | Меню «…» в шапке и у строки списка | секция `p0TFf9` на доске `CC227`: меню в шапке D `ass4u`, T `du6xO`; меню у строки D `hy1rl`, T `X95Zb`, M `g54bsT`; состав «Переименовать», «Удалить» | `WVAc0`, `L7FgP`, `tUMfJ`, `jgQNn`, `Nsf9O` (меню), `lAjtD` |
 | Список чатов | Пусто, ошибка загрузки | секция | `D4V94`: D `ur8iE`, M `v3FfzU`, `BiRJ4` |
 | Список чатов | Подтверждение удаления с `trash-2` | секция | `ddf2k` → `Wz6ru` |
 | Список чатов | Тосты ошибок переименования и удаления | секции | `AdObY` (`n2HLuP`, `nrkEh`, `J6Qtd`), `w87KAw` (`a8Zqc`, `nokRC`, `yuhOA`) |
@@ -60,7 +60,7 @@
 | Задачи | Тост «Задача удалена» | секция | `c0aEh5` → D `miE5X` |
 | Задачи | Пусто (иконка `list-checks`), «Загрузка…» в капсуле | секция | `c0aEh5` → T `CoBEv`, D `ucPQ3` |
 | Задачи | Ошибка загрузки списка | секция | `dp4Xk` → T `gnLLN` |
-| Задачи | «Статусы не загрузились» | **не реализуется**, убрать из макета — группа 1 (design) | `ntZI7`, `Y6qHgy`, `o5lAt` |
+| Задачи | «Статусы не загрузились» | не реализуется; состояние удалено из макета (группа 1) | — |
 | Уведомления | Нет соединения · переподключаемся | секция | `eKukg` → `snuT4` (`FlaJH`); M `f9l1v` (`S1b0M`), `l0Feq`, `ELc5C`, `jolqk` |
 | Уведомления | Ошибка загрузки (`cloud-off`) | секция | `eKukg` → `t5Kf4U` |
 

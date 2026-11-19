@@ -16,6 +16,7 @@ export type RunFinishedInput = Omit<RunFinishedPayload, 'attachments'> & {
 };
 
 export type AgentEvent =
+    | { readonly type: 'user-message-saved'; readonly messageId: string }
     | { readonly type: 'run-started' }
     | { readonly type: 'text-delta'; readonly text: string }
     | {
@@ -31,6 +32,11 @@ export type AgentEvent =
     | { readonly type: 'run-cancelled' };
 
 export const AgentEvent = {
+    /** The question of the user is stored; `messageId` is its id in the history. */
+    userMessageSaved: (messageId: string): AgentEvent => ({
+        type: 'user-message-saved',
+        messageId,
+    }),
     runStarted: (): AgentEvent => ({ type: 'run-started' }),
     textDelta: (text: string): AgentEvent => ({ type: 'text-delta', text }),
     toolCallStarted: (callId: string, name: string, args: unknown): AgentEvent => ({

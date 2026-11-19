@@ -1,5 +1,13 @@
-import { Module, type OnModuleInit } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    Logger,
+    Module,
+    type OnApplicationShutdown,
+    type OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Redis } from 'ioredis';
 import { PinoLogger } from 'nestjs-pino';
 import { PostgresModule } from '../../database/postgres/postgres.module';
 import type { Env } from '../../shared/config/env.schema';
@@ -7,9 +15,18 @@ import { MEETINGS_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import { DocumentsModule } from '../../shared/documents';
 import { createChatModel } from '../../shared/llm';
 import { FilesModule } from '../files/files.module';
+import { TranscribeUploadedVoiceUseCase } from './application/transcribe-uploaded-voice.use-case';
 import { TranscribeVoiceUseCase } from './application/transcribe-voice.use-case';
 import { TranscriberPort } from './domain/ports/transcriber.port';
+import { VoiceAudioNormalizerPort } from './domain/ports/voice-audio-normalizer.port';
+import { VoiceRateLimiterPort } from './domain/ports/voice-rate-limiter.port';
+import {
+    DEFAULT_VOICE_NORMALIZE_TIMEOUT_MS,
+    FfmpegVoiceAudioNormalizer,
+} from './infrastructure/ffmpeg/ffmpeg-voice-audio-normalizer';
 import { Transcriber } from './infrastructure/openrouter/transcriber';
+import { RedisVoiceRateLimiter } from './infrastructure/redis/redis-voice-rate-limiter';
+import { VoiceTranscriptionsController } from './interface/http/voice-transcriptions.controller';
 import { FailMeetingTranscriptionOnFileDeleted } from './meeting/application/fail-meeting-transcription-on-file-deleted.subscriber';
 import { FailMeetingTranscriptionUseCase } from './meeting/application/fail-meeting-transcription.use-case';
 import {
@@ -51,10 +68,22 @@ import { MEETINGS_AGENT_CONFIG } from './meeting/interface/agent/meetings-agent.
 import { MeetingTranscriptsController } from './meeting/interface/http/meeting-transcripts.controller';
 import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/meeting-transcription-error-status';
 
+const VOICE_REDIS = Symbol('VOICE_REDIS');
+
+@Injectable()
+class VoiceRedisLifecycle implements OnApplicationShutdown {
+    constructor(@Inject(VOICE_REDIS) private readonly client: Redis) {}
+
+    async onApplicationShutdown(): Promise<void> {
+        if (this.client.status === 'ready') await this.client.quit();
+        else this.client.disconnect();
+    }
+}
+
 // Маршруты закрыты глобальным JwtAuthGuard из AuthModule.
 @Module({
     imports: [PostgresModule, FilesModule, DocumentsModule, MeetingTranscriptionQueueModule],
-    controllers: [MeetingTranscriptsController],
+    controllers: [MeetingTranscriptsController, VoiceTranscriptionsController],
     providers: [
         // Голосовые Telegram.
         {
@@ -64,6 +93,54 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
                 new Transcriber(Transcriber.settingsFromConfig(config)),
         },
         TranscribeVoiceUseCase,
+        // Расшифровка голоса по HTTP для клиентских приложений.
+        TranscribeUploadedVoiceUseCase,
+        {
+            provide: VOICE_REDIS,
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<Env, true>): Redis => {
+                const client = new Redis({
+                    host: config.get('REDIS_HOST', { infer: true }),
+                    port: config.get('REDIS_PORT', { infer: true }),
+                    password: config.get('REDIS_PASSWORD', { infer: true }),
+                    db: config.get('REDIS_DB', { infer: true }),
+                    lazyConnect: true,
+                    commandTimeout: 1000,
+                    maxRetriesPerRequest: 1,
+                });
+                const logger = new Logger('VoiceRedis');
+                client.on('error', (error: Error) => {
+                    logger.error(error.message);
+                });
+                return client;
+            },
+        },
+        VoiceRedisLifecycle,
+        {
+            provide: VoiceRateLimiterPort,
+            inject: [VOICE_REDIS, ConfigService, PinoLogger],
+            useFactory: (
+                redis: Redis,
+                config: ConfigService<Env, true>,
+                logger: PinoLogger,
+            ): VoiceRateLimiterPort =>
+                new RedisVoiceRateLimiter(
+                    redis,
+                    {
+                        limit: config.get('VOICE_TRANSCRIPTION_MAX_PER_MINUTE', { infer: true }),
+                    },
+                    logger,
+                ),
+        },
+        {
+            provide: VoiceAudioNormalizerPort,
+            inject: [PinoLogger],
+            useFactory: (logger: PinoLogger): VoiceAudioNormalizerPort =>
+                new FfmpegVoiceAudioNormalizer(
+                    { timeoutMs: DEFAULT_VOICE_NORMALIZE_TIMEOUT_MS },
+                    logger,
+                ),
+        },
         // Расшифровка записей встреч.
         TranscribeMeetingUseCase,
         GetMeetingTranscriptUseCase,
@@ -170,7 +247,15 @@ import { registerMeetingTranscriptionErrorStatuses } from './meeting/interface/m
     ],
 })
 export class TranscriptionModule implements OnModuleInit {
-    onModuleInit(): void {
+    constructor(
+        @Inject(VoiceAudioNormalizerPort) private readonly voiceAudio: VoiceAudioNormalizerPort,
+    ) {}
+
+    async onModuleInit(): Promise<void> {
         registerMeetingTranscriptionErrorStatuses();
+        // Без ffmpeg голос отвечает 503; об этом пишется в лог при старте.
+        if (this.voiceAudio instanceof FfmpegVoiceAudioNormalizer) {
+            await this.voiceAudio.checkTools();
+        }
     }
 }
