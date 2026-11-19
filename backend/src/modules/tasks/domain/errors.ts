@@ -6,6 +6,8 @@ export const TaskErrorCode = {
     UserNotFound: 'TASK_USER_NOT_FOUND',
     AttachmentLimit: 'TASK_ATTACHMENT_LIMIT',
     AttachmentTooLarge: 'TASK_ATTACHMENT_TOO_LARGE',
+    AttachmentLinksUnavailable: 'TASK_ATTACHMENT_LINKS_UNAVAILABLE',
+    AttachmentTokenInvalid: 'TASK_ATTACHMENT_TOKEN_INVALID',
 } as const;
 
 export class TaskNotFoundError extends BaseError {
@@ -45,5 +47,22 @@ export class AttachmentTooLargeError extends BaseError {
 
     constructor(readonly maxBytes: number) {
         super(`File is larger than ${String(maxBytes)} bytes`);
+    }
+}
+
+/** Секрет ссылок не задан: выдача ссылок выключена. */
+export class TaskAttachmentLinksUnavailableError extends BaseError {
+    readonly code = TaskErrorCode.AttachmentLinksUnavailable;
+
+    constructor() {
+        super('Attachment download links are not configured');
+    }
+}
+
+export class TaskAttachmentTokenInvalidError extends BaseError {
+    readonly code = TaskErrorCode.AttachmentTokenInvalid;
+
+    constructor() {
+        super('Attachment download token is invalid');
     }
 }

@@ -1,12 +1,16 @@
 import { Readable } from 'node:stream';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CreateAttachmentDownloadLinkUseCase } from '../../application/create-attachment-download-link.use-case';
 import { DeleteAttachmentUseCase } from '../../application/delete-attachment.use-case';
+import { DownloadAttachmentByTokenUseCase } from '../../application/download-attachment-by-token.use-case';
 import { DownloadAttachmentUseCase } from '../../application/download-attachment.use-case';
 import { UploadAttachmentUseCase } from '../../application/upload-attachment.use-case';
 import {
     AttachmentLimitReachedError,
     AttachmentNotFoundError,
     AttachmentTooLargeError,
+    TaskAttachmentLinksUnavailableError,
+    TaskAttachmentTokenInvalidError,
     TaskNotFoundError,
 } from '../../domain/errors';
 import { TaskAttachmentsController } from './task-attachments.controller';
@@ -19,6 +23,8 @@ const MAX_BYTES = 64;
 const upload = { execute: vi.fn() };
 const download = { execute: vi.fn() };
 const remove = { execute: vi.fn() };
+const createLink = { execute: vi.fn() };
+const downloadByToken = { execute: vi.fn() };
 
 const meta = {
     id: ATT_ID,
@@ -40,6 +46,8 @@ describe('TaskAttachmentsController', () => {
                 { provide: UploadAttachmentUseCase, useValue: upload },
                 { provide: DownloadAttachmentUseCase, useValue: download },
                 { provide: DeleteAttachmentUseCase, useValue: remove },
+                { provide: CreateAttachmentDownloadLinkUseCase, useValue: createLink },
+                { provide: DownloadAttachmentByTokenUseCase, useValue: downloadByToken },
             ],
             maxFileSizeBytes: MAX_BYTES,
         });
@@ -52,6 +60,14 @@ describe('TaskAttachmentsController', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         remove.execute.mockResolvedValue(undefined);
+        createLink.execute.mockResolvedValue({
+            url: `/tasks/${TASK_ID}/attachments/${ATT_ID}/content?token=tok`,
+            expiresAt: new Date('2026-11-06T10:05:00.000Z'),
+        });
+        downloadByToken.execute.mockResolvedValue({
+            meta,
+            stream: Readable.from([Buffer.from('hello')]),
+        });
         download.execute.mockResolvedValue({ meta, stream: Readable.from([Buffer.from('hello')]) });
         upload.execute.mockImplementation(
             async (_actor: unknown, _id: string, file: { stream: Readable }) => {
@@ -225,6 +241,84 @@ describe('TaskAttachmentsController', () => {
                 },
             );
             expect(response.status).toBe(400);
+        });
+    });
+
+    describe('POST /tasks/:id/attachments/:attachmentId/download-link', () => {
+        const path = `/tasks/${TASK_ID}/attachments/${ATT_ID}/download-link`;
+        const post = (headers: Record<string, string> = fixture.bearer()): Promise<Response> =>
+            fetch(`${fixture.base}${path}`, { method: 'POST', headers });
+
+        it('answers 200 with the signed link', async () => {
+            const response = await post();
+
+            expect(response.status).toBe(200);
+            expect(await response.json()).toEqual({
+                url: `/tasks/${TASK_ID}/attachments/${ATT_ID}/content?token=tok`,
+                expiresAt: '2026-11-06T10:05:00.000Z',
+            });
+            expect(createLink.execute.mock.calls[0]?.[1]).toBe(TASK_ID);
+            expect(createLink.execute.mock.calls[0]?.[2]).toBe(ATT_ID);
+        });
+
+        it('answers 401 without a token', async () => {
+            expect((await post({})).status).toBe(401);
+        });
+
+        it('answers 404 for an unknown task or attachment', async () => {
+            createLink.execute.mockRejectedValue(new AttachmentNotFoundError(ATT_ID));
+            const response = await post();
+            expect(response.status).toBe(404);
+            expect(await response.json()).toMatchObject({ code: 'TASK_ATTACHMENT_NOT_FOUND' });
+        });
+
+        it('answers 503 TASK_ATTACHMENT_LINKS_UNAVAILABLE without a secret', async () => {
+            createLink.execute.mockRejectedValue(new TaskAttachmentLinksUnavailableError());
+            const response = await post();
+            expect(response.status).toBe(503);
+            expect(await response.json()).toMatchObject({
+                code: 'TASK_ATTACHMENT_LINKS_UNAVAILABLE',
+            });
+        });
+    });
+
+    describe('GET /tasks/:id/attachments/:attachmentId/content', () => {
+        const path = `/tasks/${TASK_ID}/attachments/${ATT_ID}/content`;
+
+        it('serves the file without Authorization', async () => {
+            const response = await fetch(`${fixture.base}${path}?token=tok`);
+
+            expect(response.status).toBe(200);
+            expect(Buffer.from(await response.arrayBuffer()).toString()).toBe('hello');
+            expect(response.headers.get('content-type')).toContain('application/pdf');
+            expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+            const disposition = response.headers.get('content-disposition') ?? '';
+            expect(disposition.startsWith('attachment;')).toBe(true);
+            expect(disposition).toContain(
+                `filename*=UTF-8''${encodeURIComponent('Прайс 2026.pdf')}`,
+            );
+            expect(downloadByToken.execute).toHaveBeenCalledWith(TASK_ID, ATT_ID, 'tok');
+        });
+
+        it('passes an empty token when the query parameter is missing', async () => {
+            downloadByToken.execute.mockRejectedValue(new TaskAttachmentTokenInvalidError());
+            const response = await fetch(`${fixture.base}${path}`);
+            expect(response.status).toBe(403);
+            expect(downloadByToken.execute).toHaveBeenCalledWith(TASK_ID, ATT_ID, '');
+        });
+
+        it('answers 403 TASK_ATTACHMENT_TOKEN_INVALID', async () => {
+            downloadByToken.execute.mockRejectedValue(new TaskAttachmentTokenInvalidError());
+            const response = await fetch(`${fixture.base}${path}?token=bad`);
+            expect(response.status).toBe(403);
+            expect(await response.json()).toMatchObject({ code: 'TASK_ATTACHMENT_TOKEN_INVALID' });
+        });
+
+        it('answers 404 when the attachment or file is gone', async () => {
+            downloadByToken.execute.mockRejectedValue(new AttachmentNotFoundError(ATT_ID));
+            const response = await fetch(`${fixture.base}${path}?token=tok`);
+            expect(response.status).toBe(404);
+            expect(await response.json()).toMatchObject({ code: 'TASK_ATTACHMENT_NOT_FOUND' });
         });
     });
 

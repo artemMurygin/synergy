@@ -262,6 +262,7 @@ export class FakeAccessPolicy implements TaskAccessPolicy {
 export class FakeTasksSettings implements TasksSettings {
     maxFileSizeBytes = 1024;
     maxFilesPerTask = 2;
+    downloadLinkTtlSec = 300;
 }
 
 export class InMemoryFileStorage implements FileStorage {

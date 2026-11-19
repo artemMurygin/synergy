@@ -16,6 +16,8 @@ describe('task domain errors', () => {
             UserNotFound: 'TASK_USER_NOT_FOUND',
             AttachmentLimit: 'TASK_ATTACHMENT_LIMIT',
             AttachmentTooLarge: 'TASK_ATTACHMENT_TOO_LARGE',
+            AttachmentLinksUnavailable: 'TASK_ATTACHMENT_LINKS_UNAVAILABLE',
+            AttachmentTokenInvalid: 'TASK_ATTACHMENT_TOKEN_INVALID',
         });
         expect(new TaskNotFoundError('t1').code).toBe('TASK_NOT_FOUND');
         expect(new AttachmentNotFoundError('a1').code).toBe('TASK_ATTACHMENT_NOT_FOUND');

@@ -10,6 +10,8 @@ export function registerTaskErrorStatuses(): void {
         [TaskErrorCode.UserNotFound]: HttpStatus.UNPROCESSABLE_ENTITY,
         [TaskErrorCode.AttachmentLimit]: HttpStatus.UNPROCESSABLE_ENTITY,
         [TaskErrorCode.AttachmentTooLarge]: HttpStatus.PAYLOAD_TOO_LARGE,
+        [TaskErrorCode.AttachmentLinksUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
+        [TaskErrorCode.AttachmentTokenInvalid]: HttpStatus.FORBIDDEN,
         [TASK_ACCESS_DENIED]: HttpStatus.FORBIDDEN,
     });
 }

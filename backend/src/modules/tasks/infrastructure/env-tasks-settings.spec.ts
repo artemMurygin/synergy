@@ -13,11 +13,13 @@ describe('EnvTasksSettings', () => {
                 TASKS_MAX_FILE_SIZE_MB: 20,
                 TASKS_MAX_FILES_PER_TASK: 10,
                 TASKS_STORAGE_DIR: './s',
+                FILES_DOWNLOAD_LINK_TTL_SEC: 120,
             }),
         );
 
         expect(settings.maxFileSizeBytes).toBe(20 * 1024 * 1024);
         expect(settings.maxFilesPerTask).toBe(10);
         expect(settings.storageDir).toBe('./s');
+        expect(settings.downloadLinkTtlSec).toBe(120);
     });
 });

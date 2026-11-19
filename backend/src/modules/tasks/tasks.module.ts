@@ -9,10 +9,12 @@ import type { Env } from '../../shared/config/env.schema';
 import { createChatModel } from '../../shared/llm';
 import { TASKS_AGENT_CONFIG } from './tasks-agent.config';
 import { DomainEventRegistry } from '../../shared/outbox/application/domain-event-registry';
+import { CreateAttachmentDownloadLinkUseCase } from './application/create-attachment-download-link.use-case';
 import { CreateTaskUseCase } from './application/create-task.use-case';
 import { CreateTasksFromDraftUseCase } from './application/create-tasks-from-draft.use-case';
 import { DeleteAttachmentUseCase } from './application/delete-attachment.use-case';
 import { DeleteTaskUseCase } from './application/delete-task.use-case';
+import { DownloadAttachmentByTokenUseCase } from './application/download-attachment-by-token.use-case';
 import { DownloadAttachmentUseCase } from './application/download-attachment.use-case';
 import { GetTaskUseCase } from './application/get-task.use-case';
 import { ListTasksUseCase } from './application/list-tasks.use-case';
@@ -21,6 +23,7 @@ import { TasksReportDocument } from './application/tasks-report-document';
 import { UpdateTaskUseCase } from './application/update-task.use-case';
 import { UploadAttachmentUseCase } from './application/upload-attachment.use-case';
 import { registerTaskEvents } from './contracts/register-task-events';
+import { AttachmentDownloadTokenPort } from './domain/ports/attachment-download-token.port';
 import { Clock } from './domain/ports/clock.port';
 import { FileStorage } from './domain/ports/file-storage.port';
 import { GeneratedDocumentStorePort } from './domain/ports/generated-document-store.port';
@@ -34,6 +37,7 @@ import { UserDirectory } from './domain/ports/user-directory.port';
 import { AllowAllTaskAccessPolicy } from './infrastructure/allow-all-task-access-policy';
 import { EnvTasksSettings } from './infrastructure/env-tasks-settings';
 import { GeneratedDocumentStore } from './infrastructure/generated-document-store';
+import { createAttachmentDownloadToken } from './infrastructure/jwt/attachment-download-token.service';
 import { LocalDiskFileStorage } from './infrastructure/local-disk-file-storage';
 import { MeetingRecordings } from './infrastructure/meeting-recordings';
 import { SlonikTaskAttachmentRepository } from './infrastructure/slonik-task-attachment.repository';
@@ -72,6 +76,8 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
         DeleteTaskUseCase,
         UploadAttachmentUseCase,
         DownloadAttachmentUseCase,
+        CreateAttachmentDownloadLinkUseCase,
+        DownloadAttachmentByTokenUseCase,
         DeleteAttachmentUseCase,
         ProposeTasksUseCase,
         CreateTasksFromDraftUseCase,
@@ -86,6 +92,18 @@ import { registerTaskErrorStatuses } from './interface/tasks-error-status';
         { provide: UserDirectory, useClass: SlonikUserDirectory },
         { provide: TaskAccessPolicy, useClass: AllowAllTaskAccessPolicy },
         { provide: Clock, useClass: SystemClock },
+        {
+            provide: AttachmentDownloadTokenPort,
+            inject: [ConfigService, Clock],
+            useFactory: (
+                config: ConfigService<Env, true>,
+                clock: Clock,
+            ): AttachmentDownloadTokenPort =>
+                createAttachmentDownloadToken(
+                    config.get('FILES_DOWNLOAD_TOKEN_SECRET', { infer: true }),
+                    clock,
+                ),
+        },
         {
             provide: FileStorage,
             inject: [EnvTasksSettings],

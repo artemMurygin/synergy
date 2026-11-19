@@ -10,11 +10,13 @@ export class EnvTasksSettings extends TasksSettings {
     readonly maxFileSizeBytes: number;
     readonly maxFilesPerTask: number;
     readonly storageDir: string;
+    readonly downloadLinkTtlSec: number;
 
     constructor(config: ConfigService<Env, true>) {
         super();
         this.maxFileSizeBytes = config.get('TASKS_MAX_FILE_SIZE_MB', { infer: true }) * BYTES_IN_MB;
         this.maxFilesPerTask = config.get('TASKS_MAX_FILES_PER_TASK', { infer: true });
+        this.downloadLinkTtlSec = config.get('FILES_DOWNLOAD_LINK_TTL_SEC', { infer: true });
         this.storageDir = config.get('TASKS_STORAGE_DIR', { infer: true });
     }
 }

@@ -8,6 +8,7 @@ import {
     Param,
     ParseUUIDPipe,
     Post,
+    Query,
     Res,
     StreamableFile,
     UploadedFile,
@@ -20,6 +21,7 @@ import {
     ApiConsumes,
     ApiOperation,
     ApiProduces,
+    ApiQuery,
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
@@ -30,12 +32,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
 import { attachmentDisposition } from '../../../../shared/http/content-disposition';
-import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/http/decorators';
+import {
+    CurrentUser,
+    Public,
+    type AuthenticatedUser,
+} from '../../../auth/interface/http/decorators';
+import { CreateAttachmentDownloadLinkUseCase } from '../../application/create-attachment-download-link.use-case';
 import { DeleteAttachmentUseCase } from '../../application/delete-attachment.use-case';
+import { DownloadAttachmentByTokenUseCase } from '../../application/download-attachment-by-token.use-case';
 import { DownloadAttachmentUseCase } from '../../application/download-attachment.use-case';
 import { UploadAttachmentUseCase } from '../../application/upload-attachment.use-case';
 import { actorOf } from './actor-of';
-import { AttachmentResponse, AttachmentUploadBody } from './tasks.responses';
+import {
+    AttachmentDownloadLinkResponse,
+    AttachmentResponse,
+    AttachmentUploadBody,
+} from './tasks.responses';
 
 /** The part of the multer file object this controller relies on (disk storage). */
 interface UploadedDiskFile {
@@ -62,6 +74,8 @@ export class TaskAttachmentsController {
         private readonly uploadAttachment: UploadAttachmentUseCase,
         private readonly downloadAttachment: DownloadAttachmentUseCase,
         private readonly deleteAttachment: DeleteAttachmentUseCase,
+        private readonly createDownloadLink: CreateAttachmentDownloadLinkUseCase,
+        private readonly downloadByToken: DownloadAttachmentByTokenUseCase,
     ) {}
 
     @Post()
@@ -120,6 +134,63 @@ export class TaskAttachmentsController {
             actorOf(user),
             taskId,
             attachmentId,
+        );
+        response.setHeader('X-Content-Type-Options', 'nosniff');
+        return new StreamableFile(stream, {
+            type: meta.contentType,
+            disposition: attachmentDisposition(meta.originalName),
+            length: meta.sizeBytes,
+        });
+    }
+
+    @Post(':attachmentId/download-link')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Short-lived signed link to download the attachment without a token header',
+    })
+    @ApiResponse({
+        status: HttpStatus.OK,
+        description: 'Signed link',
+        type: AttachmentDownloadLinkResponse,
+    })
+    @errorResponse(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'TASK_ATTACHMENT_LINKS_UNAVAILABLE: download links are not configured',
+    )
+    @notFound
+    @unauthorized
+    async downloadLink(
+        @CurrentUser() user: AuthenticatedUser | undefined,
+        @Param('id', ParseUUIDPipe) taskId: string,
+        @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    ): Promise<AttachmentDownloadLinkResponse> {
+        return new AttachmentDownloadLinkResponse(
+            await this.createDownloadLink.execute(actorOf(user), taskId, attachmentId),
+        );
+    }
+
+    // Публичный: загрузчик браузера не шлёт Authorization, доступ даёт токен из ссылки.
+    @Public()
+    @Get(':attachmentId/content')
+    @ApiOperation({ summary: 'Download the attachment by a signed link' })
+    @ApiQuery({ name: 'token', required: true, description: 'Token from the download link' })
+    @ApiProduces('application/octet-stream')
+    @ApiResponse({ status: HttpStatus.OK, description: 'File bytes as an attachment' })
+    @errorResponse(
+        HttpStatus.FORBIDDEN,
+        'TASK_ATTACHMENT_TOKEN_INVALID: expired, forged or foreign',
+    )
+    @notFound
+    async content(
+        @Param('id', ParseUUIDPipe) taskId: string,
+        @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+        @Query('token') token: unknown,
+        @Res({ passthrough: true }) response: Response,
+    ): Promise<StreamableFile> {
+        const { meta, stream } = await this.downloadByToken.execute(
+            taskId,
+            attachmentId,
+            typeof token === 'string' ? token : '',
         );
         response.setHeader('X-Content-Type-Options', 'nosniff');
         return new StreamableFile(stream, {

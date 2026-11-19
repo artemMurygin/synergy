@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { AttachmentDownloadLink } from '../../application/create-attachment-download-link.use-case';
 import type { AttachmentView } from '../../application/attachment-view';
 import type { TaskListResult } from '../../application/list-tasks.use-case';
 import type { TaskDetailsView, TaskUserRef, TaskView } from '../../application/task-view';
@@ -151,4 +152,20 @@ export class AttachmentResponse {
 export class AttachmentUploadBody {
     @ApiPropertyOptional({ type: 'string', format: 'binary', description: 'The file to attach' })
     readonly file?: unknown;
+}
+
+export class AttachmentDownloadLinkResponse {
+    @ApiProperty({
+        example: `/tasks/${UUID_EXAMPLE}/attachments/${UUID_EXAMPLE}/content?token=eyJhbGciOiJIUzI1NiJ9...`,
+        description: 'Relative URL that works without the Authorization header',
+    })
+    readonly url: string;
+
+    @ApiProperty({ example: '2026-11-06T10:05:00.000Z' })
+    readonly expiresAt: string;
+
+    constructor(link: AttachmentDownloadLink) {
+        this.url = link.url;
+        this.expiresAt = link.expiresAt.toISOString();
+    }
 }
