@@ -25,7 +25,7 @@ import {
   markNotificationRead,
 } from '@/shared/notifications/notifications-api'
 import type * as TasksApi from '@/shared/tasks-api'
-import { TaskNotFoundError, getTask, listTasks } from '@/shared/tasks-api'
+import { TaskNotFoundError, getTask, listTasks, searchUsers } from '@/shared/tasks-api'
 import { makeDetails, makeTask } from './tasks/fixtures'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { App as AppUnderTest } from './App'
@@ -160,6 +160,7 @@ beforeEach(() => {
     limit: 50,
     page: 0,
   })
+  vi.mocked(searchUsers).mockResolvedValue({ items: [], total: 0, limit: 20, page: 0 })
   vi.mocked(getTask).mockImplementation((id) =>
     Promise.resolve(makeDetails(id, { title: `Детали ${id}` })),
   )

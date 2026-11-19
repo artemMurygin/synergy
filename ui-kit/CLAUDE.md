@@ -19,7 +19,7 @@
 
 ## Подключение в приложении
 
-В CSS приложения: `@import 'tailwindcss'; @import '@synergy/ui-kit/styles.css'; @source "<rel>/ui-kit/src";` (путь `@source` — относительный до `ui-kit/src`).
+В CSS приложения: `@import 'tailwindcss'; @import '@synergy/ui-kit/styles.css'; @source "<rel>/ui-kit/src";` (путь `@source` — относительный до `ui-kit/src`; CC: `'../../../../ui-kit/src'` из `renderer/src/index.css`).
 
 ## Правила
 
@@ -40,6 +40,24 @@
 | `border-input` | `border-border` |
 | `ring-ring` | `ring-brand-red/40` |
 | `dark:*` | нет, только светлая тема |
+
+## Токены «старое -> новое» (MH)
+
+| MH (старое) | UI Kit |
+|---|---|
+| локальные `--mh-*` / hex из `shared/styles.css` | токены `--color-*` по имени Pencil (`ink`, `ink-60`, `surface`, `surface-alt`, `border`, `brand-red`) |
+| `PrimaryButton` | `Button variant="primary"` |
+| локальные `PasswordField`, `Switch`, `InlineConfirm` | одноимённые примитивы пакета |
+| `sidepanel/icons.tsx`, `options/telegram/icons.tsx` | `@synergy/ui-kit/icons` |
+
+## Как добавить компонент
+
+1. Сначала мастер в `design/design-kit.lib.pen` (через `mcp__pencil__*`), состояния и три формата.
+2. Компонент в `src/<область>/` (презентационный: данные + колбэки), стили на токенах, иконки из `src/icons.ts`, `cn` из `src/lib/cn.ts`.
+3. Тест рядом (`*.test.tsx`) на роли и тексты, не на классы.
+4. Экспорт в `src/index.ts`; новые токены — в `tokens.css` и тест-снимок.
+5. Платформенный код не добавлять; разная компоновка — через `useLayoutMode`.
+6. Проверить в обоих приложениях (CC через electron-stagewright, MH после `npx vite build`).
 
 ## Команды
 

@@ -8,6 +8,7 @@
 |---|---|---|---|
 | `backend/` | NestJS API (пакет `audit-agent`): модули агентов, auth, portal, tasks, files, notifications | NestJS, Slonik (PostgreSQL), Prisma (MSSQL), BullMQ, Redis, LangChain | `backend/CLAUDE.md` |
 | `portal/` | Веб-портал (Vite SPA) | React, React Router, TanStack Query, Zustand, Zod, Tailwind 4 | `portal/CLAUDE.md` |
+| `ui-kit/` | Общий UI Kit `@synergy/ui-kit` (поставка исходниками) для CC и MH | React, Tailwind 4, radix-ui, assistant-ui | `ui-kit/CLAUDE.md` |
 | `control-center/` | Десктоп-клиент | Electron (electron-vite), React, assistant-ui | `control-center/CLAUDE.md` |
 | `manager-helper/` | Расширение Chrome (боковая панель) | Vite + CRX, React, assistant-ui | `manager-helper/CLAUDE.md` |
 | `design/` | Макеты: `synergy-design.pen` (доски «Единый дизайн · 01–06» в режимах Desktop/Tablet/Mobile), `design-kit.lib.pen` (UI Kit: токены и мастера, имена токенов без `t:` = имена CSS-токенов кода) | Pencil | только через `mcp__pencil__*`, правила в `.claude/rules/design-system.md` |
@@ -17,10 +18,13 @@
 
 ## Команды (из папки пакета)
 
+Установка зависимостей клиентов — `npm install` в корне (npm workspaces: ui-kit, control-center, manager-helper, один `package-lock.json`); backend и portal вне workspaces.
+
 | Пакет | Тесты | Типы | Линт |
 |---|---|---|---|
 | backend | `npm test` / `npx vitest run <путь>` | `npm run typecheck` | `npm run lint` |
 | portal | `npm test` / `npx vitest run <путь>` | `npm run typecheck` | — |
+| ui-kit | `npm test` / `npx vitest run <путь>` | `npm run typecheck` | `npm run lint` |
 | control-center | `npm test` / `npx vitest run <путь>` | `npm run typecheck` | — |
 | manager-helper | `npm test` / `npx vitest run <путь>` | `npm run typecheck` | `npm run lint` |
 

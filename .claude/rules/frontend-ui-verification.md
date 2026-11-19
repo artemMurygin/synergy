@@ -4,6 +4,7 @@ paths:
   - "portal/src/**/*.{ts,tsx,css}"
   - "manager-helper/src/**/*.{ts,tsx,css}"
   - "manager-helper/manifest.config.ts"
+  - "ui-kit/**"
   - "control-center/src/renderer/**/*.{ts,tsx,css}"
 ---
 

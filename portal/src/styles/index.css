@@ -17,7 +17,7 @@
 @import '@fontsource/raleway/cyrillic-700.css';
 
 :root {
-  /* Brand tokens from design/synergy-design-kit.pen */
+  /* Brand tokens from design/design-kit.lib.pen */
   --brand-red: #ed131c;
   --brand-red-hover: #c81018;
   --brand-red-soft: #fde8e9;
