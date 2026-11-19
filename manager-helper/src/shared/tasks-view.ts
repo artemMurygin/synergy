@@ -1,19 +1,23 @@
+import type { TaskSort, TaskStatusFilter, TaskView } from '@synergy/ui-kit'
 import type { ListTasksParams, Task } from './tasks-api'
-
-/** The backend cannot filter "not done", so "my open tasks" are two independent streams. */
-export const OPEN_STATUSES = ['todo', 'in_progress'] as const
-export type OpenStatus = (typeof OPEN_STATUSES)[number]
 
 export const DEFAULT_PAGE_LIMIT = 50
 
-export type TasksView = 'mine' | 'watching' | 'created' | 'done'
+/** What the filters of the package show: the view, the status, the sort and the title search. */
+export interface TasksQuery {
+  view: TaskView
+  status: TaskStatusFilter
+  sort: TaskSort
+  search: string
+}
 
-export const TASKS_VIEWS: readonly { id: TasksView; label: string }[] = [
-  { id: 'mine', label: 'Мои' },
-  { id: 'watching', label: 'Наблюдаю' },
-  { id: 'created', label: 'Созданные' },
-  { id: 'done', label: 'Готовые' },
-]
+/** "Мои", all statuses, the nearest deadline first. */
+export const DEFAULT_TASKS_QUERY: TasksQuery = {
+  view: 'mine',
+  status: 'all',
+  sort: 'deadline',
+  search: '',
+}
 
 export interface TaskStream {
   /** Request without `page`: the stream is defined by it. */
@@ -24,49 +28,42 @@ export interface TaskStream {
   page: number
 }
 
-function openStreamFilter(status: OpenStatus, assigneeId: string, limit: number) {
-  return { status, assigneeId, sort: 'deadline', order: 'asc', limit } satisfies Omit<
-    ListTasksParams,
-    'page'
-  >
+// The package names the sorts "updated" / "created"; the backend "updatedAt" / "createdAt".
+const SORTS = {
+  deadline: { sort: 'deadline', order: 'asc' },
+  updated: { sort: 'updatedAt', order: 'desc' },
+  created: { sort: 'createdAt', order: 'desc' },
+} as const
+
+function viewFilter(view: TaskView, userId: string): Omit<ListTasksParams, 'page'> {
+  switch (view) {
+    case 'all':
+      return {}
+    case 'mine':
+      return { assigneeId: userId }
+    case 'watching':
+      return { watcherId: userId }
+    case 'created':
+      return { creatorId: userId }
+    case 'overdue':
+      return { overdue: true }
+  }
 }
 
-/** Stream definitions of a view (without `page`); a blank search is dropped. */
-export function viewStreamFilters(
-  view: TasksView,
+/** Request (without `page`) of the list for the chosen view, status, sort and search. */
+export function taskListFilter(
+  query: TasksQuery,
   userId: string,
-  search: string,
   limit = DEFAULT_PAGE_LIMIT,
-): TaskStream['filter'][] {
-  const base = { sort: 'updatedAt', order: 'desc', limit } as const
-  const filters: TaskStream['filter'][] =
-    view === 'mine'
-      ? OPEN_STATUSES.map((status) => openStreamFilter(status, userId, limit))
-      : view === 'watching'
-        ? [{ watcherId: userId, ...base }]
-        : view === 'created'
-          ? [{ creatorId: userId, ...base }]
-          : [{ status: 'done', assigneeId: userId, ...base }]
-  const term = search.trim()
-  return term === '' ? filters : filters.map((filter) => ({ ...filter, search: term }))
-}
-
-/** First-page requests of a view. */
-export function viewFilters(
-  view: TasksView,
-  userId: string,
-  search: string,
-  limit = DEFAULT_PAGE_LIMIT,
-): ListTasksParams[] {
-  return viewStreamFilters(view, userId, search, limit).map((filter) => ({ ...filter, page: 0 }))
-}
-
-/** First-page requests of "my open tasks": one per open status. */
-export function openTasksFilters(
-  assigneeId: string,
-  limit = DEFAULT_PAGE_LIMIT,
-): ListTasksParams[] {
-  return viewFilters('mine', assigneeId, '', limit)
+): TaskStream['filter'] {
+  const term = query.search.trim()
+  return {
+    ...viewFilter(query.view, userId),
+    ...(query.status === 'all' ? {} : { status: query.status }),
+    ...(term === '' ? {} : { search: term }),
+    ...SORTS[query.sort],
+    limit,
+  }
 }
 
 export function remaining(stream: TaskStream): number {
@@ -80,22 +77,4 @@ export function hasMore(stream: TaskStream): boolean {
 /** Request for the page after the last loaded one of the stream. */
 export function nextPage(stream: TaskStream): ListTasksParams {
   return { ...stream.filter, page: stream.page + 1 }
-}
-
-function deadlineTime(task: Task): number {
-  return task.deadline === null ? Number.POSITIVE_INFINITY : Date.parse(task.deadline)
-}
-
-/** Merge several streams by deadline, nearest first, no deadline last; ties keep stream order. */
-export function mergeStreams(streams: readonly TaskStream[]): Task[] {
-  // A lone stream is already ordered by the server.
-  if (streams.length === 1) return [...(streams[0]?.items ?? [])]
-  return streams
-    .flatMap((stream) => stream.items)
-    .map((task, index) => ({ task, index, time: deadlineTime(task) }))
-    .sort((a, b) => {
-      if (a.time === b.time) return a.index - b.index
-      return a.time < b.time ? -1 : 1
-    })
-    .map(({ task }) => task)
 }

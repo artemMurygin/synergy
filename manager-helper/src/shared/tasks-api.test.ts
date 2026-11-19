@@ -6,6 +6,8 @@ import {
   AttachmentLimitError,
   AttachmentTooLargeError,
   createTask,
+  deleteAttachment,
+  deleteTask,
   downloadAttachment,
   getTask,
   listTasks,
@@ -13,8 +15,11 @@ import {
   TaskNotFoundError,
   TaskUserNotFoundError,
   updateTask,
+  uploadAttachment,
 } from './tasks-api'
+import { postMultipart } from './files-api'
 
+vi.mock('./files-api', () => ({ postMultipart: vi.fn() }))
 vi.mock('./settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
 
 const user = { id: 'u1', login: 'anna' }
@@ -30,6 +35,7 @@ const task = {
   createdAt: '2026-11-06T10:00:00.000Z',
   updatedAt: '2026-11-06T10:05:00.000Z',
   completedAt: null,
+  attachmentCount: 2,
 }
 const attachment = {
   id: 'a1',
@@ -263,5 +269,67 @@ describe('searchUsers', () => {
       json({ items: [{ id: 'u1', login: null }], total: 1, limit: 20, page: 0 }),
     )
     await expect(searchUsers('')).rejects.toBeInstanceOf(AskError)
+  })
+})
+
+describe('uploadAttachment', () => {
+  const file = new File(['x'], 'Прайс.pdf')
+
+  it('posts the file to the task attachments and parses the attachment', async () => {
+    vi.mocked(postMultipart).mockResolvedValue({ status: 201, body: JSON.stringify(attachment) })
+    const onProgress = vi.fn()
+    const result = await uploadAttachment('t 1', file, { onProgress })
+    expect(postMultipart).toHaveBeenCalledWith('/tasks/t%201/attachments', file, { onProgress })
+    expect(result.id).toBe('a1')
+  })
+
+  it('maps 413 to AttachmentTooLargeError', async () => {
+    vi.mocked(postMultipart).mockResolvedValue({
+      status: 413,
+      body: JSON.stringify({ message: 'File is larger than 20971520 bytes' }),
+    })
+    await expect(uploadAttachment('t1', file)).rejects.toBeInstanceOf(AttachmentTooLargeError)
+  })
+
+  it('maps 422 TASK_ATTACHMENT_LIMIT to AttachmentLimitError', async () => {
+    vi.mocked(postMultipart).mockResolvedValue({
+      status: 422,
+      body: JSON.stringify({ code: 'TASK_ATTACHMENT_LIMIT', message: 'limit' }),
+    })
+    await expect(uploadAttachment('t1', file)).rejects.toBeInstanceOf(AttachmentLimitError)
+  })
+
+  it('maps 404 to TaskNotFoundError and other statuses to AskError', async () => {
+    vi.mocked(postMultipart).mockResolvedValue({ status: 404, body: '{}' })
+    await expect(uploadAttachment('t1', file)).rejects.toBeInstanceOf(TaskNotFoundError)
+    vi.mocked(postMultipart).mockResolvedValue({ status: 500, body: 'boom' })
+    await expect(uploadAttachment('t1', file)).rejects.toBeInstanceOf(AskError)
+  })
+
+  it('rejects an unexpected response body', async () => {
+    vi.mocked(postMultipart).mockResolvedValue({ status: 201, body: '{"x":1}' })
+    await expect(uploadAttachment('t1', file)).rejects.toThrow('неожиданном формате')
+  })
+})
+
+describe('deleteAttachment and deleteTask', () => {
+  beforeEach(() => {
+    setAccessToken('tok')
+    fetchMock = vi.fn<Sender>().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it('deletes an attachment', async () => {
+    await deleteAttachment('t1', 'a1')
+    expect(lastCall().url).toBe('http://api.test/tasks/t1/attachments/a1')
+    expect(lastCall().init.method).toBe('DELETE')
+  })
+
+  it('deletes a task and maps 404', async () => {
+    await deleteTask('t1')
+    expect(lastCall().url).toBe('http://api.test/tasks/t1')
+    expect(lastCall().init.method).toBe('DELETE')
+    fetchMock.mockResolvedValue(json({ message: 'no' }, 404))
+    await expect(deleteTask('t1')).rejects.toBeInstanceOf(TaskNotFoundError)
   })
 })

@@ -1,154 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import type { Task } from './tasks-api'
-import {
-  hasMore,
-  mergeStreams,
-  nextPage,
-  openTasksFilters,
-  remaining,
-  viewFilters,
-  type TaskStream,
-} from './tasks-view'
+import { DEFAULT_TASKS_QUERY, hasMore, nextPage, remaining, taskListFilter } from './tasks-view'
+import type { TaskStream } from './tasks-view'
 
-function task(id: string, deadline: string | null, status: Task['status'] = 'todo'): Task {
-  return {
-    id,
-    title: id,
-    description: '',
-    status,
-    deadline,
-    creator: { id: 'u1', login: 'anna' },
-    assignee: { id: 'u1', login: 'anna' },
-    watchers: [],
-    createdAt: '2026-11-01T00:00:00.000Z',
-    updatedAt: '2026-11-01T00:00:00.000Z',
-    completedAt: null,
-  }
-}
-
-function stream(
-  status: 'todo' | 'in_progress',
-  items: Task[],
-  total = items.length,
-  page = 0,
-): TaskStream {
-  return {
-    filter: { status, assigneeId: 'u1', sort: 'deadline', order: 'asc', limit: 50 },
-    items,
-    total,
-    page,
-  }
-}
-
-describe('openTasksFilters', () => {
-  it('builds one request per open status for the assignee, sorted by deadline', () => {
-    expect(openTasksFilters('u1', 50)).toEqual([
-      { status: 'todo', assigneeId: 'u1', sort: 'deadline', order: 'asc', limit: 50, page: 0 },
-      {
-        status: 'in_progress',
-        assigneeId: 'u1',
-        sort: 'deadline',
-        order: 'asc',
-        limit: 50,
-        page: 0,
-      },
-    ])
+describe('DEFAULT_TASKS_QUERY', () => {
+  it('opens "Мои" sorted by the deadline without status filter', () => {
+    expect(DEFAULT_TASKS_QUERY).toEqual({ view: 'mine', status: 'all', sort: 'deadline', search: '' })
   })
 })
 
-describe('mergeStreams', () => {
-  it('merges todo and in_progress by deadline, nearest first', () => {
-    const merged = mergeStreams([
-      stream('todo', [task('a', '2026-11-10T00:00:00Z'), task('c', '2026-11-30T00:00:00Z')]),
-      stream('in_progress', [task('b', '2026-11-20T00:00:00Z', 'in_progress')]),
-    ])
-    expect(merged.map((t) => t.id)).toEqual(['a', 'b', 'c'])
-  })
+describe('taskListFilter', () => {
+  const base = DEFAULT_TASKS_QUERY
 
-  it('puts tasks without a deadline last, keeping stream order among them', () => {
-    const merged = mergeStreams([
-      stream('todo', [task('a', '2026-11-10T00:00:00Z'), task('n1', null)]),
-      stream('in_progress', [task('b', '2026-12-01T00:00:00Z', 'in_progress'), task('n2', null)]),
-    ])
-    expect(merged.map((t) => t.id)).toEqual(['a', 'b', 'n1', 'n2'])
-  })
-
-  it('compares deadlines as instants, not strings', () => {
-    const merged = mergeStreams([
-      stream('todo', [task('late', '2026-11-10T12:00:00+05:00')]),
-      stream('in_progress', [task('early', '2026-11-10T09:00:00Z', 'in_progress')]),
-    ])
-    expect(merged.map((t) => t.id)).toEqual(['late', 'early'])
-  })
-
-  it('returns an empty list for empty streams', () => {
-    expect(mergeStreams([stream('todo', []), stream('in_progress', [])])).toEqual([])
-  })
-})
-
-describe('pagination remainder per stream', () => {
-  it('counts what is left in each stream independently', () => {
-    const todo = stream('todo', [task('a', null)], 3)
-    const progress = stream('in_progress', [task('b', null, 'in_progress')], 1)
-    expect(remaining(todo)).toBe(2)
-    expect(hasMore(todo)).toBe(true)
-    expect(remaining(progress)).toBe(0)
-    expect(hasMore(progress)).toBe(false)
-  })
-
-  it('never reports a negative remainder', () => {
-    expect(remaining(stream('todo', [task('a', null), task('b', null)], 1))).toBe(0)
-  })
-
-  it('asks for the next page of a stream', () => {
-    expect(nextPage(stream('todo', [], 120, 1))).toEqual({
-      status: 'todo',
+  it('"mine" is the tasks assigned to the user, the nearest deadline first', () => {
+    expect(taskListFilter(base, 'u1')).toEqual({
       assigneeId: 'u1',
       sort: 'deadline',
       order: 'asc',
       limit: 50,
-      page: 2,
     })
   })
-})
 
-describe('viewFilters', () => {
-  it('"mine" is the two open streams of the assignee', () => {
-    expect(viewFilters('mine', 'u1', '', 50)).toEqual(openTasksFilters('u1', 50))
+  it('maps the other views', () => {
+    expect(taskListFilter({ ...base, view: 'all' }, 'u1')).not.toHaveProperty('assigneeId')
+    expect(taskListFilter({ ...base, view: 'watching' }, 'u1')).toMatchObject({ watcherId: 'u1' })
+    expect(taskListFilter({ ...base, view: 'created' }, 'u1')).toMatchObject({ creatorId: 'u1' })
+    expect(taskListFilter({ ...base, view: 'overdue' }, 'u1')).toMatchObject({ overdue: true })
   })
 
-  it('"watching" filters by watcher in a single stream, freshest first', () => {
-    expect(viewFilters('watching', 'u1', '', 50)).toEqual([
-      { watcherId: 'u1', sort: 'updatedAt', order: 'desc', limit: 50, page: 0 },
-    ])
+  it('replaces the old "Готовые" view with the status filter', () => {
+    expect(taskListFilter({ ...base, status: 'done' }, 'u1')).toMatchObject({
+      status: 'done',
+      assigneeId: 'u1',
+    })
   })
 
-  it('"created" filters by creator in a single stream', () => {
-    expect(viewFilters('created', 'u1', '', 50)).toEqual([
-      { creatorId: 'u1', sort: 'updatedAt', order: 'desc', limit: 50, page: 0 },
-    ])
-  })
-
-  it('"done" shows my closed tasks', () => {
-    expect(viewFilters('done', 'u1', '', 50)).toEqual([
-      { status: 'done', assigneeId: 'u1', sort: 'updatedAt', order: 'desc', limit: 50, page: 0 },
-    ])
-  })
-
-  it('adds a trimmed search to every stream and skips a blank one', () => {
-    for (const filter of viewFilters('mine', 'u1', '  отчёт ', 50)) {
-      expect(filter.search).toBe('отчёт')
-    }
-    expect(viewFilters('created', 'u1', '   ', 50)[0]).not.toHaveProperty('search')
+  it('maps the sorts and trims the search, dropping a blank one', () => {
+    expect(taskListFilter({ ...base, sort: 'updated' }, 'u1')).toMatchObject({
+      sort: 'updatedAt',
+      order: 'desc',
+    })
+    expect(taskListFilter({ ...base, sort: 'created' }, 'u1')).toMatchObject({
+      sort: 'createdAt',
+      order: 'desc',
+    })
+    expect(taskListFilter({ ...base, search: ' КП ' }, 'u1')).toMatchObject({ search: 'КП' })
+    expect(taskListFilter({ ...base, search: '  ' }, 'u1')).not.toHaveProperty('search')
   })
 })
 
-describe('mergeStreams of a single stream', () => {
-  it('keeps the server order', () => {
-    const single = stream('todo', [
-      task('b', '2026-12-01T00:00:00Z'),
-      task('a', '2026-11-01T00:00:00Z'),
-    ])
-    expect(mergeStreams([single]).map((t) => t.id)).toEqual(['b', 'a'])
+describe('paging', () => {
+  const stream: TaskStream = { filter: { assigneeId: 'u1' }, items: [], total: 3, page: 0 }
+  it('counts the rest and builds the next page request', () => {
+    expect(remaining(stream)).toBe(3)
+    expect(hasMore(stream)).toBe(true)
+    expect(hasMore({ ...stream, total: 0 })).toBe(false)
+    expect(nextPage(stream)).toEqual({ assigneeId: 'u1', page: 1 })
   })
 })

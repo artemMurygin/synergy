@@ -86,15 +86,23 @@ function postFile(url: string, file: File, token: string, options: UploadOptions
   })
 }
 
+/** Posts one file as multipart "file" with the bearer token (renewed once on 401); raw result. */
+export async function postMultipart(
+  path: string,
+  file: File,
+  options: UploadOptions = {},
+): Promise<{ status: number; body: string }> {
+  const url = `${await getBackendUrl()}${path}`
+  const token = getAccessToken() ?? (await refreshAccessToken()).accessToken
+  const result = await postFile(url, file, token, options)
+  if (result.status !== 401) return result
+  // The token may have expired in flight: renew once and repeat.
+  return postFile(url, file, (await refreshAccessToken()).accessToken, options)
+}
+
 /** Uploads one file with the bearer token; XHR because fetch cannot report upload progress. */
 export async function uploadFile(file: File, options: UploadOptions = {}): Promise<{ id: string }> {
-  const url = `${await getBackendUrl()}/files`
-  const token = getAccessToken() ?? (await refreshAccessToken()).accessToken
-  let result = await postFile(url, file, token, options)
-  if (result.status === 401) {
-    // The token may have expired in flight: renew once and repeat.
-    result = await postFile(url, file, (await refreshAccessToken()).accessToken, options)
-  }
+  const result = await postMultipart('/files', file, options)
   if (result.status < 200 || result.status >= 300) throw uploadFailure(result.status, result.body)
   try {
     return StoredFileSchema.parse(JSON.parse(result.body))

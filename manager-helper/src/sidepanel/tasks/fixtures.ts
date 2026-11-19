@@ -13,6 +13,7 @@ export function makeTask(id: string, overrides: Partial<Task> = {}): Task {
     createdAt: '2026-11-01T00:00:00.000Z',
     updatedAt: '2026-11-01T00:00:00.000Z',
     completedAt: null,
+    attachmentCount: 0,
     ...overrides,
   }
 }
@@ -20,6 +21,3 @@ export function makeTask(id: string, overrides: Partial<Task> = {}): Task {
 export function makeDetails(id: string, overrides: Partial<TaskDetails> = {}): TaskDetails {
   return { ...makeTask(id), attachments: [], ...overrides }
 }
-
-/** A fixed-width utility class (`w-80`, `min-w-[..]`); fractions and `min-w-0` are fine. */
-export const FIXED_WIDTH = /(^|[\s"])(?!min-w-0)(min-)?w-(\d+(?![\d/.])|\[)/

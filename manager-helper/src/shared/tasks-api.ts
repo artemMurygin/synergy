@@ -1,5 +1,7 @@
 import { AskError, errorMessage, isRecord } from './api'
 import { authFetch } from './auth/auth-fetch'
+import { postMultipart } from './files-api'
+import type { UploadOptions } from './files-api'
 import { getBackendUrl } from './settings'
 
 /** The task (or its attachment) does not exist on the server (HTTP 404). */
@@ -39,6 +41,8 @@ export interface Task {
   createdAt: string
   updatedAt: string
   completedAt: string | null
+  /** Number of files of the task; 0 when the server does not send it. */
+  attachmentCount: number
 }
 
 export interface Attachment {
@@ -147,6 +151,7 @@ function parseTask(value: unknown): Task {
     createdAt: str(task.createdAt),
     updatedAt: str(task.updatedAt),
     completedAt: nullableStr(task.completedAt),
+    attachmentCount: task.attachmentCount === undefined ? 0 : num(task.attachmentCount),
   }
 }
 
@@ -271,6 +276,38 @@ export async function downloadAttachment(
   return {
     blob: await response.blob(),
     fileName: fileNameOf(response.headers.get('content-disposition')),
+  }
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await request(`/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' })
+}
+
+export async function deleteAttachment(taskId: string, attachmentId: string): Promise<void> {
+  await request(
+    `/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { method: 'DELETE' },
+  )
+}
+
+/** Attaches one file (multipart "file", XHR for the progress); the errors are the ones of `request`. */
+export async function uploadAttachment(
+  taskId: string,
+  file: File,
+  options: UploadOptions = {},
+): Promise<Attachment> {
+  const { status, body } = await postMultipart(
+    `/tasks/${encodeURIComponent(taskId)}/attachments`,
+    file,
+    options,
+  )
+  if (status < 200 || status >= 300) {
+    throw await toError(new Response(body, { status }))
+  }
+  try {
+    return parseAttachment(JSON.parse(body))
+  } catch {
+    throw new AskError(UNEXPECTED)
   }
 }
 
