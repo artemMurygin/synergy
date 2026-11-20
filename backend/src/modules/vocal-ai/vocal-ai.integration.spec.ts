@@ -183,6 +183,7 @@ describe.skipIf(adminUrl === undefined)('vocal-ai module integration', () => {
             callRepository,
             cursorRepository,
             BACKFILL_PAGE_WINDOW_MS,
+            new Date(0),
             new PinoLogger({ pinoHttp: { level: 'silent' } }),
         );
         const listCalls = new ListCallsUseCase(callRepository);

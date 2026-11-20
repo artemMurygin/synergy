@@ -9,12 +9,26 @@ import {
 } from '../../domain/ports/vocal-ai-gateway.port';
 import { CallId } from '../../domain/value-objects/call-id.value-object';
 import { SyncWindow } from '../../domain/value-objects/sync-window.value-object';
+import type { BackfillResult } from './backfill-project-calls.use-case';
 import { BackfillProjectCallsUseCase } from './backfill-project-calls.use-case';
 
 type MockedFn<T extends (...args: never[]) => unknown> = Mock<T>;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PROJECT_ID = 'project-1';
+
+async function executeFlushingTimers(
+    useCase: BackfillProjectCallsUseCase,
+    projectId: string,
+): Promise<BackfillResult> {
+    const resultPromise = useCase.execute(projectId);
+    resultPromise.catch(() => {
+        // Предотвращает предупреждение Vitest об unhandled rejection, пока flush'ятся фейковые таймеры;
+        // реальный reject всё равно долетает до вызывающего кода через `return resultPromise`.
+    });
+    await vi.runAllTimersAsync();
+    return resultPromise;
+}
 
 interface Fixture {
     gateway: { listCalls: MockedFn<VocalAiGatewayPort['listCalls']> };
@@ -46,7 +60,7 @@ function createSummaryDto(callId: number): VocalAiCallSummaryDto {
     };
 }
 
-function createFixture(): Fixture {
+function createFixture(backfillFromAt: Date = new Date(0)): Fixture {
     const gateway = {
         listCalls: vi.fn<VocalAiGatewayPort['listCalls']>().mockResolvedValue([]),
         login: vi.fn<VocalAiGatewayPort['login']>(),
@@ -69,6 +83,7 @@ function createFixture(): Fixture {
         callRepository,
         cursorRepository,
         ONE_DAY_MS,
+        backfillFromAt,
         logger,
     );
     return { gateway, callRepository, cursorRepository, useCase };
@@ -82,7 +97,7 @@ describe('BackfillProjectCallsUseCase', () => {
         vi.setSystemTime(now);
         const { gateway, useCase } = createFixture();
 
-        await useCase.execute(PROJECT_ID);
+        await executeFlushingTimers(useCase, PROJECT_ID);
 
         expect(gateway.listCalls).toHaveBeenCalledTimes(3);
         expect(gateway.listCalls).toHaveBeenNthCalledWith(
@@ -106,6 +121,30 @@ describe('BackfillProjectCallsUseCase', () => {
         vi.useRealTimers();
     });
 
+    it('pages from the configured backfill start date instead of the epoch', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        const backfillFromAt = new Date(ONE_DAY_MS);
+        const { gateway, useCase } = createFixture(backfillFromAt);
+
+        await executeFlushingTimers(useCase, PROJECT_ID);
+
+        expect(gateway.listCalls).toHaveBeenCalledTimes(2);
+        expect(gateway.listCalls).toHaveBeenNthCalledWith(
+            1,
+            PROJECT_ID,
+            new SyncWindow({ fromAt: backfillFromAt, toAt: new Date(2 * ONE_DAY_MS) }),
+            'callWindow',
+        );
+        expect(gateway.listCalls).toHaveBeenNthCalledWith(
+            2,
+            PROJECT_ID,
+            new SyncWindow({ fromAt: new Date(2 * ONE_DAY_MS), toAt: now }),
+            'callWindow',
+        );
+        vi.useRealTimers();
+    });
+
     it('upserts each non-empty page as it is fetched', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(now);
@@ -115,7 +154,7 @@ describe('BackfillProjectCallsUseCase', () => {
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([createSummaryDto(2)]);
 
-        const result = await useCase.execute(PROJECT_ID);
+        const result = await executeFlushingTimers(useCase, PROJECT_ID);
 
         expect(callRepository.upsertMany).toHaveBeenCalledTimes(2);
         expect(callRepository.upsertMany.mock.calls[0][0].map((call) => call.callId.value)).toEqual(
@@ -134,7 +173,7 @@ describe('BackfillProjectCallsUseCase', () => {
         const { gateway, callRepository, cursorRepository, useCase } = createFixture();
         gateway.listCalls.mockResolvedValue([createSummaryDto(1)]);
 
-        await useCase.execute(PROJECT_ID);
+        await executeFlushingTimers(useCase, PROJECT_ID);
 
         expect(cursorRepository.set).toHaveBeenCalledTimes(3);
         expect(cursorRepository.set).toHaveBeenNthCalledWith(1, PROJECT_ID, new Date(ONE_DAY_MS));
@@ -158,7 +197,7 @@ describe('BackfillProjectCallsUseCase', () => {
             .mockResolvedValueOnce([createSummaryDto(1)])
             .mockRejectedValueOnce(new Error('vocal-ai down'));
 
-        await expect(useCase.execute(PROJECT_ID)).rejects.toThrow('vocal-ai down');
+        await expect(executeFlushingTimers(useCase, PROJECT_ID)).rejects.toThrow('vocal-ai down');
 
         expect(cursorRepository.set).toHaveBeenCalledTimes(1);
         expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
@@ -174,7 +213,7 @@ describe('BackfillProjectCallsUseCase', () => {
             .mockResolvedValueOnce([])
             .mockRejectedValueOnce(new Error('db down'));
 
-        await expect(useCase.execute(PROJECT_ID)).rejects.toThrow('db down');
+        await expect(executeFlushingTimers(useCase, PROJECT_ID)).rejects.toThrow('db down');
 
         expect(cursorRepository.set).toHaveBeenCalledTimes(1);
         expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
@@ -190,7 +229,7 @@ describe('BackfillProjectCallsUseCase', () => {
             .mockResolvedValueOnce([createSummaryDto(2), createSummaryDto(3)]);
         callRepository.upsertMany.mockResolvedValueOnce([]).mockResolvedValueOnce([new CallId(3)]);
 
-        const result = await useCase.execute(PROJECT_ID);
+        const result = await executeFlushingTimers(useCase, PROJECT_ID);
 
         expect(cursorRepository.set).toHaveBeenCalledTimes(1);
         expect(cursorRepository.set).toHaveBeenCalledWith(PROJECT_ID, new Date(ONE_DAY_MS));
@@ -206,7 +245,7 @@ describe('BackfillProjectCallsUseCase', () => {
         callRepository.upsertMany.mockResolvedValue([new CallId(1)]);
 
         for (let cycle = 0; cycle < 10; cycle += 1) {
-            const result = await useCase.execute(PROJECT_ID);
+            const result = await executeFlushingTimers(useCase, PROJECT_ID);
             expect(result).toEqual({ syncedCallsCount: 0 });
         }
 

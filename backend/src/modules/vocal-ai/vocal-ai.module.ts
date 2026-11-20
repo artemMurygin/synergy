@@ -6,8 +6,11 @@ import { VOCAL_AI_AGENT_CAPABILITY } from '../../shared/agent-capability';
 import type { Env } from '../../shared/config/env.schema';
 import type { ChatModelSetting } from '../../shared/llm';
 import { createChatModel } from '../../shared/llm';
-import { BACKFILL_PAGE_WINDOW_MS } from './application/use-cases/backfill-project-calls.use-case';
-import { BackfillProjectCallsUseCase } from './application/use-cases/backfill-project-calls.use-case';
+import {
+    BACKFILL_FROM_AT,
+    BACKFILL_PAGE_WINDOW_MS,
+    BackfillProjectCallsUseCase,
+} from './application/use-cases/backfill-project-calls.use-case';
 import { GetCallDetailUseCase } from './application/use-cases/get-call-detail.use-case';
 import { GetCallStatsUseCase } from './application/use-cases/get-call-stats.use-case';
 import { GetCallTranscriptUseCase } from './application/use-cases/get-call-transcript.use-case';
@@ -109,6 +112,16 @@ function createVocalAiHttpClient(baseUrl: string): VocalAiHttpClient {
         {
             provide: BACKFILL_PAGE_WINDOW_MS,
             useValue: BACKFILL_PAGE_WINDOW_DAYS * DAY_MS,
+        },
+        {
+            provide: BACKFILL_FROM_AT,
+            inject: [ConfigService],
+            useFactory: (config: ConfigService<Env, true>): Date => {
+                const backfillFromDate = config.get('VOCAL_AI_BACKFILL_FROM_DATE', {
+                    infer: true,
+                });
+                return backfillFromDate === undefined ? new Date(0) : new Date(backfillFromDate);
+            },
         },
         BackfillProjectCallsUseCase,
         SyncProjectCallsUseCase,

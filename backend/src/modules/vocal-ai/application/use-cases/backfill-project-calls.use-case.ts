@@ -8,6 +8,13 @@ import { SyncWindow } from '../../domain/value-objects/sync-window.value-object'
 import { toCall } from '../mappers/call-summary-dto.mapper';
 
 export const BACKFILL_PAGE_WINDOW_MS = Symbol('BACKFILL_PAGE_WINDOW_MS');
+export const BACKFILL_FROM_AT = Symbol('BACKFILL_FROM_AT');
+
+const BACKFILL_PAGE_DELAY_MS = 1000;
+
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface BackfillResult {
     syncedCallsCount: number;
@@ -20,6 +27,7 @@ export class BackfillProjectCallsUseCase {
         private readonly callRepository: CallRepositoryPort,
         private readonly cursorRepository: SyncCursorRepositoryPort,
         @Inject(BACKFILL_PAGE_WINDOW_MS) private readonly pageWindowMs: number,
+        @Inject(BACKFILL_FROM_AT) private readonly backfillFromAt: Date,
         private readonly logger: PinoLogger,
     ) {
         this.logger.setContext(BackfillProjectCallsUseCase.name);
@@ -34,7 +42,7 @@ export class BackfillProjectCallsUseCase {
     async execute(projectId: string): Promise<BackfillResult> {
         const now = new Date();
         let syncedCallsCount = 0;
-        let pageFromAt = new Date(0);
+        let pageFromAt = this.backfillFromAt;
 
         while (pageFromAt.getTime() < now.getTime()) {
             const pageToAt = new Date(
@@ -62,6 +70,10 @@ export class BackfillProjectCallsUseCase {
 
             await this.cursorRepository.set(projectId, pageToAt);
             pageFromAt = pageToAt;
+
+            if (pageFromAt.getTime() < now.getTime()) {
+                await delay(BACKFILL_PAGE_DELAY_MS);
+            }
         }
 
         this.logger.info({ projectId, syncedCallsCount }, 'Project backfill completed');
