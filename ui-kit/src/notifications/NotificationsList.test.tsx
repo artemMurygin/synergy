@@ -80,4 +80,16 @@ describe('NotificationsList', () => {
     setup()
     expect(screen.queryByRole('button', { name: 'Показать ещё' })).toBeNull()
   })
+
+  it('shows the reconnecting banner and keeps previous items', () => {
+    setup({ connection: 'reconnecting' })
+    expect(screen.getByText('Нет соединения · переподключаемся…')).toBeTruthy()
+    expect(screen.getByText('Список обновится сам, когда связь восстановится')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Вам назначена задача/ })).toBeTruthy()
+  })
+
+  it('has no banner when online', () => {
+    setup({ connection: 'online' })
+    expect(screen.queryByText('Нет соединения · переподключаемся…')).toBeNull()
+  })
 })

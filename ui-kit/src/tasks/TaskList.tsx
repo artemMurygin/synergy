@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react'
-import { CircleCheck, CloudOff, FileText, Plus } from '../icons'
+import { ChevronsDown, ListChecks, Plus, WifiOff } from '../icons'
+import { useOptionalLayoutMode } from '../layout/layout-mode'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/Button'
 import { Skeleton } from '../primitives/Skeleton'
+import { groupByDeadline } from './deadline'
 import { TaskRow } from './TaskRow'
+import { TaskSearchEmpty } from './TaskSearchEmpty'
 import type { TaskView } from './task-views'
-import type { TaskItem, TaskStatus } from './types'
+import type { TaskItem, TaskSort, TaskStatus } from './types'
 
 export type TaskListProps = {
   items: TaskItem[]
@@ -23,6 +26,10 @@ export type TaskListProps = {
   /** Активен поиск по названию. */
   searching?: boolean
   variant?: 'wide' | 'compact'
+  /** Текущая сортировка: группы по сроку показываются только при `deadline` в tablet / mobile. */
+  sort?: TaskSort
+  /** Сброс поиска и фильтров на экране «Ничего не найдено». */
+  onResetFilters?: () => void
   onOpen: (taskId: string) => void
   onSetStatus?: (taskId: string, status: TaskStatus) => void
   onLoadMore: () => void
@@ -46,10 +53,17 @@ function ListSkeleton() {
   )
 }
 
-function Notice(props: { icon: ReactNode; title: string; text: string; children?: ReactNode }) {
+function Notice(props: { icon: ReactNode; title: string; text: string; tone?: 'error'; children?: ReactNode }) {
   return (
     <div className="m-auto flex max-w-[320px] flex-col items-center gap-3 p-6 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-surface-alt text-ink-60">{props.icon}</span>
+      <span
+        className={cn(
+          'flex size-14 items-center justify-center rounded-full',
+          props.tone === 'error' ? 'bg-brand-red-soft text-brand-red' : 'bg-surface-alt text-ink-60',
+        )}
+      >
+        {props.icon}
+      </span>
       <h2 className="font-display text-lg font-semibold text-ink">{props.title}</h2>
       <p className="text-sm break-words text-ink-60">{props.text}</p>
       {props.children}
@@ -67,13 +81,20 @@ const EMPTY: Record<TaskView, { title: string; text: string }> = {
 
 export function TaskList(props: TaskListProps) {
   const { items, loading, error, selectedId, variant = 'compact' } = props
+  const layout = useOptionalLayoutMode() ?? 'desktop'
+  const grouped = layout !== 'desktop' && props.sort === 'deadline'
 
   if (loading && items.length === 0) return <ListSkeleton />
 
   if (error !== null && items.length === 0) {
     return (
       <div role="alert" className="flex flex-1 flex-col">
-        <Notice icon={<CloudOff size={24} />} title="Не удалось загрузить" text={error}>
+        <Notice
+          icon={<WifiOff size={24} />}
+          title="Не удалось загрузить задачи"
+          text="Нет связи с сервером. Проверьте подключение и повторите."
+          tone="error"
+        >
           <Button variant="secondary" className="h-10 rounded-full px-5 text-sm" onClick={props.onRetry}>
             Повторить
           </Button>
@@ -84,12 +105,12 @@ export function TaskList(props: TaskListProps) {
 
   if (items.length === 0) {
     if (props.searching === true) {
-      return <Notice icon={<FileText size={24} />} title="Ничего не найдено" text="По этому запросу задач нет." />
+      return <TaskSearchEmpty onReset={props.onResetFilters} />
     }
     const view = props.view ?? 'mine'
     const empty = EMPTY[view]
     return (
-      <Notice icon={<CircleCheck size={24} />} title={empty.title} text={empty.text}>
+      <Notice icon={<ListChecks size={24} />} title={empty.title} text={empty.text}>
         {(view === 'mine' || view === 'all') && props.onCreate ? (
           <Button className="h-10 rounded-full px-[18px] text-sm shadow-none" onClick={props.onCreate}>
             <Plus size={16} />
@@ -110,22 +131,52 @@ export function TaskList(props: TaskListProps) {
           </button>
         </div>
       ) : null}
-      <ul
-        aria-busy={props.refreshing === true ? 'true' : undefined}
-        className={cn('flex flex-col gap-0.5 px-2 transition-opacity', props.refreshing === true && 'opacity-60')}
-      >
-        {items.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            selected={task.id === selectedId}
-            now={props.now}
-            variant={variant}
-            onOpen={props.onOpen}
-            onSetStatus={props.onSetStatus}
-          />
-        ))}
-      </ul>
+      {grouped ? (
+        <div aria-busy={props.refreshing === true ? 'true' : undefined} className={cn('flex flex-col transition-opacity', props.refreshing === true && 'opacity-60')}>
+          {groupByDeadline(items, props.now).map((group) => (
+            <section key={group.key} aria-label={group.label} className="flex flex-col">
+              <h3
+                className={cn(
+                  'px-3 pt-2.5 pb-1 text-[11px] font-semibold',
+                  group.key === 'overdue' ? 'text-brand-red' : 'text-ink-40',
+                )}
+              >
+                {group.label}
+              </h3>
+              <ul className="flex flex-col gap-0.5 px-2">
+                {group.items.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    selected={task.id === selectedId}
+                    now={props.now}
+                    variant={variant}
+                    onOpen={props.onOpen}
+                    onSetStatus={props.onSetStatus}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <ul
+          aria-busy={props.refreshing === true ? 'true' : undefined}
+          className={cn('flex flex-col gap-0.5 px-2 transition-opacity', props.refreshing === true && 'opacity-60')}
+        >
+          {items.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              selected={task.id === selectedId}
+              now={props.now}
+              variant={variant}
+              onOpen={props.onOpen}
+              onSetStatus={props.onSetStatus}
+            />
+          ))}
+        </ul>
+      )}
       {props.hasMore ? (
         <div className="flex justify-center px-4 py-3">
           <Button
@@ -134,7 +185,8 @@ export function TaskList(props: TaskListProps) {
             disabled={props.loadingMore === true}
             onClick={props.onLoadMore}
           >
-            {`Показать ещё · ${String(props.remaining)}`}
+            <ChevronsDown size={16} className="text-ink-60" />
+            Показать ещё
           </Button>
         </div>
       ) : null}

@@ -24,14 +24,20 @@ export function AuthHeading({ title, subtitle, level = 1 }: { title: string; sub
   )
 }
 
-export function AuthAlert({ children }: { children: string }) {
+/** Двухстрочный алерт ошибки (макеты uTccU, KxBWe): заголовок и подсказка. */
+export function AuthAlert({ title, hint }: { title: string; hint?: string }) {
   return (
     <div role="alert" className="flex items-start gap-2.5 rounded-lg bg-brand-red-soft px-3.5 py-3">
       <CircleAlert className="mt-px shrink-0 text-brand-red" />
-      <p className="text-sm font-semibold text-ink">{children}</p>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        {hint ? <p className="text-[13px] text-ink-80">{hint}</p> : null}
+      </div>
     </div>
   )
 }
+
+export const AUTH_RETRY_HINT = 'Проверьте данные и попробуйте снова.'
 
 export function AuthField({ label, htmlFor, children, hint }: { label: string; htmlFor: string; children: ReactNode; hint?: string }) {
   return (

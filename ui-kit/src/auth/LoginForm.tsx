@@ -2,7 +2,7 @@ import { useId, useState, type SubmitEvent, type ReactNode } from 'react'
 import { Button } from '../primitives/Button'
 import { Input } from '../primitives/Input'
 import { PasswordField } from '../primitives/PasswordField'
-import { AuthAlert, AuthField, AuthHeading, AuthScreen } from './AuthScreen'
+import { AUTH_RETRY_HINT, AuthAlert, AuthField, AuthHeading, AuthScreen } from './AuthScreen'
 
 export type LoginFormProps = {
   onSubmit: (credentials: { login: string; password: string }) => void
@@ -48,7 +48,7 @@ export function LoginForm({
     <AuthScreen>
       <AuthHeading title={title} subtitle={subtitle} />
       <form noValidate onSubmit={submit} className="flex flex-col gap-6">
-        {error ? <AuthAlert>{error}</AuthAlert> : null}
+        {error ? <AuthAlert title={error} hint={AUTH_RETRY_HINT} /> : null}
         <div className="flex flex-col gap-3.5">
           <AuthField label="Логин" htmlFor={loginId}>
             <Input

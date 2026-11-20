@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { CircleAlert, Pencil, Trash2 } from '../../icons'
+import { Ellipsis, Pencil, Trash2 } from '../../icons'
+import { useOptionalLayoutMode } from '../../layout/layout-mode'
+import { Menu, MenuContent, MenuItem, MenuTrigger } from '../../primitives/Menu'
 import { cn } from '../../lib/cn'
 import { formatListTime } from './format-list-time'
 import { RenameThreadInput } from './RenameThreadInput'
@@ -16,40 +18,34 @@ type ChatListItemProps = {
   active: boolean
   running: boolean
   onSelect: (id: string) => void
+  /** A rejection is the owner's to show (ChatList draws a toast); the row just goes back to normal. */
   onRename: (id: string, title: string) => unknown
   onDelete: (id: string) => unknown
 }
 
 type Mode = 'normal' | 'rename' | 'confirmDelete'
 
-const ACTION =
-  'flex size-7 shrink-0 items-center justify-center rounded-full text-ink-40 outline-none hover:bg-surface-sunken hover:text-ink focus-visible:ring-2 focus-visible:ring-brand-red/40'
+const MORE =
+  'flex size-6 shrink-0 items-center justify-center rounded-md text-ink-60 outline-none hover:bg-surface-sunken hover:text-ink focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-brand-red/40 data-[state=open]:opacity-100'
+const HOVER_ONLY = 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
 
-/** Compact row of the list (Chat List Item): title, time, running indicator; rename and delete inline. */
+/** Compact row of the list (Chat List Item): title, time, running indicator, «…» menu; rename and delete inline. */
 export function ChatListItem({ thread, active, running, onSelect, onRename, onDelete }: ChatListItemProps) {
   const [mode, setMode] = useState<Mode>('normal')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const mobile = useOptionalLayoutMode() === 'mobile'
 
-  const reset = () => {
-    setMode('normal')
-    setError(null)
-  }
-
-  const run = async (action: () => unknown, message: string) => {
+  const run = async (action: () => unknown) => {
     setBusy(true)
-    setError(null)
     try {
       await action()
-      setMode('normal')
     } catch {
-      setError(message)
+      // the owner reports the failure; the title stays the previous one
     } finally {
       setBusy(false)
+      setMode('normal')
     }
   }
-
-  const errorText = error !== null && <p className="px-3 text-xs text-brand-red">{error}</p>
 
   if (mode === 'rename') {
     return (
@@ -57,10 +53,11 @@ export function ChatListItem({ thread, active, running, onSelect, onRename, onDe
         <RenameThreadInput
           initialTitle={thread.title}
           disabled={busy}
-          onCancel={reset}
-          onSubmit={(title) => void run(() => onRename(thread.id, title), 'Не удалось переименовать чат')}
+          onCancel={() => {
+            setMode('normal')
+          }}
+          onSubmit={(title) => void run(() => onRename(thread.id, title))}
         />
-        {errorText}
       </li>
     )
   }
@@ -69,7 +66,7 @@ export function ChatListItem({ thread, active, running, onSelect, onRename, onDe
     return (
       <li className="flex flex-col gap-2.5 rounded-xl bg-brand-red-soft p-3">
         <div className="flex items-center gap-2">
-          <CircleAlert size={16} className="shrink-0 text-brand-red" />
+          <Trash2 size={16} className="shrink-0 text-brand-red" />
           <span className="truncate text-sm font-semibold text-ink">{thread.title}</span>
         </div>
         <p className="text-[13px] leading-[1.4] text-ink-80">Удалить чат вместе с историей? Это необратимо.</p>
@@ -80,7 +77,9 @@ export function ChatListItem({ thread, active, running, onSelect, onRename, onDe
           <button
             type="button"
             disabled={busy}
-            onClick={reset}
+            onClick={() => {
+              setMode('normal')
+            }}
             className="h-[30px] rounded-[15px] bg-surface px-3.5 text-[13px] font-semibold text-ink-80 outline-none hover:bg-surface-sunken"
           >
             Отмена
@@ -88,13 +87,12 @@ export function ChatListItem({ thread, active, running, onSelect, onRename, onDe
           <button
             type="button"
             disabled={busy}
-            onClick={() => void run(() => onDelete(thread.id), 'Не удалось удалить чат')}
+            onClick={() => void run(() => onDelete(thread.id))}
             className="h-[30px] rounded-[15px] bg-brand-red px-3.5 text-[13px] font-semibold text-white outline-none hover:bg-brand-red-hover disabled:opacity-50"
           >
             Удалить
           </button>
         </div>
-        {errorText}
       </li>
     )
   }
@@ -125,30 +123,37 @@ export function ChatListItem({ thread, active, running, onSelect, onRename, onDe
           )}
           <span className="shrink-0 text-xs text-ink-40">{formatListTime(thread.lastActivityAt)}</span>
         </button>
-        <span className="hidden items-center group-focus-within:flex group-hover:flex">
-          <button
-            type="button"
-            aria-label="Переименовать"
-            className={ACTION}
-            onClick={() => {
-              setError(null)
-              setMode('rename')
-            }}
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            type="button"
-            aria-label="Удалить чат"
-            className={ACTION}
-            onClick={() => {
-              setError(null)
-              setMode('confirmDelete')
-            }}
-          >
-            <Trash2 size={14} />
-          </button>
-        </span>
+        <Menu>
+          <MenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Меню чата"
+              className={cn(MORE, !active && !mobile && HOVER_ONLY)}
+            >
+              <Ellipsis size={16} />
+            </button>
+          </MenuTrigger>
+          <MenuContent align="end" className="flex w-[220px] flex-col gap-0.5 rounded-menu p-2">
+            <MenuItem
+              onSelect={() => {
+                setMode('rename')
+              }}
+              className="h-11 gap-3 rounded-[14px] px-3 text-sm text-ink-80"
+            >
+              <Pencil size={18} />
+              Переименовать
+            </MenuItem>
+            <MenuItem
+              onSelect={() => {
+                setMode('confirmDelete')
+              }}
+              className="h-11 gap-3 rounded-[14px] px-3 text-sm text-brand-red"
+            >
+              <Trash2 size={18} />
+              Удалить
+            </MenuItem>
+          </MenuContent>
+        </Menu>
       </div>
     </li>
   )

@@ -1,14 +1,16 @@
-import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Calendar, ChevronDown, ChevronLeft, Check, Pencil, Trash2, X } from '../icons'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
+import { ChevronDown, ChevronLeft, Check, Pencil, Trash2, X } from '../icons'
+import { useOptionalLayoutMode } from '../layout/layout-mode'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/Button'
-import { Dialog, DialogClose, DialogContent } from '../primitives/Dialog'
 import { Input } from '../primitives/Input'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '../primitives/Menu'
 import { Textarea } from '../primitives/Textarea'
 import { AttachmentList, type AttachmentListProps } from './AttachmentList'
-import { formatFullDateTime, formatRelativeDateTime, fromLocalInput, isOverdue, toLocalInput } from './deadline'
+import { DeadlineField } from './DeadlinePicker'
+import { formatFullDateTime, formatRelativeDateTime, isOverdue } from './deadline'
 import { StatusBadge } from './StatusBadge'
+import { TaskDeleteConfirm } from './TaskDeleteConfirm'
 import { DESCRIPTION_MAX, TITLE_MAX } from './TaskFormFields'
 import { loginOf, STATUS_LABEL, TASK_STATUSES, type TaskDetailsData, type TaskStatus, type UserSummary } from './types'
 import { UserAvatar } from './UserAvatar'
@@ -170,9 +172,8 @@ function EditableDescription({ text, onSave }: { text: string; onSave: (text: st
 
 export function TaskDetails(props: TaskDetailsProps) {
   const { task, now, me, userSearch } = props
-  const deadlineId = useId()
+  const mobile = useOptionalLayoutMode() === 'mobile'
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [deadlineDraft, setDeadlineDraft] = useState<string | null>(null)
   const done = task.status === 'done'
   const overdue = isOverdue(task.status, task.deadline, now)
   const assignee = task.assignee ? (visible(task.assignee)[0] ?? null) : null
@@ -190,10 +191,19 @@ export function TaskDetails(props: TaskDetailsProps) {
             <ChevronLeft />
           </button>
         ) : null}
-        <div className="flex min-w-0 flex-1 flex-col gap-px pl-1">
-          <span className="text-base font-semibold text-ink">Задача</span>
-          <span className="truncate text-xs text-ink-60">{`изменена ${formatRelativeDateTime(task.updatedAt, now)}`}</span>
-        </div>
+        <span className="min-w-0 flex-1 truncate pl-1 text-base font-semibold text-ink">Задача</span>
+        {mobile ? (
+          <button
+            type="button"
+            aria-label="Удалить задачу"
+            onClick={() => {
+              setConfirmOpen(true)
+            }}
+            className="flex size-10 items-center justify-center rounded-full bg-surface-alt text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          >
+            <Trash2 size={18} />
+          </button>
+        ) : null}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2 pb-5">
@@ -268,30 +278,20 @@ export function TaskDetails(props: TaskDetailsProps) {
             />
           </Row>
           <Row label="Дедлайн">
-            <Calendar size={15} className="text-ink-60" />
-            <input
-              id={deadlineId}
-              type="datetime-local"
-              aria-label="Дедлайн"
-              value={deadlineDraft ?? toLocalInput(task.deadline)}
-              onChange={(event) => {
-                setDeadlineDraft(event.target.value)
+            <DeadlineField
+              label="Дедлайн"
+              value={task.deadline}
+              now={now}
+              className="h-8 rounded-lg"
+              onChange={(deadline) => {
+                if (deadline !== task.deadline) props.onPatch({ deadline })
               }}
-              onBlur={() => {
-                if (deadlineDraft === null) return
-                const iso = fromLocalInput(deadlineDraft)
-                setDeadlineDraft(null)
-                if (iso !== null && iso !== task.deadline) props.onPatch({ deadline: iso })
-              }}
-              className="h-8 rounded-lg bg-surface-alt px-2 text-[13px] font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40"
             />
             {task.deadline !== null ? (
               <button type="button" aria-label="Убрать дедлайн" onClick={() => { props.onPatch({ deadline: null }) }} className={iconButton}>
                 <X size={14} />
               </button>
-            ) : (
-              <span className="text-[13px] text-ink-40">Без срока</span>
-            )}
+            ) : null}
             {overdue ? <span className="text-[13px] font-semibold text-brand-red">Просрочено</span> : null}
           </Row>
           <Row label="Создатель">
@@ -322,41 +322,33 @@ export function TaskDetails(props: TaskDetailsProps) {
       </div>
 
       <footer className="flex h-[62px] shrink-0 items-center px-3 pb-3">
-        <button
-          type="button"
-          onClick={() => {
-            setConfirmOpen(true)
-          }}
-          className="inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-brand-red/40"
-        >
-          <Trash2 size={16} />
-          Удалить задачу
-        </button>
+        {mobile ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmOpen(true)
+            }}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold text-brand-red outline-none hover:bg-brand-red-soft focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          >
+            <Trash2 size={16} />
+            Удалить задачу
+          </button>
+        )}
+        <span className="ml-auto pr-2 text-xs text-ink-40">{`Изменена ${formatRelativeDateTime(task.updatedAt, now)}`}</span>
       </footer>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent
-          title="Удалить задачу?"
-          description={`Задача «${task.title}» и её вложения будут удалены без возможности восстановления.`}
-          footer={
-            <>
-              <DialogClose asChild>
-                <Button variant="ghost">Отмена</Button>
-              </DialogClose>
-              <Button
-                onClick={() => {
-                  setConfirmOpen(false)
-                  props.onDelete()
-                }}
-              >
-                Удалить
-              </Button>
-            </>
-          }
-        >
-          {null}
-        </DialogContent>
-      </Dialog>
+      {confirmOpen ? (
+        <TaskDeleteConfirm
+          taskTitle={task.title}
+          onCancel={() => {
+            setConfirmOpen(false)
+          }}
+          onConfirm={() => {
+            setConfirmOpen(false)
+            props.onDelete()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

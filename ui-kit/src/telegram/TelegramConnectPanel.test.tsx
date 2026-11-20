@@ -70,4 +70,40 @@ describe('TelegramConnectPanel without a bot name', () => {
     expect(screen.getByText(/чат с ботом\. Откроется/)).toBeTruthy()
     expect(document.body.textContent).not.toContain('@')
   })
+
+  describe('QR и ссылка', () => {
+    const link = 'https://t.me/synergy_tasks_bot?start=abc123'
+
+    it('waiting: shows QR from link, caption and link chip', async () => {
+      setup({ status: 'waiting', link, secondsLeft: 540 })
+      const qr = await screen.findByRole('img', { name: 'QR-код ссылки на бота' })
+      expect(qr.querySelector('svg')).toBeTruthy()
+      expect(screen.getByText('Удобнее с телефона?')).toBeTruthy()
+      expect(screen.getByText(/Отсканируйте код камерой/)).toBeTruthy()
+      expect(screen.getByText(/t\.me\/synergy_tasks_bot\?start=abc123/)).toBeTruthy()
+    })
+
+    it('copy puts the link into the clipboard and confirms briefly', async () => {
+      const user = userEvent.setup()
+      const onCopy = vi.fn()
+      setup({ status: 'waiting', link, onCopy })
+      await user.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
+      expect(await navigator.clipboard.readText()).toBe(link)
+      expect(onCopy).toHaveBeenCalledWith(link)
+      expect(screen.getByRole('button', { name: 'Ссылка скопирована' })).toBeTruthy()
+    })
+
+    it('waiting without link: no QR and no chip', () => {
+      setup({ status: 'waiting' })
+      expect(screen.queryByRole('img', { name: 'QR-код ссылки на бота' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Копировать ссылку' })).toBeNull()
+    })
+
+    it('expired: QR and chip are hidden even with a stale link', () => {
+      setup({ status: 'expired', link })
+      expect(screen.queryByRole('img', { name: 'QR-код ссылки на бота' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Копировать ссылку' })).toBeNull()
+      expect(screen.getByText('Ссылка устарела')).toBeTruthy()
+    })
+  })
 })

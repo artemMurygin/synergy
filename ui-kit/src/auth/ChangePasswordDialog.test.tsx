@@ -97,4 +97,25 @@ describe('ChangePasswordDialog', () => {
     expect(screen.getByRole('alert').textContent).toContain('Текущий пароль неверен')
     expect(screen.getByRole('button', { name: 'Сохраняем…' })).toHaveProperty('disabled', true)
   })
+
+  it('voluntary: shows the success screen after the change and returns to work', async () => {
+    const { onOpenChange } = setup({ success: true })
+    expect(screen.getByRole('heading', { name: 'Пароль изменён' })).toBeTruthy()
+    expect(screen.queryByLabelText('Новый пароль')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Вернуться к работе' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('voluntary mobile: bottom sheet with a grabber and no title row', () => {
+    setup({ mode: 'mobile' })
+    expect(screen.getByTestId('sheet-grabber')).toBeTruthy()
+    const sheet = screen.getByRole('dialog', { name: 'Смена пароля' })
+    expect(sheet.querySelector('[class*="h-16"]')).toBeNull()
+    expect(screen.getByText('После смены пароля все другие сеансы будут завершены.')).toBeTruthy()
+  })
+
+  it('shows a two-line alert for a server error', () => {
+    setup({ error: 'Неверный текущий пароль' })
+    expect(screen.getByRole('alert').querySelectorAll('p')).toHaveLength(2)
+  })
 })

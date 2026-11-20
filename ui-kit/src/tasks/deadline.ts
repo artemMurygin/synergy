@@ -58,3 +58,49 @@ export function fromLocalInput(value: string): string | null {
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
+
+export type QuickDeadlineKind = 'today' | 'tomorrow' | 'week'
+
+const QUICK_OFFSET: Record<QuickDeadlineKind, number> = { today: 0, tomorrow: 1, week: 7 }
+const DEFAULT_HOUR = 18
+
+/** Быстрый срок: день от `now`; время берётся из `current`, без него — 18:00. */
+export function quickDeadline(kind: QuickDeadlineKind, now: Date, current: Date | null): Date {
+  const hours = current ? current.getHours() : DEFAULT_HOUR
+  const minutes = current ? current.getMinutes() : 0
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + QUICK_OFFSET[kind], hours, minutes)
+}
+
+export type DeadlineGroupKey = 'overdue' | 'week' | 'later' | 'none'
+
+export const DEADLINE_GROUP_LABEL: Record<DeadlineGroupKey, string> = {
+  overdue: 'Просрочено',
+  week: 'На этой неделе',
+  later: 'Позже',
+  none: 'Без срока',
+}
+
+const GROUP_ORDER: DeadlineGroupKey[] = ['overdue', 'week', 'later', 'none']
+const WEEK_DAYS = 7
+
+export type DeadlineGroup<T> = { key: DeadlineGroupKey; label: string; items: T[] }
+
+/** Группы по сроку в порядке показа; пустые не возвращаются. «На этой неделе» — ближайшие 7 дней. */
+export function groupByDeadline<T extends { status: TaskStatus; deadline: string | null }>(
+  items: readonly T[],
+  now: Date = new Date(),
+): DeadlineGroup<T>[] {
+  const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + WEEK_DAYS).getTime()
+  const buckets: Record<DeadlineGroupKey, T[]> = { overdue: [], week: [], later: [], none: [] }
+  for (const item of items) {
+    if (item.deadline === null) buckets.none.push(item)
+    else if (isOverdue(item.status, item.deadline, now)) buckets.overdue.push(item)
+    else if (new Date(item.deadline).getTime() < weekEnd) buckets.week.push(item)
+    else buckets.later.push(item)
+  }
+  return GROUP_ORDER.filter((key) => buckets[key].length > 0).map((key) => ({
+    key,
+    label: DEADLINE_GROUP_LABEL[key],
+    items: buckets[key],
+  }))
+}

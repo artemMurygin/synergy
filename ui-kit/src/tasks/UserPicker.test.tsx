@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { LayoutModeProvider } from '../layout/layout-mode'
 import { UserPicker, WATCHERS_LIMIT, type UserSearchProps } from './UserPicker'
 import type { UserSummary } from './types'
 
@@ -79,5 +80,43 @@ describe('UserPicker (наблюдатели)', () => {
     render(<UserPicker multiple label="Наблюдатели" search={search()} me={maria} value={[ivan]} onChange={onChange} />)
     await userEvent.click(screen.getByRole('button', { name: 'Я' }))
     expect(onChange).toHaveBeenCalledWith([ivan, maria])
+  })
+})
+
+describe('UserPicker: счётчик результатов', () => {
+  it('«Найдено N»', async () => {
+    render(<UserPicker label="Ответственный" search={search()} value={null} onChange={() => undefined} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Ответственный' }))
+    expect(await screen.findByText('Найдено 2')).toBeTruthy()
+  })
+
+  it('mobile, полная страница: «Показаны первые N · уточните поиск» и «Готово»', async () => {
+    render(
+      <LayoutModeProvider mode="mobile">
+        <UserPicker label="Ответственный" search={search({ pageSize: 2 })} value={null} onChange={() => undefined} />
+      </LayoutModeProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Ответственный' }))
+    expect(await screen.findByText('Показаны первые 2 · уточните поиск')).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    expect(screen.queryByRole('combobox')).toBeNull()
+  })
+
+  it('mobile, неполная страница: «Найдено N»', async () => {
+    render(
+      <LayoutModeProvider mode="mobile">
+        <UserPicker label="Ответственный" search={search({ pageSize: 20 })} value={null} onChange={() => undefined} />
+      </LayoutModeProvider>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Ответственный' }))
+    expect(await screen.findByText('Найдено 2')).toBeTruthy()
+    expect(screen.queryByText(/уточните поиск/)).toBeNull()
+  })
+
+  it('desktop: «Показаны первые» не показывается', async () => {
+    render(<UserPicker label="Ответственный" search={search({ pageSize: 2 })} value={null} onChange={() => undefined} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Ответственный' }))
+    expect(await screen.findByText('Найдено 2')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Готово' })).toBeNull()
   })
 })

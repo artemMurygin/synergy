@@ -1,7 +1,10 @@
 import { useId, useState, type KeyboardEvent } from 'react'
 import { Check, ChevronDown, Search, User, Users, X } from '../icons'
 import { cn } from '../lib/cn'
+import { useOptionalLayoutMode } from '../layout/layout-mode'
+import { Button } from '../primitives/Button'
 import { Popover, PopoverContent, PopoverTrigger } from '../primitives/Popover'
+import { Sheet, SheetContent, SheetTrigger } from '../primitives/Sheet'
 import type { UserSummary } from './types'
 import { UserAvatar } from './UserAvatar'
 
@@ -14,6 +17,8 @@ export type UserSearchProps = {
   error?: string | null
   onSearch: (query: string) => void
   onRetry?: () => void
+  /** Размер страницы выдачи: полная страница значит «есть ещё, уточните поиск». */
+  pageSize?: number
 }
 
 type CommonProps = {
@@ -49,10 +54,12 @@ type ListProps = {
   max: number
   itemsLabel: string
   meId?: string
+  /** mobile: в шторке, с кнопкой «Готово». */
+  onDone?: () => void
   onPick: (user: UserSummary) => void
 }
 
-function UserList({ search, selected, multiple, max, itemsLabel, meId, onPick }: ListProps) {
+function UserList({ search, selected, multiple, max, itemsLabel, meId, onDone, onPick }: ListProps) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const listId = useId()
@@ -161,6 +168,15 @@ function UserList({ search, selected, multiple, max, itemsLabel, meId, onPick }:
           ))}
         </ul>
       </div>
+      {!search.loading && !search.error ? (
+        items.length > 0 ? (
+          <p className="px-3 py-1.5 text-xs text-ink-40">
+            {onDone !== undefined && search.pageSize !== undefined && items.length >= search.pageSize
+              ? `Показаны первые ${String(items.length)} · уточните поиск`
+              : `Найдено ${String(items.length)}`}
+          </p>
+        ) : null
+      ) : null}
       {multiple ? (
         <div className="mt-1 flex flex-col justify-center border-t border-border px-3 py-2 text-xs text-ink-60">
           <p>{`Выбрано ${String(selected.length)} из ${String(max)}`}</p>
@@ -171,6 +187,13 @@ function UserList({ search, selected, multiple, max, itemsLabel, meId, onPick }:
           ) : null}
         </div>
       ) : null}
+      {onDone ? (
+        <div className="p-2">
+          <Button className="h-12 w-full rounded-full" onClick={onDone}>
+            Готово
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -179,10 +202,16 @@ function UserList({ search, selected, multiple, max, itemsLabel, meId, onPick }:
 export function UserPicker(props: UserPickerProps) {
   const { label, search, me, itemsLabel = 'наблюдателей' } = props
   const [open, setOpen] = useState(false)
+  const mobile = useOptionalLayoutMode() === 'mobile'
   const multiple = props.multiple === true
   const max = props.multiple ? (props.max ?? WATCHERS_LIMIT) : 1
   const selected: UserSummary[] = props.multiple ? props.value : props.value ? [props.value] : []
   const current = props.multiple ? null : props.value
+
+  function onOpenChange(next: boolean) {
+    setOpen(next)
+    if (next) search.onSearch('')
+  }
 
   function toggle(user: UserSummary) {
     if (props.multiple) {
@@ -201,15 +230,10 @@ export function UserPicker(props: UserPickerProps) {
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex items-center gap-1.5">
-        <Popover
-          open={open}
-          onOpenChange={(next) => {
-            setOpen(next)
-            if (next) search.onSearch('')
-          }}
-        >
-          <PopoverTrigger asChild>
-            <button
+        {mobile ? (
+          <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetTrigger asChild>
+              <button
               type="button"
               aria-label={label}
               className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface-alt px-3 text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40"
@@ -220,9 +244,39 @@ export function UserPicker(props: UserPickerProps) {
               </span>
               <ChevronDown aria-hidden="true" size={14} className="shrink-0 text-ink-40" />
             </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 rounded-2xl p-1">
-            <UserList
+            </SheetTrigger>
+            <SheetContent side="bottom" title={label} className="pb-4">
+              <UserList
+              search={search}
+              selected={selected}
+              multiple={multiple}
+              max={max}
+              itemsLabel={itemsLabel}
+              meId={me?.id}
+              onDone={() => {
+                setOpen(false)
+              }}
+              onPick={toggle}
+            />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <Popover open={open} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+              <button
+              type="button"
+              aria-label={label}
+              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface-alt px-3 text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand-red/40"
+            >
+              <Icon aria-hidden="true" size={16} className="shrink-0 text-ink-40" />
+              <span className={cn('flex-1 truncate', current ? 'font-medium text-ink' : 'text-ink-40')}>
+                {current ? current.login : (props.placeholder ?? (multiple ? 'Добавить наблюдателей' : 'Выберите'))}
+              </span>
+              <ChevronDown aria-hidden="true" size={14} className="shrink-0 text-ink-40" />
+            </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 rounded-2xl p-1">
+              <UserList
               search={search}
               selected={selected}
               multiple={multiple}
@@ -231,8 +285,9 @@ export function UserPicker(props: UserPickerProps) {
               meId={me?.id}
               onPick={toggle}
             />
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+        )}
         {canPickMe ? (
           <button
             type="button"

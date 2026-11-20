@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { LayoutModeProvider, type LayoutMode } from '../layout/layout-mode'
 import { makeDetails, NOW } from './fixtures'
 import { TaskDetails, type TaskDetailsProps } from './TaskDetails'
 import { TaskNotFound } from './TaskNotFound'
 
-function setup(over: Partial<TaskDetailsProps> = {}) {
+function setup(over: Partial<TaskDetailsProps> = {}, mode: LayoutMode = 'desktop') {
   const props: TaskDetailsProps = {
     task: makeDetails({ watchers: [{ id: 'u3', login: 'ivan' }] }),
     now: NOW,
@@ -19,7 +20,11 @@ function setup(over: Partial<TaskDetailsProps> = {}) {
     onDelete: vi.fn(),
     ...over,
   }
-  render(<TaskDetails {...props} />)
+  render(
+    <LayoutModeProvider mode={mode}>
+      <TaskDetails {...props} />
+    </LayoutModeProvider>,
+  )
   return props
 }
 
@@ -74,26 +79,31 @@ describe('TaskDetails', () => {
     expect(props.onPatch).toHaveBeenCalledWith({ description: 'Текст' })
   })
 
-  it('дедлайн: изменение и очистка', async () => {
+  it('дедлайн: выбор через DeadlinePicker и «Готово»', async () => {
     const props = setup()
-    const input = screen.getByLabelText('Дедлайн')
-    fireEvent.change(input, { target: { value: '2026-12-20T10:00' } })
-    fireEvent.blur(input)
-    expect(props.onPatch).toHaveBeenCalledWith({ deadline: new Date('2026-12-20T10:00').toISOString() })
+    await userEvent.click(screen.getByRole('button', { name: 'Дедлайн' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Через неделю' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Готово ·/ }))
+    expect(props.onPatch).toHaveBeenCalledTimes(1)
+    const patch = vi.mocked(props.onPatch).mock.calls[0]?.[0]
+    expect(typeof patch?.deadline).toBe('string')
+  })
+
+  it('дедлайн: очистка', async () => {
+    const props = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Убрать дедлайн' }))
     expect(props.onPatch).toHaveBeenLastCalledWith({ deadline: null })
   })
 
-  it('дедлайн: промежуточные значения не уходят, PATCH один при потере фокуса', () => {
-    const props = setup()
-    const input = screen.getByLabelText('Дедлайн')
-    for (const v of ['0002-12-20T10:00', '0020-12-20T10:00', '0202-12-20T10:00', '2027-12-20T10:00']) {
-      fireEvent.change(input, { target: { value: v } })
-    }
-    expect(props.onPatch).not.toHaveBeenCalled()
-    fireEvent.blur(input)
-    expect(props.onPatch).toHaveBeenCalledTimes(1)
-    expect(props.onPatch).toHaveBeenCalledWith({ deadline: new Date('2027-12-20T10:00').toISOString() })
+  it('нет datetime-local', () => {
+    setup()
+    expect(document.querySelector('input[type="datetime-local"]')).toBeNull()
+  })
+
+  it('desktop: подвал с «Изменена …» справа, в шапке без «изменена»', () => {
+    setup()
+    expect(screen.getByText('Изменена сегодня, 11:00')).toBeTruthy()
+    expect(screen.queryByText(/^изменена/)).toBeNull()
   })
 
   it('смена статуса одним действием «Готово»', async () => {
@@ -129,6 +139,16 @@ describe('TaskDetails', () => {
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Удалить' }))
     expect(props.onDelete).toHaveBeenCalled()
+  })
+
+  it('mobile: удаление в верхней панели, а не в подвале', async () => {
+    const props = setup({}, 'mobile')
+    const header = screen.getByRole('banner')
+    expect(within(screen.getByRole('contentinfo')).queryByRole('button', { name: 'Удалить задачу' })).toBeNull()
+    expect(within(screen.getByRole('contentinfo')).getByText('Изменена сегодня, 11:00')).toBeTruthy()
+    await userEvent.click(within(header).getByRole('button', { name: 'Удалить задачу' }))
+    expect(within(await screen.findByRole('dialog')).getByTestId('sheet-grabber')).toBeTruthy()
+    expect(props.onDelete).not.toHaveBeenCalled()
   })
 
   it('отмена удаления', async () => {

@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { Input } from '../primitives/Input'
 import { Textarea } from '../primitives/Textarea'
-import { fromLocalInput, toLocalInput } from './deadline'
+import { DeadlineField } from './DeadlinePicker'
 import type { UserSummary } from './types'
 import { UserPicker, type UserSearchProps } from './UserPicker'
 
@@ -33,6 +33,9 @@ export type TaskFormFieldsProps = {
   errors?: TaskFormErrors
   userSearch: UserSearchProps
   me?: UserSummary
+  /** Ctrl+Enter / ⌘+Enter: отправка формы (если `canSubmit` не false). */
+  onSubmit?: () => void
+  canSubmit?: boolean
 }
 
 function Field({ label, htmlFor, error, children }: { label: string; htmlFor?: string; error?: string; children: ReactNode }) {
@@ -52,13 +55,21 @@ function Field({ label, htmlFor, error, children }: { label: string; htmlFor?: s
 }
 
 /** Поля формы создания задачи; те же компоненты в Dialog (CC) и Sheet (MH). */
-export function TaskFormFields({ value, onChange, errors = {}, userSearch, me }: TaskFormFieldsProps) {
+export function TaskFormFields({ value, onChange, errors = {}, userSearch, me, onSubmit, canSubmit = true }: TaskFormFieldsProps) {
   const id = useId()
   const set = (patch: Partial<TaskFormValue>) => {
     onChange({ ...value, ...patch })
   }
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4"
+      onKeyDown={(event) => {
+        if (onSubmit && event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault()
+          if (canSubmit) onSubmit()
+        }
+      }}
+    >
       <Field label="Название" htmlFor={`${id}-title`}>
         <Input
           id={`${id}-title`}
@@ -82,15 +93,12 @@ export function TaskFormFields({ value, onChange, errors = {}, userSearch, me }:
           }}
         />
       </Field>
-      <Field label="Дедлайн" htmlFor={`${id}-deadline`}>
-        <Input
-          id={`${id}-deadline`}
-          type="datetime-local"
-          value={toLocalInput(value.deadline)}
-          error={errors.deadline}
-          className="h-11"
-          onChange={(event) => {
-            set({ deadline: fromLocalInput(event.target.value) })
+      <Field label="Дедлайн" error={errors.deadline}>
+        <DeadlineField
+          label="Дедлайн"
+          value={value.deadline}
+          onChange={(deadline) => {
+            set({ deadline })
           }}
         />
       </Field>
@@ -117,6 +125,7 @@ export function TaskFormFields({ value, onChange, errors = {}, userSearch, me }:
           }}
         />
       </Field>
+      {onSubmit ? <p className="text-xs text-ink-40">Ctrl + Enter — создать</p> : null}
     </div>
   )
 }

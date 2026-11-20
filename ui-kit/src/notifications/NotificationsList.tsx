@@ -1,9 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
-import { Bell, CheckCheck, Loader, RefreshCw, X } from '../icons'
+import { Bell, CheckCheck, CloudOff, RefreshCw, Loader, X } from '../icons'
 import { Skeleton } from '../primitives/Skeleton'
 import { NotificationItem, type NotificationView } from './NotificationItem'
 
 export type { NotificationView } from './NotificationItem'
+
+export type NotificationsConnection = 'online' | 'reconnecting'
 
 export type NotificationsListState = 'loading' | 'empty' | 'error' | 'ready'
 
@@ -11,6 +13,8 @@ export type NotificationsListProps = {
   items: NotificationView[]
   state: NotificationsListState
   unreadCount?: number
+  /** `reconnecting` — над списком баннер, прежние элементы остаются. */
+  connection?: NotificationsConnection
   hasMore?: boolean
   loadingMore?: boolean
   onOpen: (item: NotificationView) => void
@@ -47,7 +51,7 @@ function Message({ tone, title, text, action }: { tone: 'error' | 'empty'; title
             : 'flex size-14 items-center justify-center rounded-full bg-surface-alt text-ink-40'
         }
       >
-        {tone === 'error' ? <RefreshCw size={24} /> : <Bell size={24} />}
+        {tone === 'error' ? <CloudOff size={24} /> : <Bell size={24} />}
       </span>
       <p className="text-base font-semibold text-ink">{title}</p>
       <p className="text-[13px] text-ink-60">{text}</p>
@@ -77,6 +81,7 @@ export function NotificationsList({
   items,
   state,
   unreadCount = 0,
+  connection = 'online',
   hasMore,
   loadingMore,
   onOpen,
@@ -90,6 +95,15 @@ export function NotificationsList({
   if (hasData) {
     body = (
       <div aria-busy={state === 'loading'} className="flex flex-col gap-0.5 overflow-auto p-2 pt-0">
+        {connection === 'reconnecting' ? (
+          <div role="status" className="mx-1 mb-1 flex items-center gap-2.5 rounded-lg bg-warning-soft px-3.5 py-2.5">
+            <Loader size={16} className="shrink-0 animate-spin text-warning" />
+            <div className="flex flex-col gap-px">
+              <p className="text-[13px] font-bold text-ink">Нет соединения · переподключаемся…</p>
+              <p className="text-xs text-ink-60">Список обновится сам, когда связь восстановится</p>
+            </div>
+          </div>
+        ) : null}
         {state === 'loading' ? (
           <p className="flex items-center gap-2 rounded-[12px] bg-warning-soft px-3 py-2 text-[13px] text-ink">
             <Loader size={16} className="animate-spin text-warning" />

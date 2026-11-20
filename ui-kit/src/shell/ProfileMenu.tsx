@@ -96,7 +96,7 @@ export function ProfileMenu({
           }}
         />
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="bottom" title="Профиль" className="pb-4">
+          <SheetContent side="bottom" aria-label="Профиль" className="pb-4">
             <Identity name={user.name} login={user.login} />
             <MenuSeparator />
             {telegram ? (

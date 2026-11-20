@@ -1,5 +1,6 @@
 import { Clock, Loader, Send, TriangleAlert } from '../icons'
 import { Button } from '../primitives/Button'
+import { TelegramLinkShare } from './TelegramLinkShare'
 import { TelegramAlert, TelegramHeader } from './TelegramPanelParts'
 
 export type TelegramConnectStatus = 'idle' | 'requesting' | 'waiting' | 'expired'
@@ -14,6 +15,8 @@ export type TelegramConnectPanelProps = {
   secondsLeft?: number
   /** Текст ошибки получения ссылки (только `idle`). */
   error?: string
+  /** Ссылка скопирована в буфер (для приложения: метрики и т. п.). */
+  onCopy?: (link: string) => void
   onConnect: () => void
   onOpenLink: (link: string) => void
   onCancel: () => void
@@ -39,6 +42,7 @@ export function TelegramConnectPanel({
   link,
   secondsLeft,
   error,
+  onCopy,
   onConnect,
   onOpenLink,
   onCancel,
@@ -56,6 +60,7 @@ export function TelegramConnectPanel({
         <p className="text-sm text-ink-60">
           Откройте чат с {botName ? `@${botName}` : 'ботом'} и нажмите «Start». Окно обновится само, как только Telegram будет подключён.
         </p>
+        {link ? <TelegramLinkShare link={link} onCopy={onCopy} /> : null}
         {secondsLeft !== undefined ? (
           <p className="flex items-center gap-1.5 text-xs text-ink-60">
             <Clock size={14} />
