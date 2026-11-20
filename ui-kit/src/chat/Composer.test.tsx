@@ -1,11 +1,32 @@
 import type { ChatModelAdapter } from '@assistant-ui/react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ThreadActionsContext } from './thread-context'
+import type * as VoiceModule from './voice/use-voice-input'
+import type { VoiceInput } from './voice/use-voice-input'
+import type { VoiceTranscriptionPort } from './voice/types'
 import { must } from '../test-utils'
 import { Composer } from './Composer'
+import { VoiceError } from './voice/types'
 import { useComposerAttachments } from './attachments/use-composer-attachments'
 import { RuntimeHarness, fakePort } from './test-helpers'
+
+type VoiceMock = { override: VoiceInput | null; onTranscript: ((text: string) => void) | undefined }
+
+const voiceMock = vi.hoisted((): VoiceMock => ({ override: null, onTranscript: undefined }))
+
+vi.mock('./voice/use-voice-input', async (importOriginal) => {
+  const actual = await importOriginal<typeof VoiceModule>()
+  return {
+    ...actual,
+    useVoiceInput: (port: VoiceTranscriptionPort | undefined, onTranscript?: (text: string) => void) => {
+      voiceMock.onTranscript = onTranscript
+      const real = actual.useVoiceInput(port, onTranscript)
+      return voiceMock.override ?? real
+    },
+  }
+})
 
 const calls: { text: string; runConfig: unknown }[] = []
 const adapter: ChatModelAdapter = {
@@ -18,9 +39,19 @@ const adapter: ChatModelAdapter = {
   },
 }
 
-function Subject({ port, disabled }: { port: ReturnType<typeof fakePort>['port']; disabled?: boolean }) {
+function Subject({
+  port,
+  disabled,
+  voice,
+  tools,
+}: {
+  port: ReturnType<typeof fakePort>['port']
+  disabled?: boolean
+  voice?: VoiceTranscriptionPort
+  tools?: React.ReactNode
+}) {
   const attachments = useComposerAttachments(port)
-  return <Composer attachments={attachments} disabled={disabled} />
+  return <Composer attachments={attachments} disabled={disabled} voice={voice} tools={tools} />
 }
 
 function setup(disabled?: boolean) {
@@ -44,10 +75,15 @@ describe('Composer', () => {
     expect(send.querySelector('svg')).not.toBeNull()
   })
 
-  it('has no microphone and no "Изменить" buttons', () => {
+  it('has no microphone without a voice port and no "Изменить" buttons', () => {
     setup()
     const names = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)
     expect(names.some((n) => /микрофон|голос|Изменить/i.test(n))).toBe(false)
+  })
+
+  it('the attach button is a plus', () => {
+    setup()
+    expect(screen.getByRole('button', { name: 'Прикрепить файл' }).querySelector('svg.lucide-plus')).not.toBeNull()
   })
 
   it('blocks sending an empty message', () => {
@@ -124,5 +160,113 @@ describe('Composer', () => {
     expect(screen.getByRole('alert').textContent).toContain('не больше 5 файлов')
     await user.click(screen.getByRole('button', { name: 'Закрыть сообщение' }))
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+const voicePort: VoiceTranscriptionPort = {
+  transcribe: () => Promise.resolve({ kind: 'no-speech' }),
+}
+
+function voiceState(patch: Partial<VoiceInput>): VoiceInput {
+  return {
+    state: 'idle',
+    elapsedSec: 0,
+    level: 0,
+    error: null,
+    start: vi.fn(() => Promise.resolve()),
+    stop: vi.fn(),
+    cancel: vi.fn(),
+    ...patch,
+  }
+}
+
+function setupVoice(patch: Partial<VoiceInput>, options: { serverRunning?: boolean; tools?: React.ReactNode } = {}) {
+  calls.length = 0
+  const voice = voiceState(patch)
+  voiceMock.override = voice
+  const fake = fakePort()
+  render(
+    <RuntimeHarness adapter={adapter}>
+      <ThreadActionsContext.Provider
+        value={{ serverRunning: options.serverRunning ?? false, onRetry: () => undefined, onCancel: () => undefined }}
+      >
+        <Subject port={fake.port} voice={voicePort} tools={options.tools} />
+      </ThreadActionsContext.Provider>
+    </RuntimeHarness>,
+  )
+  return { voice, user: userEvent.setup() }
+}
+
+describe('Composer: voice and tools slot', () => {
+  afterEach(() => {
+    voiceMock.override = null
+  })
+
+  it('shows the microphone that starts the recording', async () => {
+    const { voice, user } = setupVoice({})
+    await user.click(screen.getByRole('button', { name: 'Микрофон' }))
+    expect(voice.start).toHaveBeenCalledTimes(1)
+  })
+
+  it('the microphone is not available while the agent answers', () => {
+    setupVoice({}, { serverRunning: true })
+    expect(screen.getByRole('button', { name: 'Микрофон' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('renders the slot of tools next to the plus', () => {
+    setupVoice({}, { tools: <button type="button">Подбор</button> })
+    expect(screen.getByRole('button', { name: 'Подбор' })).toBeTruthy()
+  })
+
+  it('while recording shows the bar instead of the field and the stop button; sending is unavailable', async () => {
+    const { voice, user } = setupVoice({ state: 'recording', elapsedSec: 7, level: 0.4 })
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByText('0:07')).toBeTruthy()
+    expect(screen.getByText('Говорите…')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Остановить запись' }))
+    expect(voice.stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('while transcribing shows "Распознаю речь…" and blocks sending', () => {
+    setupVoice({ state: 'transcribing' })
+    expect(screen.getByRole('status').textContent).toContain('Распознаю речь…')
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Микрофон' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('appends the transcript to the typed text with a space and does not send it', async () => {
+    const { user } = setupVoice({})
+    await user.type(screen.getByRole('textbox'), 'Цены на')
+    act(() => {
+      voiceMock.onTranscript?.('MBA в Москве')
+    })
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox').value).toBe('Цены на MBA в Москве')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('puts the transcript into an empty field as it is', () => {
+    setupVoice({})
+    act(() => {
+      voiceMock.onTranscript?.('сколько стоит MBA')
+    })
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox').value).toBe('сколько стоит MBA')
+  })
+
+  it.each([
+    ['microphone-denied', 'Нет доступа к микрофону', 'Повторить'],
+    ['no-speech', 'Речь не распознана', 'Записать снова'],
+    ['VOICE_TOO_LONG', 'Запись слишком длинная', 'Повторить'],
+    ['VOICE_TOO_LARGE', 'Запись слишком длинная', 'Повторить'],
+    ['VOICE_PROVIDER_UNAVAILABLE', 'Сервис распознавания недоступен', 'Повторить'],
+    ['VOICE_RATE_LIMITED', 'Слишком много запросов', 'Повторить'],
+  ] as const)('shows the error %s with the text of the design, keeps the draft and sending', async (code, title, action) => {
+    const { voice, user } = setupVoice({ state: 'error', error: new VoiceError(code) })
+    expect(screen.getByRole('alert').textContent).toContain(title)
+    expect(screen.getByRole('textbox').hasAttribute('disabled')).toBe(false)
+    await user.type(screen.getByRole('textbox'), 'черновик')
+    expect(screen.getByRole('button', { name: 'Отправить' }).hasAttribute('disabled')).toBe(false)
+    await user.click(screen.getByRole('button', { name: action }))
+    expect(voice.start).toHaveBeenCalledTimes(1)
   })
 })

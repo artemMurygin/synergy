@@ -20,7 +20,7 @@ export function MenuContent({
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          'z-50 min-w-[200px] rounded-lg border border-border bg-surface p-1.5 shadow-panel outline-none',
+          'z-50 min-w-[200px] rounded-menu border border-border bg-surface p-1.5 shadow-panel outline-none',
           className,
         )}
         {...props}

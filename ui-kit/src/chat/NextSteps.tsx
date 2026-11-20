@@ -1,3 +1,4 @@
+import { ArrowUpRight } from '../icons'
 import { nextStepsFor } from './next-steps'
 
 type NextStepsProps = {
@@ -20,9 +21,10 @@ export function NextSteps({ lastAnswer, disabled, onSend }: NextStepsProps) {
           onClick={() => {
             onSend(step.query)
           }}
-          className="h-8 rounded-md border border-surface-alt bg-surface-alt px-3 font-chat text-[13px] font-medium text-ink-80 transition-colors outline-none hover:border-border focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          className="flex h-8 items-center gap-1.5 rounded-xl border border-surface-alt bg-surface-alt pr-2.5 pl-3 font-chat text-[13px] text-ink-80 transition-colors outline-none hover:border-border focus-visible:ring-2 focus-visible:ring-brand-red/40"
         >
           {step.label}
+          <ArrowUpRight size={14} className="text-ink-40" />
         </button>
       ))}
     </div>

@@ -6,6 +6,10 @@ export type ToolCallView = {
   args: unknown
   result?: unknown
   status: ToolCallStatus
+  /** How long the call took: saved by the server in a history or measured by the client during a run. */
+  durationMs?: number
+  /** Text of the error of a failed call, shown instead of the arguments. */
+  error?: string
 }
 
 /** A call runs while its message runs and no result came; a failed tool is an error. */
@@ -37,15 +41,53 @@ export function pluralizeCalls(count: number): string {
 export type GroupSummary = {
   state: 'running' | 'error' | 'done'
   title: string
+  /** Text of the status next to the icon: «Выполняется · K из N», «N готово», «1 ошибка». */
   status: string
+  /** The same for the narrow layout: «K из N» while running, otherwise as `status`. */
+  compactStatus: string
 }
 
-/** Overall state of a group: running until every call finished, then error or "N готово". */
+export function pluralizeErrors(count: number): string {
+  const mod100 = count % 100
+  const mod10 = count % 10
+  if (mod100 >= 11 && mod100 <= 14) return `${String(count)} ошибок`
+  if (mod10 === 1) return `${String(count)} ошибка`
+  if (mod10 >= 2 && mod10 <= 4) return `${String(count)} ошибки`
+  return `${String(count)} ошибок`
+}
+
+/** Overall state of a group: «K из N» until every call finished, then the number of errors or "N готово". */
 export function groupSummary(calls: readonly ToolCallView[]): GroupSummary {
-  const title = `${pluralizeCalls(calls.length)} инструментов`
-  if (calls.some((call) => call.status === 'running')) return { state: 'running', title, status: 'выполняется' }
-  if (calls.some((call) => call.status === 'error')) return { state: 'error', title, status: 'ошибка' }
-  return { state: 'done', title, status: `${String(calls.length)} готово` }
+  const total = calls.length
+  const title = `${pluralizeCalls(total)} инструментов`
+  const running = calls.filter((call) => call.status === 'running').length
+  if (running > 0) {
+    const progress = `${String(total - running)} из ${String(total)}`
+    return { state: 'running', title: 'Вызываю инструменты…', status: `Выполняется · ${progress}`, compactStatus: progress }
+  }
+  const errors = calls.filter((call) => call.status === 'error').length
+  if (errors > 0) {
+    const status = pluralizeErrors(errors)
+    return { state: 'error', title, status, compactStatus: status }
+  }
+  const status = `${String(total)} готово`
+  return { state: 'done', title, status, compactStatus: status }
+}
+
+/** The duration the server saved with a call (`artifact.durationMs` of the tool-call part). */
+export function toolDurationMs(artifact: unknown): number | undefined {
+  if (typeof artifact !== 'object' || artifact === null || !('durationMs' in artifact)) return undefined
+  const value = artifact.durationMs
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
+}
+
+/** Text of a failed result for the row of the call: one line. */
+export function errorText(result: unknown): string {
+  if (typeof result === 'string' && result.trim() !== '') return result.replace(/\s+/g, ' ').trim()
+  if (typeof result === 'object' && result !== null && 'message' in result && typeof result.message === 'string') {
+    return result.message
+  }
+  return 'Ошибка вызова'
 }
 
 function formatValue(value: unknown): string {

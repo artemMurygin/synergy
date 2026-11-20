@@ -138,7 +138,7 @@ export function ProfileMenu({
         <MenuTrigger asChild>
           <ProfileButton name={user.name} />
         </MenuTrigger>
-        <MenuContent side="right" align="end" className="w-72 rounded-xl p-2">
+        <MenuContent side="right" align="end" className="w-72 rounded-menu p-2">
           <Identity name={user.name} login={user.login} />
           <MenuSeparator />
           {telegram ? (

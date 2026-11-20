@@ -50,6 +50,14 @@
 | локальные `PasswordField`, `Switch`, `InlineConfirm` | одноимённые примитивы пакета |
 | `sidepanel/icons.tsx`, `options/telegram/icons.tsx` | `@synergy/ui-kit/icons` |
 
+## Примитивы (дополнения)
+
+- `Sheet` (`side="bottom"`): захват 40×4 по умолчанию (`grabber={false}` скрывает), свайп вниз ≥ 80px закрывает; без `title` нет строки заголовка с «X», имя диалога — `aria-label`.
+- `Button` (`primary`/`secondary`/`ghost`): радиус 16 (`rounded-lg`); `icon-round` круглая.
+- `Menu`/`ProfileMenu`: радиус через токен `--radius-menu: 20px` (`rounded-menu`).
+- `Toast`: `ToastProvider` (один раз в корне) + `useToast()` -> `show({tone, title, description?, action?, persistent?})`, `dismiss(id)`; успех скрывается сам, ошибка с `persistent` остаётся до закрытия; `aria-live` polite/assertive; не больше 3 одновременно.
+- `Calendar` (`value`, `onChange`, `today?`): Intl ru, неделя с понедельника, сетка 7×6; стрелки, Home/End, PageUp/PageDown, Enter.
+
 ## Как добавить компонент
 
 1. Сначала мастер в `design/design-kit.lib.pen` (через `mcp__pencil__*`), состояния и три формата.

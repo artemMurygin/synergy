@@ -5,8 +5,10 @@ import {
   useThreadViewport,
   useThreadViewportStore,
 } from '@assistant-ui/react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Connection } from './connection/use-server-reachability'
+import { ChatSearchQueryContext, useChatSearch } from './chat-search-context'
+import { ChatSearchBar } from './ChatSearchBar'
 import { ConnectionBanner } from './ConnectionBanner'
 import type { MessageFile } from './attachments/file-upload-port'
 import { AssistantMessage } from './AssistantMessage'
@@ -48,6 +50,8 @@ export type ThreadProps = {
   connectionHint?: string
   /** The server answered 409: the agent still answers this chat. */
   runConflict?: boolean
+  /** Search in the loaded messages: the app opens it with the button of the header; the bar sits above the feed. */
+  search?: { open: boolean; onClose: () => void }
 }
 
 function answerText(content: readonly { type: string; text?: string }[]): string {
@@ -85,10 +89,14 @@ export function Thread({
   probing,
   connectionHint,
   runConflict = false,
+  search,
 }: ThreadProps) {
   const offline = connection === 'offline'
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const aui = useAui()
+  const scope = useRef<HTMLDivElement>(null)
+  const searching = search?.open === true
+  const found = useChatSearch(searching, scope)
   const messages = useAuiState((s) => s.thread.messages)
   const localRunning = useAuiState((s) => s.thread.isRunning)
   const last = messages.at(-1)
@@ -110,40 +118,78 @@ export function Thread({
       setEditingMessageId,
       offline,
     }),
-    [serverRunning, onRetry, onCancel, onDownload, pendingDownloads, isEditable, onEdit, editingMessageId, offline],
+    [
+      serverRunning,
+      onRetry,
+      onCancel,
+      onDownload,
+      pendingDownloads,
+      isEditable,
+      onEdit,
+      editingMessageId,
+      offline,
+    ],
   )
 
   return (
     <ThreadActionsContext.Provider value={actions}>
-      <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col font-chat">
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6">
-          <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3">
-            {messages.length === 0 && !serverRunning && (empty ?? <ThreadWelcome />)}
-            <ThreadPrimitive.Messages>
-              {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
-            </ThreadPrimitive.Messages>
-            <RunningIndicator serverRunning={serverRunning} />
-          </div>
-          <div className="pointer-events-none sticky bottom-3 flex justify-center empty:hidden [&>*]:pointer-events-auto">
-            <FeedNewMessage count={messages.length} />
-          </div>
-        </ThreadPrimitive.Viewport>
-        <div className="mx-auto flex w-full max-w-180 flex-col gap-2.5 px-3 pt-3 pb-3 sm:px-6 sm:pb-6">
-          {offline && <ConnectionBanner onRetry={onProbe ?? onRetry} retrying={probing} hint={connectionHint} />}
-          {runConflict && <RunNotice kind="conflict" />}
-          {!offline && runError !== undefined && runError !== null && (
-            <RunNotice kind="error" title="Нет связи с сервером" text={runError} onRetry={onRetry} />
-          )}
-          <NextSteps
-            lastAnswer={lastAnswer}
-            disabled={running || ended}
-            onSend={(query) => {
-              aui.thread.append(query)
+      <ChatSearchQueryContext.Provider value={found.query}>
+        <ThreadPrimitive.Root ref={scope} className="flex min-h-0 flex-1 flex-col font-chat">
+          <ChatSearchBar
+            open={searching}
+            query={found.query}
+            onQueryChange={found.setQuery}
+            current={found.current}
+            total={found.total}
+            onNext={found.next}
+            onPrev={found.prev}
+            onClose={() => {
+              found.reset()
+              search?.onClose()
             }}
           />
-          {composer}
-        </div>
-      </ThreadPrimitive.Root>
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6">
+            <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3">
+              {messages.length === 0 && !serverRunning && (empty ?? <ThreadWelcome />)}
+              <ThreadPrimitive.Messages>
+                {({ message }) =>
+                  message.role === 'user' ? <UserMessage /> : <AssistantMessage />
+                }
+              </ThreadPrimitive.Messages>
+              <RunningIndicator serverRunning={serverRunning} />
+            </div>
+            <div className="pointer-events-none sticky bottom-3 flex justify-center empty:hidden [&>*]:pointer-events-auto">
+              <FeedNewMessage count={messages.length} />
+            </div>
+          </ThreadPrimitive.Viewport>
+          <div className="mx-auto flex w-full max-w-180 flex-col gap-2.5 px-3 pt-3 pb-3 sm:px-6 sm:pb-6">
+            {offline && (
+              <ConnectionBanner
+                onRetry={onProbe ?? onRetry}
+                retrying={probing}
+                hint={connectionHint}
+              />
+            )}
+            {runConflict && <RunNotice kind="conflict" />}
+            {!offline && runError !== undefined && runError !== null && (
+              <RunNotice
+                kind="error"
+                title="Нет связи с сервером"
+                text={runError}
+                onRetry={onRetry}
+              />
+            )}
+            <NextSteps
+              lastAnswer={lastAnswer}
+              disabled={running || ended}
+              onSend={(query) => {
+                aui.thread.append(query)
+              }}
+            />
+            {composer}
+          </div>
+        </ThreadPrimitive.Root>
+      </ChatSearchQueryContext.Provider>
     </ThreadActionsContext.Provider>
   )
 }

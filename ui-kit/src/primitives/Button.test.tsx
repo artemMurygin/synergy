@@ -43,4 +43,23 @@ describe('Button', () => {
     const bad = <Button variant="icon-round">x</Button>
     expect(bad).toBeTruthy()
   })
+
+  it('uses radius 16 for text variants and keeps icon-round circular', () => {
+    render(
+      <>
+        <Button variant="primary">A</Button>
+        <Button variant="secondary">B</Button>
+        <Button variant="ghost">C</Button>
+        <Button variant="icon-round" aria-label="D">
+          x
+        </Button>
+      </>,
+    )
+    for (const name of ['A', 'B', 'C']) {
+      const cls = screen.getByRole('button', { name }).className
+      expect(cls).toContain('rounded-lg')
+      expect(cls).not.toContain('rounded-xl')
+    }
+    expect(screen.getByRole('button', { name: 'D' }).className).toContain('rounded-full')
+  })
 })

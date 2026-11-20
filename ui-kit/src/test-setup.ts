@@ -18,3 +18,9 @@ globalThis.ResizeObserver = class {
     return undefined
   }
 }
+
+Object.assign(Element.prototype, {
+  hasPointerCapture: () => false,
+  setPointerCapture: () => undefined,
+  releasePointerCapture: () => undefined,
+})

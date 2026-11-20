@@ -1,5 +1,5 @@
 import { useAuiState } from '@assistant-ui/react'
-import { Loader } from '../icons'
+import { Loader, LoaderCircle } from '../icons'
 import { RunNotice } from './RunNotice'
 
 /** The agent is answering: a local run of the runtime or a run still going on the server. */
@@ -7,8 +7,8 @@ export function RunningIndicator({ serverRunning }: { serverRunning: boolean }) 
   const localRunning = useAuiState((s) => s.thread.isRunning)
   if (localRunning) {
     return (
-      <p role="status" className="flex items-center gap-2 font-chat text-[13px] text-ink-60">
-        <span className="size-2 animate-pulse rounded-full bg-brand-red" />
+      <p role="status" className="flex items-center gap-1.5 font-chat text-xs text-ink-40">
+        <LoaderCircle size={14} className="animate-spin" />
         Агент отвечает…
       </p>
     )

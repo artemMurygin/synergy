@@ -12,7 +12,7 @@ const KIT_COLORS = [
   'ink-80', 'surface-sunken', 'border-strong', 'shadow-red', 'brand-red-soft', 'brand-red-hover',
   'success', 'info', 'shadow-card', 'info-soft', 'warning', 'warning-soft', 'success-soft',
 ]
-const KIT_RADII = ['2xl', 'pill', 'md', 'lg', 'sm', 'xl']
+const KIT_RADII = ['2xl', 'pill', 'md', 'lg', 'sm', 'xl', 'menu']
 const KIT_FONTS = ['ui', 'display']
 // Производные токены UI Kit для чата и панелей.
 const EXTRA = ['--font-chat', '--font-mono', '--shadow-panel']

@@ -1,6 +1,7 @@
 import { MessagePrimitive, useAuiState } from '@assistant-ui/react'
 import { MessageAttachments } from './attachments/MessageAttachments'
 import { messageFiles } from './attachments/message-files'
+import { HighlightedText } from './HighlightedText'
 import { EditComposer } from './EditComposer'
 import { useThreadActions } from './thread-context'
 import { UserActionBar } from './UserActionBar'
@@ -26,7 +27,7 @@ export function UserMessage() {
       <MessageAttachments files={files} align="end" pending={pendingDownloads} onDownload={onDownload ?? noop} />
       {hasText && (
         <div className="max-w-[85%] rounded-2xl bg-brand-red px-3.5 py-2.5 font-chat text-sm leading-[1.4] break-words whitespace-pre-wrap text-white">
-          <MessagePrimitive.Parts />
+          <MessagePrimitive.Parts components={{ Text: HighlightedText }} />
         </div>
       )}
       {hasText && <UserActionBar canEdit={isEditable?.(message.id) ?? false} />}

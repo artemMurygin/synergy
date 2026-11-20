@@ -6,6 +6,8 @@ import {
   groupSummary,
   pluralizeCalls,
   statusLabel,
+  toolDurationMs,
+  errorText,
   type ToolCallView,
 } from './tool-status'
 
@@ -43,24 +45,36 @@ describe('pluralizeCalls', () => {
 })
 
 describe('groupSummary', () => {
-  it('is running while at least one call is not finished', () => {
-    expect(groupSummary([call('complete'), call('running', '2')])).toMatchObject({
+  it('is running while at least one call is not finished: "Выполняется · K из N", on mobile "K из N"', () => {
+    const calls = [call('complete'), call('running', '2'), call('running', '3'), call('complete', '4')]
+    expect(groupSummary(calls)).toMatchObject({
       state: 'running',
-      status: 'выполняется',
+      title: 'Вызываю инструменты…',
+      status: 'Выполняется · 2 из 4',
+      compactStatus: '2 из 4',
     })
+  })
+  it('counts a failed call as finished while others still run', () => {
+    expect(groupSummary([call('error'), call('running', '2')])).toMatchObject({ status: 'Выполняется · 1 из 2' })
   })
   it('shows the count and "готово" when all calls finished', () => {
     expect(groupSummary([call('complete'), call('complete', '2'), call('complete', '3')])).toEqual({
       state: 'done',
       title: '3 вызова инструментов',
       status: '3 готово',
+      compactStatus: '3 готово',
     })
   })
   it('marks the group when a call failed', () => {
     expect(groupSummary([call('complete'), call('error', '2')])).toMatchObject({
       state: 'error',
-      status: 'ошибка',
+      status: '1 ошибка',
     })
+  })
+  it('counts the errors with a plural form', () => {
+    const errors = (n: number) => Array.from({ length: n }, (_, i) => call('error', String(i)))
+    expect(groupSummary(errors(2)).status).toBe('2 ошибки')
+    expect(groupSummary(errors(5)).status).toBe('5 ошибок')
   })
 })
 
@@ -89,5 +103,24 @@ describe('formatDetails', () => {
     expect(formatDetails({ a: 1 })).toBe('{\n  "a": 1\n}')
     expect(formatDetails('3 программы')).toBe('3 программы')
     expect(formatDetails(undefined)).toBe('')
+  })
+})
+
+describe('toolDurationMs', () => {
+  it('reads the duration the server saved in the artifact of a call', () => {
+    expect(toolDurationMs({ durationMs: 400 })).toBe(400)
+  })
+  it('is undefined without a valid number', () => {
+    expect(toolDurationMs(undefined)).toBeUndefined()
+    expect(toolDurationMs({ durationMs: 'x' })).toBeUndefined()
+    expect(toolDurationMs({ durationMs: -1 })).toBeUndefined()
+  })
+})
+
+describe('errorText', () => {
+  it('takes the text of a failed result in one line', () => {
+    expect(errorText('Сервис цен недоступен')).toBe('Сервис цен недоступен')
+    expect(errorText({ message: 'нет доступа' })).toBe('нет доступа')
+    expect(errorText(undefined)).toBe('Ошибка вызова')
   })
 })

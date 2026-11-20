@@ -45,4 +45,19 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).toBeNull()
     expect(document.activeElement).toBe(trigger)
   })
+
+  it('uses the menu radius token', async () => {
+    render(
+      <Menu>
+        <MenuTrigger asChild>
+          <button type="button">Ещё</button>
+        </MenuTrigger>
+        <MenuContent>
+          <MenuItem>Выйти</MenuItem>
+        </MenuContent>
+      </Menu>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё' }))
+    expect((await screen.findByRole('menu')).className).toContain('rounded-menu')
+  })
 })

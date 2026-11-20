@@ -205,3 +205,63 @@ describe('Thread', () => {
     expect(screen.getAllByRole('button', { name: 'Копировать' })).toHaveLength(1)
   })
 })
+
+describe('Thread: search in the messages', () => {
+  const dialog = answering('Рассрочка на 12 месяцев. Первый взнос — от 20%. Рассрочка без процентов.')
+
+  async function open(onClose = vi.fn()) {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const view = mount(dialog, { search: { open: true, onClose } }, 'Какая рассрочка есть на МВА?')
+    await screen.findByText(/Первый взнос/)
+    return { ...view, onClose, scroll }
+  }
+
+  it('marks the occurrences without the case in the question and the answer and counts them', async () => {
+    const { user } = await open()
+    await user.type(screen.getByRole('searchbox', { name: 'Поиск по чату' }), 'рассрочка')
+    await waitFor(() => {
+      expect(screen.getByText('1 из 3')).toBeTruthy()
+    })
+    const marks = document.querySelectorAll('mark')
+    expect(marks).toHaveLength(3)
+    expect(marks[0]?.hasAttribute('data-current')).toBe(true)
+  })
+
+  it('goes to the next and the previous match with Enter and Shift+Enter and scrolls to it', async () => {
+    const { user, scroll } = await open()
+    await user.type(screen.getByRole('searchbox'), 'рассрочка')
+    await screen.findByText('1 из 3')
+    scroll.mockClear()
+    await user.keyboard('{Enter}')
+    expect(await screen.findByText('2 из 3')).toBeTruthy()
+    expect(document.querySelectorAll('mark')[1]?.hasAttribute('data-current')).toBe(true)
+    expect(scroll).toHaveBeenCalled()
+    await user.keyboard('{Shift>}{Enter}{/Shift}{Shift>}{Enter}{/Shift}')
+    expect(await screen.findByText('3 из 3')).toBeTruthy()
+  })
+
+  it('says "Нет совпадений" when the text is not in the messages', async () => {
+    const { user } = await open()
+    await user.type(screen.getByRole('searchbox'), 'скидка')
+    expect(await screen.findByText('Нет совпадений')).toBeTruthy()
+    expect(document.querySelectorAll('mark')).toHaveLength(0)
+  })
+
+  it('Escape closes the search and removes the marks', async () => {
+    const { user, onClose } = await open()
+    await user.type(screen.getByRole('searchbox'), 'рассрочка')
+    await screen.findByText('1 из 3')
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(document.querySelectorAll('mark')).toHaveLength(0)
+    })
+  })
+
+  it('has no search bar while the search is closed', async () => {
+    mount(dialog, {}, 'вопрос')
+    await screen.findByText(/Первый взнос/)
+    expect(screen.queryByRole('searchbox')).toBeNull()
+  })
+})

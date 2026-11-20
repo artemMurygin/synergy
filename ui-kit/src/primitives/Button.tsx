@@ -8,10 +8,10 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'h-12 rounded-xl bg-brand-red px-6 text-[15px] text-white shadow-[0_8px_4px_var(--color-shadow-red)] hover:bg-brand-red-hover',
+          'h-12 rounded-lg bg-brand-red px-6 text-[15px] text-white shadow-[0_8px_4px_var(--color-shadow-red)] hover:bg-brand-red-hover',
         secondary:
-          'h-11 rounded-xl border border-border-strong bg-surface px-6 text-[15px] text-ink hover:bg-surface-alt',
-        ghost: 'h-11 rounded-xl bg-transparent px-4 text-[15px] text-ink-80 hover:bg-surface-alt',
+          'h-11 rounded-lg border border-border-strong bg-surface px-6 text-[15px] text-ink hover:bg-surface-alt',
+        ghost: 'h-11 rounded-lg bg-transparent px-4 text-[15px] text-ink-80 hover:bg-surface-alt',
         'icon-round':
           'size-11 rounded-full bg-transparent p-0 text-ink-80 hover:bg-surface-alt',
       },
