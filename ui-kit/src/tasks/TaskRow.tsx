@@ -86,7 +86,7 @@ export function TaskRow({ task, selected = false, now, variant = 'compact', onOp
             {loginOf(task.assignee)}
           </span>
         </div>
-        <div className="w-[140px] shrink-0">
+        <div className="w-[170px] shrink-0">
           <DeadlineLabel deadline={task.deadline} status={task.status} now={now} />
         </div>
         <div className="w-[120px] shrink-0">
