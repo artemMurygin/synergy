@@ -187,6 +187,7 @@ describe('TaskDetailsPanel', () => {
     await waitFor(() => {
       expect(useTasksStore.getState().selectedTaskId).toBeNull()
     })
+    expect(await screen.findByText(/удалена и убрана из списка/)).toBeTruthy()
   })
 
   it('keeps the task when the deletion is cancelled', async () => {

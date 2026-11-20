@@ -1,5 +1,5 @@
 import { PanelHeaderButton } from '@synergy/ui-kit'
-import { Plus, Settings } from '@synergy/ui-kit/icons'
+import { Plus, Search, Settings } from '@synergy/ui-kit/icons'
 import type { ReactNode, Ref } from 'react'
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   /** The create button, to return focus to it after a modal create form closes. */
   actionRef?: Ref<HTMLButtonElement>
   onOpenSettings: () => void
+  /** Opens the search bar of the list (tasks on mobile). */
+  onSearch?: () => void
   /** Notifications and profile in the top bar of a narrow panel (the rail carries them otherwise). */
   trailing?: ReactNode
 }
@@ -24,6 +26,7 @@ export function PanelActions({
   actionExpanded,
   actionRef,
   onOpenSettings,
+  onSearch,
   trailing,
 }: Props) {
   return (
@@ -37,6 +40,7 @@ export function PanelActions({
         disabled={actionDisabled}
         onClick={onAction}
       />
+      {onSearch ? <PanelHeaderButton label="Поиск" icon={<Search />} onClick={onSearch} /> : null}
       <PanelHeaderButton label="Настройки" icon={<Settings />} onClick={onOpenSettings} />
       {trailing}
     </>

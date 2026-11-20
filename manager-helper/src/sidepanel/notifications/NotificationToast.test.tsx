@@ -33,6 +33,13 @@ describe('NotificationToast', () => {
     expect(toast.textContent).toContain('Открыть задачу')
   })
 
+  it('shows the chat action and opens the notification', () => {
+    const chat = { ...TASK_NOTIFICATION, target: { type: 'chat', id: 'c1' } }
+    const { onOpen } = renderToast(chat)
+    fireEvent.click(screen.getByRole('button', { name: /Открыть чат/ }))
+    expect(onOpen).toHaveBeenCalledWith(chat)
+  })
+
   it('hides the task action for other targets', () => {
     renderToast({ ...TASK_NOTIFICATION, target: { type: 'deal', id: 'd1' } })
     expect(screen.queryByText('Открыть задачу')).toBeNull()

@@ -45,8 +45,8 @@ describe('NotificationsOverlay: mobile', () => {
   it('lists the notifications with the unread count and short time', () => {
     renderOverlay({ unreadCount: 3 })
     expect(overlay().getAttribute('data-layout')).toBe('panel')
-    const list = screen.getByRole('region', { name: 'Уведомления' })
-    expect(within(list).getByText('3')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Уведомления' })).toBeTruthy()
+    expect(screen.getByText('3 непрочитанных')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Первое/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Второе/ })).toBeTruthy()
     expect(screen.getByText('2 мин')).toBeTruthy()
@@ -88,11 +88,51 @@ describe('NotificationsOverlay: mobile', () => {
     expect(props.onLoadMore).toHaveBeenCalledTimes(1)
   })
 
-  it('closes with the close button and with Escape', () => {
+  it('closes with the back button and with Escape', () => {
     const props = renderOverlay()
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('NotificationsOverlay: mobile top bar', () => {
+  it('says "Загрузка…" on the first load', () => {
+    renderOverlay({ items: [], status: 'loading', isInitialLoad: true })
+    expect(screen.getByText('Загрузка…')).toBeTruthy()
+  })
+
+  it('says "Нет связи с сервером" when the list failed to load', () => {
+    renderOverlay({ items: [], status: 'error' })
+    expect(screen.getByText('Нет связи с сервером')).toBeTruthy()
+  })
+
+  it('says "Переподключение…" and shows the banner while reconnecting, keeping the items', () => {
+    renderOverlay({ connection: 'reconnecting' })
+    expect(screen.getByText('Переподключение…')).toBeTruthy()
+    expect(screen.getByText('Нет соединения · переподключаемся…')).toBeTruthy()
+    expect(screen.getByText('Список обновится сам, когда связь восстановится')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Первое/ })).toBeTruthy()
+  })
+
+  it('has no banner when online', () => {
+    renderOverlay()
+    expect(screen.queryByText('Нет соединения · переподключаемся…')).toBeNull()
+  })
+})
+
+describe('NotificationsOverlay: groups and icons', () => {
+  const OLD = makeNotification('n3', '2026-10-01T10:00:00.000Z', { title: 'Старое' })
+
+  it('splits the list into days', () => {
+    renderOverlay({ items: [N1, OLD] }, 'tablet')
+    expect(screen.getByText('Сегодня')).toBeTruthy()
+    expect(screen.getByText('Ранее')).toBeTruthy()
+  })
+
+  it('draws the icon of the notification type', () => {
+    renderOverlay({ items: [{ ...N1, type: 'transcript-ready' }] }, 'tablet')
+    expect(document.querySelector('.lucide-audio-lines')).not.toBeNull()
   })
 })
 

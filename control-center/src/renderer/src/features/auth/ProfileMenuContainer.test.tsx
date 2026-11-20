@@ -90,7 +90,7 @@ describe('ProfileMenuContainer', () => {
     expect(screen.queryByRole('menuitem', { name: /Telegram/ })).toBeNull()
   })
 
-  it('changes the password from the menu and closes the dialog on success', async () => {
+  it('changes the password from the menu, shows the success screen and closes on «Вернуться к работе»', async () => {
     vi.mocked(telegramApi.getTelegramLink).mockResolvedValue(unlinkedStatus)
     bridge.changePassword.mockResolvedValue({ ok: true, snapshot: authenticatedSnapshot })
     const user = mount()
@@ -102,6 +102,8 @@ describe('ProfileMenuContainer', () => {
     await user.type(within(dialog).getByLabelText('Повторите новый пароль'), 'NewPass12345')
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить пароль' }))
     await waitFor(() => { expect(bridge.changePassword).toHaveBeenCalledWith('OldPass12345', 'NewPass12345'); })
+    expect(await screen.findByText('Пароль изменён')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Вернуться к работе' }))
     await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull(); })
   })
 

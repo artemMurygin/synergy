@@ -2,9 +2,18 @@ import { create } from 'zustand'
 
 const STORAGE_KEY = 'cc.activeThreadId'
 
+/** The first message of a chat that does not exist yet: sent by the new chat right after it opens. */
+export interface PendingFirstMessage {
+  text: string
+  fileIds: readonly string[]
+  files: readonly unknown[]
+}
+
 interface ChatState {
   activeThreadId: string | null
   setActiveThread: (id: string | null) => void
+  pendingFirstMessage: PendingFirstMessage | null
+  setPendingFirstMessage: (message: PendingFirstMessage | null) => void
 }
 
 function readStored(): string | null {
@@ -29,5 +38,9 @@ export const useChatStore = create<ChatState>((set) => ({
   setActiveThread: (id) => {
     writeStored(id)
     set({ activeThreadId: id })
+  },
+  pendingFirstMessage: null,
+  setPendingFirstMessage: (message) => {
+    set({ pendingFirstMessage: message })
   }
 }))

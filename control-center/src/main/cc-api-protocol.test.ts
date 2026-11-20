@@ -148,7 +148,9 @@ describe('forward', () => {
     '/files',
     '/files/f1',
     '/files/f1/download-link',
-    '/files/f1/content?token=abc'
+    '/files/f1/content?token=abc',
+    '/transcriptions/voice',
+    '/health'
   ])(
     'allows path %s',
     async (path) => {

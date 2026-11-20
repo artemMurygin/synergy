@@ -28,7 +28,7 @@ export function TasksPage() {
         <header className="flex h-16 shrink-0 items-center gap-2 px-3">
           <div className="flex h-11 items-center gap-2.5 rounded-[22px] bg-surface-alt px-[18px]">
             <h1 className="font-display text-base font-semibold text-ink">Задачи</h1>
-            {total !== undefined && <span className="text-xs text-ink-60">{pluralTasks(total)}</span>}
+            <span className="text-xs text-ink-60">{total === undefined ? 'Загрузка…' : pluralTasks(total)}</span>
           </div>
           <div className="flex-1" />
           <Button className="h-11 gap-2 rounded-[22px] px-5" onClick={onCreateTask}>

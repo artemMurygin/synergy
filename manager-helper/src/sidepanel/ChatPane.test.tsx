@@ -1,7 +1,7 @@
 import { HttpAgent } from '@ag-ui/client'
 import type { LayoutMode } from '@synergy/ui-kit'
 import { LayoutModeProvider } from '@synergy/ui-kit'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveSessionId } from '@/shared/active-session'
 import { createAgent } from '@/shared/agent-client'
@@ -160,5 +160,101 @@ describe('ChatPane across the 640 px threshold', () => {
     expect(field instanceof HTMLTextAreaElement && field.value).toBe('черновик')
     expect(screen.getByRole('heading', { name: 'Цены на MBA' })).toBeTruthy()
     expect(listPane()).not.toBeNull()
+  })
+})
+
+const inChat = () => within(screen.getByRole('main'))
+
+describe('ChatPane header: search and menu', () => {
+  const withMessages = () => {
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'm0', role: 'user', content: 'Сколько стоит МВА?' },
+        { id: 'm1', role: 'assistant', content: 'Цена МВА 420 000' },
+      ],
+    })
+  }
+
+  it('shows the search and the chat menu on a wide panel only', async () => {
+    withMessages()
+    const { unmount } = render(tree('tablet', 'chat'))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    expect(inChat().getByRole('button', { name: 'Поиск по чату' })).toBeTruthy()
+    expect(inChat().getByRole('button', { name: 'Меню чата' })).toBeTruthy()
+    unmount()
+    render(tree('mobile', 'chat'))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: 'Поиск по чату' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Меню чата' })).toBeNull()
+  })
+
+  it('has no menu for a new chat without messages', async () => {
+    render(tree('tablet', 'chat'))
+    await ready()
+    expect(inChat().getByRole('button', { name: 'Меню чата' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('opens the search bar above the feed from the header button', async () => {
+    withMessages()
+    render(tree('tablet', 'chat'))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    fireEvent.click(inChat().getByRole('button', { name: 'Поиск по чату' }))
+    expect(inChat().getByRole('searchbox', { name: /чату/ })).toBeTruthy()
+  })
+
+  it('renames the chat from the menu', async () => {
+    withMessages()
+    const fns = handlers()
+    render(tree('tablet', 'chat', fns))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    fireEvent.pointerDown(inChat().getByRole('button', { name: 'Меню чата' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Переименовать' }))
+    const input = await screen.findByLabelText('Название чата')
+    fireEvent.change(input, { target: { value: 'Новое имя' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => {
+      expect(fns.rename).toHaveBeenCalledWith('a', 'Новое имя')
+    })
+  })
+
+  it('deletes the chat from the menu only after the confirmation', async () => {
+    withMessages()
+    const fns = handlers()
+    render(tree('tablet', 'chat', fns))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    fireEvent.pointerDown(inChat().getByRole('button', { name: 'Меню чата' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Удалить' }))
+    expect(fns.remove).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Удалить чат' }))
+    await waitFor(() => {
+      expect(fns.remove).toHaveBeenCalledWith('a')
+    })
+  })
+
+  it('tells by a toast with a retry when the server refuses the rename', async () => {
+    withMessages()
+    const fns = handlers()
+    fns.rename.mockRejectedValue(new Error('no'))
+    render(tree('tablet', 'chat', fns))
+    await waitFor(() => {
+      expect(screen.getByText('Цена МВА 420 000')).toBeTruthy()
+    })
+    fireEvent.pointerDown(inChat().getByRole('button', { name: 'Меню чата' }), { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Переименовать' }))
+    fireEvent.change(await screen.findByLabelText('Название чата'), { target: { value: 'X' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText('Не удалось переименовать чат')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy()
   })
 })

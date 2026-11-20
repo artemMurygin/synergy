@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-deprecated -- the assistant-ui thread list adapter and message converters are the experimental API this provider is specified to use */
-import type { HttpAgent } from '@ag-ui/client'
+import { EventType } from '@ag-ui/client'
+import type { BaseEvent, CustomEvent, HttpAgent } from '@ag-ui/client'
 import {
   AssistantRuntimeProvider,
+  useAuiState,
   ExportedMessageRepository,
   fromThreadMessageLike,
   generateId,
@@ -9,10 +11,20 @@ import {
 import type { ThreadMessage } from '@assistant-ui/core'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import type { UseAgUiThreadListAdapter } from '@assistant-ui/react-ag-ui'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  USER_MESSAGE_SAVED_EVENT,
+  useServerMessageIds,
+  useServerReachability,
+  withReplaceFrom,
+} from '@synergy/ui-kit'
+import type { Connection } from '@synergy/ui-kit'
+import { filter, tap } from 'rxjs'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { setActiveSessionId } from '@/shared/active-session'
 import { cancelRun, createAgent, isRunConflict } from '@/shared/agent-client'
+import { getBackendUrl } from '@/shared/settings'
+import { isUnreachable } from '@/shared/unreachable'
 import { getThread } from '@/shared/threads-api'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 
@@ -26,6 +38,14 @@ interface ChatHistoryState {
   reload: () => void
   /** Puts a freshly read history of the active chat into the runtime, keeping the composer. */
   refresh: (threadId: string, history: ThreadHistory) => void
+  /** "Изменить" is allowed: the server id of the question is known and the server can restart from it. */
+  isEditable: (messageId: string) => boolean
+  /** The next run replaces the chat from this question (an edit or a retry); unknown to the server: nothing changes. */
+  restartFrom: (messageId: string) => void
+  /** State of the link to the server and the check of it (`GET /health`). */
+  connection: Connection
+  probe: () => void
+  probing: boolean
 }
 
 const ChatHistoryContext = createContext<ChatHistoryState>({
@@ -33,6 +53,11 @@ const ChatHistoryContext = createContext<ChatHistoryState>({
   threadId: null,
   reload: () => undefined,
   refresh: () => undefined,
+  isEditable: () => false,
+  restartFrom: () => undefined,
+  connection: 'online',
+  probe: () => undefined,
+  probing: false,
 })
 
 /** State of loading the active chat history into the runtime. */
@@ -84,35 +109,112 @@ function bindThread(agent: HttpAgent, threadId: string): void {
  * Connects assistant-ui to the AG-UI endpoint. The chat id is the AG-UI `threadId`:
  * it is set on the agent whenever the active chat changes.
  */
+interface RunHandlers {
+  takePending: () => string | null
+  onSaved: (event: { name: string; value?: unknown }, localId: string) => void
+  onRestarted: () => void
+}
+
+/** What the host of the runtime gives the agent wrappers; bound when the host mounts. */
+class RunControl {
+  private handlers: RunHandlers = {
+    takePending: () => null,
+    onSaved: () => undefined,
+    onRestarted: () => undefined,
+  }
+
+  bind(handlers: RunHandlers): void {
+    this.handlers = handlers
+  }
+
+  takePending(): string | null {
+    const id = this.handlers.takePending()
+    if (id !== null) this.handlers.onRestarted()
+    return id
+  }
+
+  saved(event: { name: string; value?: unknown }, localId: string): void {
+    this.handlers.onSaved(event, localId)
+  }
+}
+
+function lastUserMessageId(messages: readonly { id: string; role: string }[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message?.role === 'user') return message.id
+  }
+  return ''
+}
+
+function isSavedEvent(event: BaseEvent): event is CustomEvent {
+  return event.type === EventType.CUSTOM && 'name' in event && event.name === USER_MESSAGE_SAVED_EVENT
+}
+
+/** Replace point of the next run, the server id of the saved question and a mark that a restart ran. */
+function connectRuns(agent: HttpAgent, control: RunControl): HttpAgent {
+  withReplaceFrom(agent, () => control.takePending())
+  const run = agent.run.bind(agent)
+  agent.run = (input) => {
+    const localId = lastUserMessageId(input.messages)
+    return run(input).pipe(
+      tap((event) => {
+        if (isSavedEvent(event)) control.saved({ name: event.name, value: event.value }, localId)
+      }),
+      // It comes before RUN_STARTED: the runtime must not see an event ahead of the start.
+      filter((event) => !isSavedEvent(event)),
+    )
+  }
+  return agent
+}
+
 export function ChatRuntimeProvider(props: Props) {
   const [agent, setAgent] = useState<HttpAgent | null>(null)
   const initialId = useRef(props.activeId ?? crypto.randomUUID())
+  const [control] = useState(() => new RunControl())
 
   useEffect(() => {
     let stale = false
     createAgent(initialId.current).then(
       (created) => {
-        if (!stale) setAgent(created)
+        if (!stale) setAgent(connectRuns(created, control))
       },
       () => undefined,
     )
     return () => {
       stale = true
     }
-  }, [])
+  }, [control])
 
   if (agent === null) return null
-  return <RuntimeHost agent={agent} {...props} />
+  return <RuntimeHost agent={agent} control={control} {...props} />
+}
+
+async function probeHealth(): Promise<boolean> {
+  const response = await fetch(`${await getBackendUrl()}/health`)
+  return response.ok
+}
+
+/** After a restart ran: reads the history again so the feed holds what the server holds. */
+function RestartResync(props: { onSettled: () => void }) {
+  const running = useAuiState((s) => s.thread.isRunning)
+  const was = useRef(false)
+  const { onSettled } = props
+  useEffect(() => {
+    if (was.current && !running) onSettled()
+    was.current = running
+  }, [running, onSettled])
+  return null
 }
 
 function RuntimeHost({
   agent,
+  control,
   activeId,
   onSelect,
   onCreate,
   onRunningChange,
   children,
-}: Props & { agent: HttpAgent }) {
+}: Props & { agent: HttpAgent; control: RunControl }) {
   /** Chat whose history the runtime currently holds (`FAILED` after a failed load). */
   const [loadedId, setLoadedId] = useState<string | null>(null)
   const [status, setStatus] = useState<HistoryStatus>('idle')
@@ -122,6 +224,26 @@ function RuntimeHost({
   useEffect(() => {
     latest.current = { onSelect, onCreate, onRunningChange }
   })
+
+  const ids = useServerMessageIds()
+  const reachability = useServerReachability(probeHealth)
+  const pendingReplace = useRef<string | null>(null)
+  const restarted = useRef(false)
+  const { reportError, connection, retrying, retry: probeAgain } = reachability
+  const { setFromHistory } = ids
+  useEffect(() => {
+    control.bind({
+      takePending: () => {
+        const id = pendingReplace.current
+        pendingReplace.current = null
+        return id
+      },
+      onSaved: ids.onCustomEvent,
+      onRestarted: () => {
+        restarted.current = true
+      },
+    })
+  }, [control, ids.onCustomEvent])
 
   const generation = useRef(0)
   /** A switch is in progress: the run of the previous chat is dropped locally, not cancelled. */
@@ -143,6 +265,7 @@ function RuntimeHost({
           if (mine !== generation.current) return { messages: [] }
           setLoadedId(threadId)
           setStatus('ready')
+          setFromHistory(history.messages)
           latest.current.onRunningChange?.(threadId, history.running)
           void setActiveSessionId(threadId)
           latest.current.onSelect(threadId)
@@ -177,13 +300,15 @@ function RuntimeHost({
         }
       },
     }),
-    [agent, loadedId],
+    [agent, loadedId, setFromHistory],
   )
 
   const runtime = useAgUiRuntime({
     agent,
     adapters: { threadList },
     onError: (error) => {
+      // `createAgent` turned the network failure into a text: the reachability knows the raw kind only.
+      if (isUnreachable(error)) reportError(new TypeError('Failed to fetch'))
       if (isRunConflict(error)) latest.current.onRunningChange?.(agent.threadId, true)
     },
     onCancel: () => {
@@ -229,15 +354,40 @@ function RuntimeHost({
         runtimeRef.current.thread.import(
           ExportedMessageRepository.fromArray(toThreadMessages(fresh.messages)),
         )
+        ids.setFromHistory(fresh.messages)
         latest.current.onRunningChange?.(threadId, fresh.running)
       },
+      isEditable: ids.isEditable,
+      restartFrom: (messageId) => {
+        pendingReplace.current = ids.serverIdOf(messageId) ?? null
+      },
+      connection,
+      probe: () => {
+        void probeAgain()
+      },
+      probing: retrying,
     }),
-    [status, loadedId],
+    [status, loadedId, ids, connection, retrying, probeAgain],
   )
+
+  const resync = useCallback(() => {
+    if (!restarted.current) return
+    restarted.current = false
+    const threadId = agent.threadId
+    getThread(threadId).then(
+      (fresh) => {
+        history.refresh(threadId, fresh)
+      },
+      () => undefined,
+    )
+  }, [agent, history])
 
   return (
     <ChatHistoryContext.Provider value={history}>
-      <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <RestartResync onSettled={resync} />
+        {children}
+      </AssistantRuntimeProvider>
     </ChatHistoryContext.Provider>
   )
 }

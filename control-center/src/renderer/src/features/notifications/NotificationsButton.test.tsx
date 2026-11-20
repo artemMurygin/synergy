@@ -9,7 +9,7 @@ import { useNotificationsStore } from '@/stores/notifications.store'
 import { INITIAL_TASKS_STATE, useTasksStore } from '@/stores/tasks.store'
 import { useUiStore } from '@/stores/ui.store'
 import { NotificationsButton } from './NotificationsButton'
-import { createTestQueryClient, createWrapper, makeNotification } from './test-utils'
+import { createTestQueryClient, createWrapper, installNotificationsBridgeMock, makeNotification } from './test-utils'
 
 vi.mock('@/lib/backend/notifications.api')
 vi.mock('@/lib/backend/tasks.api')
@@ -24,6 +24,7 @@ function mount() {
 const bell = () => screen.getByRole('button', { name: /^Уведомления/ })
 
 beforeEach(() => {
+  installNotificationsBridgeMock('online')
   vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 5 })
   vi.mocked(notificationsApi.listNotifications).mockResolvedValue({
     items: [makeNotification('1')],

@@ -159,7 +159,8 @@ describe('CreateTaskDialog', () => {
     await fillTitle(user, dialog)
     await user.click(within(dialog).getByRole('button', { name: 'Создать задачу' }))
     const error = await within(dialog).findByText(/expected string to match the deadline format/)
-    expect(within(dialog).getByLabelText('Дедлайн').getAttribute('aria-describedby')).toBe(error.id)
+    // the error sits in the field block of the deadline, not in a general alert
+    expect(error.closest('div')?.querySelector('[aria-label="Дедлайн"]')).not.toBeNull()
     expect(within(dialog).queryByRole('alert')).toBeNull()
   })
 })

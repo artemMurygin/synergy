@@ -32,6 +32,8 @@ export interface TelegramLinkFlow {
   isInitialLoad: boolean
   isRefreshing: boolean
   botUsername: string | null
+  /** The link to the bot while the confirmation is awaited (QR and the chip of the panel). */
+  linkUrl: string | null
   expiresAt: string | null
   remainingMs: number
   errorMessage: string | null
@@ -163,6 +165,7 @@ export function useTelegramLinkFlow(): TelegramLinkFlow {
     isInitialLoad: statusQuery.isPending,
     isRefreshing: statusQuery.isFetching && status !== undefined,
     botUsername: state === 'waiting' && phase.name === 'waiting' ? telegramBotUsernameFromUrl(phase.url) : null,
+    linkUrl: phase.name === 'waiting' ? phase.url : null,
     expiresAt: phase.name === 'waiting' ? phase.expiresAt : null,
     remainingMs,
     errorMessage: phase.name === 'error' ? phase.message : statusErrorMessage,

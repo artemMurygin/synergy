@@ -12,6 +12,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      input: { 'mic-permission': fileURLToPath(new URL('./src/mic-permission/index.html', import.meta.url)) },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,

@@ -150,6 +150,83 @@ describe('tablet (>= 640)', () => {
   })
 })
 
+describe('tablet: groups, close, search, delete', () => {
+  const DAY = 86_400_000
+  const overdue = makeTask('o', { title: 'Просроченная', deadline: new Date(Date.now() - 3 * DAY).toISOString() })
+  const soon = makeTask('s', { title: 'Скоро', deadline: new Date(Date.now() + 1.5 * DAY).toISOString() })
+  const none = makeTask('n', { title: 'Без даты' })
+
+  it('groups the list by deadline when sorted by deadline', async () => {
+    vi.mocked(listTasks).mockResolvedValue({ items: [overdue, soon, none], total: 3, limit: 50, page: 0 })
+    setup()
+    await screen.findByRole('button', { name: 'Просроченная' })
+    const labels = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(labels).toContain('Просрочено')
+    expect(labels).toContain('Без срока')
+    expect(within(screen.getByRole('region', { name: 'Без срока' })).getByText('Без даты')).toBeTruthy()
+  })
+
+  it('shows no group captions for another sort', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listTasks).mockResolvedValue({ items: [overdue, none], total: 2, limit: 50, page: 0 })
+    setup()
+    await screen.findByRole('button', { name: 'Просроченная' })
+    await user.click(screen.getByRole('button', { name: /^Сортировка/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Сначала обновлённые' }))
+    await waitFor(() => {
+      expect(listTasks).toHaveBeenCalledWith(expect.objectContaining({ sort: 'updatedAt' }))
+    })
+    await screen.findByRole('button', { name: 'Просроченная' })
+    expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0)
+  })
+
+  it('"Закрыть" in the details clears the selection and brings back the hint', async () => {
+    setup()
+    fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
+    await screen.findByRole('heading', { name: 'Отчёт' })
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    expect(await screen.findByText('Выберите задачу')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Отчёт' })).toBeNull()
+  })
+
+  it('shows "Ничего не найдено" for an empty search and resets it', async () => {
+    setup()
+    await screen.findByRole('button', { name: 'Отчёт' })
+    vi.mocked(listTasks).mockResolvedValue({ items: [], total: 0, limit: 50, page: 0 })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по названию' }), {
+      target: { value: 'ничего' },
+    })
+    expect(await screen.findByText('Ничего не найдено')).toBeTruthy()
+    vi.mocked(listTasks).mockResolvedValue({ items: [A], total: 1, limit: 50, page: 0 })
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтры' }))
+    expect(await screen.findByRole('button', { name: 'Отчёт' })).toBeTruthy()
+    expect(screen.getByRole('searchbox', { name: 'Поиск по названию' })).toHaveProperty('value', '')
+  })
+
+  it('shows a toast with the title after the task is deleted', async () => {
+    const user = userEvent.setup()
+    vi.mocked(deleteTask).mockResolvedValue(undefined)
+    setup()
+    fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
+    await screen.findByRole('heading', { name: 'Отчёт' })
+    await user.click(screen.getByRole('button', { name: 'Удалить задачу' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Удалить' }))
+    expect(await screen.findByText('Задача «Отчёт» удалена и убрана из списка')).toBeTruthy()
+  })
+
+  it('keeps the task when the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    setup()
+    fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
+    await screen.findByRole('heading', { name: 'Отчёт' })
+    await user.click(screen.getByRole('button', { name: 'Удалить задачу' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Отмена' }))
+    expect(deleteTask).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Отчёт' })).toBeTruthy()
+  })
+})
+
 describe('details', () => {
   it('saves a changed status and keeps the screen', async () => {
     const user = userEvent.setup()
@@ -220,6 +297,7 @@ describe('mobile (< 640)', () => {
   it('opens the details as a separate screen and "Назад" keeps the view and the search', async () => {
     setup()
     await screen.findByRole('button', { name: 'Отчёт' })
+    fireEvent.click(screen.getByRole('button', { name: 'Поиск' }))
     fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по названию' }), {
       target: { value: 'от' },
     })
@@ -243,6 +321,67 @@ describe('mobile (< 640)', () => {
     resizeTo(800)
     expect(screen.getByRole('heading', { name: 'Отчёт' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Назад' })).toBeNull()
+  })
+})
+
+describe('mobile: search bar, quick create, delete sheet', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 400 })
+  })
+
+  it('has no inline search field: the search opens in a bar over the header', async () => {
+    setup()
+    await screen.findByRole('button', { name: 'Отчёт' })
+    expect(screen.queryByRole('searchbox')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Поиск' }))
+    const field = screen.getByRole('searchbox', { name: 'Поиск по названию' })
+    expect(document.activeElement).toBe(field)
+    expect(screen.getByRole('button', { name: 'Назад' })).toBeTruthy()
+  })
+
+  it('"Очистить" empties the field and keeps the bar, "Назад" closes it and clears the query', async () => {
+    setup()
+    await screen.findByRole('button', { name: 'Отчёт' })
+    fireEvent.click(screen.getByRole('button', { name: 'Поиск' }))
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'счёт' } })
+    await waitFor(() => {
+      expect(listTasks).toHaveBeenCalledWith(expect.objectContaining({ search: 'счёт' }))
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить' }))
+    expect(screen.getByRole('searchbox')).toHaveProperty('value', '')
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'акт' } })
+    vi.mocked(listTasks).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
+    expect(screen.queryByRole('searchbox')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Поиск' })).toBeTruthy()
+    await waitFor(() => {
+      expect(listTasks).toHaveBeenCalledWith(expect.not.objectContaining({ search: 'акт' }))
+    })
+  })
+
+  it('opens the quick create sheet instead of the dialog', async () => {
+    setup()
+    await screen.findByRole('button', { name: 'Отчёт' })
+    fireEvent.click(screen.getByRole('button', { name: 'Новая задача' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Новая задача' })
+    expect(within(sheet).getByText('Enter — создать')).toBeTruthy()
+    expect(within(sheet).getByRole('button', { name: 'Я · anna' })).toBeTruthy()
+  })
+
+  it('deletes through the confirmation sheet from the top bar of the details', async () => {
+    const user = userEvent.setup()
+    vi.mocked(deleteTask).mockResolvedValue(undefined)
+    setup()
+    fireEvent.click(await screen.findByRole('button', { name: 'Отчёт' }))
+    await screen.findByRole('heading', { name: 'Отчёт' })
+    await user.click(screen.getByRole('button', { name: 'Удалить задачу' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Удалить задачу?' })
+    expect(deleteTask).not.toHaveBeenCalled()
+    await user.click(within(sheet).getByRole('button', { name: 'Удалить задачу' }))
+    await waitFor(() => {
+      expect(deleteTask).toHaveBeenCalledWith('a')
+    })
+    expect(await screen.findByText('Задача «Отчёт» удалена и убрана из списка')).toBeTruthy()
   })
 })
 

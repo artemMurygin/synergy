@@ -10,6 +10,7 @@ interface Props {
 const ACTION_LABEL: Record<string, string | undefined> = {
   task: 'Открыть задачу',
   request: 'Открыть заявку',
+  chat: 'Открыть чат',
 }
 
 /** Toast of a new notification (DNt8I): bottom right on tablet, under the top bar on mobile. */

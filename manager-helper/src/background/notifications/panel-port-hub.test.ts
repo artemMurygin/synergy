@@ -48,6 +48,16 @@ describe('panel-port-hub', () => {
     expect(port.posted).toEqual([{ kind: 'connection-state', state: 'online' }])
   })
 
+  it('gives a port opened after several changes only the latest state', () => {
+    const hub = createPanelPortHub()
+    hub.attach()
+    hub.setConnectionState('online')
+    hub.setConnectionState('offline')
+    hub.setConnectionState('connecting')
+    const port = openPort()
+    expect(port.posted).toEqual([{ kind: 'connection-state', state: 'connecting' }])
+  })
+
   it('forwards events and state changes to every open port', () => {
     const hub = createPanelPortHub()
     hub.attach()

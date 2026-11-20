@@ -134,7 +134,7 @@ describe('App', () => {
     mount()
     expect(await screen.findByText('Первый')).toBeTruthy()
     expect(within(screen.getByRole('complementary', { name: 'Список чатов' })).getByText('Чаты')).toBeTruthy()
-    expect(screen.getByText('Выберите чат')).toBeTruthy()
+    expect(await screen.findByText('Чем помочь?')).toBeTruthy()
   })
 
   it('shows the history of the chat selected in the list', async () => {
@@ -144,11 +144,12 @@ describe('App', () => {
   })
 
   async function deleteFirst(user: ReturnType<typeof userEvent.setup>) {
-    const list = await screen.findByRole('list')
+    const list = await screen.findByRole('complementary', { name: 'Список чатов' })
     await user.click(await within(list).findByText('Первый'))
     await screen.findByText('Вопрос из a')
     const row = within(list).getByText('Первый').closest('li') as HTMLElement
-    await user.click(within(row).getByLabelText('Удалить чат'))
+    await user.click(within(row).getByLabelText('Меню чата'))
+    await user.click(await screen.findByRole('menuitem', { name: 'Удалить' }))
     await user.click(within(row).getByRole('button', { name: 'Удалить' }))
     await waitFor(() => {
       expect(screen.queryByText('Вопрос из a')).toBeNull()
@@ -161,11 +162,11 @@ describe('App', () => {
     expect(await screen.findByText('Вопрос из b')).toBeTruthy()
   })
 
-  it('returns the thread to the placeholder when the only chat is deleted', async () => {
+  it('returns to the start window when the only chat is deleted', async () => {
     vi.mocked(listThreads).mockResolvedValue([mk('a', 'Первый')])
     const user = mount()
     await deleteFirst(user)
-    expect(screen.getByText('Выберите чат')).toBeTruthy()
+    expect(await screen.findByText('Чем помочь?')).toBeTruthy()
     expect(useChatStore.getState().activeThreadId).toBeNull()
   })
 })

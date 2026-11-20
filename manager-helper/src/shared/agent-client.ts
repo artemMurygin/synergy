@@ -5,6 +5,7 @@ import { AskError, errorMessage } from './api'
 import { authFetch } from './auth/auth-fetch'
 import { withClientApp } from './client-app'
 import { getBackendUrl } from './settings'
+import { UNREACHABLE_MESSAGE } from './unreachable'
 
 /** The thread already has an active run (HTTP 409). */
 export class RunConflictError extends AskError {}
@@ -25,8 +26,7 @@ export function isRunConflict(error: unknown): boolean {
 /** The server did not answer (the browser could not reach it at all). */
 const UNREACHABLE = /failed to fetch|networkerror|load failed|network request failed/i
 
-export const UNREACHABLE_MESSAGE =
-  'Не удалось связаться с сервером. Проверьте адрес бэкенда в настройках расширения.'
+export { UNREACHABLE_MESSAGE }
 
 /** Turns a transport failure of a run into the text the chat shows. */
 export function normalizeRunError(error: unknown): unknown {

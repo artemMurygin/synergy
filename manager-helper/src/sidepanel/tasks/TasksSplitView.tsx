@@ -2,17 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { TaskStatus } from '@/shared/tasks-api'
 import {
+  MobileSearchBar,
   PanelHeader,
   TaskFilters,
   TaskList,
   TaskNotFound,
+  ToastProvider,
   tasksPaneVisibility,
   useLayoutMode,
+  useToast,
 } from '@synergy/ui-kit'
 import { FileText, X } from '@synergy/ui-kit/icons'
 import { PanelActions } from '../PanelActions'
-import { TaskCreateSheet } from './TaskCreateSheet'
+import { TaskCreateDialog } from './TaskCreateDialog'
 import { TaskDetailsPane } from './TaskDetailsPane'
+import { TaskQuickCreateSheet } from './TaskQuickCreateSheet'
 import { useOverdueCount, useTasks } from './use-tasks'
 
 /**
@@ -20,20 +24,30 @@ import { useOverdueCount, useTasks } from './use-tasks'
  * details side by side, a narrow one shows either of them; the hidden pane stays mounted so
  * scroll position and the selection survive a width change.
  */
-export function TasksSplitView({
-  userId,
-  login,
-  requestedTaskId = null,
-  onTaskRequestHandled,
-  trailing,
-}: {
+export function TasksSplitView(props: Props) {
+  return (
+    <ToastProvider>
+      <TasksSplitViewContent {...props} />
+    </ToastProvider>
+  )
+}
+
+interface Props {
   userId: string
   login: string
   requestedTaskId?: string | null
   onTaskRequestHandled?: () => void
   /** Notifications and profile for the top bar of a narrow panel. */
   trailing?: ReactNode
-}) {
+}
+
+function TasksSplitViewContent({
+  userId,
+  login,
+  requestedTaskId = null,
+  onTaskRequestHandled,
+  trailing,
+}: Props) {
   const tasks = useTasks(userId)
   const { reload } = tasks
   const layout = useLayoutMode()
@@ -47,6 +61,9 @@ export function TasksSplitView({
   const overdueCount = useOverdueCount(overdueVersion)
   const panes = tasksPaneVisibility(layout, selectedId)
   const createButton = useRef<HTMLButtonElement>(null)
+  const toast = useToast()
+  const mobile = layout === 'mobile'
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const [openedRequest, setOpenedRequest] = useState<string | null>(null)
   const [lastRequestedId, setLastRequestedId] = useState<string | null>(null)
@@ -95,11 +112,12 @@ export function TasksSplitView({
     setOverdueVersion((version) => version + 1)
   }, [reload])
   const deleted = useCallback(
-    (taskId: string) => {
+    (taskId: string, title: string) => {
       setSelectedId((current) => (current === taskId ? null : current))
       changed()
+      toast.show({ tone: 'success', title: `Задача «${title}» удалена и убрана из списка` })
     },
-    [changed],
+    [changed, toast],
   )
 
   const notice = tasks.notice ?? message
@@ -114,21 +132,38 @@ export function TasksSplitView({
               layout !== 'mobile' ? 'w-68 shrink-0' : 'min-w-0 flex-1'
             }`}
           >
-            <PanelHeader
-              title="Задачи"
-              actions={
-                <PanelActions
-                  actionRef={createButton}
-                  actionLabel="Новая задача"
-                  actionExpanded={creating}
-                  onAction={() => {
-                    setCreating((open) => !open)
-                  }}
-                  onOpenSettings={() => void chrome.runtime.openOptionsPage()}
-                  trailing={trailing}
-                />
-              }
-            />
+            {mobile && searchOpen ? (
+              <MobileSearchBar
+                value={tasks.query.search}
+                onChange={tasks.setSearch}
+                onBack={() => {
+                  setSearchOpen(false)
+                }}
+              />
+            ) : (
+              <PanelHeader
+                title="Задачи"
+                actions={
+                  <PanelActions
+                    actionRef={createButton}
+                    actionLabel="Новая задача"
+                    actionExpanded={creating}
+                    onAction={() => {
+                      setCreating((open) => !open)
+                    }}
+                    onOpenSettings={() => void chrome.runtime.openOptionsPage()}
+                    onSearch={
+                      mobile
+                        ? () => {
+                            setSearchOpen(true)
+                          }
+                        : undefined
+                    }
+                    trailing={trailing}
+                  />
+                }
+              />
+            )}
             <TaskFilters
               view={tasks.query.view}
               onViewChange={tasks.setView}
@@ -139,6 +174,7 @@ export function TasksSplitView({
               overdueCount={overdueCount}
               search={tasks.query.search}
               onSearch={tasks.setSearch}
+              hideSearch={mobile}
             />
             {notice !== null && (
               <div
@@ -171,6 +207,11 @@ export function TasksSplitView({
                 selectedId={selectedId}
                 view={tasks.query.view}
                 searching={tasks.query.search.trim() !== ''}
+                sort={tasks.query.sort}
+                onResetFilters={() => {
+                  tasks.setSearch('')
+                  tasks.setStatusFilter('all')
+                }}
                 onOpen={setSelectedId}
                 onSetStatus={(taskId, status) => void setStatus(taskId, status)}
                 onLoadMore={() => void tasks.loadMore()}
@@ -208,6 +249,13 @@ export function TasksSplitView({
                 key={`${selectedId}:${String(detailsVersion)}`}
                 taskId={selectedId}
                 me={{ id: userId, login }}
+                onClose={
+                  panes.backToList
+                    ? undefined
+                    : () => {
+                        setSelectedId(null)
+                      }
+                }
                 onBack={
                   panes.backToList
                     ? () => {
@@ -223,18 +271,30 @@ export function TasksSplitView({
           </div>
         </div>
       </div>
-      {creating && (
-        <TaskCreateSheet
-          me={{ id: userId, login }}
-          onCreated={() => {
-            setCreating(false)
-            void reload()
-          }}
-          onCancel={() => {
-            setCreating(false)
-          }}
-        />
-      )}
+      {creating &&
+        (mobile ? (
+          <TaskQuickCreateSheet
+            me={{ id: userId, login }}
+            onCreated={() => {
+              setCreating(false)
+              void reload()
+            }}
+            onCancel={() => {
+              setCreating(false)
+            }}
+          />
+        ) : (
+          <TaskCreateDialog
+            me={{ id: userId, login }}
+            onCreated={() => {
+              setCreating(false)
+              void reload()
+            }}
+            onCancel={() => {
+              setCreating(false)
+            }}
+          />
+        ))}
     </section>
   )
 }

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unnecessary-condition -- test doubles: mocks, DOM stubs and fake transports of the test environment are typed loosely on purpose */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackendError } from '@/lib/backend/errors'
@@ -7,7 +7,7 @@ import * as notificationsApi from '@/lib/backend/notifications.api'
 import { NOTIFICATIONS_PAGE_SIZE } from '@/lib/backend/notifications.queries'
 import type { Notification, NotificationPage } from '@/lib/backend/notifications.schema'
 import { NotificationsPopover } from './NotificationsPopover'
-import { createTestQueryClient, createWrapper, makeNotification } from './test-utils'
+import { createTestQueryClient, createWrapper, installNotificationsBridgeMock, makeNotification } from './test-utils'
 
 vi.mock('@/lib/backend/notifications.api')
 
@@ -33,11 +33,32 @@ const readAllButton = () => screen.getByRole('button', { name: 'Прочитат
 const rows = () => screen.getAllByRole('button', { name: /^Уведомление \d+/ })
 const scroller = () => screen.getByText('Уведомление 1').closest('[aria-busy]') as HTMLElement
 
+let socket: ReturnType<typeof installNotificationsBridgeMock>
+
 beforeEach(() => {
+  socket = installNotificationsBridgeMock('online')
   vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unreadCount: 0 })
 })
 
 describe('NotificationsPopover', () => {
+  it('shows the reconnecting banner while the socket is down and keeps the list', async () => {
+    vi.mocked(notificationsApi.listNotifications).mockResolvedValue(page([makeNotification('1')]))
+    mount()
+    await screen.findByText('Уведомление 1')
+    expect(screen.queryByText(/переподключаемся/)).toBeNull()
+    act(() => {
+      socket.emitState('offline')
+    })
+    expect(await screen.findByText(/переподключаемся/)).toBeTruthy()
+    expect(screen.getByText('Уведомление 1')).toBeTruthy()
+    act(() => {
+      socket.emitState('online')
+    })
+    await waitFor(() => {
+      expect(screen.queryByText(/переподключаемся/)).toBeNull()
+    })
+  })
+
   it('lists notifications in the order of the server and marks unread ones', async () => {
     vi.mocked(notificationsApi.listNotifications).mockResolvedValue(
       page([makeNotification('1'), makeNotification('2'), makeNotification('3', '2026-11-10T10:05:00.000Z')])

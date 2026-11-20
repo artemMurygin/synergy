@@ -10,7 +10,13 @@ import { getActiveSessionId, setActiveSessionId } from '@/shared/active-session'
 import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
 import { AskError } from '@/shared/api'
 import { RUN_CONFLICT_MESSAGE, RunConflictError, cancelRun, createAgent } from '@/shared/agent-client'
-import { createThread, getThread, listThreads, renameThread } from '@/shared/threads-api'
+import {
+  ThreadNotFoundError,
+  createThread,
+  getThread,
+  listThreads,
+  renameThread,
+} from '@/shared/threads-api'
 import {
   installChromeFake,
   makeNotification,
@@ -196,7 +202,7 @@ describe('App', () => {
   it('shows the empty state and the field when there are no chats', async () => {
     vi.mocked(listThreads).mockResolvedValue([])
     await openApp(null)
-    expect(screen.getByText(/Задайте вопрос по ценам/)).toBeTruthy()
+    expect(screen.getByText('Чем помочь?')).toBeTruthy()
     expect(createThread).not.toHaveBeenCalled()
   })
 
@@ -306,9 +312,11 @@ describe('App', () => {
       )
     })
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('Проверьте адрес бэкенда')
+      expect(screen.getByText('Сервер недоступен')).toBeTruthy()
     })
-    expect(fieldValue()).toBe('мой вопрос')
+    expect(screen.getAllByText(/Проверьте адрес бэкенда/).length).toBeGreaterThan(0)
+    const locked = screen.getByPlaceholderText('Нет связи с сервером')
+    expect(locked instanceof HTMLTextAreaElement && locked.value).toBe('мой вопрос')
   })
 
   describe('chat with a run in progress', () => {
@@ -474,7 +482,8 @@ describe('App', () => {
   it('quick search sends its query as a question and names the blank chat by the parameters', async () => {
     vi.mocked(getThread).mockResolvedValue(history(false))
     await openApp0()
-    fireEvent.click(screen.getByRole('button', { name: 'Начать подбор' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Подбор' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить в чат' }))
     await waitFor(() => {
       expect(agent.inputs).toHaveLength(1)
     })
@@ -502,7 +511,7 @@ describe('App', () => {
 
   it('keeps the chat list next to the thread in a wide panel', async () => {
     await openApp()
-    const list = screen.getByRole('list')
+    const list = screen.getByRole('complementary', { name: 'Список чатов' })
     expect(within(list).getByText('Чат a')).toBeTruthy()
     expect(within(list).getByText('Чат b')).toBeTruthy()
   })
@@ -518,7 +527,7 @@ async function openApp0(marker?: string) {
     })
   } else {
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Начать подбор' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Подбор' })).toBeTruthy()
     })
     await waitFor(() => {
       expect(getThread).toHaveBeenCalled()
@@ -754,6 +763,62 @@ describe('notifications', () => {
     await openApp()
     expect(await screen.findByRole('heading', { name: 'Детали t5' })).toBeTruthy()
     expect(tab('Задачи').getAttribute('aria-current')).toBe('page')
+  })
+
+  describe('chat notification', () => {
+    const CHAT_NOTIFICATION = makeNotification('n5', new Date().toISOString(), {
+      title: 'Расшифровка встречи готова',
+      target: { type: 'chat', id: 'b' },
+    })
+
+    beforeEach(() => {
+      vi.mocked(listNotifications).mockResolvedValue({
+        items: [CHAT_NOTIFICATION],
+        total: 1,
+        limit: 20,
+        page: 0,
+      })
+    })
+
+    it('reads the notification, switches to the chats and opens the chat', async () => {
+      vi.mocked(getActiveSection).mockResolvedValue('tasks')
+      vi.mocked(getThread).mockImplementation((id) =>
+        Promise.resolve(id === 'b' ? history(false, 'вопрос b') : history(false, 'вопрос')),
+      )
+      await openApp()
+      await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
+      fireEvent.click(bell())
+      fireEvent.click(await screen.findByRole('button', { name: /Расшифровка встречи готова/ }))
+      expect(markNotificationRead).toHaveBeenCalledWith('n5')
+      await waitFor(() => {
+        expect(setActiveSessionId).toHaveBeenCalledWith('b')
+      })
+      expect(tab('Чаты').getAttribute('aria-current')).toBe('page')
+      expect(await screen.findByText('вопрос b')).toBeTruthy()
+    })
+
+    it('says "Чат не найден" for a deleted chat and keeps the notification read', async () => {
+      vi.mocked(getThread).mockImplementation((id) =>
+        id === 'b' ? Promise.reject(new ThreadNotFoundError('нет')) : Promise.resolve(history(false, 'вопрос')),
+      )
+      await openApp()
+      await screen.findByRole('button', { name: 'Уведомления, непрочитанных: 3' })
+      fireEvent.click(bell())
+      fireEvent.click(await screen.findByRole('button', { name: /Расшифровка встречи готова/ }))
+      expect(await screen.findByRole('alert', { name: 'Чат не найден' })).toBeTruthy()
+      expect(markNotificationRead).toHaveBeenCalledWith('n5')
+      expect(setActiveSessionId).not.toHaveBeenCalledWith('b')
+    })
+
+    it('opens the chat left by a click on a system notification', async () => {
+      chromeFake.storage.session.store.pendingTarget = { kind: 'chat', chatId: 'b' }
+      vi.mocked(getActiveSessionId).mockResolvedValue('a')
+      render(<App />)
+      await waitFor(() => {
+        expect(setActiveSessionId).toHaveBeenCalledWith('b')
+      })
+      expect(await screen.findByText('вопрос Б')).toBeTruthy()
+    })
   })
 
   it('opens the list for a click on the summary system notification', async () => {

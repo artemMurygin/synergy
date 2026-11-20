@@ -38,6 +38,8 @@ export type TaskDetailsProps = {
   onDelete: () => void
   /** Есть только в узких режимах: кнопка возврата к списку. */
   onBack?: () => void
+  /** Есть только в tablet: кнопка «Закрыть» снимает выбор задачи. */
+  onClose?: () => void
   /** Сообщение об ошибке последнего действия. */
   message?: string | null
   maxBytes?: number
@@ -192,6 +194,16 @@ export function TaskDetails(props: TaskDetailsProps) {
           </button>
         ) : null}
         <span className="min-w-0 flex-1 truncate pl-1 text-base font-semibold text-ink">Задача</span>
+        {props.onClose ? (
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={props.onClose}
+            className="flex size-9 items-center justify-center rounded-full text-ink-80 outline-none hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-brand-red/40"
+          >
+            <X size={18} />
+          </button>
+        ) : null}
         {mobile ? (
           <button
             type="button"

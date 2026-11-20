@@ -21,14 +21,19 @@ export function loginErrorText(error: LoginFailure | null, snapshotRetryAfterSec
   return undefined
 }
 
-export function changePasswordErrorText(error: { code: AuthErrorCode } | null): string | undefined {
+export function changePasswordErrorText(
+  error: { code: AuthErrorCode } | null,
+  kind: 'forced' | 'voluntary' = 'voluntary'
+): string | undefined {
   if (!error) return undefined
   switch (error.code) {
     case 'WRONG_PASSWORD':
       return 'Неверный текущий пароль'
     case 'SAME_PASSWORD':
     case 'PASSWORD_UNCHANGED':
-      return 'Новый пароль должен отличаться от текущего'
+      return kind === 'forced'
+        ? 'Новый пароль не должен совпадать с временным'
+        : 'Новый пароль должен отличаться от текущего'
     case 'WEAK_PASSWORD':
       return 'Пароль слишком простой'
     default:

@@ -28,6 +28,17 @@ function setup(over: Partial<TaskDetailsProps> = {}, mode: LayoutMode = 'desktop
   return props
 }
 
+describe('TaskDetails: onClose', () => {
+  it('рисует «Закрыть» только с onClose', () => {
+    const props = setup({ onClose: vi.fn() }, 'tablet')
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    expect(props.onClose).toHaveBeenCalledTimes(1)
+    cleanup()
+    setup({}, 'tablet')
+    expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull()
+  })
+})
+
 describe('TaskDetails', () => {
   it('показывает поля задачи', () => {
     setup()

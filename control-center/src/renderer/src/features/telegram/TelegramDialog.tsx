@@ -1,13 +1,12 @@
 import {
-  Button,
   Dialog,
   DialogContent,
   TelegramConnectPanel,
+  TelegramNotConfiguredPanel,
   TelegramLinkedPanel,
   TelegramUnlinkConfirm,
   type TelegramConnectStatus
 } from '@synergy/ui-kit'
-import { Send } from '@synergy/ui-kit/icons'
 import { useState } from 'react'
 import { useTelegramLinkFlow, type TelegramLinkFlowState } from './use-telegram-link-flow'
 
@@ -22,27 +21,6 @@ const toConnectStatus = (state: TelegramLinkFlowState): TelegramConnectStatus =>
   if (state === 'issuing' || state === 'loading') return 'requesting'
   if (state === 'waiting' || state === 'expired') return state
   return 'idle'
-}
-
-function NotConfigured({ onClose }: { onClose: () => void }) {
-  return (
-    <section aria-label="Telegram" className="flex flex-col gap-5">
-      <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-ink-60">
-          <Send />
-        </span>
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-base font-semibold text-ink">Telegram-бот не настроен</h3>
-          <p className="text-sm text-ink-60">
-            На сервере не задан бот, поэтому подключить Telegram сейчас нельзя. Обратитесь к администратору.
-          </p>
-        </div>
-      </div>
-      <Button variant="secondary" onClick={onClose} className="self-end">
-        Закрыть
-      </Button>
-    </section>
-  )
 }
 
 // Telegram link dialog (frames JLayI, G2zsX): the flow hook owns the state, the package panels draw it
@@ -89,12 +67,12 @@ export function TelegramDialog({ open, onOpenChange }: TelegramDialogProps) {
         />
       )
     }
-    if (flow.state === 'not-configured') return <NotConfigured onClose={close} />
+    if (flow.state === 'not-configured') return <TelegramNotConfiguredPanel onClose={close} />
     return (
       <TelegramConnectPanel
         status={toConnectStatus(flow.state)}
         botName={flow.botUsername ?? undefined}
-        link={flow.state === 'waiting' ? 'reopen' : undefined}
+        link={flow.linkUrl ?? undefined}
         secondsLeft={flow.state === 'waiting' ? Math.ceil(flow.remainingMs / 1000) : undefined}
         error={flow.state === 'error' ? (flow.errorMessage ?? FALLBACK_ERROR_TEXT) : undefined}
         onConnect={flow.connect}

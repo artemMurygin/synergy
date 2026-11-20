@@ -1,4 +1,4 @@
-import { Button, Skeleton, TaskDetails, TaskNotFound, type TaskPatch } from '@synergy/ui-kit'
+import { Button, Skeleton, TaskDetails, TaskNotFound, useToast, type TaskPatch } from '@synergy/ui-kit'
 import { X } from '@synergy/ui-kit/icons'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSessionStore } from '@/features/auth/session.store'
@@ -89,6 +89,7 @@ function DetailsBody({ id, onOpen, onGone }: BodyProps) {
   const remove = useDeleteTask()
   const upload = useUploadAttachment()
   const removeAttachment = useDeleteAttachment()
+  const toast = useToast()
   const userSearch = useUserSearch()
   const me = useSessionStore((s) => s.snapshot.user)
   const selectTask = useTasksStore((s) => s.selectTask)
@@ -211,9 +212,14 @@ function DetailsBody({ id, onOpen, onGone }: BodyProps) {
             }
           }}
           onDelete={() => {
-            remove.mutateAsync(id).catch((error: unknown) => {
-              handleFailure(error, 'Не удалось удалить задачу')
-            })
+            remove
+              .mutateAsync(id)
+              .then(() => {
+                toast.show({ tone: 'success', title: `Задача «${task.title}» удалена и убрана из списка` })
+              })
+              .catch((error: unknown) => {
+                handleFailure(error, 'Не удалось удалить задачу')
+              })
           }}
         />
       )}

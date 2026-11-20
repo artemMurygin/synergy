@@ -93,3 +93,10 @@ describe('NotificationsList', () => {
     expect(screen.queryByText('Нет соединения · переподключаемся…')).toBeNull()
   })
 })
+
+describe('NotificationsList: hideHeader', () => {
+  it('does not draw the header when the container owns it', () => {
+    render(<NotificationsList items={[]} state="empty" hideHeader onOpen={() => {}} onReadAll={() => {}} onLoadMore={() => {}} onRetry={() => {}} />)
+    expect(screen.queryByRole('heading', { name: 'Уведомления' })).toBeNull()
+  })
+})

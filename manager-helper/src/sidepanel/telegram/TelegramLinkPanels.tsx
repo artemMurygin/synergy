@@ -2,14 +2,11 @@ import {
   Button,
   TelegramConnectPanel,
   TelegramLinkedPanel,
+  TelegramNotConfiguredPanel,
   TelegramUnlinkConfirm,
 } from '@synergy/ui-kit'
-import { BotOff } from '@synergy/ui-kit/icons'
 import { useState } from 'react'
 import type { TelegramLink } from '@/options/telegram/use-telegram-link'
-
-const BOT_NOT_CONFIGURED_TEXT =
-  'На сервере не задан бот, подключение недоступно. Обратитесь к администратору.'
 
 /** Telegram link states of `use-telegram-link` drawn with the package panels (pane and settings page). */
 export function TelegramLinkPanels({ link }: { link: TelegramLink }) {
@@ -43,15 +40,7 @@ export function TelegramLinkPanels({ link }: { link: TelegramLink }) {
         </div>
       )
     case 'not-configured':
-      return (
-        <div role="status" className="flex items-start gap-2.5 text-sm text-ink-60">
-          <BotOff className="mt-px shrink-0" />
-          <div>
-            <p className="font-semibold text-ink">Telegram-бот не настроен</p>
-            <p>{BOT_NOT_CONFIGURED_TEXT}</p>
-          </div>
-        </div>
-      )
+      return <TelegramNotConfiguredPanel />
     case 'idle':
     case 'error':
     case 'issuing':

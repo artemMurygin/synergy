@@ -51,7 +51,7 @@ describe('AuthGate', () => {
     expect(await screen.findByText(/Сервер недоступен/)).toBeTruthy()
   })
 
-  it('blocks the login form and counts down after a 429', async () => {
+  it('shows the rate-limit block with a countdown after a 429 and unlocks the form when it ends', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       const mock = mount(unauthenticatedSnapshot)
@@ -60,15 +60,27 @@ describe('AuthGate', () => {
       await user.type(await screen.findByPlaceholderText('Введите логин'), 'admin')
       await user.type(screen.getByPlaceholderText('Введите пароль'), 'secret')
       await user.click(screen.getByRole('button', { name: 'Войти' }))
-      expect(await screen.findByText(/Повторите через 3 с/)).toBeTruthy()
+      expect(await screen.findByText('Слишком много попыток входа')).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Повторить через 0:03/ }).hasAttribute('disabled')).toBe(true)
       expect(screen.getByRole('button', { name: 'Войти' }).hasAttribute('disabled')).toBe(true)
       await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
-      expect(screen.getByText(/Повторите через 2 с/)).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Повторить через 0:02/ })).toBeTruthy()
       await act(async () => { await vi.advanceTimersByTimeAsync(2500) })
+      expect(screen.queryByText('Слишком много попыток входа')).toBeNull()
       expect(screen.getByRole('button', { name: 'Войти' }).hasAttribute('disabled')).toBe(false)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('tells that the new password must differ from the temporary one', async () => {
+    mount({ state: 'mustChangePassword', user: { id: 'u1', login: 'admin' } })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('Временный пароль'), 'Temp123456')
+    await user.type(screen.getByLabelText('Новый пароль'), 'Temp123456')
+    await user.type(screen.getByLabelText('Повторите новый пароль'), 'Temp123456')
+    await user.click(screen.getByRole('button', { name: 'Сменить пароль' }))
+    expect(await screen.findByText('Новый пароль не должен совпадать с временным')).toBeTruthy()
   })
 
   it('shows the generic rate-limit message when a 429 has no retry delay', async () => {

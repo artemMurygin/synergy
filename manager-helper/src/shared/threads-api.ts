@@ -22,6 +22,8 @@ export interface Thread {
 export type HistoryMessage = Message & {
   attachments?: readonly MessageFile[]
   source?: 'run' | 'system'
+  /** Only for the user messages: the server can restart the chat from this message. */
+  editable?: boolean
 }
 
 export interface ThreadHistory {

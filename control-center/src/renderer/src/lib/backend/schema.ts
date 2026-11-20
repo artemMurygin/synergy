@@ -46,6 +46,8 @@ export type MessageSource = z.infer<typeof MessageSourceSchema>;
 const MessageExtrasSchema = z.object({
   attachments: z.array(MessageAttachmentSchema).default([]),
   source: MessageSourceSchema.default("run"),
+  /** Only user messages: whether the server can restart the chat from the message. */
+  editable: z.boolean().optional(),
 });
 
 const MessageSchema = z.intersection(AgUiMessageSchema, MessageExtrasSchema);

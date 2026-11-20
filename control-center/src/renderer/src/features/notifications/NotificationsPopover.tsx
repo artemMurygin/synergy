@@ -9,6 +9,7 @@ import {
 } from '@/lib/backend/notifications.queries'
 import type { Notification } from '@/lib/backend/notifications.schema'
 import { toNotificationView } from './notification-view'
+import { useNotificationsConnection } from './use-notifications-connection'
 
 const LOAD_MORE_THRESHOLD_PX = 80
 
@@ -22,6 +23,7 @@ export function NotificationsPopover({ onOpenNotification, onClose }: Notificati
   const listQuery = useInfiniteQuery(notificationsInfiniteQuery())
   const unreadQuery = useQuery(unreadCountQuery())
   const markAllRead = useMarkAllNotificationsRead()
+  const connection = useNotificationsConnection()
   const unreadCount = unreadQuery.data?.unreadCount ?? 0
   const notifications = flattenNotifications(listQuery.data)
   const items = useMemo(() => notifications.map((notification) => toNotificationView(notification)), [notifications])
@@ -49,6 +51,7 @@ export function NotificationsPopover({ onOpenNotification, onClose }: Notificati
       <NotificationsList
         items={items}
         state={state}
+        connection={connection}
         unreadCount={listQuery.data === undefined ? 0 : unreadCount}
         hasMore={listQuery.hasNextPage}
         loadingMore={listQuery.isFetchingNextPage}

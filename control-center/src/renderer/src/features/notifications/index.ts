@@ -3,3 +3,4 @@ export { useOpenNotification, TASK_NOT_FOUND_NOTICE } from './use-open-notificat
 export { NotificationsButton } from './NotificationsButton'
 export { NotificationsStream } from './NotificationsStream'
 export { NotificationToaster } from './NotificationToaster'
+export { useNotificationsConnection } from './use-notifications-connection'

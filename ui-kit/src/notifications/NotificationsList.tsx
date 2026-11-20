@@ -22,6 +22,8 @@ export type NotificationsListProps = {
   onLoadMore: () => void
   onRetry: () => void
   onClose?: () => void
+  /** Шапку рисует контейнер (верхняя панель mobile). */
+  hideHeader?: boolean
 }
 
 function SkeletonRows() {
@@ -89,6 +91,7 @@ export function NotificationsList({
   onLoadMore,
   onRetry,
   onClose,
+  hideHeader = false,
 }: NotificationsListProps) {
   const hasData = items.length > 0
   let body
@@ -162,33 +165,35 @@ export function NotificationsList({
 
   return (
     <section aria-label="Уведомления" className="flex min-h-0 flex-1 flex-col bg-surface">
-      <header className="flex h-16 shrink-0 items-center gap-2 pr-3 pl-5">
-        <h2 className="flex flex-1 items-center gap-2 text-lg font-semibold text-ink">
-          Уведомления
-          {unreadCount > 0 ? (
-            <span className="rounded-[11px] bg-brand-red-soft px-[7px] py-0.5 text-xs font-bold text-brand-red">{unreadCount}</span>
-          ) : null}
-        </h2>
-        <button
-          type="button"
-          disabled={unreadCount === 0}
-          onClick={onReadAll}
-          className="inline-flex h-9 items-center gap-1.5 rounded-[18px] bg-surface-alt px-3.5 text-[13px] font-semibold text-ink-80 outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
-        >
-          <CheckCheck size={16} />
-          Прочитать все
-        </button>
-        {onClose ? (
+      {hideHeader ? null : (
+        <header className="flex h-16 shrink-0 items-center gap-2 pr-3 pl-5">
+          <h2 className="flex flex-1 items-center gap-2 text-lg font-semibold text-ink">
+            Уведомления
+            {unreadCount > 0 ? (
+              <span className="rounded-[11px] bg-brand-red-soft px-[7px] py-0.5 text-xs font-bold text-brand-red">{unreadCount}</span>
+            ) : null}
+          </h2>
           <button
             type="button"
-            aria-label="Закрыть"
-            onClick={onClose}
-            className="flex size-9 items-center justify-center rounded-full bg-surface-alt text-ink-80 outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-brand-red/40"
+            disabled={unreadCount === 0}
+            onClick={onReadAll}
+            className="inline-flex h-9 items-center gap-1.5 rounded-[18px] bg-surface-alt px-3.5 text-[13px] font-semibold text-ink-80 outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-brand-red/40 disabled:opacity-50"
           >
-            <X />
+            <CheckCheck size={16} />
+            Прочитать все
           </button>
-        ) : null}
-      </header>
+          {onClose ? (
+            <button
+              type="button"
+              aria-label="Закрыть"
+              onClick={onClose}
+              className="flex size-9 items-center justify-center rounded-full bg-surface-alt text-ink-80 outline-none hover:bg-border focus-visible:ring-2 focus-visible:ring-brand-red/40"
+            >
+              <X />
+            </button>
+          ) : null}
+        </header>
+      )}
       {body}
     </section>
   )

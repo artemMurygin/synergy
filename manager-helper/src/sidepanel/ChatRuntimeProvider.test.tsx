@@ -11,7 +11,7 @@ import { setActiveSessionId } from '@/shared/active-session'
 import { cancelRun, createAgent } from '@/shared/agent-client'
 import { createThread, getThread } from '@/shared/threads-api'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
-import { ChatRuntimeProvider } from './ChatRuntimeProvider'
+import { ChatRuntimeProvider, useChatHistory } from './ChatRuntimeProvider'
 
 vi.mock('@/shared/active-session')
 vi.mock('@/shared/agent-client')
@@ -29,7 +29,15 @@ class FakeAgent extends HttpAgent {
 }
 
 let agent: FakeAgent
-const handle: { aui: AssistantClient | null } = { aui: null }
+const handle: { aui: AssistantClient | null; history: ReturnType<typeof useChatHistory> | null } = {
+  aui: null,
+  history: null,
+}
+
+function chat(): ReturnType<typeof useChatHistory> {
+  if (handle.history === null) throw new Error('Probe is not mounted')
+  return handle.history
+}
 
 function aui(): AssistantClient {
   if (handle.aui === null) throw new Error('Probe is not mounted')
@@ -38,8 +46,10 @@ function aui(): AssistantClient {
 
 function Probe() {
   const client = useAui()
+  const chatHistory = useChatHistory()
   useEffect(() => {
     handle.aui = client
+    handle.history = chatHistory
   })
   const messages = useAuiState((s) => s.thread.messages)
   const texts = messages.map((m) =>
@@ -139,6 +149,66 @@ beforeEach(() => {
     Promise.resolve(id === 'a' ? history('вопрос A', 'ответ A') : history('вопрос B', 'ответ B')),
   )
   vi.mocked(createThread).mockResolvedValue(thread('new'))
+})
+
+describe('ChatRuntimeProvider restart', () => {
+  it('sends replaceFromMessageId once for a restart point the server knows', async () => {
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['вопрос A', 'ответ A'])
+    })
+    act(() => {
+      chat().restartFrom('вопрос A-0')
+    })
+    await startRun('правка')
+    expect(agent.inputs[0]?.forwardedProps).toMatchObject({ replaceFromMessageId: 'вопрос A-0' })
+    emit({ type: EventType.RUN_FINISHED, threadId: 'a', runId: 'r' })
+    await startRun('ещё')
+    expect(agent.inputs[1]?.forwardedProps ?? {}).not.toHaveProperty('replaceFromMessageId')
+  })
+
+  it('sends no restart point for a message the server has not confirmed', async () => {
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['вопрос A', 'ответ A'])
+    })
+    act(() => {
+      chat().restartFrom('unknown')
+    })
+    await startRun('повтор')
+    expect(agent.inputs[0]?.forwardedProps ?? {}).not.toHaveProperty('replaceFromMessageId')
+  })
+
+  it('learns the server id of a new question from user-message-saved and hides the event from the runtime', async () => {
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['вопрос A', 'ответ A'])
+    })
+    await startRun('новый')
+    const localId = agent.inputs[0]?.messages.at(-1)?.id ?? ''
+    expect(chat().isEditable(localId)).toBe(false)
+    emit({ type: EventType.CUSTOM, name: 'user-message-saved', value: { messageId: '42' } })
+    emit({ type: EventType.RUN_STARTED, threadId: 'a', runId: 'r' })
+    await waitFor(() => {
+      expect(chat().isEditable(localId)).toBe(true)
+    })
+  })
+
+  it('treats a history question marked editable:false as not editable', async () => {
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'q1', role: 'user', content: 'старый', editable: false },
+        { id: 'q2', role: 'user', content: 'свежий', editable: true },
+      ],
+    })
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['старый', 'свежий'])
+    })
+    expect(chat().isEditable('q1')).toBe(false)
+    expect(chat().isEditable('q2')).toBe(true)
+  })
 })
 
 describe('ChatRuntimeProvider', () => {

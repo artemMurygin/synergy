@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as TasksApi from '@/shared/tasks-api'
 import { resetAuthState, setAuthState } from '@/shared/auth/auth-state'
@@ -80,6 +80,20 @@ describe('TasksApp', () => {
     expect(await screen.findByRole('heading', { name: 'Отчёт' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
     expect(screen.getByRole('button', { name: 'Отчёт' }).closest('[hidden]')).toBeNull()
+  })
+
+  it('creates a task through the quick sheet in a narrow panel and the dialog in a wide one', async () => {
+    renderApp()
+    await screen.findByRole('button', { name: 'Отчёт' })
+    fireEvent.click(screen.getByRole('button', { name: 'Новая задача' }))
+    expect(await screen.findByText('Enter — создать')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    resizeTo(700)
+    fireEvent.click(screen.getByRole('button', { name: 'Новая задача' }))
+    expect(await screen.findByText('Ctrl + Enter — создать')).toBeTruthy()
   })
 
   it('shows two columns with a hint in a wide panel and no "Назад"', async () => {

@@ -33,6 +33,17 @@ describe('usePendingTarget', () => {
     expect(chromeFake.storage.session.store.pendingTarget).toBeUndefined()
   })
 
+  it('takes a chat target', async () => {
+    await setPendingTarget({ kind: 'chat', chatId: 'c1' })
+    const onTarget = vi.fn()
+    renderHook(() => {
+      usePendingTarget(onTarget, true)
+    })
+    await waitFor(() => {
+      expect(onTarget).toHaveBeenCalledWith({ kind: 'chat', chatId: 'c1' })
+    })
+  })
+
   it('does nothing on mount when there is no target', async () => {
     const onTarget = vi.fn()
     renderHook(() => {

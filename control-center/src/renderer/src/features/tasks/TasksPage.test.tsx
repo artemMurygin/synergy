@@ -53,6 +53,14 @@ describe('TasksPage · header', () => {
     expect(await screen.findByText('128 задач')).toBeTruthy()
   })
 
+  it('shows "Загрузка…" in the capsule until the total is known', async () => {
+    vi.mocked(tasksApi.listTasks).mockResolvedValue({ ...EMPTY, total: 3 })
+    setup()
+    expect(screen.getByText('Загрузка…')).toBeTruthy()
+    expect(await screen.findByText('3 задачи')).toBeTruthy()
+    expect(screen.queryByText('Загрузка…')).toBeNull()
+  })
+
   it('declines the count', async () => {
     vi.mocked(tasksApi.listTasks).mockResolvedValue({ ...EMPTY, total: 1 })
     setup()
@@ -176,11 +184,19 @@ describe('TasksPage · list', () => {
     expect(await screen.findByText('Ничего не найдено', undefined, { timeout: 2000 })).toBeTruthy()
   })
 
+  it('resets the search and the filters from the empty search result', async () => {
+    const user = setup()
+    await user.type(screen.getByRole('searchbox', { name: 'Поиск по названию' }), 'нет такой')
+    await user.click(await screen.findByRole('button', { name: 'Сбросить фильтры' }, { timeout: 2000 }))
+    expect(useTasksStore.getState().search).toBe('')
+    expect(useTasksStore.getState().view).toBe(INITIAL_TASKS_STATE.view)
+  })
+
   it('shows an error with retry when the first load fails', async () => {
     vi.mocked(tasksApi.listTasks).mockRejectedValue(new Error('boom'))
     const user = setup()
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toContain('Не удалось связаться с сервером')
+    expect(alert.textContent).toContain('Нет связи с сервером')
     vi.mocked(tasksApi.listTasks).mockResolvedValue({ items: [mkTask('a')], total: 1, limit: 20, page: 1 })
     await user.click(within(alert).getByRole('button', { name: 'Повторить' }))
     expect(await screen.findByText('Задача a')).toBeTruthy()

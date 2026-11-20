@@ -92,6 +92,17 @@ describe('system-notifier: showing', () => {
 })
 
 describe('system-notifier: click', () => {
+  it('stores the chat target of a transcript notification', async () => {
+    const { notifier } = setup()
+    await notifier.showNotification(
+      makeNotification('n3', '2026-11-10T09:00:00.000Z', { target: { type: 'chat', id: 'c1' } }),
+    )
+    await click('n3')
+    await vi.waitFor(async () => {
+      expect(await takePendingTarget()).toEqual({ kind: 'chat', chatId: 'c1' })
+    })
+  })
+
   it('marks the notification read, stores the task target and opens the panel', async () => {
     const { notifier, markRead } = setup()
     await notifier.showNotification(

@@ -1,11 +1,11 @@
 import './test-env'
-import { LayoutModeProvider } from '@synergy/ui-kit'
+import { LayoutModeProvider, ToastProvider } from '@synergy/ui-kit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgent } from '@/lib/backend/agent'
-import { createThread, getThreadHistory, listThreads } from '@/lib/backend/threads.api'
+import { createThread, deleteThread, getThreadHistory, listThreads, renameThread } from '@/lib/backend/threads.api'
 import { useChatStore } from '@/stores/chat.store'
 import { FakeAgent } from './fake-agent'
 import { ChatsScreen } from './ChatsScreen'
@@ -30,7 +30,9 @@ function mount() {
   render(
     <QueryClientProvider client={client}>
       <LayoutModeProvider mode="desktop">
-        <ChatsScreen />
+        <ToastProvider>
+          <ChatsScreen />
+        </ToastProvider>
       </LayoutModeProvider>
     </QueryClientProvider>
   )
@@ -119,4 +121,72 @@ describe('ChatsScreen', () => {
     expect(within(header).getByRole('button', { name: 'Новый чат' })).toBeTruthy()
     expect(within(header).getByRole('heading', { name: 'Цены на MBA' })).toBeTruthy()
   })
+
+  it('shows the start window instead of "Выберите чат" when no chat is open', async () => {
+    mount()
+    expect(await screen.findByText('Чем помочь?')).toBeTruthy()
+    expect(screen.queryByText('Выберите чат')).toBeNull()
+  })
+
+  it('opens the search of the chat from the header', async () => {
+    const user = mount()
+    await user.click(await screen.findByRole('button', { name: /Цены на MBA/ }))
+    await user.click(await screen.findByRole('button', { name: 'Поиск по чату' }))
+    expect(await screen.findByRole('search')).toBeTruthy()
+  })
+
+  it('deletes the chat from the menu of the header after the confirmation', async () => {
+    vi.mocked(deleteThread).mockResolvedValue(undefined)
+    getHistoryWithMessage()
+    const user = mount()
+    await user.click(await screen.findByRole('button', { name: /Цены на MBA/ }))
+    await user.click(within(chatHeader(await screen.findByRole('heading', { name: 'Цены на MBA' }))).getByRole('button', { name: 'Меню чата' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Удалить' }))
+    await user.click(await screen.findByRole('button', { name: 'Удалить' }))
+    await waitFor(() => {
+      expect(deleteThread).toHaveBeenCalledWith('t1')
+    })
+  })
+
+  it('renames the chat from the menu of the header', async () => {
+    vi.mocked(renameThread).mockResolvedValue(thread('t1', 'Новое имя'))
+    getHistoryWithMessage()
+    const user = mount()
+    await user.click(await screen.findByRole('button', { name: /Цены на MBA/ }))
+    await user.click(within(chatHeader(await screen.findByRole('heading', { name: 'Цены на MBA' }))).getByRole('button', { name: 'Меню чата' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Переименовать' }))
+    const field = await screen.findByDisplayValue('Цены на MBA')
+    await user.clear(field)
+    await user.type(field, 'Новое имя{Enter}')
+    await waitFor(() => {
+      expect(renameThread).toHaveBeenCalledWith('t1', 'Новое имя')
+    })
+  })
+
+  it('shows a toast when the list cannot rename a chat', async () => {
+    vi.mocked(renameThread).mockRejectedValue(new Error('boom'))
+    const user = mount()
+    await screen.findByText('Цены на MBA')
+    const row = screen.getByText('Цены на MBA').closest('li')
+    if (row === null) throw new Error('row')
+    await user.click(within(row).getByRole('button', { name: /Действия|Меню|ещё/i }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Переименовать' }))
+    const field = await screen.findByDisplayValue('Цены на MBA')
+    await user.clear(field)
+    await user.type(field, 'X{Enter}')
+    expect(await screen.findByText(/Не удалось переименовать/)).toBeTruthy()
+  })
 })
+
+function getHistoryWithMessage() {
+  vi.mocked(getThreadHistory).mockResolvedValue({
+    running: false,
+    messages: [{ id: 'u1', role: 'user', content: 'вопрос', attachments: [], source: 'run' }]
+  })
+}
+
+function chatHeader(heading: HTMLElement): HTMLElement {
+  const header = heading.closest('header')
+  if (header === null) throw new Error('chat header not found')
+  return header
+}

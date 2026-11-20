@@ -5,6 +5,7 @@ import { createAuthService } from './auth/auth-composition'
 import { TokenVault } from './auth/infrastructure/token-vault'
 import { registerAuthIpc } from './auth/interface/auth-ipc'
 import { getBackendUrl, getPortalUrl } from './backend-config'
+import { installMediaPermissions } from './media-permissions'
 import { install as installCcApi, registerScheme as registerCcApiScheme } from './cc-api-protocol'
 import { createNotificationsConnection } from './notifications/notifications-composition'
 import { registerNotificationsIpc } from './notifications/notifications-ipc'
@@ -35,6 +36,8 @@ function createWindow(): void {
       contextIsolation: true
     }
   })
+
+  installMediaPermissions(win.webContents.session, process.env['ELECTRON_RENDERER_URL'])
 
   win.on('ready-to-show', () => { win.show(); })
 

@@ -1,7 +1,8 @@
-import type { MessageFile } from '@synergy/ui-kit'
+import { LayoutModeProvider } from '@synergy/ui-kit'
+import type { LayoutMode, MessageFile } from '@synergy/ui-kit'
 import { EventType, HttpAgent } from '@ag-ui/client'
 import type { BaseEvent, RunAgentInput } from '@ag-ui/client'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Subject } from 'rxjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveSessionId } from '@/shared/active-session'
@@ -15,6 +16,7 @@ import { ThreadView } from './ThreadView'
 vi.mock('@/shared/active-session')
 vi.mock('@/shared/agent-client')
 vi.mock('@/shared/threads-api')
+vi.mock('@/shared/settings', () => ({ getBackendUrl: () => Promise.resolve('http://api.test') }))
 const upload = vi.fn()
 vi.mock('./attachments/use-file-upload-port', () => ({
   useFileUploadPort: () => ({ upload }),
@@ -58,23 +60,31 @@ interface Setup {
   serverRunning?: boolean
   onStopServerRun?: () => void
   onSendWithoutChat?: (text: string, files: MessageFile[]) => Promise<boolean>
+  onQuickSearch?: (query: string, title: string) => void
+  layout?: LayoutMode
+  activeId?: string | null
 }
 
 async function mount(setup: Setup = {}) {
   const onStopServerRun = setup.onStopServerRun ?? vi.fn()
+  const activeId = setup.activeId === undefined ? 'a' : setup.activeId
   render(
-    <ChatRuntimeProvider activeId="a" onSelect={vi.fn()} onCreate={vi.fn()}>
-      <ThreadView
-        serverRunning={setup.serverRunning ?? false}
-        onStopServerRun={onStopServerRun}
-        onQuickSearch={vi.fn()}
-        onSendWithoutChat={setup.onSendWithoutChat}
-      />
-    </ChatRuntimeProvider>,
+    <LayoutModeProvider mode={setup.layout ?? 'tablet'}>
+      <ChatRuntimeProvider activeId={activeId} onSelect={vi.fn()} onCreate={vi.fn()}>
+        <ThreadView
+          serverRunning={setup.serverRunning ?? false}
+          onStopServerRun={onStopServerRun}
+          onQuickSearch={setup.onQuickSearch ?? vi.fn()}
+          onSendWithoutChat={setup.onSendWithoutChat}
+        />
+      </ChatRuntimeProvider>
+    </LayoutModeProvider>,
   )
-  await waitFor(() => {
-    expect(screen.getByText('вопрос')).toBeTruthy()
-  })
+  if (activeId !== null) {
+    await waitFor(() => {
+      expect(screen.getByText('вопрос')).toBeTruthy()
+    })
+  }
   return { onStopServerRun }
 }
 
@@ -160,7 +170,7 @@ describe('ThreadView', () => {
     })
     expect(screen.getByText('Часть ответа')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Отправить' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Повторить вопрос' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy()
   })
 
   it('shows the tool calls of the answer as a group that expands into rows', async () => {
@@ -173,7 +183,8 @@ describe('ThreadView', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /инструмент/ })).toBeTruthy()
     })
-    fireEvent.click(screen.getByRole('button', { name: /инструмент/ }))
+    const group = screen.getByRole('button', { name: /инструмент/ })
+    if (group.getAttribute('aria-expanded') !== 'true') fireEvent.click(group)
     expect(screen.getByText('search_books')).toBeTruthy()
   })
 
@@ -199,7 +210,7 @@ describe('ThreadView', () => {
     })
   })
 
-  it('on an unreachable server hints at the settings and keeps the question', async () => {
+  it('on an unreachable server shows the banner, locks the field, keeps the question and probes /health', async () => {
     await mount()
     await ask('мой вопрос')
     act(() => {
@@ -209,9 +220,167 @@ describe('ThreadView', () => {
       )
     })
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('Проверьте адрес бэкенда')
+      expect(screen.getByText('Сервер недоступен')).toBeTruthy()
     })
+    expect(screen.getAllByText(/настройках расширения/).length).toBeGreaterThan(0)
+    const locked = screen.getByPlaceholderText('Нет связи с сервером')
+    expect(locked.hasAttribute('disabled')).toBe(true)
+    expect(locked instanceof HTMLTextAreaElement && locked.value).toBe('мой вопрос')
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }))
+    const banner = screen.getByText('Сервер недоступен').closest('[role="alert"]')
+    if (!(banner instanceof HTMLElement)) throw new Error('no banner')
+    fireEvent.click(within(banner).getByRole('button', { name: 'Повторить' }))
+    await waitFor(() => {
+      expect(screen.queryByText('Сервер недоступен')).toBeNull()
+    })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://api.test/health')
     expect(fieldValue()).toBe('мой вопрос')
+    fetchMock.mockRestore()
+  })
+
+  it('keeps the banner when the probe fails', async () => {
+    await mount()
+    await ask('q')
+    act(() => {
+      agent.stream.error(new TypeError('Failed to fetch'))
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Сервер недоступен')).toBeTruthy()
+    })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    const banner = screen.getByText('Сервер недоступен').closest('[role="alert"]')
+    if (!(banner instanceof HTMLElement)) throw new Error('no banner')
+    fireEvent.click(within(banner).getByRole('button', { name: 'Повторить' }))
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled()
+    })
+    expect(screen.getByText('Сервер недоступен')).toBeTruthy()
+    fetchMock.mockRestore()
+  })
+
+  it('retries from the saved question without a second copy of it', async () => {
+    vi.mocked(getThread).mockResolvedValueOnce(history('вопрос', 'ответ'))
+    await mount()
+    await ask('мой вопрос')
+    emit({ type: EventType.CUSTOM, name: 'user-message-saved', value: { messageId: 'm7' } })
+    emit({ type: EventType.RUN_STARTED, threadId: 'a', runId: 'r1' })
+    emit({ type: EventType.RUN_ERROR, message: 'Агент упал' })
+    act(() => {
+      agent.stream.complete()
+    })
+    await waitFor(() => {
+      expect(screen.getByText(/Агент упал/)).toBeTruthy()
+    })
+    expect(agent.inputs[0]?.forwardedProps ?? {}).not.toHaveProperty('replaceFromMessageId')
+
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'm0', role: 'user', content: 'вопрос' },
+        { id: 'm1', role: 'assistant', content: 'ответ' },
+        { id: 'm7', role: 'user', content: 'мой вопрос', editable: true },
+        { id: 'm8', role: 'assistant', content: 'готово' },
+      ],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+    await waitFor(() => {
+      expect(agent.inputs).toHaveLength(2)
+    })
+    expect(agent.inputs[1]?.forwardedProps).toMatchObject({ replaceFromMessageId: 'm7' })
+    emit({ type: EventType.CUSTOM, name: 'user-message-saved', value: { messageId: 'm9' } })
+    emit({ type: EventType.RUN_STARTED, threadId: 'a', runId: 'r2' })
+    emit({ type: EventType.TEXT_MESSAGE_START, messageId: 'a2', role: 'assistant' })
+    emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'a2', delta: 'готово' })
+    emit({ type: EventType.TEXT_MESSAGE_END, messageId: 'a2' })
+    emit({ type: EventType.RUN_FINISHED, threadId: 'a', runId: 'r2' })
+    act(() => {
+      agent.stream.complete()
+    })
+    await waitFor(() => {
+      expect(getThread).toHaveBeenCalledTimes(2)
+    })
+    await waitFor(() => {
+      expect(screen.getAllByText('мой вопрос')).toHaveLength(1)
+    })
+    expect(screen.getAllByText('готово')).toHaveLength(1)
+  })
+
+  it('edits a sent question: the run carries replaceFromMessageId of the edited message', async () => {
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'm0', role: 'user', content: 'вопрос', editable: true },
+        { id: 'm1', role: 'assistant', content: 'ответ' },
+      ],
+    })
+    await mount()
+    fireEvent.click(screen.getByRole('button', { name: /Изменить/ }))
+    const field = screen.getByLabelText('Изменить сообщение')
+    fireEvent.change(field, { target: { value: 'вопрос по-другому' } })
+    const form = field.closest('form')
+    if (form === null) throw new Error('no edit form')
+    fireEvent.click(within(form).getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => {
+      expect(agent.inputs).toHaveLength(1)
+    })
+    expect(agent.inputs[0]?.forwardedProps).toMatchObject({ replaceFromMessageId: 'm0' })
+  })
+
+  it('does not offer to edit a question the server cannot restart from', async () => {
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'm0', role: 'user', content: 'вопрос', editable: false },
+        { id: 'm1', role: 'assistant', content: 'ответ' },
+      ],
+    })
+    await mount()
+    expect(screen.queryByRole('button', { name: /Изменить/ })).toBeNull()
+  })
+
+  it('shows the welcome window with suggestion cards in an empty chat', async () => {
+    vi.mocked(getThread).mockResolvedValue({ running: false, messages: [] })
+    await mount({ activeId: 'a' }).catch(() => undefined)
+    await waitFor(() => {
+      expect(screen.getByText('Чем помочь?')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByText('Цены на программу'))
+    expect(fieldValue()).toContain('Цены на программу')
+  })
+
+  it('has no quick search form in the feed and no label: only the "Подбор" pill in the composer', async () => {
+    await mount()
+    expect(screen.queryByText('Быстрый подбор')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Подбор' })).toBeTruthy()
+  })
+
+  it('opens the sheet from "Подбор", sends the query and the title and closes it', async () => {
+    const onQuickSearch = vi.fn()
+    await mount({ onQuickSearch })
+    fireEvent.click(screen.getByRole('button', { name: 'Подбор' }))
+    expect(screen.getByRole('dialog', { name: 'Быстрый подбор' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить в чат' }))
+    expect(onQuickSearch).toHaveBeenCalledWith(expect.stringContaining('Подбери'), 'Подбор программ')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('keeps the form values when the sheet is closed and opened again', async () => {
+    await mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Подбор' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Уровень' }), { target: { value: 'master' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Подбор' }))
+    const level = screen.getByRole('combobox', { name: 'Уровень' })
+    expect(level instanceof HTMLSelectElement && level.value).toBe('master')
+  })
+
+  it('blocks the sending from the sheet while the agent answers', async () => {
+    const onQuickSearch = vi.fn()
+    await mount({ serverRunning: true, onQuickSearch })
+    fireEvent.click(screen.getByRole('button', { name: 'Подбор' }))
+    expect(screen.getByRole('button', { name: 'Отправить в чат' }).hasAttribute('disabled')).toBe(true)
+    expect(onQuickSearch).not.toHaveBeenCalled()
   })
 
   it('attaches a file, shows its tile and sends the file id with the run', async () => {

@@ -121,3 +121,14 @@ describe('TaskFilters', () => {
     expect(props.onSearch).toHaveBeenCalledWith('кп')
   })
 })
+
+describe('TaskFilters: hideSearch', () => {
+  it('не рисует поле поиска, когда его рисует контейнер', () => {
+    render(
+      <LayoutModeProvider mode="mobile">
+        <TaskFilters view="mine" onViewChange={vi.fn()} status="all" onStatusChange={vi.fn()} sort="deadline" onSortChange={vi.fn()} search="" onSearch={vi.fn()} hideSearch />
+      </LayoutModeProvider>,
+    )
+    expect(screen.queryByRole('searchbox')).toBeNull()
+  })
+})

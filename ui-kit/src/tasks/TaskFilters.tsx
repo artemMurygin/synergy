@@ -18,6 +18,8 @@ export type TaskFiltersProps = {
   overdueCount?: number
   search: string
   onSearch: (search: string) => void
+  /** Поле поиска рисует контейнер (строка поиска mobile). */
+  hideSearch?: boolean
 }
 
 const SORT_LABEL: Record<TaskSort, string> = {
@@ -192,7 +194,7 @@ export function TaskFilters(props: TaskFiltersProps) {
 
   return (
     <div className="flex flex-col gap-2 px-3 pb-2">
-      <SearchField search={props.search} onSearch={props.onSearch} />
+      {props.hideSearch ? null : <SearchField search={props.search} onSearch={props.onSearch} />}
       {views}
       <div data-testid="filters-secondary-row" className="flex items-center gap-1.5">
         {statusMenu}

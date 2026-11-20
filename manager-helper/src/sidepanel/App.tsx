@@ -5,6 +5,7 @@ import { useTelegramLink } from '@/options/telegram/use-telegram-link'
 import { getActiveSection, setActiveSection } from '@/shared/active-section'
 import type { Section } from '@/shared/active-section'
 import { cancelRun } from '@/shared/agent-client'
+import { ThreadNotFoundError, getThread } from '@/shared/threads-api'
 import { getAuthState, subscribeAuth } from '@/shared/auth/auth-state'
 import { buildRequestUrl } from '@/shared/portal-link'
 import { getPortalUrl } from '@/shared/settings'
@@ -17,6 +18,7 @@ import type { FinishedRun } from './ChatPane'
 import { NotificationsOverlay } from './notifications/NotificationsOverlay'
 import { NotificationToast } from './notifications/NotificationToast'
 import { useNotifications } from './notifications/use-notifications'
+import { useNotificationsConnection } from './notifications/use-notifications-connection'
 import { usePendingTarget } from './notifications/use-pending-target'
 import { ProfileMenuContainer } from './ProfileMenuContainer'
 import { TelegramPane } from './telegram/TelegramPane'
@@ -29,7 +31,7 @@ const TASKS_SECTION = { id: 'tasks', label: 'Задачи', icon: <ListChecks />
 
 export function App() {
   const sessions = useChatSessions()
-  const { activeId, create, rename, reload } = sessions
+  const { activeId, create, rename, reload, select } = sessions
   const layout = useLayoutMode()
   const [mode, setMode] = useState<ChatPanelMode>('chat')
   const [creating, setCreating] = useState(false)
@@ -49,6 +51,8 @@ export function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [requestedTaskId, setRequestedTaskId] = useState<string | null>(null)
   const [portalUnavailable, setPortalUnavailable] = useState(false)
+  const [chatMissing, setChatMissing] = useState(false)
+  const notificationsConnection = useNotificationsConnection(notifications.connectionState)
   const notificationsAnchor = useRef<HTMLButtonElement>(null)
   const isOverlayVisible = signedIn && isNotificationsOpen
   const sections = signedIn ? [CHAT_SECTION, TASKS_SECTION] : [CHAT_SECTION]
@@ -86,17 +90,33 @@ export function App() {
       })
   }
 
+  const openChat = (chatId: string) => {
+    changeSection('chat')
+    setChatMissing(false)
+    getThread(chatId).then(
+      () => {
+        select(chatId)
+      },
+      (failure: unknown) => {
+        if (failure instanceof ThreadNotFoundError) setChatMissing(true)
+        else select(chatId)
+      },
+    )
+  }
+
   const openNotification = (notification: NotificationDto) => {
     setIsNotificationsOpen(false)
     if (notifications.toast?.id === notification.id) notifications.dismissToast()
     void notifications.markRead(notification.id)
     if (notification.target.type === 'task') showTask(notification.target.id)
     if (notification.target.type === 'request') openRequest(notification.target.id)
+    if (notification.target.type === 'chat') openChat(notification.target.id)
   }
 
   usePendingTarget((target: PendingTarget) => {
     if (target.kind === 'task') showTask(target.taskId)
     else if (target.kind === 'request') openRequest(target.requestId)
+    else if (target.kind === 'chat') openChat(target.chatId)
     else setIsNotificationsOpen(true)
   }, signedIn)
 
@@ -262,6 +282,7 @@ export function App() {
           hasMore={notifications.hasMore}
           loadMoreStatus={notifications.loadMoreStatus}
           anchorRef={notificationsAnchor}
+          connection={notificationsConnection}
           onOpen={openNotification}
           onReadAll={() => void notifications.markAllRead()}
           onLoadMore={notifications.loadMore}
@@ -284,6 +305,24 @@ export function App() {
             className="shrink-0 hover:text-brand-red-hover"
             onClick={() => {
               setPortalUnavailable(false)
+            }}
+          >
+            Закрыть
+          </button>
+        </div>
+      )}
+      {chatMissing && (
+        <div
+          role="alert"
+          aria-label="Чат не найден"
+          className="absolute inset-x-3 top-3 z-50 flex items-center justify-between gap-2 rounded-xl bg-brand-red-soft px-3.5 py-3 text-[13px] font-semibold text-brand-red"
+        >
+          <span>Чат не найден: возможно, его удалили.</span>
+          <button
+            type="button"
+            className="shrink-0 hover:text-brand-red-hover"
+            onClick={() => {
+              setChatMissing(false)
             }}
           >
             Закрыть

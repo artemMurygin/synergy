@@ -1,5 +1,5 @@
-import { ChangePasswordDialog, ConnectionError, LoginForm, RestoringScreen } from '@synergy/ui-kit'
-import { useEffect, useState, type ReactNode } from 'react'
+import { ChangePasswordDialog, ConnectionError, LoginForm, RateLimitBlock, RestoringScreen } from '@synergy/ui-kit'
+import { useState, type ReactNode } from 'react'
 import { retryRestore } from './auth.api'
 import { changePasswordErrorText, loginErrorText } from './auth-messages'
 import { useChangePassword } from './use-change-password'
@@ -37,7 +37,7 @@ export function AuthGate({ children }: AuthGateProps) {
         <ChangePasswordDialog
           kind="forced"
           pending={changePassword.isPending}
-          error={changePasswordErrorText(changePassword.error)}
+          error={changePasswordErrorText(changePassword.error, 'forced')}
           onSubmit={({ currentPassword, newPassword }) => { changePassword.mutate({ currentPassword, newPassword, confirmPassword: newPassword }); }
           }
           onLogout={() => { logout.mutate(); }}
@@ -50,24 +50,6 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 }
 
-function useCountdown(seconds: number | undefined, token: unknown): number {
-  const start = seconds && seconds > 0 ? Math.ceil(seconds) : 0
-  const [state, setState] = useState({ start, token, remaining: start })
-  const stale = state.start !== start || state.token !== token
-  if (stale) setState({ start, token, remaining: start })
-  useEffect(() => {
-    if (start === 0) return undefined
-    const endAt = Date.now() + start * 1000
-    const timer = setInterval(() => {
-      const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
-      setState((prev) => ({ ...prev, remaining: left }))
-      if (left === 0) clearInterval(timer)
-    }, 250)
-    return () => { clearInterval(timer); }
-  }, [start, token])
-  return stale ? start : state.remaining
-}
-
 function LoginScreen({ login, retryAfterSec, warning }: {
   login: ReturnType<typeof useLogin>
   retryAfterSec?: number
@@ -75,19 +57,29 @@ function LoginScreen({ login, retryAfterSec, warning }: {
 }) {
   const error = login.error
   const limitSec = error ? (error.code === 'RATE_LIMITED' ? (error.retryAfterSec ?? retryAfterSec) : undefined) : retryAfterSec
-  const remaining = useCountdown(limitSec, error ?? 'snapshot')
-  const limited = remaining > 0
-  const text = limited
-    ? `Слишком много попыток входа. Повторите через ${String(remaining)} с.`
-    : limitSec && limitSec > 0
-      ? undefined
-      : loginErrorText(error, undefined, warning)
+  const limitKey: unknown = error ?? 'snapshot'
+  // The countdown of a limit that has run out is remembered by its key: the form is free again
+  const [expiredKey, setExpiredKey] = useState<unknown>(null)
+  const hasLimit = limitSec !== undefined && limitSec > 0
+  const limited = hasLimit && expiredKey !== limitKey
+  const text = hasLimit ? undefined : loginErrorText(error, undefined, warning)
   return (
     <LoginForm
       title="Вход в Control Center"
       pending={login.isPending}
       disabled={limited}
       error={text}
+      footer={
+        limited ? (
+          <RateLimitBlock
+            key={String(limitSec)}
+            retryAfterSec={limitSec}
+            onExpire={() => {
+              setExpiredKey(limitKey)
+            }}
+          />
+        ) : undefined
+      }
       onSubmit={(credentials) => { login.mutate(credentials); }}
     />
   )

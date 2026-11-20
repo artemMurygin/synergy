@@ -41,6 +41,7 @@ export function summaryMessage(count: number): string {
 function toPendingTarget(target: NotificationTarget | null): PendingTarget {
   if (target?.type === 'task') return { kind: 'task', taskId: target.id }
   if (target?.type === 'request') return { kind: 'request', requestId: target.id }
+  if (target?.type === 'chat') return { kind: 'chat', chatId: target.id }
   return { kind: 'notifications' }
 }
 

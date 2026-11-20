@@ -1,6 +1,7 @@
 import './test-env'
 import { EventType } from '@ag-ui/client'
 import type { BaseEvent } from '@ag-ui/client'
+import { ToastProvider } from '@synergy/ui-kit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -8,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgent } from '@/lib/backend/agent'
 import * as filesApi from '@/lib/backend/files.api'
 import type { StoredFile } from '@/lib/backend/files.schema'
-import { cancelRun, getThreadHistory, listThreads } from '@/lib/backend/threads.api'
+import { cancelRun, createThread, getThreadHistory, listThreads } from '@/lib/backend/threads.api'
 import { useChatStore } from '@/stores/chat.store'
 import { ChatThread } from './ChatThread'
 import { FakeAgent } from './fake-agent'
@@ -25,7 +26,9 @@ function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <ChatThread />
+      <ToastProvider>
+        <ChatThread />
+      </ToastProvider>
     </QueryClientProvider>
   )
   return userEvent.setup()
@@ -78,12 +81,56 @@ function sendWith(...events: (BaseEvent & Record<string, unknown>)[]) {
 const PROGRAMS = ['1. MBA', '2. Маркетинг', '3. HR'].join('\n')
 
 describe('ChatThread', () => {
-  it('asks to choose a chat when none is active', () => {
+  it('shows the start window with the form when no chat is active (no "Выберите чат")', async () => {
     useChatStore.setState({ activeThreadId: null })
     mount()
-    expect(screen.getByText('Выберите чат')).toBeTruthy()
-    expect(screen.queryByPlaceholderText('Сообщение агенту')).toBeNull()
+    expect(await screen.findByText('Чем помочь?')).toBeTruthy()
+    expect(screen.queryByText('Выберите чат')).toBeNull()
+    expect(screen.getByPlaceholderText('Сообщение агенту')).toBeTruthy()
     expect(getThreadHistory).not.toHaveBeenCalled()
+  })
+
+  it('the first message without a chat creates the chat and is sent in it', async () => {
+    useChatStore.setState({ activeThreadId: null, pendingFirstMessage: null })
+    vi.mocked(createThread).mockResolvedValue({
+      id: 't9',
+      title: 'Новый чат',
+      titleIsCustom: false,
+      createdAt: '2026-11-12T10:00:00.000Z',
+      lastActivityAt: '2026-11-12T10:00:00.000Z',
+      running: false
+    })
+    vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
+    const user = mount()
+    await user.type(await screen.findByPlaceholderText('Сообщение агенту'), 'Цены на MBA{Enter}')
+    await waitFor(() => {
+      expect(createThread).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(agent.inputs).toHaveLength(1)
+    })
+    expect(useChatStore.getState().activeThreadId).toBe('t9')
+    expect(agent.threadId).toBe('t9')
+    expect(screen.getAllByText('Цены на MBA')).toHaveLength(1)
+  })
+
+  it('a card of the start window puts its text into the empty field without sending', async () => {
+    useChatStore.setState({ activeThreadId: null })
+    const user = mount()
+    await user.click(await screen.findByText('Цены на программу'))
+    expect(input().value).toContain('Цены на программу')
+    expect(createThread).not.toHaveBeenCalled()
+  })
+
+  it('shows the "Сервер недоступен" banner after a network error and returns online when the probe passes', async () => {
+    const user = mount()
+    await ask(user, 'вопрос')
+    act(() => {
+      agent.stream.error(new TypeError('Failed to fetch'))
+    })
+    expect(await screen.findByText('Сервер недоступен')).toBeTruthy()
+    const field = screen.getByPlaceholderText('Нет связи с сервером')
+    expect(field).toHaveProperty('disabled', true)
   })
 
   it('shows a hint for a new chat with an empty history', async () => {
@@ -162,10 +209,10 @@ describe('ChatThread', () => {
     act(() => {
       agent.stream.error(new TypeError('Failed to fetch'))
     })
-    expect(await screen.findByText(/Не удалось связаться с сервером/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy()
+    expect((await screen.findAllByText(/Не удалось связаться с сервером/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Повторить' }).length).toBeGreaterThan(0)
     await waitFor(() => {
-      expect(input().value).toBe('мой вопрос')
+      expect((screen.getByPlaceholderText('Нет связи с сервером') as HTMLTextAreaElement).value).toBe('мой вопрос')
     })
   })
 
@@ -177,7 +224,7 @@ describe('ChatThread', () => {
         new Error('HTTP 502: {"message":"Backend is unreachable (http://localhost:3000): net::ERR_CONNECTION_REFUSED"}')
       )
     })
-    expect(await screen.findByText(/Не удалось связаться с сервером/)).toBeTruthy()
+    expect((await screen.findAllByText(/Не удалось связаться с сервером/)).length).toBeGreaterThan(0)
     expect(screen.queryByText(/ERR_CONNECTION_REFUSED/)).toBeNull()
   })
 
@@ -218,11 +265,11 @@ describe('ChatThread', () => {
       { type: EventType.TOOL_CALL_ARGS, toolCallId: 'c1', delta: '{"query":"mba"}' },
       { type: EventType.TOOL_CALL_END, toolCallId: 'c1' }
     )
-    expect(await screen.findByText('1 вызов инструментов')).toBeTruthy()
-    expect(screen.getByText('выполняется')).toBeTruthy()
-    expect(screen.queryByText('search_programs')).toBeNull()
+    expect(await screen.findByText('Вызываю инструменты…')).toBeTruthy()
+    expect(screen.getByText('Выполняется · 0 из 1')).toBeTruthy()
     sendWith({ type: EventType.TOOL_CALL_RESULT, messageId: 'tr1', toolCallId: 'c1', content: '["mba"]', role: 'tool' })
     expect(await screen.findByText('1 готово')).toBeTruthy()
+    expect(screen.getByText('1 вызов инструментов')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: /1 вызов инструментов/ }))
     expect(await screen.findByText('search_programs')).toBeTruthy()
   })
@@ -262,9 +309,88 @@ describe('ChatThread', () => {
     act(() => {
       agent.stream.error(new TypeError('Failed to fetch'))
     })
-    await user.click(await screen.findByRole('button', { name: 'Повторить' }))
+    await user.click((await screen.findAllByRole('button', { name: 'Повторить' }))[0])
     await waitFor(() => {
       expect(agent.inputs).toHaveLength(2)
+    })
+  })
+
+  describe('restart from a message', () => {
+    const saved = (messageId: string) => ({ type: EventType.CUSTOM, name: 'user-message-saved', value: { messageId } })
+    const replaceId = (index: number) =>
+      (agent.inputs[index]?.forwardedProps as { replaceFromMessageId?: string } | undefined)?.replaceFromMessageId
+
+    it('"Повторить" after an error sends replaceFromMessageId of the saved question and adds no duplicate', async () => {
+      vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
+      const user = mount()
+      await ask(user, 'мой вопрос')
+      emit(saved('77'))
+      act(() => {
+        agent.stream.error(new TypeError('Failed to fetch'))
+      })
+      await user.click((await screen.findAllByRole('button', { name: 'Повторить' }))[0])
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(2)
+      })
+      expect(replaceId(0)).toBeUndefined()
+      expect(replaceId(1)).toBe('77')
+      expect(screen.getAllByText('мой вопрос')).toHaveLength(1)
+    })
+
+    it('"Повторить" without a known server id restarts without a point', async () => {
+      vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
+      const user = mount()
+      await ask(user, 'вопрос')
+      act(() => {
+        agent.stream.error(new TypeError('Failed to fetch'))
+      })
+      await user.click((await screen.findAllByRole('button', { name: 'Повторить' }))[0])
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(2)
+      })
+      expect(replaceId(1)).toBeUndefined()
+    })
+
+    it('an edited history question restarts the chat from its server id', async () => {
+      const user = mount()
+      const question = await screen.findByText('Сколько стоит MBA?')
+      await user.hover(question)
+      await user.click(await screen.findByRole('button', { name: 'Изменить' }))
+      const field = await screen.findByLabelText('Изменить сообщение')
+      await user.clear(field)
+      await user.type(field, 'Сколько стоит MBA онлайн?{Enter}')
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(1)
+      })
+      expect(replaceId(0)).toBe('u1')
+    })
+
+    it('offers no edit for a question the server marked as not editable', async () => {
+      vi.mocked(getThreadHistory).mockResolvedValue({
+        running: false,
+        messages: [{ id: 'u1', role: 'user', content: 'старый вопрос', attachments: [], source: 'run', editable: false }]
+      })
+      const user = mount()
+      await user.hover(await screen.findByText('старый вопрос'))
+      expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull()
+    })
+
+    it('rereads the history after a restarted run finishes', async () => {
+      const user = mount()
+      const question = await screen.findByText('Сколько стоит MBA?')
+      await user.hover(question)
+      await user.click(await screen.findByRole('button', { name: 'Изменить' }))
+      const field = await screen.findByLabelText('Изменить сообщение')
+      await user.type(field, '!{Enter}')
+      await waitFor(() => {
+        expect(agent.inputs).toHaveLength(1)
+      })
+      const calls = vi.mocked(getThreadHistory).mock.calls.length
+      emit({ type: EventType.RUN_STARTED, threadId: 't1', runId: 'r' })
+      emit({ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r' })
+      await waitFor(() => {
+        expect(vi.mocked(getThreadHistory).mock.calls.length).toBeGreaterThan(calls)
+      })
     })
   })
 

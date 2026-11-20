@@ -141,14 +141,14 @@ export function makeRequestNotification(id: string, createdAt: string, requestId
 export function makeNotification(
   id: string,
   createdAt: string,
-  overrides: Partial<{ title: string; body: string; taskId: string }> = {},
+  overrides: Partial<{ title: string; body: string; taskId: string; target: { type: string; id: string } }> = {},
 ): NotificationDto {
   return {
     id,
     type: 'task.assigned',
     title: overrides.title ?? `Уведомление ${id}`,
     body: overrides.body ?? 'anna назначила вам задачу',
-    target: { type: 'task', id: overrides.taskId ?? `task-${id}` },
+    target: overrides.target ?? { type: 'task', id: overrides.taskId ?? `task-${id}` },
     actorId: 'u2',
     createdAt,
     readAt: null,

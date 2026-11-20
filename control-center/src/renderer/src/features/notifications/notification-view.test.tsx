@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { groupOf, toNotificationView } from './notification-view'
+import { notificationIcon, notificationIconNode } from '@synergy/ui-kit'
+import { toNotificationView } from './notification-view'
 import { makeNotification } from './test-utils'
 
 const NOW = new Date('2026-11-10T10:02:00.000Z')
@@ -24,10 +25,20 @@ describe('toNotificationView', () => {
   })
 })
 
-describe('groupOf', () => {
-  it('groups by calendar day', () => {
-    expect(groupOf(NOW.toISOString(), NOW)).toBe('Сегодня')
-    expect(groupOf(new Date(NOW.getTime() - 86_400_000).toISOString(), NOW)).toBe('Вчера')
-    expect(groupOf('2026-10-01T10:00:00.000Z', NOW)).toBe('Ранее')
+describe('icons and groups of the package', () => {
+  it('maps the type of the notification to the icon name of the package', () => {
+    expect(notificationIcon('task')).toBe('list-checks')
+    expect(notificationIcon('something.else')).toBe('bell')
+  })
+
+  it('groups the view by day', () => {
+    expect(toNotificationView(makeNotification('1'), NOW).group).toBe('Сегодня')
+  })
+
+  it('gives the failed transcript the alert icon and a task the list icon', () => {
+    const failed = toNotificationView({ ...makeNotification('1'), type: 'meeting-transcript.failed', target: { type: 'chat', id: 'c1' } }, NOW)
+    const task = toNotificationView(makeNotification('2'), NOW)
+    expect(failed.icon).toEqual(notificationIconNode('error'))
+    expect(task.icon).toEqual(notificationIconNode('task'))
   })
 })

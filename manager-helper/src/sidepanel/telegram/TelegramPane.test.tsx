@@ -1,5 +1,5 @@
 import { LayoutModeProvider, type LayoutMode } from '@synergy/ui-kit'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { TelegramLink } from '@/options/telegram/use-telegram-link'
@@ -51,6 +51,36 @@ describe('TelegramPane', () => {
     expect(link.reopenLink).toHaveBeenCalledTimes(1)
     await userEvent.click(screen.getByRole('button', { name: 'Отмена' }))
     expect(link.cancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the QR code and the link chip while waiting and copies the link', async () => {
+    const user = userEvent.setup()
+    const link = makeLink(
+      { kind: 'waiting', url: 'https://t.me/bot?start=1', botUsername: 'synergy_bot', expiresAt: 'x' },
+      60_000,
+    )
+    setup(link)
+    const qr = screen.getByRole('img', { name: 'QR-код ссылки на бота' })
+    await waitFor(() => {
+      expect(qr.querySelector('svg')).not.toBeNull()
+    })
+    expect(screen.getByText(/Отсканируйте код камерой/)).toBeTruthy()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    await user.click(screen.getByRole('button', { name: 'Копировать ссылку' }))
+    expect(writeText).toHaveBeenCalledWith('https://t.me/bot?start=1')
+    expect(await screen.findByRole('button', { name: 'Ссылка скопирована' })).toBeTruthy()
+  })
+
+  it('hides the QR code and the chip once the link has expired', () => {
+    setup(makeLink({ kind: 'expired' }))
+    expect(screen.queryByRole('img', { name: 'QR-код ссылки на бота' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /ссылк/i })).toBeNull()
+  })
+
+  it('shows the package state when the bot is not configured', () => {
+    setup(makeLink({ kind: 'not-configured' }))
+    expect(screen.getByRole('heading', { name: 'Telegram-бот не настроен' })).toBeTruthy()
+    expect(screen.getByText(/Обратитесь к администратору/)).toBeTruthy()
   })
 
   it('renews an expired link', async () => {

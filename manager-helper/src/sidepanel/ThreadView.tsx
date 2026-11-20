@@ -6,8 +6,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { downloadFile } from '@/shared/files-api'
 import { useFileUploadPort } from './attachments/use-file-upload-port'
 import { useChatHistory } from './ChatRuntimeProvider'
-import { isFormOpen } from './form-visibility'
-import { QuickSearchForm } from './QuickSearchForm'
+import { DEFAULT_QUICK_SEARCH } from './quick-search/defaults'
+import type { QuickSearchValues } from './quick-search/defaults'
+import { QuickSearchButton } from './quick-search/QuickSearchButton'
+import { QuickSearchSheet } from './quick-search/QuickSearchSheet'
+import { useVoiceTranscriptionPort } from './voice/use-voice-transcription-port'
 
 interface Props {
   /** The server still runs the agent of this chat (the panel came back to a run in progress). */
@@ -21,6 +24,10 @@ interface Props {
    * no chat to run in; the uploaded files go along. Resolves to `false` when it was not taken (the text stays in the field).
    */
   onSendWithoutChat?: (text: string, files: MessageFile[]) => Promise<boolean>
+  /** Draft of the quick search form of this chat; without it the form keeps its own values. */
+  quickSearchDraft?: { value: QuickSearchValues; onChange: (value: QuickSearchValues) => void }
+  /** Search in the loaded messages (the button is in the header of the chat). */
+  search?: { open: boolean; onClose: () => void }
 }
 
 function answerText(content: readonly { type: string; text?: string }[]): string {
@@ -57,12 +64,14 @@ function useFileDownloads() {
   return { pending, failedName, download, dismiss }
 }
 
-/** Feed of the chat (UI kit Thread), quick search form and the form of sending with attachments. */
+/** Feed of the chat (UI kit Thread), the quick search sheet and the form of sending with attachments. */
 export function ThreadView({
   serverRunning,
   onStopServerRun,
   onQuickSearch,
   onSendWithoutChat,
+  quickSearchDraft,
+  search,
 }: Props) {
   const aui = useAui()
   const history = useChatHistory()
@@ -74,13 +83,12 @@ export function ThreadView({
   const attachments = useComposerAttachments(useFileUploadPort())
   const downloads = useFileDownloads()
 
-  // Agent-reply count at which the user re-opened the form; -1 means not re-opened.
-  const [openedAt, setOpenedAt] = useState(-1)
-  const agentCount = messages.filter((m) => m.role === 'assistant').length
-  const formOpen = isFormOpen(agentCount, openedAt)
+  const voice = useVoiceTranscriptionPort()
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [ownDraft, setOwnDraft] = useState<QuickSearchValues>(DEFAULT_QUICK_SEARCH)
+  const draft = quickSearchDraft ?? { value: ownDraft, onChange: setOwnDraft }
 
   const running = localRunning || serverRunning
-  const showContent = history.status === 'ready' || history.status === 'idle'
   const blocked = history.status === 'loading' || history.status === 'error'
 
   // The run was refused because a sent file expired: its card comes back failed.
@@ -138,7 +146,7 @@ export function ThreadView({
     })
   }
 
-  const empty = (
+  const loadState = blocked ? (
     <div className="m-auto flex max-w-xs flex-col items-center gap-2 text-center">
       {history.status === 'loading' && <p className="text-sm text-ink-60">Загружаем историю…</p>}
       {history.status === 'error' && (
@@ -153,23 +161,29 @@ export function ThreadView({
           </button>
         </>
       )}
-      {showContent && (
-        <p className="text-sm text-ink-60">
-          Задайте вопрос по ценам, программам и условиям поступления или заполните форму ниже.
-        </p>
-      )}
     </div>
-  )
+  ) : undefined
 
   // Without a chat Enter and the send button go to the panel: it creates the chat first.
   const interceptSend = onSendWithoutChat !== undefined
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-surface">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-surface">
       <Thread
         serverRunning={serverRunning}
+        isEditable={history.isEditable}
+        onEdit={history.restartFrom}
+        connection={history.connection}
+        onProbe={history.probe}
+        probing={history.probing}
+        connectionHint="Проверьте адрес бэкенда в настройках расширения."
+        search={search}
         onRetry={() => {
-          if (lastMessage !== undefined) aui.thread.message({ index: messages.length - 1 }).reload()
+          if (lastMessage === undefined) return
+          // The saved question is the restart point: the server does not keep a second copy of it.
+          const asked = messages.filter((m) => m.role === 'user').at(-1)
+          if (asked !== undefined) history.restartFrom(asked.id)
+          aui.thread.message({ index: messages.length - 1 }).reload()
         }}
         onCancel={() => {
           if (localRunning) aui.thread.cancelRun()
@@ -177,7 +191,7 @@ export function ThreadView({
         }}
         onDownload={downloads.download}
         pendingDownloads={downloads.pending}
-        empty={empty}
+        empty={loadState}
         composer={
           <>
             {downloads.failedName !== null && (
@@ -190,21 +204,6 @@ export function ThreadView({
                 actionLabel="Закрыть"
                 onAction={downloads.dismiss}
               />
-            )}
-            {showContent && (
-              <div className={running ? 'opacity-50' : undefined}>
-                <QuickSearchForm
-                  open={formOpen}
-                  onToggle={() => {
-                    setOpenedAt(formOpen ? -1 : agentCount)
-                  }}
-                  pending={running}
-                  onSubmit={(query, title) => {
-                    setOpenedAt(-1)
-                    onQuickSearch(query, title)
-                  }}
-                />
-              </div>
             )}
             <div
               onSubmitCapture={
@@ -233,10 +232,30 @@ export function ThreadView({
                   : undefined
               }
             >
-              <Composer attachments={attachments} disabled={blocked} />
+              <Composer
+                attachments={attachments}
+                disabled={blocked}
+                voice={voice}
+                tools={
+                  <QuickSearchButton
+                    disabled={blocked || history.connection === 'offline'}
+                    onClick={() => {
+                      setSheetOpen(true)
+                    }}
+                  />
+                }
+              />
             </div>
           </>
         }
+      />
+      <QuickSearchSheet
+        open={sheetOpen}
+        value={draft.value}
+        onChange={draft.onChange}
+        pending={running}
+        onSubmit={onQuickSearch}
+        onOpenChange={setSheetOpen}
       />
     </div>
   )

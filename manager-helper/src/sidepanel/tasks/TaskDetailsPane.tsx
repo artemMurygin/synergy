@@ -14,16 +14,18 @@ interface Props {
   me: UserSummary
   /** Omitted when the list is always visible next to the details (tablet). */
   onBack?: () => void
+  /** Set on a tablet: "Закрыть" clears the selection. */
+  onClose?: () => void
   /** The task changed on the server: the list is stale. */
   onChanged: () => void
   /** The server no longer has the task (404). */
   onMissing: (taskId: string) => void
   /** The task was deleted from here. */
-  onDeleted: (taskId: string) => void
+  onDeleted: (taskId: string, title: string) => void
 }
 
 /** Container of the package `TaskDetails`: loads the task, saves the edits, owns the attachments. */
-export function TaskDetailsPane({ taskId, me, onBack, onChanged, onMissing, onDeleted }: Props) {
+export function TaskDetailsPane({ taskId, me, onBack, onClose, onChanged, onMissing, onDeleted }: Props) {
   const [task, setTask] = useState<TaskDetailsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -115,6 +117,7 @@ export function TaskDetailsPane({ taskId, me, onBack, onChanged, onMissing, onDe
       userSearch={userSearch}
       message={message}
       onBack={onBack}
+      onClose={onClose}
       onPatch={(patch: TaskPatch) => void apply(patch)}
       onStatus={(status: TaskStatus) => {
         if (status !== task.status) void apply({ status })
@@ -127,7 +130,7 @@ export function TaskDetailsPane({ taskId, me, onBack, onChanged, onMissing, onDe
       onDelete={() => {
         deleteTask(taskId).then(
           () => {
-            onDeleted(taskId)
+            onDeleted(taskId, task.title)
           },
           (failure: unknown) => {
             if (failure instanceof TaskNotFoundError) onMissing(taskId)

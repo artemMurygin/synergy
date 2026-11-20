@@ -4,17 +4,23 @@ import {
   ChatList,
   ChatsLayout,
   MobileTopBar,
+  ToastProvider,
   chatPaneVisibility,
   formatRelativeDateTime,
   useChatListCollapsed,
   useLayoutMode,
+  useToast,
 } from '@synergy/ui-kit'
+import type { ToastApi } from '@synergy/ui-kit'
 import type { ChatPanelMode, MessageFile } from '@synergy/ui-kit'
 import { MessagesSquare } from '@synergy/ui-kit/icons'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Thread, ThreadHistory } from '@/shared/threads-api'
 import { useChatHistory } from './ChatRuntimeProvider'
+import { ChatHeaderDialogs } from './ChatHeaderDialogs'
+import type { HeaderDialog } from './ChatHeaderDialogs'
+import { useQuickSearchDrafts } from './quick-search/use-quick-search-drafts'
 import { ThreadView } from './ThreadView'
 
 interface QueuedSend {
@@ -63,6 +69,7 @@ function chatMeta(iso: string | undefined): string | undefined {
 }
 
 interface ThreadPaneProps {
+  search: { open: boolean; onClose: () => void }
   activeId: string | null
   activeSession: Thread | undefined
   create: (title?: string) => Promise<Thread>
@@ -77,6 +84,7 @@ interface ThreadPaneProps {
 /** The thread of the active chat; lives inside the runtime provider. */
 function ThreadPane(props: ThreadPaneProps) {
   const { activeId, activeSession, create, rename, onSettled, onFinishedApplied, finished } = props
+  const [draftOf, setDraft] = useQuickSearchDrafts()
   const aui = useAui()
   const history = useChatHistory()
   const messageCount = useAuiState((s) => s.thread.messages.length)
@@ -145,6 +153,13 @@ function ThreadPane(props: ThreadPaneProps) {
       serverRunning={props.serverRunning}
       onStopServerRun={props.onStopServerRun}
       onQuickSearch={quickSearch}
+      quickSearchDraft={{
+        value: draftOf(activeId),
+        onChange: (value) => {
+          setDraft(activeId, value)
+        },
+      }}
+      search={props.search}
       onSendWithoutChat={
         activeId === null ? (text, files) => sendWithoutChat(text, undefined, files) : undefined
       }
@@ -158,6 +173,47 @@ function ThreadPane(props: ThreadPaneProps) {
  * draft and the active chat survive the 640 px threshold.
  */
 export function ChatPane(props: Props) {
+  return (
+    <ToastProvider>
+      <ChatPaneContent {...props} />
+    </ToastProvider>
+  )
+}
+
+/** Same as the list: a failed action is told by a toast with "Повторить" that repeats it. */
+async function attempt(
+  toast: ToastApi,
+  action: () => unknown,
+  failure: { title: string; description: string },
+): Promise<void> {
+  try {
+    await action()
+  } catch {
+    toast.show({
+      tone: 'error',
+      persistent: true,
+      ...failure,
+      action: {
+        label: 'Повторить',
+        onClick: () => {
+          void attempt(toast, action, failure)
+        },
+      },
+    })
+  }
+}
+
+function ChatPaneContent(props: Props) {
+  const toast = useToast()
+  const messageCount = useAuiState((s) => s.thread.messages.length)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [dialog, setDialog] = useState<HeaderDialog>(null)
+  const search = {
+    open: searchOpen,
+    onClose: () => {
+      setSearchOpen(false)
+    },
+  }
   const layout = useLayoutMode()
   const [collapsed, toggleCollapsed] = useChatListCollapsed()
   const panes = chatPaneVisibility(layout, props.mode)
@@ -191,6 +247,7 @@ export function ChatPane(props: Props) {
 
   const thread = (
     <ThreadPane
+      search={search}
       activeId={props.activeId}
       activeSession={activeSession}
       create={props.create}
@@ -246,6 +303,16 @@ export function ChatPane(props: Props) {
           <ChatHeader
             title={title}
             meta={meta}
+            emptyChat={messageCount === 0 || props.activeId === null}
+            onSearch={() => {
+              setSearchOpen(true)
+            }}
+            onRename={() => {
+              setDialog('rename')
+            }}
+            onDelete={() => {
+              setDialog('delete')
+            }}
             leading={
               collapsed ? (
                 <button
@@ -260,6 +327,29 @@ export function ChatPane(props: Props) {
             }
           />
           {thread}
+          <ChatHeaderDialogs
+            open={dialog}
+            title={title}
+            onClose={() => {
+              setDialog(null)
+            }}
+            onRename={(next) => {
+              const id = props.activeId
+              if (id === null) return
+              void attempt(toast, () => props.rename(id, next), {
+                title: 'Не удалось переименовать чат',
+                description: 'Сервер не принял новое название, прежнее сохранено.',
+              })
+            }}
+            onDelete={() => {
+              const id = props.activeId
+              if (id === null) return
+              void attempt(toast, () => props.remove(id), {
+                title: 'Не удалось удалить чат',
+                description: 'Чат остался в списке. Проверьте соединение и повторите.',
+              })
+            }}
+          />
         </>
       }
     />

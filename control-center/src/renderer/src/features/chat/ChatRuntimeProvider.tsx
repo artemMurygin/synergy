@@ -7,9 +7,9 @@ import {
   generateId
 } from '@assistant-ui/react'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
-import { withFileIds } from '@synergy/ui-kit'
-import { catchError, throwError } from 'rxjs'
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { USER_MESSAGE_SAVED_EVENT, useServerMessageIds, withFileIds, withReplaceFrom } from '@synergy/ui-kit'
+import { catchError, tap, throwError } from 'rxjs'
+import { createContext, useContext, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createAgent } from '@/lib/backend/agent'
 import type { MessageAttachment, MessageSource } from '@/lib/backend/schema'
@@ -20,6 +20,7 @@ import { isRunConflict, isUnreachable, UNREACHABLE_MESSAGE } from './run-errors'
 export type ChatHistoryMessage = Message & {
   attachments?: readonly MessageAttachment[]
   source?: MessageSource
+  editable?: boolean
 }
 
 interface ChatRuntimeProviderProps {
@@ -30,7 +31,23 @@ interface ChatRuntimeProviderProps {
    * messages the runtime does not hold (a system message posted meanwhile) replaces the feed.
    */
   initialMessages: readonly ChatHistoryMessage[]
+  /** A run that restarted the chat from a message has finished: the app rereads the history. */
+  onRestarted?: () => void
   children: ReactNode
+}
+
+/** What the thread needs to restart the chat from a question (edit, "Повторить"). */
+export interface ChatRestart {
+  /** "Изменить" is allowed: the server id of the question is known and it is `editable`. */
+  isEditable: (localId: string) => boolean
+  /** The next run replaces the chat from this question (nothing is set when its server id is unknown). */
+  restartFrom: (localId: string) => void
+}
+
+const RestartContext = createContext<ChatRestart>({ isEditable: () => false, restartFrom: () => undefined })
+
+export function useChatRestart(): ChatRestart {
+  return useContext(RestartContext)
 }
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
@@ -70,9 +87,50 @@ function withReadableErrors(agent: HttpAgent): HttpAgent {
 export function ChatRuntimeProvider({
   threadId,
   initialMessages,
+  onRestarted,
   children
 }: ChatRuntimeProviderProps) {
-  const agent = useMemo(() => withReadableErrors(withFileIds(createAgent(threadId))), [threadId])
+  const ids = useServerMessageIds()
+  const idsRef = useRef(ids)
+  const pending = useRef<string | null>(null)
+  const restarting = useRef(false)
+  const runtimeRef = useRef<ReturnType<typeof useAgUiRuntime> | null>(null)
+  const onRestartedRef = useRef(onRestarted)
+  useLayoutEffect(() => {
+    idsRef.current = ids
+    onRestartedRef.current = onRestarted
+  })
+
+  const agent = useMemo(() => {
+    const base = withFileIds(createAgent(threadId))
+    // The run that restarts the chat carries the point; the server names the saved question first
+    const withPoint = withReplaceFrom(base, () => {
+      const point = pending.current
+      pending.current = null
+      restarting.current = point !== null
+      return point
+    })
+    const run = withPoint.run.bind(withPoint)
+    withPoint.run = (input) =>
+      run(input).pipe(
+        tap({
+          next: (event) => {
+            if (event.type !== 'CUSTOM') return
+            const custom = event as unknown as { name: string; value?: unknown }
+            if (custom.name !== USER_MESSAGE_SAVED_EVENT) return
+            const messages = runtimeRef.current?.thread.getState().messages ?? []
+            const question = messages.filter((message) => message.role === 'user').at(-1)
+            if (question !== undefined) idsRef.current.onCustomEvent(custom, question.id)
+          },
+          complete: () => {
+            if (!restarting.current) return
+            restarting.current = false
+            onRestartedRef.current?.()
+          }
+        })
+      )
+    return withReadableErrors(withPoint)
+  }, [threadId])
 
   // Closing the chat tears the runtime down, which aborts its run and fires onCancel.
   // Only an explicit stop may cancel on the server: the answer must keep going otherwise.
@@ -92,12 +150,12 @@ export function ChatRuntimeProvider({
     }
   })
 
-  const runtimeRef = useRef(runtime)
   useLayoutEffect(() => {
     runtimeRef.current = runtime
   })
   const imported = useRef<readonly ChatHistoryMessage[] | null>(null)
   useLayoutEffect(() => {
+    if (runtimeRef.current === null) return
     const thread = runtimeRef.current.thread
     if (imported.current === initialMessages) return
     if (imported.current !== null) {
@@ -108,8 +166,23 @@ export function ChatRuntimeProvider({
       if (initialMessages.every((message) => held.has(message.id))) return
     }
     imported.current = initialMessages
+    idsRef.current.setFromHistory(initialMessages)
     thread.import(ExportedMessageRepository.fromArray(toRuntimeMessages(initialMessages)))
   }, [initialMessages])
 
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+  const restart = useMemo<ChatRestart>(
+    () => ({
+      isEditable: ids.isEditable,
+      restartFrom: (localId) => {
+        pending.current = ids.serverIdOf(localId) ?? null
+      }
+    }),
+    [ids]
+  )
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <RestartContext.Provider value={restart}>{children}</RestartContext.Provider>
+    </AssistantRuntimeProvider>
+  )
 }

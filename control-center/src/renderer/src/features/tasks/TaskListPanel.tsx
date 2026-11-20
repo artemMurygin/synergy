@@ -28,6 +28,7 @@ export function TaskListPanel({ onCreateTask }: TaskListPanelProps) {
   const selectedTaskId = useTasksStore((s) => s.selectedTaskId)
   const selectTask = useTasksStore((s) => s.selectTask)
   const setPage = useTasksStore((s) => s.setPage)
+  const resetFilters = useTasksStore((s) => s.resetFilters)
 
   const query = useQuery(tasksQuery(useTaskFilters()))
   const update = useUpdateTask()
@@ -64,6 +65,7 @@ export function TaskListPanel({ onCreateTask }: TaskListPanelProps) {
           selectedId={selectedTaskId}
           view={view}
           searching={search.trim() !== ''}
+          onResetFilters={resetFilters}
           onOpen={selectTask}
           onSetStatus={(id, status) => {
             update.mutate({ id, patch: { status } })

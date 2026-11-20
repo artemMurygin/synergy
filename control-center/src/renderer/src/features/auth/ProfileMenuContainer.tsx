@@ -42,11 +42,9 @@ export function ProfileMenuContainer() {
             if (!open) closePassword()
           }}
           pending={changePassword.isPending}
+          success={changePassword.isSuccess}
           error={changePasswordErrorText(changePassword.error)}
-          onSubmit={({ currentPassword, newPassword }) => { changePassword.mutate(
-              { currentPassword, newPassword, confirmPassword: newPassword },
-              { onSuccess: closePassword }
-            ); }
+          onSubmit={({ currentPassword, newPassword }) => { changePassword.mutate({ currentPassword, newPassword, confirmPassword: newPassword }); }
           }
         />
       ) : null}
