@@ -148,7 +148,7 @@ export function Thread({
               search?.onClose()
             }}
           />
-          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6">
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-4 sm:px-6 sm:pt-6">
             <div className="mx-auto flex w-full max-w-180 flex-1 flex-col gap-3">
               {messages.length === 0 && !serverRunning && (empty ?? <ThreadWelcome />)}
               <ThreadPrimitive.Messages>
@@ -158,36 +158,36 @@ export function Thread({
               </ThreadPrimitive.Messages>
               <RunningIndicator serverRunning={serverRunning} />
             </div>
-            <div className="pointer-events-none sticky bottom-3 flex justify-center empty:hidden [&>*]:pointer-events-auto">
-              <FeedNewMessage count={messages.length} />
+            <div className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-180 flex-col gap-2.5 pt-3 pb-3 sm:pb-6">
+              <div className="pointer-events-none flex justify-center empty:hidden [&>*]:pointer-events-auto">
+                <FeedNewMessage count={messages.length} />
+              </div>
+              {offline && (
+                <ConnectionBanner
+                  onRetry={onProbe ?? onRetry}
+                  retrying={probing}
+                  hint={connectionHint}
+                />
+              )}
+              {runConflict && <RunNotice kind="conflict" />}
+              {!offline && runError !== undefined && runError !== null && (
+                <RunNotice
+                  kind="error"
+                  title="Нет связи с сервером"
+                  text={runError}
+                  onRetry={onRetry}
+                />
+              )}
+              <NextSteps
+                lastAnswer={lastAnswer}
+                disabled={running || ended}
+                onSend={(query) => {
+                  aui.thread.append(query)
+                }}
+              />
+              {composer}
             </div>
           </ThreadPrimitive.Viewport>
-          <div className="mx-auto flex w-full max-w-180 flex-col gap-2.5 px-3 pt-3 pb-3 sm:px-6 sm:pb-6">
-            {offline && (
-              <ConnectionBanner
-                onRetry={onProbe ?? onRetry}
-                retrying={probing}
-                hint={connectionHint}
-              />
-            )}
-            {runConflict && <RunNotice kind="conflict" />}
-            {!offline && runError !== undefined && runError !== null && (
-              <RunNotice
-                kind="error"
-                title="Нет связи с сервером"
-                text={runError}
-                onRetry={onRetry}
-              />
-            )}
-            <NextSteps
-              lastAnswer={lastAnswer}
-              disabled={running || ended}
-              onSend={(query) => {
-                aui.thread.append(query)
-              }}
-            />
-            {composer}
-          </div>
         </ThreadPrimitive.Root>
       </ChatSearchQueryContext.Provider>
     </ThreadActionsContext.Provider>
