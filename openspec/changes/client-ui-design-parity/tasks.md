@@ -31,7 +31,7 @@
   - отмена по `req.on('close')`; Swagger-описание.
 
   Тесты: `interface/http/voice-transcriptions.controller.spec.ts` (supertest с фейком use case), прежние тесты guard зелёные. Реализация: контроллер, регистрация в `transcription.module.ts`
-- [x] 2.5 TDD: сквозная проверка модуля на реальном ffmpeg и фейковом провайдере: webm-запись → 200 с текстом; без токена → 401; без заголовка клиента → 403; 21-й запрос за минуту → 429. Тесты: `backend/src/modules/transcription/voice-transcription.integration.spec.ts`. Готово, когда тест и `npm run typecheck`, `npm run lint` зелёные
+- [x] 2.5 TDD: сквозная проверка модуля на реальном ffmpeg и фейковом провайдере: webm-запись → 200 с текстом; без токена → 401; неизвестный или `telegram` в `X-Client-App` → 400 (без заголовка — клиент `app`); 21-й запрос за минуту → 429. Тесты: `backend/src/modules/transcription/voice-transcription.integration.spec.ts`. Готово, когда тест и `npm run typecheck`, `npm run lint` зелёные
 
 ## 3. backend assistant: перезапуск ответа с сообщения
 > track: backend

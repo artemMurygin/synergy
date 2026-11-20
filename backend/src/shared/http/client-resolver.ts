@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { type AppClientId, ClientId } from './client-id';
+import { type AppClientId, ClientId } from '../client/client-id';
 
 export const CLIENT_APP_HEADER = 'X-Client-App';
 

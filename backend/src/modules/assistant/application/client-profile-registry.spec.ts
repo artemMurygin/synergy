@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentProfileId } from '../domain/agent-profile-id';
-import type { ClientId } from '../../../shared/http/client-id';
+import type { ClientId } from '../../../shared/client/client-id';
 import { ClientProfileRegistry, UnknownClientError } from './client-profile-registry';
 
 describe('ClientProfileRegistry', () => {

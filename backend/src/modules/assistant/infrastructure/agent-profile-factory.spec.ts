@@ -8,7 +8,7 @@ import {
     type CapabilityAgent,
 } from '../../../shared/agent-capability';
 import { ClientProfileRegistry, UnknownClientError } from '../application/client-profile-registry';
-import type { ClientId } from '../../../shared/http/client-id';
+import type { ClientId } from '../../../shared/client/client-id';
 
 const createDeepAgent = vi.hoisted(() => vi.fn());
 

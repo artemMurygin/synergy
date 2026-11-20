@@ -26,7 +26,7 @@
 | `RunInput` (existing, расширяется) | threadId, runId, question, attachments, **replaceFromMessageId?: string** | Самопроверяемый ввод запуска — `backend/src/modules/assistant/domain/run-input.ts` |
 | `AgentEvent` (existing, расширяется) | + `{ type: 'user-message-saved'; messageId }` | Доменное событие потока — `backend/src/modules/assistant/domain/agent-event.ts` |
 | `VoiceClip` (existing) | audio, mimeType, durationSec | Без изменений; длительность теперь серверная — `backend/src/modules/transcription/domain/voice-clip.ts` |
-| `NormalizedVoiceAudio` (new) | audio: Buffer (ogg/opus), durationSec | Результат нормализации — `backend/src/modules/transcription/domain/normalized-voice-audio.ts` |
+| `NormalizedVoiceAudio` (new) | audio: Buffer (ogg/opus), mimeType, durationSec | Результат нормализации — `backend/src/modules/transcription/domain/normalized-voice-audio.ts` |
 | `VoiceRateDecision` (new) | allowed: boolean, retryAfterSec | Результат проверки лимита — в файле порта лимита |
 
 ### Services

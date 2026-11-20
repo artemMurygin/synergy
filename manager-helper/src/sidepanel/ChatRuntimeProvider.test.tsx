@@ -217,6 +217,22 @@ describe('ChatRuntimeProvider restart', () => {
     expect(chat().isEditable('q1')).toBe(false)
     expect(chat().isEditable('q2')).toBe(true)
   })
+
+  it('sends no restart point for a question the server locked (editable:false)', async () => {
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [{ id: 'q1', role: 'user', content: 'старый', editable: false }],
+    })
+    const view = mount()
+    await waitFor(() => {
+      expect(view.messages()).toEqual(['старый'])
+    })
+    act(() => {
+      chat().restartFrom('q1')
+    })
+    await startRun('правка')
+    expect(agent.inputs[0]?.forwardedProps ?? {}).not.toHaveProperty('replaceFromMessageId')
+  })
 })
 
 describe('ChatRuntimeProvider', () => {

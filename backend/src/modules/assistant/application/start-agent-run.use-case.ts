@@ -8,7 +8,7 @@ import { ActiveRunRegistryPort } from '../domain/ports/active-run-registry.port'
 import { AttachmentFilesPort } from '../domain/ports/attachment-files.port';
 import { ChatSessionRepositoryPort } from '../domain/ports/chat-session-repository.port';
 import { ChatThreadPort } from '../domain/ports/chat-thread.port';
-import type { AppClientId } from '../../../shared/http/client-id';
+import type { AppClientId } from '../../../shared/client/client-id';
 import { AgentRunnerPort, type AgentRunScope } from '../domain/ports/agent-runner.port';
 import { findAppSession } from './find-app-session';
 import { RunConflictError } from '../domain/run-conflict.error';

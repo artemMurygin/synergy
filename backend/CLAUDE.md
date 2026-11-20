@@ -10,7 +10,7 @@
   - `infrastructure/` — адаптеры портов (`slonik-*.repository.ts`, клиенты внешних API).
   - `interface/` — HTTP (`interface/http/*.controller.ts`, `*.schemas.ts` на Zod), маппинг ошибок в статусы (`*-error-status.ts`).
   - `<module>.module.ts`, токены DI — `<module>.tokens.ts`.
-- `src/shared/` — общее: `ddd`, `errors`, `http`, `config` (`env.schema.ts` — все переменные окружения), `logger`, `queue`, `realtime`, `outbox`, `testing`, `people`.
+- `src/shared/` — общее: `ddd`, `errors`, `http`, `config` (`env.schema.ts` — все переменные окружения), `logger`, `queue`, `realtime`, `outbox`, `testing`, `people`, `client` (`ClientId` — клиент запроса, общий для `assistant` и `transcription`).
 - `src/database/postgres` — Slonik-пул и мигратор; тесты миграций `*-migration.spec.ts`.
 - `db/migrations/NNN_<name>.sql` — SQL-миграции, применяются при старте по порядку. Новый номер = последний + 1 (`ls db/migrations | tail -1`).
 

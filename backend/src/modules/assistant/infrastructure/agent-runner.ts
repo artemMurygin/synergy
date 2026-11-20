@@ -7,7 +7,7 @@ import {
     type CapabilityAgent,
 } from '../../../shared/agent-capability';
 import { AgentEvent, RUN_FAILED_PUBLIC_MESSAGE } from '../domain/agent-event';
-import type { ClientId } from '../../../shared/http/client-id';
+import type { ClientId } from '../../../shared/client/client-id';
 import { AgentRunnerPort, type AgentRunScope } from '../domain/ports/agent-runner.port';
 import type { RunInput } from '../domain/run-input';
 import { StreamEventMapper } from './map-stream-event';

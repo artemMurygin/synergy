@@ -328,7 +328,10 @@ function RuntimeHost({
       },
       isEditable: ids.isEditable,
       restartFrom: (messageId) => {
-        pendingReplace.current = ids.serverIdOf(messageId) ?? null
+        // A question the server locked (created before rewind points) cannot be a restart point
+        pendingReplace.current = ids.isEditable(messageId)
+          ? (ids.serverIdOf(messageId) ?? null)
+          : null
       },
       connection,
       probe: () => {
