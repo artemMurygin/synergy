@@ -32,7 +32,7 @@ import { CurrentUser, type AuthenticatedUser } from '../../../auth/interface/htt
 import { ApiErrorResponse } from '../../../../shared/http/api-error.response';
 import { AgUiEventMapper } from './ag-ui-event-mapper';
 import { ClientAppGuard } from '../../../../shared/http/client-app.guard';
-import { ClientResolver } from './client-resolver';
+import { ClientResolver } from '../../../../shared/http/client-resolver';
 import { assertChatSessionIdFormat } from './chat-session-id';
 import { ownerOf } from './owner-of';
 import { SseRunObserver } from './sse-run-observer';

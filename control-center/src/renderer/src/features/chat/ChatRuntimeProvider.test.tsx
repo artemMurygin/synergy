@@ -8,7 +8,7 @@ import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgent } from '@/lib/backend/agent'
 import { cancelRun } from '@/lib/backend/threads.api'
-import { ChatRuntimeProvider } from './ChatRuntimeProvider'
+import { ChatRuntimeProvider, useChatRestart } from './ChatRuntimeProvider'
 import { FakeAgent } from './fake-agent'
 
 vi.mock('@/lib/backend/agent')
@@ -185,5 +185,42 @@ describe('ChatRuntimeProvider', () => {
       await Promise.resolve()
     })
     expect(cancelRun).not.toHaveBeenCalled()
+  })
+
+  it('restartFrom of a not editable history question sets no replace point', async () => {
+    let restart: ReturnType<typeof useChatRestart> | null = null
+    function Grab() {
+      restart = useChatRestart()
+      return null
+    }
+    render(
+      <ChatRuntimeProvider
+        threadId="t1"
+        initialMessages={[
+          { id: 'u1', role: 'user', content: 'старый', editable: false },
+          { id: 'u2', role: 'user', content: 'новый', editable: true }
+        ]}
+      >
+        <Probe />
+        <Grab />
+      </ChatRuntimeProvider>
+    )
+    const first = (aui().thread.getState().messages[0] as { id: string }).id
+    const second = (aui().thread.getState().messages[1] as { id: string }).id
+    act(() => restart?.restartFrom(first))
+    await startRun('ещё')
+    expect(
+      (agent.inputs[0]?.forwardedProps as { replaceFromMessageId?: string } | undefined)?.replaceFromMessageId
+    ).toBeUndefined()
+    emit({ type: EventType.RUN_STARTED, threadId: 't1', runId: 'r' })
+    emit({ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r' })
+    act(() => restart?.restartFrom(second))
+    await startRun('и ещё')
+    await waitFor(() => {
+      expect(agent.inputs.length).toBeGreaterThan(0)
+    })
+    expect(
+      (agent.inputs.at(-1)?.forwardedProps as { replaceFromMessageId?: string } | undefined)?.replaceFromMessageId
+    ).toBe('u2')
   })
 })

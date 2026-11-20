@@ -13,22 +13,18 @@ export class AgUiEventMapper {
     private messageCount = 0;
     private openMessageId: string | null = null;
     private readonly openToolCalls = new Set<string>();
+    private pendingSavedMessageId: string | null = null;
 
     constructor(private readonly context: AgUiRunContext) {}
 
     map(event: AgentEvent): BaseEvent[] {
         switch (event.type) {
             case 'user-message-saved':
-                // Before RUN_STARTED; clients that do not know CUSTOM ignore it.
-                return [
-                    {
-                        type: EventType.CUSTOM,
-                        name: USER_MESSAGE_SAVED_EVENT_NAME,
-                        value: { messageId: event.messageId },
-                    },
-                ];
+                // AG-UI requires RUN_STARTED first: hold the id back and send it right after.
+                this.pendingSavedMessageId = event.messageId;
+                return [];
             case 'run-started':
-                return [{ type: EventType.RUN_STARTED, ...this.context }];
+                return [{ type: EventType.RUN_STARTED, ...this.context }, ...this.savedMessage()];
             case 'text-delta':
                 return this.text(event.text);
             case 'tool-call-started':
@@ -70,6 +66,15 @@ export class AgUiEventMapper {
                     },
                 ];
         }
+    }
+
+    private savedMessage(): BaseEvent[] {
+        if (this.pendingSavedMessageId === null) return [];
+        const messageId = this.pendingSavedMessageId;
+        this.pendingSavedMessageId = null;
+        return [
+            { type: EventType.CUSTOM, name: USER_MESSAGE_SAVED_EVENT_NAME, value: { messageId } },
+        ];
     }
 
     private text(delta: string): BaseEvent[] {

@@ -187,8 +187,11 @@ describe('AgUiEventMapper', () => {
     });
 
     describe('user-message-saved', () => {
-        it('maps to CUSTOM user-message-saved with the message id', () => {
-            expect(newMapper().map(AgentEvent.userMessageSaved('42'))).toEqual([
+        it('is held back until RUN_STARTED and sent right after it as CUSTOM', () => {
+            const mapper = newMapper();
+            expect(mapper.map(AgentEvent.userMessageSaved('42'))).toEqual([]);
+            expect(mapper.map(AgentEvent.runStarted())).toEqual([
+                { type: EventType.RUN_STARTED, threadId: 'thread-1', runId: 'run-1' },
                 {
                     type: EventType.CUSTOM,
                     name: 'user-message-saved',
@@ -197,7 +200,7 @@ describe('AgUiEventMapper', () => {
             ]);
         });
 
-        it('comes before RUN_STARTED and before the first text fragment', () => {
+        it('never puts anything before RUN_STARTED', () => {
             const mapper = newMapper();
             const all = [
                 AgentEvent.userMessageSaved('42'),
@@ -205,8 +208,8 @@ describe('AgUiEventMapper', () => {
                 AgentEvent.textDelta('Привет'),
             ].flatMap((event) => mapper.map(event));
             expect(types(all)).toEqual([
-                EventType.CUSTOM,
                 EventType.RUN_STARTED,
+                EventType.CUSTOM,
                 EventType.TEXT_MESSAGE_START,
                 EventType.TEXT_MESSAGE_CONTENT,
             ]);
@@ -215,6 +218,7 @@ describe('AgUiEventMapper', () => {
         it('does not open a text message', () => {
             const mapper = newMapper();
             mapper.map(AgentEvent.userMessageSaved('42'));
+            mapper.map(AgentEvent.runStarted());
             expect(
                 types(
                     mapper.map(

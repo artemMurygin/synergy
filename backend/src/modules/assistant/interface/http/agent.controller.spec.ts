@@ -223,8 +223,8 @@ describe('AgentController', () => {
         expect(response.headers.get('content-type')).toContain('text/event-stream');
         const events = parseSse(await response.text());
         expect(events.map((event) => event.type)).toEqual([
-            'CUSTOM',
             'RUN_STARTED',
+            'CUSTOM',
             'TEXT_MESSAGE_START',
             'TEXT_MESSAGE_CONTENT',
             'TEXT_MESSAGE_CONTENT',
@@ -238,8 +238,8 @@ describe('AgentController', () => {
             'TEXT_MESSAGE_END',
             'RUN_FINISHED',
         ]);
-        expect(events[0]).toMatchObject({ name: 'user-message-saved' });
-        expect(events[1]).toMatchObject({ threadId, runId: 'run-1' });
+        expect(events[0]).toMatchObject({ type: 'RUN_STARTED', threadId, runId: 'run-1' });
+        expect(events[1]).toMatchObject({ name: 'user-message-saved' });
         expect(assistant.inputs[0]).toMatchObject({ threadId, question: 'Сколько стоит МВА?' });
     });
 
@@ -542,7 +542,7 @@ describe('AgentController', () => {
                 forwardedProps: { replaceFromMessageId: messageId },
             });
 
-        it('replaces the question and the answer; the stream starts with user-message-saved', async () => {
+        it('replaces the question and the answer; user-message-saved follows RUN_STARTED', async () => {
             const { q2 } = await twoPairs();
             assistant.script = finishedRun('новый a2');
 
@@ -552,12 +552,12 @@ describe('AgentController', () => {
             const events = parseSse(await response.text());
             const stored = await repository.listMessages(threadId, TEST_USER);
             expect(stored.map((m) => m.text)).toEqual(['q1', 'a1', 'новый q2', 'новый a2']);
-            expect(events[0]).toMatchObject({
+            expect(events[0]?.type).toBe('RUN_STARTED');
+            expect(events[1]).toMatchObject({
                 type: 'CUSTOM',
                 name: 'user-message-saved',
                 value: { messageId: String(stored[2]?.id) },
             });
-            expect(events[1]?.type).toBe('RUN_STARTED');
         });
 
         it('starts the agent from the checkpoint of the replaced question', async () => {

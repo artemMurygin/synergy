@@ -337,6 +337,20 @@ describe('ChatThread', () => {
       expect(screen.getAllByText('мой вопрос')).toHaveLength(1)
     })
 
+    it('a saved event before RUN_STARTED does not break the run', async () => {
+      vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
+      const user = mount()
+      await ask(user, 'вопрос')
+      emit(saved('77'))
+      emit({ type: EventType.RUN_STARTED, threadId: 't1', runId: 'r' })
+      emit({ type: EventType.TEXT_MESSAGE_START, messageId: 'x', role: 'assistant' })
+      emit({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: 'x', delta: 'ответ агента' })
+      emit({ type: EventType.TEXT_MESSAGE_END, messageId: 'x' })
+      emit({ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r' })
+      expect(await screen.findByText('ответ агента')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull()
+    })
+
     it('"Повторить" without a known server id restarts without a point', async () => {
       vi.mocked(getThreadHistory).mockResolvedValue({ running: false, messages: [] })
       const user = mount()

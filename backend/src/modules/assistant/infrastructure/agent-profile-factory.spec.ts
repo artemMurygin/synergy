@@ -8,7 +8,7 @@ import {
     type CapabilityAgent,
 } from '../../../shared/agent-capability';
 import { ClientProfileRegistry, UnknownClientError } from '../application/client-profile-registry';
-import type { ClientId } from '../domain/client-id';
+import type { ClientId } from '../../../shared/http/client-id';
 
 const createDeepAgent = vi.hoisted(() => vi.fn());
 
@@ -215,5 +215,13 @@ describe('buildOrchestratorPrompt', () => {
         expect(prompt).toMatch(/из предыдущего ответа/i);
         expect(prompt).toMatch(/не пересказывай/i);
         expect(prompt).toMatch(/основани/i);
+    });
+
+    it('bans answering calls from memory and mentions calls in the fallback refusal', () => {
+        const prompt = buildOrchestratorPrompt([capability('vocal-ai', 'fork')]);
+
+        expect(prompt).toMatch(/ценам, задачам, встречам и звонкам из собственных знаний/);
+        expect(prompt).toMatch(/ни к записям встреч, ни к звонкам/);
+        expect(prompt).toMatch(/ценовой политикой, задачами, записями встреч и звонками/);
     });
 });

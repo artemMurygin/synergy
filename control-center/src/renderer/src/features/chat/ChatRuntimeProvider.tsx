@@ -8,7 +8,7 @@ import {
 } from '@assistant-ui/react'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import { USER_MESSAGE_SAVED_EVENT, useServerMessageIds, withFileIds, withReplaceFrom } from '@synergy/ui-kit'
-import { catchError, tap, throwError } from 'rxjs'
+import { catchError, filter, tap, throwError } from 'rxjs'
 import { createContext, useContext, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createAgent } from '@/lib/backend/agent'
@@ -101,6 +101,10 @@ function readableRunError(error: unknown): unknown {
   return error
 }
 
+function isSavedEvent(event: { type: string }): boolean {
+  return event.type === 'CUSTOM' && (event as unknown as { name?: string }).name === USER_MESSAGE_SAVED_EVENT
+}
+
 function withReadableErrors(agent: HttpAgent): HttpAgent {
   const run = agent.run.bind(agent)
   agent.run = (input) => run(input).pipe(catchError((error: unknown) => throwError(() => readableRunError(error))))
@@ -151,7 +155,9 @@ export function ChatRuntimeProvider({
             restarting.current = false
             onRestartedRef.current?.()
           }
-        })
+        }),
+        // The saved event comes before RUN_STARTED: the AG-UI verifier would reject the stream with it
+        filter((event) => !isSavedEvent(event))
       )
     return withReadableErrors(withPoint)
   }, [threadId])
@@ -198,7 +204,8 @@ export function ChatRuntimeProvider({
     () => ({
       isEditable: ids.isEditable,
       restartFrom: (localId) => {
-        pending.current = ids.serverIdOf(localId) ?? null
+        // A question the server locked (created before rewind points) cannot be a restart point
+        pending.current = ids.isEditable(localId) ? (ids.serverIdOf(localId) ?? null) : null
       }
     }),
     [ids]

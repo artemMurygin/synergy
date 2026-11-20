@@ -8,7 +8,7 @@ import type {
     CapabilityAgent,
 } from '../../../shared/agent-capability';
 import type { ClientProfileRegistry } from '../application/client-profile-registry';
-import type { ClientId } from '../domain/client-id';
+import type { ClientId } from '../../../shared/http/client-id';
 import type { AgentContextWriterPort } from '../domain/ports/agent-context-writer.port';
 import { buildOrchestratorPrompt } from './orchestrator-prompt';
 

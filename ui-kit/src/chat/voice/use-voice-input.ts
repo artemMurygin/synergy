@@ -3,6 +3,8 @@ import { VoiceError, type VoiceTranscriptionPort } from './types'
 import { levelOf } from './voice-level'
 
 export const MAX_RECORDING_SEC = 180
+// Запас в 1 с: таймер стартует раньше recorder.start(), а сервер отклоняет длительность > 180 с.
+const AUTO_STOP_SEC = MAX_RECORDING_SEC - 1
 const MIME_TYPE = 'audio/webm;codecs=opus'
 const LEVEL_INTERVAL_MS = 100
 
@@ -186,7 +188,7 @@ export function useVoiceInput(
   }, [transcribe])
 
   useEffect(() => {
-    if (state === 'recording' && elapsedSec >= MAX_RECORDING_SEC) stop()
+    if (state === 'recording' && elapsedSec >= AUTO_STOP_SEC) stop()
   }, [state, elapsedSec, stop])
 
   useEffect(

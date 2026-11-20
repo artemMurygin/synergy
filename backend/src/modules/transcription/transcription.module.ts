@@ -1,7 +1,6 @@
 import {
     Inject,
     Injectable,
-    Logger,
     Module,
     type OnApplicationShutdown,
     type OnModuleInit,
@@ -97,8 +96,9 @@ class VoiceRedisLifecycle implements OnApplicationShutdown {
         TranscribeUploadedVoiceUseCase,
         {
             provide: VOICE_REDIS,
-            inject: [ConfigService],
-            useFactory: (config: ConfigService<Env, true>): Redis => {
+            inject: [ConfigService, PinoLogger],
+            useFactory: (config: ConfigService<Env, true>, logger: PinoLogger): Redis => {
+                logger.setContext('VoiceRedis');
                 const client = new Redis({
                     host: config.get('REDIS_HOST', { infer: true }),
                     port: config.get('REDIS_PORT', { infer: true }),
@@ -108,9 +108,8 @@ class VoiceRedisLifecycle implements OnApplicationShutdown {
                     commandTimeout: 1000,
                     maxRetriesPerRequest: 1,
                 });
-                const logger = new Logger('VoiceRedis');
                 client.on('error', (error: Error) => {
-                    logger.error(error.message);
+                    logger.error({ err: error }, 'Voice Redis connection error');
                 });
                 return client;
             },

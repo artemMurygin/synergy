@@ -1,5 +1,5 @@
 import type { AgentProfileId } from '../domain/agent-profile-id';
-import { CLIENT_IDS, type ClientId } from '../domain/client-id';
+import { CLIENT_IDS, type ClientId } from '../../../shared/http/client-id';
 
 export class UnknownClientError extends Error {
     constructor(client: unknown) {

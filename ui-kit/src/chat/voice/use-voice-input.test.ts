@@ -139,7 +139,7 @@ describe('useVoiceInput', () => {
     await startRecording(hook)
     expect(MAX_RECORDING_SEC).toBe(180)
     act(() => {
-      vi.advanceTimersByTime(180_000)
+      vi.advanceTimersByTime(179_000)
     })
     expect(hook.result.current.state).toBe('transcribing')
     expect(calls).toHaveLength(1)

@@ -1,5 +1,5 @@
 import type { AgentEvent } from '../agent-event';
-import type { ClientId } from '../client-id';
+import type { ClientId } from '../../../../shared/http/client-id';
 import type { RunInput } from '../run-input';
 import type { ToolCallTrace } from '../tool-call-trace';
 

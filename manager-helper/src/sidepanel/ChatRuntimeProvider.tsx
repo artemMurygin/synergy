@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-deprecated -- the assistant-ui thread list adapter and message converters are the experimental API this provider is specified to use */
-import { EventType } from '@ag-ui/client'
-import type { BaseEvent, CustomEvent, HttpAgent } from '@ag-ui/client'
+import type { HttpAgent } from '@ag-ui/client'
 import {
   AssistantRuntimeProvider,
   useAuiState,
@@ -12,13 +11,12 @@ import type { ThreadMessage } from '@assistant-ui/core'
 import { fromAgUiMessages, useAgUiRuntime } from '@assistant-ui/react-ag-ui'
 import type { UseAgUiThreadListAdapter } from '@assistant-ui/react-ag-ui'
 import {
-  USER_MESSAGE_SAVED_EVENT,
+  connectRestartRuns,
   useServerMessageIds,
   useServerReachability,
-  withReplaceFrom,
+  withToolDurations,
 } from '@synergy/ui-kit'
 import type { Connection } from '@synergy/ui-kit'
-import { filter, tap } from 'rxjs'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { setActiveSessionId } from '@/shared/active-session'
@@ -85,34 +83,10 @@ const FAILED = ''
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
 
-/** `durationMs` of the stored tool calls by call id: AG-UI conversion drops the field. */
-function toolDurations(messages: ThreadHistory['messages']): Map<string, number> {
-  const durations = new Map<string, number>()
-  for (const message of messages) {
-    if (message.role !== 'assistant') continue
-    for (const call of message.toolCalls ?? []) {
-      if ('durationMs' in call && typeof call.durationMs === 'number') durations.set(call.id, call.durationMs)
-    }
-  }
-  return durations
-}
-
 /** Converts the history into runtime messages; files and source go into `metadata.custom`, call durations into the artifact. */
 function toThreadMessages(messages: ThreadHistory['messages']) {
   const extras = new Map(messages.map((message) => [message.id, message]))
-  const durations = toolDurations(messages)
-  return fromAgUiMessages([...messages]).map((converted): ThreadMessage => {
-    const like =
-      durations.size === 0 || typeof converted.content === 'string'
-        ? converted
-        : {
-            ...converted,
-            content: converted.content.map((part) => {
-              if (part.type !== 'tool-call') return part
-              const durationMs = part.toolCallId === undefined ? undefined : durations.get(part.toolCallId)
-              return durationMs === undefined ? part : { ...part, artifact: { durationMs } }
-            }),
-          }
+  return withToolDurations(messages, fromAgUiMessages([...messages])).map((like): ThreadMessage => {
     const extra = like.id === undefined ? undefined : extras.get(like.id)
     const metadata = like.metadata ?? {}
     const custom = {
@@ -151,44 +125,15 @@ class RunControl {
     this.handlers = handlers
   }
 
-  takePending(): string | null {
-    const id = this.handlers.takePending()
-    if (id !== null) this.handlers.onRestarted()
-    return id
-  }
+  readonly takePending = (): string | null => this.handlers.takePending()
 
-  saved(event: { name: string; value?: unknown }, localId: string): void {
+  readonly onSaved = (event: { name: string; value?: unknown }, localId: string): void => {
     this.handlers.onSaved(event, localId)
   }
-}
 
-function lastUserMessageId(messages: readonly { id: string; role: string }[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message?.role === 'user') return message.id
+  readonly onRestarted = (): void => {
+    this.handlers.onRestarted()
   }
-  return ''
-}
-
-function isSavedEvent(event: BaseEvent): event is CustomEvent {
-  return event.type === EventType.CUSTOM && 'name' in event && event.name === USER_MESSAGE_SAVED_EVENT
-}
-
-/** Replace point of the next run, the server id of the saved question and a mark that a restart ran. */
-function connectRuns(agent: HttpAgent, control: RunControl): HttpAgent {
-  withReplaceFrom(agent, () => control.takePending())
-  const run = agent.run.bind(agent)
-  agent.run = (input) => {
-    const localId = lastUserMessageId(input.messages)
-    return run(input).pipe(
-      tap((event) => {
-        if (isSavedEvent(event)) control.saved({ name: event.name, value: event.value }, localId)
-      }),
-      // It comes before RUN_STARTED: the runtime must not see an event ahead of the start.
-      filter((event) => !isSavedEvent(event)),
-    )
-  }
-  return agent
 }
 
 export function ChatRuntimeProvider(props: Props) {
@@ -200,7 +145,7 @@ export function ChatRuntimeProvider(props: Props) {
     let stale = false
     createAgent(initialId.current).then(
       (created) => {
-        if (!stale) setAgent(connectRuns(created, control))
+        if (!stale) setAgent(connectRestartRuns(created, control))
       },
       () => undefined,
     )

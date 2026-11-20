@@ -1,9 +1,7 @@
 import { Controller, Get, Post, UseGuards, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AgentController } from '../../modules/assistant/interface/http/agent.controller';
 import { ClientAppGuard } from './client-app.guard';
-import { ThreadsController } from '../../modules/assistant/interface/http/threads.controller';
 
 @Controller('probe')
 @UseGuards(ClientAppGuard)
@@ -50,10 +48,5 @@ describe('ClientAppGuard', () => {
             headers: { 'x-client-app': value },
         });
         expect(response.status).toBe(400);
-    });
-
-    it.each([AgentController, ThreadsController])('guards %o', (controller) => {
-        const guards = Reflect.getMetadata('__guards__', controller) as unknown[];
-        expect(guards).toContain(ClientAppGuard);
     });
 });
