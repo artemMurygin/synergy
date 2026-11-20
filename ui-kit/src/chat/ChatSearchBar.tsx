@@ -27,7 +27,7 @@ export function ChatSearchBar({ open, query, onQueryChange, current, total, onNe
   const empty = searching && total === 0
   return (
     <div role="search" className="flex h-16 shrink-0 items-center gap-2 px-3 font-chat">
-      <div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[22px] bg-surface-alt px-[18px]">
+      <div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[22px] bg-surface/95 px-[18px] shadow-panel backdrop-blur-sm">
         <Search size={18} className="shrink-0 text-ink-60" />
         <input
           ref={input}

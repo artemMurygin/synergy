@@ -58,7 +58,7 @@ function Header({ title = '', meta, onShowList, chat, editor }: HeaderProps) {
   const create = useCreateThread()
   const leading =
     onShowList === undefined ? undefined : (
-      <div className="flex h-11 items-center rounded-[22px] bg-surface-alt px-1">
+      <div className="flex h-11 items-center rounded-[22px] bg-surface/95 px-1 shadow-panel backdrop-blur-sm">
         <PanelHeaderButton label="Показать список чатов" icon={<PanelLeftOpen />} onClick={onShowList} />
         <PanelHeaderButton
           label="Новый чат"

@@ -32,6 +32,7 @@ export function ChatHeader({ title, meta, actions, leading, onSearch, onRename, 
       title={title}
       meta={meta}
       leading={leading}
+      floating
       actions={
         search || menu || hasActions ? (
           <>

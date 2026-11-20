@@ -7,19 +7,22 @@ export type PanelHeaderProps = {
   leading?: ReactNode
   actions?: ReactNode
   className?: string
+  /** Шапка плавает поверх прокручиваемого содержимого: капсулы белые с тенью, чтобы читаться над лентой. */
+  floating?: boolean
 }
 
 /** Шапка панели: капсула с заголовком и капсула с действиями (макет Chat Header). */
-export function PanelHeader({ title, meta, leading, actions, className }: PanelHeaderProps) {
+export function PanelHeader({ title, meta, leading, actions, className, floating = false }: PanelHeaderProps) {
+  const capsule = floating ? 'bg-surface/95 shadow-panel backdrop-blur-sm' : 'bg-surface-alt'
   return (
     <header className={cn('flex h-16 shrink-0 items-center gap-2 px-3', className)}>
       {leading}
-      <div className="flex h-11 min-w-0 items-center gap-2.5 rounded-[22px] bg-surface-alt px-4">
+      <div className={cn('flex h-11 min-w-0 items-center gap-2.5 rounded-[22px] px-4', capsule)}>
         <h2 className="truncate text-lg font-semibold text-ink">{title}</h2>
         {meta ? <span className="shrink-0 text-[13px] text-ink-60">{meta}</span> : null}
       </div>
       <div className="flex-1" />
-      {actions ? <div className="flex h-11 items-center rounded-[22px] bg-surface-alt px-1">{actions}</div> : null}
+      {actions ? <div className={cn('flex h-11 items-center rounded-[22px] px-1', capsule)}>{actions}</div> : null}
     </header>
   )
 }

@@ -318,7 +318,7 @@ function ChatPaneContent(props: Props) {
                 <button
                   type="button"
                   aria-label="Показать список чатов"
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-alt text-ink hover:bg-surface-sunken"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface text-ink shadow-panel hover:bg-surface-alt"
                   onClick={toggleCollapsed}
                 >
                   <MessagesSquare />

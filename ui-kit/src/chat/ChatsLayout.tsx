@@ -47,7 +47,17 @@ export function ChatsLayout({ list, chat, listHidden = false, mobileScreen = 'ch
         className={cn(
           'flex min-w-0 flex-1 flex-col',
           // On mobile the top bar floats over the feed: the feed scrolls under it and starts below it.
-          mobile ? 'relative min-h-0 overflow-hidden [&_.overflow-y-auto]:pt-[76px]' : cn('h-full', PANEL),
+          mobile
+            ? 'relative min-h-0 overflow-hidden [&_.overflow-y-auto]:pt-[76px]'
+            : cn(
+                'relative h-full',
+                PANEL,
+                // Desktop/tablet: the header and the search bar float over the feed (transparent),
+                // the feed scrolls under them and starts below them.
+                '[&_header]:absolute [&_header]:inset-x-0 [&_header]:top-0 [&_header]:z-20',
+                '[&_[role=search]]:absolute [&_[role=search]]:inset-x-0 [&_[role=search]]:top-16 [&_[role=search]]:z-20',
+                '[&_.overflow-y-auto]:pt-[76px] has-[[role=search]]:[&_.overflow-y-auto]:pt-[140px]',
+              ),
           mobile && mobileScreen === 'list' && 'hidden',
         )}
       >
