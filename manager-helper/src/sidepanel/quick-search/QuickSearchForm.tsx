@@ -290,7 +290,7 @@ export function QuickSearchForm({ value, onChange, pending, onSubmit, header }: 
 
         <div className="flex flex-wrap items-start gap-x-6 gap-y-3.5">
           {value.segment === 'education' && EGE_LEVELS.includes(value.level) && (
-            <Field label="ЕГЭ" className="min-w-0 flex-1">
+            <Field label="ЕГЭ" className="shrink-0">
               <Chips
                 options={EGE_OPTIONS}
                 selected={(id) => value.ege === id}
