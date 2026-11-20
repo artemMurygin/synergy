@@ -274,7 +274,8 @@ describe('ChatThread', () => {
     expect(await screen.findByText('search_programs')).toBeTruthy()
   })
 
-  it('shows the hints of the next step above the form for a list of programs and sends the chosen one', async () => {
+  // NextSteps hidden in Thread until the next release.
+  it.skip('shows the hints of the next step above the form for a list of programs and sends the chosen one', async () => {
     vi.mocked(getThreadHistory).mockResolvedValue({
       running: false,
       messages: [

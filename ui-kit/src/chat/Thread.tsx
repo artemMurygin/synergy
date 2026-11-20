@@ -1,6 +1,6 @@
 import {
   ThreadPrimitive,
-  useAui,
+  // useAui, — NextSteps hidden until the next release
   useAuiState,
   useThreadViewport,
   useThreadViewportStore,
@@ -13,7 +13,8 @@ import { ConnectionBanner } from './ConnectionBanner'
 import type { MessageFile } from './attachments/file-upload-port'
 import { AssistantMessage } from './AssistantMessage'
 import { NewMessageButton } from './NewMessageButton'
-import { NextSteps } from './NextSteps'
+// NextSteps hidden until the next release: the hints are being rethought.
+// import { NextSteps } from './NextSteps'
 import { RunNotice } from './RunNotice'
 import { RunningIndicator } from './RunningIndicator'
 import { ThreadActionsContext } from './thread-context'
@@ -54,9 +55,10 @@ export type ThreadProps = {
   search?: { open: boolean; onClose: () => void }
 }
 
-function answerText(content: readonly { type: string; text?: string }[]): string {
-  return content.map((part) => (part.type === 'text' ? (part.text ?? '') : '')).join('')
-}
+// NextSteps hidden until the next release: the text of the last answer picks the hints.
+// function answerText(content: readonly { type: string; text?: string }[]): string {
+//   return content.map((part) => (part.type === 'text' ? (part.text ?? '') : '')).join('')
+// }
 
 function FeedNewMessage({ count }: { count: number }) {
   const isAtBottom = useThreadViewport((s) => s.isAtBottom)
@@ -93,17 +95,18 @@ export function Thread({
 }: ThreadProps) {
   const offline = connection === 'offline'
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
-  const aui = useAui()
+  // const aui = useAui() — NextSteps hidden until the next release
   const scope = useRef<HTMLDivElement>(null)
   const searching = search?.open === true
   const found = useChatSearch(searching, scope)
   const messages = useAuiState((s) => s.thread.messages)
-  const localRunning = useAuiState((s) => s.thread.isRunning)
-  const last = messages.at(-1)
-  const lastStatus = last?.role === 'assistant' ? last.status : undefined
-  const ended = lastStatus?.type === 'incomplete'
-  const running = localRunning || serverRunning
-  const lastAnswer = last?.role === 'assistant' ? answerText(last.content) : ''
+  // NextSteps hidden until the next release: the state below only fed the hints.
+  // const localRunning = useAuiState((s) => s.thread.isRunning)
+  // const last = messages.at(-1)
+  // const lastStatus = last?.role === 'assistant' ? last.status : undefined
+  // const ended = lastStatus?.type === 'incomplete'
+  // const running = localRunning || serverRunning
+  // const lastAnswer = last?.role === 'assistant' ? answerText(last.content) : ''
 
   const actions = useMemo(
     () => ({
@@ -178,6 +181,7 @@ export function Thread({
                   onRetry={onRetry}
                 />
               )}
+              {/* NextSteps hidden until the next release: the hints are being rethought.
               <NextSteps
                 lastAnswer={lastAnswer}
                 disabled={running || ended}
@@ -185,6 +189,7 @@ export function Thread({
                   aui.thread.append(query)
                 }}
               />
+              */}
               {composer}
             </div>
           </ThreadPrimitive.Viewport>

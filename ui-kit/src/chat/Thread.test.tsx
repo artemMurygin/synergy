@@ -127,7 +127,8 @@ describe('Thread', () => {
     expect(screen.getByRole('alert').textContent).toContain('Проверьте адрес бэкенда в настройках расширения')
   })
 
-  it('offers next steps under a finished overview and sends the chosen one', async () => {
+  // NextSteps hidden in Thread until the next release.
+  it.skip('offers next steps under a finished overview and sends the chosen one', async () => {
     const { user } = mount(answering('Подборка:\n1. MBA\n2. Executive MBA'), {}, 'подбери')
     const step = await screen.findByRole('button', { name: 'Вступительные' })
     await user.click(step)

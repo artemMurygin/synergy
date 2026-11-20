@@ -494,7 +494,8 @@ describe('App', () => {
     expect(renameThread).toHaveBeenCalledWith('a', expect.stringMatching(/\S/))
   })
 
-  it('next steps send their question into the active chat', async () => {
+  // NextSteps hidden in Thread until the next release.
+  it.skip('next steps send their question into the active chat', async () => {
     vi.mocked(getThread).mockResolvedValue(
       history(false, 'вопрос', '1. Программа А\n2. Программа Б'),
     )
