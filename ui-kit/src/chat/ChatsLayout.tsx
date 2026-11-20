@@ -29,7 +29,8 @@ export function ChatsLayout({ list, chat, listHidden = false, mobileScreen = 'ch
     >
       {mobile ? (
         mobileScreen === 'list' ? (
-          list
+          // The top bar floats over the screen (transparent): the list starts below it.
+          <div className="relative flex min-h-0 flex-1 flex-col pt-16">{list}</div>
         ) : null
       ) : (
         !listHidden && (
@@ -45,7 +46,8 @@ export function ChatsLayout({ list, chat, listHidden = false, mobileScreen = 'ch
         hidden={mobile && mobileScreen === 'list'}
         className={cn(
           'flex min-w-0 flex-1 flex-col',
-          mobile ? 'min-h-0 overflow-hidden' : cn('h-full', PANEL),
+          // On mobile the top bar floats over the feed: the feed scrolls under it and starts below it.
+          mobile ? 'relative min-h-0 overflow-hidden [&_.overflow-y-auto]:pt-[76px]' : cn('h-full', PANEL),
           mobile && mobileScreen === 'list' && 'hidden',
         )}
       >
