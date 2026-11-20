@@ -13,15 +13,15 @@ export type AppFrameProps = {
   onSectionChange: (id: string) => void
 }
 
-/** Оболочка приложения: рейл (desktop/tablet) или плавающий таб-бар с отступом (mobile). */
+/** Оболочка приложения: рейл (desktop/tablet) или плавающий таб-бар поверх содержимого (mobile). */
 export function AppFrame({ nav, header, body, sections, activeSection, onSectionChange }: AppFrameProps) {
   const mode = useLayoutMode()
   if (mode === 'mobile') {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-surface">
+      <div className="flex h-full min-h-0 flex-col bg-surface [--tab-bar-inset:88px]">
         {header}
-        <div className="flex min-h-0 flex-1 flex-col">{body}</div>
-        <div data-slot="tab-bar-spacer" aria-hidden="true" className="h-[88px] shrink-0" />
+        {/* Таб-бар плавает поверх содержимого: прокручиваемые области получают нижний отступ на его высоту. */}
+        <div className="flex min-h-0 flex-1 flex-col [&_.overflow-y-auto]:pb-(--tab-bar-inset)">{body}</div>
         <TabBar items={sections} active={activeSection} onSelect={onSectionChange} />
       </div>
     )

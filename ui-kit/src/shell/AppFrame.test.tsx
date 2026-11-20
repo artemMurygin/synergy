@@ -35,11 +35,11 @@ describe('AppFrame', () => {
     expect(screen.getByText('Содержимое')).toBeTruthy()
   })
 
-  it('shows the floating TabBar with a bottom spacer in mobile mode', () => {
+  it('shows the floating TabBar over the content in mobile mode, without a spacer', () => {
     const { container } = setup('mobile')
     expect(container.querySelector('[data-slot="nav-rail"]')).toBeNull()
     expect(container.querySelector('[data-slot="tab-bar"]')).not.toBeNull()
-    expect(container.querySelector('[data-slot="tab-bar-spacer"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="tab-bar-spacer"]')).toBeNull()
     expect(screen.getByText('Шапка')).toBeTruthy()
   })
 
