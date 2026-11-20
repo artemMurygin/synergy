@@ -7,7 +7,7 @@ export function TabBar({ items, active, onSelect }: Omit<NavProps, 'footer'>) {
     <nav
       data-slot="tab-bar"
       aria-label="Разделы"
-      className="fixed inset-x-6 bottom-3 z-40 mx-auto flex h-16 max-w-[352px] gap-1 rounded-[32px] bg-surface p-[5px] shadow-panel"
+      className="fixed inset-x-6 bottom-2 z-40 mx-auto flex h-16 max-w-[352px] gap-1 rounded-[32px] bg-surface p-[5px] shadow-panel"
     >
       {items.map((item) => {
         const isActive = item.id === active

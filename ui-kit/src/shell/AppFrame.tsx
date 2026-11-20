@@ -18,7 +18,7 @@ export function AppFrame({ nav, header, body, sections, activeSection, onSection
   const mode = useLayoutMode()
   if (mode === 'mobile') {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-surface [--tab-bar-inset:88px]">
+      <div className="flex h-full min-h-0 flex-col bg-surface [--tab-bar-inset:72px]">
         {header}
         {/* Таб-бар плавает поверх содержимого: прокручиваемые области получают нижний отступ на его высоту. */}
         <div className="flex min-h-0 flex-1 flex-col [&_.overflow-y-auto]:pb-(--tab-bar-inset)">{body}</div>

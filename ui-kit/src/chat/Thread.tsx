@@ -158,7 +158,7 @@ export function Thread({
               </ThreadPrimitive.Messages>
               <RunningIndicator serverRunning={serverRunning} />
             </div>
-            <div className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-180 flex-col gap-2.5 pt-3 pb-3 sm:pb-6">
+            <div className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-180 flex-col gap-2.5 pt-3 pb-2 sm:pb-6">
               <div className="pointer-events-none flex justify-center empty:hidden [&>*]:pointer-events-auto">
                 <FeedNewMessage count={messages.length} />
               </div>
