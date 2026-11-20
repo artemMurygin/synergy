@@ -43,7 +43,6 @@ export const BotReplies = {
         `Аккаунт ${escapeHtml(login)} подключён.\n\nДоступные команды:\n${LINKED_COMMANDS}`,
     notificationsDisabled: (): string => 'Уведомления выключены. Включить снова: /unmute',
     notificationsEnabled: (): string => 'Уведомления включены. Выключить: /mute',
-    voiceRecognized: (text: string): string => `Распознал: ${escapeHtml(text)}`,
     voiceTooLong: (): string =>
         'Голосовое длиннее 3 минут, такое я не расшифрую. Запишите покороче или напишите текстом.',
     voiceTooLarge: (): string =>

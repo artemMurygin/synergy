@@ -78,12 +78,6 @@ describe('BotReplies', () => {
         expect(BotReplies.notificationsEnabled()).toContain('/mute');
     });
 
-    it('shows the recognized voice text escaped', () => {
-        expect(BotReplies.voiceRecognized('Позвонить <Ивану> & Ко')).toBe(
-            'Распознал: Позвонить &lt;Ивану&gt; &amp; Ко',
-        );
-    });
-
     it('asks to shorten a voice that is too long or too large', () => {
         expect(BotReplies.voiceTooLong()).toContain('длиннее 3 минут');
         expect(BotReplies.voiceTooLong()).toContain('короче');
@@ -132,7 +126,6 @@ describe('BotReplies', () => {
             BotReplies.help('ivanov'),
             BotReplies.notificationsDisabled(),
             BotReplies.notificationsEnabled(),
-            BotReplies.voiceRecognized('a < b'),
             BotReplies.voiceTooLong(),
             BotReplies.voiceTooLarge(),
             BotReplies.voiceNoSpeech(),

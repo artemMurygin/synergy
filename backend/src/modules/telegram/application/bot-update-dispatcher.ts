@@ -21,7 +21,6 @@ import { FreeTextHandlerPort } from './ports/free-text-handler.port';
 import { TelegramSettingsPort } from './ports/telegram-settings.port';
 import { UpdateDeduplicatorPort } from './ports/update-deduplicator.port';
 import { SetTelegramNotificationsUseCase } from './set-telegram-notifications.use-case';
-import { splitTelegramMessage } from './split-telegram-message';
 import { UnlinkAccountUseCase } from './unlink-account.use-case';
 import { VoiceMessageHandler } from './voice-message-handler';
 
@@ -199,8 +198,6 @@ export class BotUpdateDispatcher {
             await this.sendWhileCurrent(chatId, [transcription.text], isCurrent);
             return null;
         }
-        const echo = splitTelegramMessage(BotReplies.voiceRecognized(transcription.text));
-        await this.sendWhileCurrent(chatId, echo, isCurrent);
         return transcription.text;
     }
 
