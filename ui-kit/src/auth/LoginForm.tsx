@@ -46,7 +46,7 @@ export function LoginForm({
 
   return (
     <AuthScreen>
-      <AuthHeading title={title} subtitle={subtitle} />
+      <AuthHeading title={title} subtitle={subtitle} centered />
       <form noValidate onSubmit={submit} className="flex flex-col gap-6">
         {error ? <AuthAlert title={error} hint={AUTH_RETRY_HINT} /> : null}
         <div className="flex flex-col gap-3.5">

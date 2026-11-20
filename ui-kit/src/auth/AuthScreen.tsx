@@ -14,10 +14,20 @@ export function AuthScreen({ children }: { children: ReactNode }) {
   )
 }
 
-export function AuthHeading({ title, subtitle, level = 1 }: { title: string; subtitle?: string; level?: 1 | 2 }) {
+export function AuthHeading({
+  title,
+  subtitle,
+  level = 1,
+  centered = false,
+}: {
+  title: string
+  subtitle?: string
+  level?: 1 | 2
+  centered?: boolean
+}) {
   const Tag = level === 1 ? 'h1' : 'h2'
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={centered ? 'flex flex-col items-center gap-1.5 text-center' : 'flex flex-col gap-1.5'}>
       <Tag className="font-display text-[26px] leading-[33px] font-bold text-ink">{title}</Tag>
       {subtitle ? <p className="text-sm text-ink-60">{subtitle}</p> : null}
     </div>
