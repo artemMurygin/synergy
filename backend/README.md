@@ -145,6 +145,19 @@ npm run seed:portal
 
 Файлы лежат на диске в `TASKS_STORAGE_DIR` под случайными ключами, метаданные в таблице `task_attachment`. В продакшене каталог нужно монтировать на постоянный том и включать в бэкап вместе с базой: без файлов вложения в БД указывают в пустоту. Миграция `db/migrations/014_tasks.sql` применяется автоматически при старте.
 
+## Голос
+
+`POST /transcriptions/voice` (модуль `transcription`): расшифровка записи для клиентов CC и MH. Нужен Bearer-токен и заголовок `X-Client-App`. Тело: multipart, поле `audio` (audio/* или video/webm, до 5 МБ, до 3 минут); нужен `ffmpeg`/`ffprobe` (как для записей встреч), запись нормализуется в ogg/opus.
+
+| Ответ | Когда |
+| --- | --- |
+| `200 {kind:'text', text}` / `200 {kind:'no-speech'}` | расшифровка готова / речи нет |
+| `400 VOICE_AUDIO_REQUIRED` | нет поля `audio` |
+| `413 VOICE_TOO_LARGE` / `VOICE_TOO_LONG` | больше 5 МБ / длиннее 3 минут |
+| `415 VOICE_UNSUPPORTED_FORMAT` | не аудио |
+| `429 VOICE_RATE_LIMITED` + `Retry-After` | больше `VOICE_TRANSCRIPTION_MAX_PER_MINUTE` (по умолчанию 20) запросов на пользователя в минуту (Redis, при недоступности Redis лимит не применяется) |
+| `503 VOICE_PROVIDER_UNAVAILABLE` | сбой или таймаут провайдера, нет `ffmpeg` |
+
 ## Известные ограничения
 - Повторная постановка уведомления при ретрае аудита дедуплицируется jobId `notify-<dealId>-<updatedAt>-<username>`, пока задача хранится в Redis (последние 1000 завершённых).
 - Задачи аудита не хранятся после завершения (`removeOnComplete`/`removeOnFail`), версии дедуплицируются по `deal_audit(deal_id, deal_updated_at)`.

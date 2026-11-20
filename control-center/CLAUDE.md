@@ -14,6 +14,8 @@
 - `layouts/AppShell.tsx` — AppFrame, NavRail, ProfileMenu, уведомления, `LayoutModeProvider mode="desktop"`; `layouts/ChatLayout.tsx`;
 - `features/tasks/TasksPage.tsx`, `features/auth/AuthGate.tsx`;
 - `features/chat/use-file-upload-port.ts` — `FileUploadPort` поверх `lib/backend/xhr-upload`.
+- `features/chat/use-voice-transcription-port.ts` — голос через `cc-api://backend/transcriptions/voice`;
+- `main/media-permissions.ts` — разрешение `media` (микрофон): обработчики `setPermissionRequestHandler`/`setPermissionCheckHandler` пропускают только audio, остальное отклоняют.
 Запросы, store, IPC остаются здесь; секция — `ui.store.section`.
 
 ## Тесты и проверка

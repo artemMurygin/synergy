@@ -14,6 +14,10 @@
 - `sidepanel/attachments/use-file-upload-port.ts` — XHR + Bearer на `{backendUrl}/files`;
 - `shared/files-api.ts` — `downloadFile`: подписанная ссылка, затем `chrome.downloads.download`.
 
+- `sidepanel/voice/use-voice-transcription-port.ts` — `VoiceTranscriptionPort` поверх `shared/voice-api.ts` (`POST /transcriptions/voice`, `authFetch`);
+- `mic-permission/` (`index.html`, `main.tsx`, `MicPermissionPage.tsx`) — страница расширения `mic-permission.html`: панель не может показать запрос микрофона, `ensureMicrophoneAccess` открывает эту страницу; добавлена во вход сборки в `vite.config.ts`, новых разрешений в manifest нет;
+- `sidepanel/quick-search/` — шторка быстрого подбора: `QuickSearchButton` («Подбор» в слоте `Composer.tools`), `QuickSearchSheet`, `QuickSearchForm`; черновики по чатам только в памяти (`use-quick-search-drafts.ts`).
+
 Разрешение `downloads` в `manifest.config.ts`: при обновлении расширения Chrome покажет запрос нового разрешения, это ожидаемо.
 
 ## Тесты и проверка

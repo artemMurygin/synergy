@@ -85,10 +85,34 @@ const FAILED = ''
 
 const COMPLETE = { type: 'complete', reason: 'unknown' } as const
 
-/** Converts the history into runtime messages; files and source go into `metadata.custom`. */
+/** `durationMs` of the stored tool calls by call id: AG-UI conversion drops the field. */
+function toolDurations(messages: ThreadHistory['messages']): Map<string, number> {
+  const durations = new Map<string, number>()
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue
+    for (const call of message.toolCalls ?? []) {
+      if ('durationMs' in call && typeof call.durationMs === 'number') durations.set(call.id, call.durationMs)
+    }
+  }
+  return durations
+}
+
+/** Converts the history into runtime messages; files and source go into `metadata.custom`, call durations into the artifact. */
 function toThreadMessages(messages: ThreadHistory['messages']) {
   const extras = new Map(messages.map((message) => [message.id, message]))
-  return fromAgUiMessages([...messages]).map((like): ThreadMessage => {
+  const durations = toolDurations(messages)
+  return fromAgUiMessages([...messages]).map((converted): ThreadMessage => {
+    const like =
+      durations.size === 0 || typeof converted.content === 'string'
+        ? converted
+        : {
+            ...converted,
+            content: converted.content.map((part) => {
+              if (part.type !== 'tool-call') return part
+              const durationMs = part.toolCallId === undefined ? undefined : durations.get(part.toolCallId)
+              return durationMs === undefined ? part : { ...part, artifact: { durationMs } }
+            }),
+          }
     const extra = like.id === undefined ? undefined : extras.get(like.id)
     const metadata = like.metadata ?? {}
     const custom = {

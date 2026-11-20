@@ -37,6 +37,13 @@ function Probe() {
   return (
     <div>
       <output data-testid="messages">{JSON.stringify(texts)}</output>
+      <output data-testid="artifacts">
+        {JSON.stringify(
+          messages.flatMap((m) =>
+            m.content.flatMap((p) => (p.type === 'tool-call' ? [p.artifact ?? null] : []))
+          )
+        )}
+      </output>
       <output data-testid="running">{String(running)}</output>
     </div>
   )
@@ -86,6 +93,35 @@ beforeEach(() => {
 })
 
 describe('ChatRuntimeProvider', () => {
+  it('carries the durationMs of a history tool call into the artifact of the tool-call part', async () => {
+    // The server adds durationMs to a stored call: a field the AG-UI type does not know
+    const timed = { id: 'c1', type: 'function' as const, function: { name: 'find', arguments: '{}' }, durationMs: 400 }
+    render(
+      <ChatRuntimeProvider
+        threadId="t1"
+        initialMessages={[
+          { id: 'u1', role: 'user', content: 'вопрос' },
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'готово',
+            toolCalls: [
+              timed,
+              { id: 'c2', type: 'function', function: { name: 'old', arguments: '{}' } }
+            ]
+          },
+          { id: 'c1-result', role: 'tool', toolCallId: 'c1', content: '' },
+          { id: 'c2-result', role: 'tool', toolCallId: 'c2', content: '' }
+        ]}
+      >
+        <Probe />
+      </ChatRuntimeProvider>
+    )
+    await waitFor(() => {
+      expect(JSON.parse(screen.getByTestId('artifacts').textContent)).toEqual([{ durationMs: 400 }, null])
+    })
+  })
+
   it('shows the initial history in chronological order', async () => {
     mount()
     await waitFor(() => {

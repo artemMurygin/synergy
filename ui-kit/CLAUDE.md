@@ -58,6 +58,13 @@
 - `Toast`: `ToastProvider` (один раз в корне) + `useToast()` -> `show({tone, title, description?, action?, persistent?})`, `dismiss(id)`; успех скрывается сам, ошибка с `persistent` остаётся до закрытия; `aria-live` polite/assertive; не больше 3 одновременно.
 - `Calendar` (`value`, `onChange`, `today?`): Intl ru, неделя с понедельника, сетка 7×6; стрелки, Home/End, PageUp/PageDown, Enter.
 
+## Чат: голос, перезапуск, связь
+
+- Голос: `useVoiceInput(port)` + порт `VoiceTranscriptionPort` (`transcribe(audio, {signal})`, необязательный `ensureMicrophoneAccess()`); запрос на `POST /transcriptions/voice` и разрешение микрофона — в приложении. Результат `VoiceTranscript` (`text`/`no-speech`) вставляется в поле, автоотправки нет; ошибки — `VoiceError` (коды `VOICE_*`, `microphone-denied`).
+- Перезапуск с сообщения: `withReplaceFrom(agent, takePending)` кладёт `forwardedProps.replaceFromMessageId` (рядом с `withFileIds`); `useServerMessageIds` по CUSTOM `user-message-saved` (`USER_MESSAGE_SAVED_EVENT`) знает серверный id вопроса, «Изменить» показывается только при известном id и `editable`. После ответа приложение перечитывает историю (`thread.import`).
+- Связь: `useServerReachability` даёт `connection: 'online'|'offline'`; `Thread` получает `connection` и `onProbe` (проверка `GET /health`, колбэк в приложении); при offline Composer заблокирован, черновик остаётся.
+- `durationMs` вызова инструмента: из потока считает клиент, из истории берётся `artifact.durationMs` части tool-call (приложение переносит его из ответа `GET /threads/:id/messages`).
+
 ## Как добавить компонент
 
 1. Сначала мастер в `design/design-kit.lib.pen` (через `mcp__pencil__*`), состояния и три формата.

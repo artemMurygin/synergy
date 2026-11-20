@@ -62,6 +62,13 @@ function Probe() {
       <output data-testid="custom">
         {JSON.stringify(messages.map((m) => m.metadata.custom))}
       </output>
+      <output data-testid="artifacts">
+        {JSON.stringify(
+          messages.flatMap((m) =>
+            m.content.flatMap((p) => (p.type === 'tool-call' ? [p.artifact ?? null] : [])),
+          ),
+        )}
+      </output>
       <output data-testid="running">{String(running)}</output>
     </div>
   )
@@ -118,6 +125,7 @@ function mount(setup: Setup = {}) {
     },
     messages: (): unknown => JSON.parse(view.getByTestId('messages').textContent),
     custom: (): unknown => JSON.parse(view.getByTestId('custom').textContent),
+    artifacts: (): unknown => JSON.parse(view.getByTestId('artifacts').textContent),
   }
 }
 
@@ -237,6 +245,29 @@ describe('ChatRuntimeProvider', () => {
       { attachments: [file], source: 'run' },
       { attachments: [], source: 'system' },
     ])
+  })
+
+  it('carries the durationMs of a history tool call into the artifact of the tool-call part', async () => {
+    // The server adds durationMs to a stored call: a field the AG-UI type does not know
+    const timed = { id: 'c1', type: 'function' as const, function: { name: 'find', arguments: '{}' }, durationMs: 400 }
+    vi.mocked(getThread).mockResolvedValue({
+      running: false,
+      messages: [
+        { id: 'm1', role: 'user', content: 'вопрос' },
+        {
+          id: 'm2',
+          role: 'assistant',
+          content: 'готово',
+          toolCalls: [timed, { id: 'c2', type: 'function', function: { name: 'old', arguments: '{}' } }],
+        },
+        { id: 'c1-result', role: 'tool', toolCallId: 'c1', content: '' },
+        { id: 'c2-result', role: 'tool', toolCallId: 'c2', content: '' },
+      ],
+    })
+    const view = mount()
+    await waitFor(() => {
+      expect(view.artifacts()).toEqual([{ durationMs: 400 }, null])
+    })
   })
 
   it('onSwitchToThread loads the history of the active chat as AG-UI messages', async () => {
